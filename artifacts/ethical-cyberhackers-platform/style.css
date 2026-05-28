@@ -1121,10 +1121,27 @@ button {
   letter-spacing: 0.5px;
 }
 
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-md);
+}
+
 .footer-version {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--color-text-muted);
+}
+
+/* Build timestamp — shown next to the version number.
+   Slightly dimmer than the version so it reads as secondary info. */
+.footer-build {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  opacity: 0.55;
+  border-left: 1px solid var(--color-border);
+  padding-left: var(--gap-md);
 }
 
 

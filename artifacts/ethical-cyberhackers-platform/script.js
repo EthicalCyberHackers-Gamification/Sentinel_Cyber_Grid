@@ -45,6 +45,13 @@ const MAX_XP = 1000;
 /** Starting rank name. */
 const INITIAL_RANK = "Script Kiddie";
 
+/**
+ * Build timestamp — update this string whenever you push a revision.
+ * It appears in the footer so you can confirm you are running the latest version.
+ * Format: "DD Mon YYYY — HH:MM UTC"
+ */
+const BUILD_TIME = "28 May 2026 — 05:30 UTC";
+
 /** Boot messages shown in the terminal on load and after every restart. */
 const BOOT_MESSAGES = [
   { type: "system", text: "Ethical CyberHackers Platform v1.0.0 \u2014 Boot sequence complete." },
@@ -736,6 +743,10 @@ function boot() {
   if (mission && mission.timeLimitSec > 0) {
     startTimer(mission.timeLimitSec);
   }
+
+  // Inject the build timestamp into the footer so it's always visible
+  const buildEl = document.getElementById("buildTimestamp");
+  if (buildEl) buildEl.textContent = `build: ${BUILD_TIME}`;
 
   initTerminalInput();
   if (terminalInput) terminalInput.focus();
