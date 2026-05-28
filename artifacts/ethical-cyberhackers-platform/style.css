@@ -1265,6 +1265,95 @@ button {
   font-style: italic;
 }
 
+/* ======================================================
+   Milestone 24B — Threat Level Meter (Phase B)
+   ------------------------------------------------------
+   Quiet, low-key meter under the Evidence panel on both
+   mission dashboards. Same chrome powers #threatMeter
+   and #m2ThreatMeter. The meter color-shifts based on
+   the .threat-meter--<level> modifier.
+   ====================================================== */
+.threat-meter {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(74, 222, 128, 0.18);
+}
+.threat-meter .objectives-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.threat-meter-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-bg, #0b1220);
+  background: #94a3b8;
+  border-radius: 9px;
+}
+.threat-meter-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin: 8px 0 6px;
+}
+.threat-meter-segment {
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(148, 163, 184, 0.18);
+}
+.threat-meter-segment--on {
+  background: #94a3b8;
+}
+.threat-meter-caption {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(226, 232, 240, 0.55);
+  font-style: italic;
+}
+
+/* Level color tokens — used by both the pill and the lit segments. */
+.threat-meter--low .threat-meter-pill,
+.threat-meter--low .threat-meter-segment--on {
+  background: #4ade80;
+}
+.threat-meter--medium .threat-meter-pill,
+.threat-meter--medium .threat-meter-segment--on {
+  background: #facc15;
+}
+.threat-meter--high .threat-meter-pill,
+.threat-meter--high .threat-meter-segment--on {
+  background: #fb923c;
+}
+.threat-meter--critical .threat-meter-pill,
+.threat-meter--critical .threat-meter-segment--on {
+  background: #ef4444;
+}
+.threat-meter--critical {
+  animation: threat-critical-pulse 1.8s ease-in-out infinite;
+}
+@keyframes threat-critical-pulse {
+  0%, 100% { box-shadow: none; }
+  50%      { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.0); }
+}
+
+/* Scorecard row variant — final threat level on completion screen. */
+.scorecard-val--threat {
+  font-weight: 700;
+}
+.scorecard-val--threat-low      { color: #4ade80; }
+.scorecard-val--threat-medium   { color: #facc15; }
+.scorecard-val--threat-high     { color: #fb923c; }
+.scorecard-val--threat-critical { color: #ef4444; }
+
 /* Milestone 23G — Phase A baseline label.
    Small, quiet pill in the footer that signals the platform has
    reached the "Mission Engine Ready" baseline. Intentionally low-key

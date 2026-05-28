@@ -1,0 +1,88 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Phase A Baseline is complete.
+* Mission Engine is ready.
+* Evidence Collection System works.
+* Mission 1 and Mission 2 collect evidence.
+* Everything is frontend-only.
+
+Now implement Phase B — Milestone 24B: Threat Level Meter.
+
+Purpose:
+Students should see that cybersecurity investigations have risk levels. As evidence is discovered and correct actions are taken, the threat level should update visually.
+
+Requirements:
+
+1. Do not add Mission 3 yet.
+
+2. Do not redesign the UI.
+
+3. Do not break Mission 1 or Mission 2.
+
+4. Add a “Threat Level” panel or meter to the dashboard.
+
+5. Threat level should support:
+
+* Low
+* Medium
+* High
+* Critical
+
+6. At the start of Mission 1:
+   Threat Level = Medium
+
+7. When suspicious_file.txt is read:
+   Threat Level = High
+
+8. When the finding is submitted correctly:
+   Threat Level = Medium
+
+9. When Mission 1 is completed:
+   Threat Level = Low
+
+10. At the start of Mission 2:
+    Threat Level = Medium
+
+11. After nmap output shows open services:
+    Threat Level = High
+
+12. After service review is completed:
+    Threat Level = Medium
+
+13. After Mission 2 is completed:
+    Threat Level = Low
+
+14. Add reusable functions:
+
+* setThreatLevel(level)
+* getThreatLevel()
+* renderThreatLevel()
+* resetThreatLevelForMission(missionId)
+
+15. Add visual styling:
+
+* Low should look calm/safe
+* Medium should look cautionary
+* High should look urgent
+* Critical should look severe
+
+Use CSS classes. Do not overdesign.
+
+16. Add short explanatory text:
+    “Threat level changes as the investigation develops.”
+
+17. Restarting a mission should reset that mission’s threat level.
+
+18. Completing a mission should include final threat level in the scorecard.
+
+19. Keep all logic frontend-only.
+
+20. Do not add backend, database, authentication, AI, or new pages.
+
+21. Add comments explaining:
+    “The threat level meter prepares the platform for future decision consequences.”
+
+Goal:
+By the end of this step, students should see threat level change as they discover and resolve cybersecurity concerns.

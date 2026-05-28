@@ -325,6 +325,26 @@
             <h3 class="objectives-title">Evidence Collected</h3>
             <p class="evidence-empty">No evidence collected yet.</p>
           </div>
+
+          <!-- ===== THREAT LEVEL METER (Milestone 24B — Phase B) =====
+               Mission 2's threat meter. Populated by
+               renderThreatLevel("mission-002"). The threat level meter
+               prepares the platform for future decision consequences. -->
+          <div id="m2ThreatMeter" class="threat-meter threat-meter--medium">
+            <h3 class="objectives-title">
+              Threat Level
+              <span class="threat-meter-pill">Medium</span>
+            </h3>
+            <div class="threat-meter-bar">
+              <span class="threat-meter-segment threat-meter-segment--on"></span>
+              <span class="threat-meter-segment threat-meter-segment--on"></span>
+              <span class="threat-meter-segment"></span>
+              <span class="threat-meter-segment"></span>
+            </div>
+            <p class="threat-meter-caption">
+              Threat level changes as the investigation develops.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -655,6 +675,26 @@
           <div id="evidencePanel" class="evidence-panel">
             <h3 class="objectives-title">Evidence Collected</h3>
             <p class="evidence-empty">No evidence collected yet.</p>
+          </div>
+
+          <!-- ===== THREAT LEVEL METER (Milestone 24B — Phase B) =====
+               Populated by renderThreatLevel("mission-001") on boot
+               and on every state transition. The threat level meter
+               prepares the platform for future decision consequences. -->
+          <div id="threatMeter" class="threat-meter threat-meter--medium">
+            <h3 class="objectives-title">
+              Threat Level
+              <span class="threat-meter-pill">Medium</span>
+            </h3>
+            <div class="threat-meter-bar">
+              <span class="threat-meter-segment threat-meter-segment--on"></span>
+              <span class="threat-meter-segment threat-meter-segment--on"></span>
+              <span class="threat-meter-segment"></span>
+              <span class="threat-meter-segment"></span>
+            </div>
+            <p class="threat-meter-caption">
+              Threat level changes as the investigation develops.
+            </p>
           </div>
         </div>
       </section>

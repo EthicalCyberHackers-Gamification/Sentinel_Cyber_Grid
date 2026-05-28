@@ -70,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 14:10 CST";
+const BUILD_TIME = "28 May 2026 — 15:35 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -188,6 +188,92 @@ function renderEvidencePanel(missionId) {
   `;
 }
 
+/* ============================================================
+   Milestone 24B — Threat Level Meter (Phase B)
+   ------------------------------------------------------------
+   The threat level meter prepares the platform for future
+   decision consequences. Each mission tracks a single threat
+   level that rises when fresh indicators of compromise are
+   surfaced (e.g. reading a suspicious file, finding open
+   services) and falls when the analyst takes a corrective
+   step (submitting a finding, completing a review, finishing
+   the mission). Phase B systems (trust score, dynamic
+   manager reactions, decision branching) will read from
+   threatLevelByMission to react to investigation pressure.
+
+   Levels (ordered low → severe):
+     "Low" | "Medium" | "High" | "Critical"
+   ============================================================ */
+const THREAT_LEVELS = ["Low", "Medium", "High", "Critical"];
+const DEFAULT_THREAT_LEVEL = "Medium";
+
+const threatLevelByMission = {
+  "mission-001": DEFAULT_THREAT_LEVEL,
+  "mission-002": DEFAULT_THREAT_LEVEL,
+};
+
+/** Returns true if the given string is a recognized threat level. */
+function isValidThreatLevel(level) {
+  return typeof level === "string" && THREAT_LEVELS.indexOf(level) >= 0;
+}
+
+/** Read the current threat level for a mission (defaults to active mission). */
+function getThreatLevel(missionId) {
+  const mid = missionId || getActiveMissionId();
+  return threatLevelByMission[mid] || DEFAULT_THREAT_LEVEL;
+}
+
+/**
+ * Set the threat level for a mission. Re-renders the meter and persists.
+ * Invalid levels are ignored so callers can pass through user-derived
+ * values without crashing. Returns the resolved level.
+ */
+function setThreatLevel(level, missionId) {
+  const mid = missionId || getActiveMissionId();
+  if (!isValidThreatLevel(level)) return getThreatLevel(mid);
+  threatLevelByMission[mid] = level;
+  renderThreatLevel(mid);
+  try { saveProgress(); } catch (_) { /* save errors are non-fatal */ }
+  return level;
+}
+
+/** Reset a mission's threat level back to the starting baseline (Medium). */
+function resetThreatLevelForMission(missionId) {
+  const mid = missionId || getActiveMissionId();
+  threatLevelByMission[mid] = DEFAULT_THREAT_LEVEL;
+  renderThreatLevel(mid);
+  try { saveProgress(); } catch (_) { /* save errors are non-fatal */ }
+}
+
+/** Render the threat-level panel for the given mission id. */
+function renderThreatLevel(missionId) {
+  const mid    = missionId || getActiveMissionId();
+  const hostId = mid === "mission-002" ? "m2ThreatMeter" : "threatMeter";
+  const host   = document.getElementById(hostId);
+  if (!host) return;
+  const level    = getThreatLevel(mid);
+  const cssLevel = level.toLowerCase();
+  // Map level → readable indicator (4 segments filled progressively).
+  const filled = Math.max(1, THREAT_LEVELS.indexOf(level) + 1);
+  const segments = THREAT_LEVELS.map((_, i) =>
+    `<span class="threat-meter-segment ${i < filled ? "threat-meter-segment--on" : ""}"></span>`
+  ).join("");
+
+  host.className = `threat-meter threat-meter--${cssLevel}`;
+  host.innerHTML = `
+    <h3 class="objectives-title">
+      Threat Level
+      <span class="threat-meter-pill">${escapeHtml(level)}</span>
+    </h3>
+    <div class="threat-meter-bar" aria-label="Threat level: ${escapeHtml(level)}">
+      ${segments}
+    </div>
+    <p class="threat-meter-caption">
+      Threat level changes as the investigation develops.
+    </p>
+  `;
+}
+
 /** Returns an array of plain-text evidence strings for a mission. */
 function getEvidenceList(missionId) {
   const mid = missionId || getActiveMissionId();
@@ -230,8 +316,14 @@ function loadSavedProgress() {
   }
 }
 
+/* When true, saveProgress() silently no-ops. Used by clearSavedProgress()
+   so the downstream reset helpers (which normally persist) don't immediately
+   repopulate STORAGE_KEY after we wiped it. */
+let suppressSave = false;
+
 /** Write the current in-memory state to localStorage. Safe no-op on error. */
 function saveProgress() {
+  if (suppressSave) return;
   try {
     const data = {
       studentName,
@@ -243,6 +335,9 @@ function saveProgress() {
       mission2Complete: !!mission2Complete,
       // Milestone 24A — persist collected evidence so it survives reload.
       evidence: (typeof evidenceLog === "object" && evidenceLog) ? evidenceLog : {},
+      // Milestone 24B — persist per-mission threat level so it survives reload.
+      threatLevels: (typeof threatLevelByMission === "object" && threatLevelByMission)
+        ? threatLevelByMission : {},
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -350,6 +445,16 @@ function restoreSavedProgress() {
     renderEvidencePanel("mission-002");
   }
 
+  // 7. Milestone 24B — restore threat levels (validated against THREAT_LEVELS).
+  if (data.threatLevels && typeof data.threatLevels === "object") {
+    ["mission-001", "mission-002"].forEach((mid) => {
+      const lvl = data.threatLevels[mid];
+      if (isValidThreatLevel(lvl)) threatLevelByMission[mid] = lvl;
+    });
+    renderThreatLevel("mission-001");
+    renderThreatLevel("mission-002");
+  }
+
   updateSaveIndicator(true);
 }
 
@@ -371,18 +476,24 @@ function clearSavedProgress() {
   const welcomeEl = document.getElementById("welcomeMessage");
   if (welcomeEl) welcomeEl.innerHTML = "";
 
-  // Reset Mission 1 gameplay + XP + rank + badge + course progress + tracker.
-  // resetMission() handles all of that without touching localStorage.
-  resetMission();
+  // Milestone 24B fix — resetMission()/resetMission2() now reach
+  // clearEvidenceForMission() and resetThreatLevelForMission(), both of
+  // which normally call saveProgress(). That would re-populate STORAGE_KEY
+  // immediately after we just wiped it. Suppress saves for the duration
+  // of the wipe so the cleared state actually sticks.
+  suppressSave = true;
+  try {
+    // Reset Mission 1 gameplay + XP + rank + badge + course progress + tracker.
+    resetMission();
+    // Milestone 20 — also reset Mission 2 state + UI.
+    resetMission2();
+  } finally {
+    suppressSave = false;
+  }
 
-  // resetMission ran with the now-cleared studentName, so save would write
-  // a fresh empty record. We don't want that — leave storage empty. The
-  // indicator update below reflects "no saved progress".
+  // We deliberately do NOT call saveProgress() here — leave storage empty.
   updateSaveIndicator(false);
 
-  // Milestone 20 — also reset Mission 2 state + UI (the overview is no
-  // longer reachable once Mission 1 is re-locked, but be defensive).
-  resetMission2();
   // If the M2 overview is currently showing, return the user to landing.
   const overview = document.getElementById("mission2Overview");
   if (overview && overview.style.display !== "none") {
@@ -906,6 +1017,8 @@ function afterCommand(buttonKey) {
       "Suspicious password request found in suspicious_file.txt",
       "mission-001"
     );
+    // Milestone 24B — fresh indicator-of-compromise → threat rises.
+    setThreatLevel("High", "mission-001");
     setTimeout(showFindingPanel, 800);
   }
 
@@ -1132,6 +1245,8 @@ function handleFindingAnswer(answerId) {
     setManagerMessage("findingCorrect");
     // Milestone 15: tracker — Submit Finding complete; Quiz is now current
     markProgressStep("submit-finding");
+    // Milestone 24B — analyst submitted correct finding → threat eases.
+    setThreatLevel("Medium", "mission-001");
 
     // 2. Append a small Analyst Report summary card
     const report = document.createElement("div");
@@ -1385,6 +1500,9 @@ function completeMission(newRank) {
   // Milestone 13: supervisor's closing message
   setManagerMessage("missionComplete");
 
+  // Milestone 24B — mission complete → workstation is now safe (Low).
+  setThreatLevel("Low", "mission-001");
+
   // Milestone 15: mark every step complete (spec #8). The loop is a safety
   // net in case any earlier step's hook didn't fire (e.g. the optional
   // "cat-employee-notes" path); the final "complete" step is always set here.
@@ -1494,6 +1612,11 @@ function buildCompletionHTML(newRank) {
           <li class="scorecard-row">
             <span class="scorecard-key">Rank</span>
             <span class="scorecard-val scorecard-val--yellow">${newRank}</span>
+          </li>
+          <!-- Milestone 24B — final threat level recorded for this mission. -->
+          <li class="scorecard-row">
+            <span class="scorecard-key">Final Threat Level</span>
+            <span class="scorecard-val scorecard-val--threat scorecard-val--threat-${getThreatLevel("mission-001").toLowerCase()}">${escapeHtml(getThreatLevel("mission-001"))}</span>
           </li>
         </ul>
 
@@ -1706,6 +1829,8 @@ function resetMission() {
 
   // Milestone 24A — restarting Mission 1 clears only Mission 1's evidence.
   clearEvidenceForMission("mission-001");
+  // Milestone 24B — restart resets Mission 1's threat level to baseline.
+  resetThreatLevelForMission("mission-001");
 
   // Pre-populate the starting buttons (they stay hidden until Begin Mission)
   COMMAND_BUTTONS.forEach((btn) => {
@@ -2362,6 +2487,11 @@ function beginMission2() {
 
   // Print a small system line in the terminal so it's not empty
   printM2Line("[ Mission 2 environment ready ]", "m2-line--info");
+
+  // Milestone 24B — mission starts at baseline threat. resetThreatLevel..()
+  // already runs on a fresh page, but call it explicitly here so a returning
+  // student who left Mission 2 mid-way starts the replay from Medium too.
+  setThreatLevel("Medium", "mission-002");
 }
 
 /** Return from the Mission 2 Dashboard back to the Mission 2 Overview.
@@ -2403,6 +2533,8 @@ function runM2Command(key) {
       "Target host exposes SSH, HTTP, and HTTPS services",
       "mission-002"
     );
+    // Milestone 24B — open services discovered → threat rises.
+    setThreatLevel("High", "mission-002");
   }
   if (key === "review") {
     addEvidence(
@@ -2410,6 +2542,8 @@ function runM2Command(key) {
       "Multiple exposed services require security review",
       "mission-002"
     );
+    // Milestone 24B — analyst has reviewed and flagged the services → threat eases.
+    setThreatLevel("Medium", "mission-002");
   }
 
   // Milestone 21 — after the final command (review services), reveal the
@@ -2625,6 +2759,9 @@ function handleM2QuizAnswer(letter) {
   setM2ManagerMessage("Outstanding, Agent. You've completed Mission 2. Review your scorecard and prepare for Mission 3.");
   renderCourseProgress();
 
+  // Milestone 24B — Mission 2 complete → network secured (Low).
+  setThreatLevel("Low", "mission-002");
+
   // Replace the analyst review host content with the completion + scorecard
   // (keeps everything inside the COMMANDS panel — same pattern as M1).
   setTimeout(() => renderM2Scorecard(), 1200);
@@ -2678,6 +2815,11 @@ function renderM2Scorecard() {
           <li class="scorecard-row">
             <span class="scorecard-key">Rank</span>
             <span class="scorecard-val scorecard-val--yellow">${escapeHtml(currentRank)}</span>
+          </li>
+          <!-- Milestone 24B — final threat level recorded for this mission. -->
+          <li class="scorecard-row">
+            <span class="scorecard-key">Final Threat Level</span>
+            <span class="scorecard-val scorecard-val--threat scorecard-val--threat-${getThreatLevel("mission-002").toLowerCase()}">${escapeHtml(getThreatLevel("mission-002"))}</span>
           </li>
         </ul>
 
@@ -2833,6 +2975,8 @@ function resetMission2() {
   mission2Complete  = false;
   // Milestone 24A — restarting Mission 2 clears only Mission 2's evidence.
   clearEvidenceForMission("mission-002");
+  // Milestone 24B — restart resets Mission 2's threat level to baseline.
+  resetThreatLevelForMission("mission-002");
   // Persist — clears mission2Complete flag from localStorage too
   saveProgress();
   // Course progress reflects the regression (M2 back to "Unlocked")
@@ -3160,6 +3304,13 @@ window.MissionEngine = {
   clearEvidenceForMission,
   getEvidenceList,
   evidenceLog,
+  // 24B — threat level meter (Phase B)
+  THREAT_LEVELS,
+  setThreatLevel,
+  getThreatLevel,
+  renderThreatLevel,
+  resetThreatLevelForMission,
+  threatLevelByMission,
 };
 
 
