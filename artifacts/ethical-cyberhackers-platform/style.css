@@ -1478,98 +1478,154 @@ button {
 
 /* ======================================================
    MISSION PROGRESS TRACKER  (Milestone 15)
-   10-step lifecycle tracker. Three visual states:
-   locked (dim), current (cyan + pulse), complete (green).
+   Horizontal 10-step stepper. A connector rail runs behind
+   the nodes; a green fill grows from left to right up to
+   the current step. Three node states: locked / current /
+   complete.
    ====================================================== */
 
 .progress-tracker {
   margin-top: var(--gap-md);
-  padding: 10px 12px;
+  padding: 12px 14px 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: rgba(0,0,0,0.2);
 }
 .progress-tracker .objectives-title {
-  margin: 0 0 8px 0;
+  margin: 0 0 14px 0;
 }
 
-.progress-tracker-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Wrapper allows horizontal scroll on narrow screens rather than
+   wrapping the bar into multiple rows. */
+.progress-tracker-wrap {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.progress-tracker-bar {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 100%;
+  padding: 0 4px;
+}
+
+/* Connector rail — sits behind the nodes, centered on the node row */
+.progress-tracker-rail,
+.progress-tracker-rail-fill {
+  position: absolute;
+  top: 11px;            /* half of node height (22px) */
+  left: 18px;
+  right: 18px;
+  height: 2px;
+  border-radius: 1px;
+  pointer-events: none;
+}
+.progress-tracker-rail {
+  background: rgba(255,255,255,0.10);
+}
+.progress-tracker-rail-fill {
+  background: linear-gradient(90deg, var(--color-green), var(--color-cyan));
+  box-shadow: 0 0 8px rgba(0,255,136,0.4);
+  width: 0%;
+  max-width: calc(100% - 0px);
+  transition: width 0.5s ease;
+}
+
+.progress-tracker-step {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 0;
+  min-width: 56px;
 }
 
-.progress-tracker-item {
+.progress-tracker-node {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm, 4px);
-  border-left: 2px solid transparent;
-  font-size: 12px;
-  transition: background 0.25s ease, border-color 0.25s ease, opacity 0.25s ease;
-}
-
-.progress-tracker-icon {
+  justify-content: center;
   font-family: var(--font-mono);
-  font-size: 12px;
-  width: 14px;
-  text-align: center;
-  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  border: 1.5px solid;
+  background: var(--color-bg, #0a0e14);
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.25s ease;
 }
 
-.progress-tracker-label {
-  flex: 1;
-  color: var(--color-text);
-}
-
-.progress-tracker-status {
+.progress-tracker-caption {
   font-family: var(--font-mono);
   font-size: 8.5px;
-  letter-spacing: 1px;
-  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.25;
+  max-width: 70px;
+  white-space: normal;
 }
 
 /* --- locked --- */
-.progress-tracker-item--locked {
-  opacity: 0.45;
-  border-left-color: rgba(255,255,255,0.08);
-}
-.progress-tracker-item--locked .progress-tracker-icon,
-.progress-tracker-item--locked .progress-tracker-status {
+.progress-tracker-step--locked .progress-tracker-node {
+  border-color: rgba(255,255,255,0.18);
   color: var(--color-text-dim);
 }
-
-/* --- current --- */
-.progress-tracker-item--current {
-  background: rgba(0,229,255,0.07);
-  border-left-color: var(--color-cyan);
-  animation: trackerCurrentPulse 2s ease-in-out infinite;
+.progress-tracker-step--locked .progress-tracker-caption {
+  color: var(--color-text-dim);
+  opacity: 0.55;
 }
-.progress-tracker-item--current .progress-tracker-icon,
-.progress-tracker-item--current .progress-tracker-status,
-.progress-tracker-item--current .progress-tracker-label {
+
+/* --- current (cyan + pulsing ring) --- */
+.progress-tracker-step--current .progress-tracker-node {
+  border-color: var(--color-cyan);
   color: var(--color-cyan);
+  transform: scale(1.15);
+  animation: trackerNodePulse 1.6s ease-in-out infinite;
 }
-@keyframes trackerCurrentPulse {
-  0%, 100% { box-shadow: inset 2px 0 0 0 rgba(0,229,255,0.5); }
-  50%      { box-shadow: inset 2px 0 0 0 rgba(0,229,255,1);   }
+.progress-tracker-step--current .progress-tracker-caption {
+  color: var(--color-cyan);
+  font-weight: 700;
+}
+@keyframes trackerNodePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,229,255,0.55); }
+  50%      { box-shadow: 0 0 0 6px rgba(0,229,255,0);  }
 }
 
-/* --- complete --- */
-.progress-tracker-item--complete {
-  background: rgba(0,255,136,0.05);
-  border-left-color: var(--color-green);
+/* --- complete (filled green) --- */
+.progress-tracker-step--complete .progress-tracker-node {
+  border-color: var(--color-green);
+  background: var(--color-green);
+  color: #001a0d;
 }
-.progress-tracker-item--complete .progress-tracker-icon,
-.progress-tracker-item--complete .progress-tracker-status {
-  color: var(--color-green);
-}
-.progress-tracker-item--complete .progress-tracker-label {
+.progress-tracker-step--complete .progress-tracker-caption {
   color: var(--color-text);
+}
+
+/* Meta row under the bar */
+.progress-tracker-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.progress-tracker-meta-count {
+  color: var(--color-cyan);
+  font-weight: 700;
+  font-size: 12px;
+}
+.progress-tracker-meta-label {
+  color: var(--color-text-dim);
 }
 
 

@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 03:50 CST";
+const BUILD_TIME = "28 May 2026 — 04:05 CST";
 
 
 /* ============================================================
@@ -1482,25 +1482,44 @@ function renderProgressTracker() {
     (s) => !completedProgressSteps.has(s.id)
   );
 
-  el.innerHTML = PROGRESS_STEPS.map((step, i) => {
-    let status;
-    if (completedProgressSteps.has(step.id))      status = "complete";
-    else if (i === currentIdx)                    status = "current";
-    else                                          status = "locked";
+  // Overall % complete — used to fill the connector bar behind the nodes.
+  const completedCount = PROGRESS_STEPS.filter((s) =>
+    completedProgressSteps.has(s.id)
+  ).length;
+  // The "filled" portion runs from the first node to the current node.
+  // With N nodes, each gap is 1/(N-1). Stop the fill at the current node
+  // (or 100% when everything is complete).
+  const fillIdx = currentIdx === -1 ? PROGRESS_STEPS.length - 1 : currentIdx;
+  const fillPct = (fillIdx / (PROGRESS_STEPS.length - 1)) * 100;
 
-    const icon =
-      status === "complete" ? "✓" :
-      status === "current"  ? "▸" :
-                              "•";
+  el.innerHTML = `
+    <div class="progress-tracker-bar" role="list" aria-label="Mission progress">
+      <div class="progress-tracker-rail" aria-hidden="true"></div>
+      <div class="progress-tracker-rail-fill" aria-hidden="true" style="width:${fillPct}%;"></div>
+      ${PROGRESS_STEPS.map((step, i) => {
+        let status;
+        if (completedProgressSteps.has(step.id))      status = "complete";
+        else if (i === currentIdx)                    status = "current";
+        else                                          status = "locked";
 
-    return `
-      <li class="progress-tracker-item progress-tracker-item--${status}">
-        <span class="progress-tracker-icon" aria-hidden="true">${icon}</span>
-        <span class="progress-tracker-label">${step.label}</span>
-        <span class="progress-tracker-status">${status.toUpperCase()}</span>
-      </li>
-    `;
-  }).join("");
+        const symbol = status === "complete" ? "✓" : (i + 1);
+
+        return `
+          <div class="progress-tracker-step progress-tracker-step--${status}"
+               role="listitem"
+               aria-current="${status === "current" ? "step" : "false"}"
+               title="${step.label} — ${status.toUpperCase()}">
+            <div class="progress-tracker-node">${symbol}</div>
+            <div class="progress-tracker-caption">${step.label}</div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+    <div class="progress-tracker-meta">
+      <span class="progress-tracker-meta-count">${completedCount} / ${PROGRESS_STEPS.length}</span>
+      <span class="progress-tracker-meta-label">steps complete</span>
+    </div>
+  `;
 }
 
 /** Marks a single step as complete and re-renders. Safe to call twice. */
