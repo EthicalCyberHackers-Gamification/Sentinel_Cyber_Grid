@@ -1460,6 +1460,131 @@ button {
 
 
 /* ======================================================
+   MISSION COMPLETE SCREEN  (Milestone 4)
+   Replaces the quiz panel after a correct answer.
+   ====================================================== */
+
+/* Outer wrapper — slides in from below */
+.completion-screen {
+  animation: completion-appear 0.4s ease both;
+}
+
+@keyframes completion-appear {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* Header row: trophy icon + title + subtitle */
+.completion-header {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-md);
+  padding: var(--gap-md);
+  background: linear-gradient(135deg, rgba(0,255,136,0.08), rgba(0,229,255,0.04));
+  border: 1px solid rgba(0,255,136,0.3);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--gap-md);
+}
+
+.completion-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 10px rgba(255,215,0,0.55));
+}
+
+.completion-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.completion-title {
+  font-family: var(--font-hud);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-green);
+  text-shadow: 0 0 12px rgba(0,255,136,0.45);
+  letter-spacing: 1px;
+}
+
+.completion-subtitle {
+  font-size: 12px;
+  color: var(--color-text-dim);
+}
+
+/* Three summary rows */
+.completion-summary {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
+  margin-bottom: var(--gap-md);
+}
+
+.completion-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  padding: var(--gap-sm) var(--gap-md);
+  background: var(--color-bg-panel-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.completion-row-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.completion-row-label {
+  flex: 1;
+  color: var(--color-text-dim);
+  font-family: var(--font-mono);
+}
+
+.completion-row-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.completion-row-value--green  { color: var(--color-green); }
+.completion-row-value--cyan   { color: var(--color-cyan);  }
+.completion-row-value--yellow { color: var(--color-yellow); }
+
+/* Restart Mission button */
+.restart-btn {
+  width: 100%;
+  padding: var(--gap-sm) var(--gap-md);
+  background: transparent;
+  border: 1px solid rgba(0,229,255,0.35);
+  border-radius: var(--radius-md);
+  color: var(--color-cyan);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: center;
+}
+
+.restart-btn:hover {
+  background: rgba(0,229,255,0.07);
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 12px rgba(0,229,255,0.15);
+  transform: translateY(-1px);
+}
+
+.restart-btn:active {
+  transform: translateY(0);
+}
+
+
+/* ======================================================
    UTILITY ANIMATIONS
    ====================================================== */
 

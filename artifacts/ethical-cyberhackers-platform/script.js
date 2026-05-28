@@ -1,19 +1,21 @@
 /**
  * script.js
  * ---------
- * Ethical CyberHackers Platform — Milestone 3: Quiz & XP Reward
+ * Ethical CyberHackers Platform
+ * Milestones 1-4: terminal simulation, progressive unlock, quiz, reset
  *
- * FLOW THIS FILE IMPLEMENTS
- * -------------------------
- *  1. Student clicks buttons → terminal shows output (Milestone 1 & 2)
- *  2. Commands unlock gradually as the student investigates (Milestone 2)
- *  3. After reading suspicious_file.txt → a quiz appears (Milestone 3)
- *  4. Correct answer → +100 XP, rank update, "Mission Complete"
- *  5. Wrong answer   → "Not correct. Review the suspicious file again."
+ * FLOW
+ * ----
+ *  1. Student clicks command buttons → terminal output (M1, M2)
+ *  2. Commands unlock gradually as investigation progresses (M2)
+ *  3. After reading suspicious_file.txt → quiz appears (M3)
+ *  4. Correct answer → XP, rank update, completion screen (M3)
+ *  5. Completion screen shows summary + Restart button (M4)
+ *  6. Restart wipes everything back to the initial state (M4)
  *
- * FILES
- * -----
- *  missions.js — all data (FILESYSTEM, COMMAND_BUTTONS, MISSION_STEPS, QUIZ, MISSIONS)
+ * DATA FILES
+ * ----------
+ *  missions.js — FILESYSTEM, COMMAND_BUTTONS, MISSION_STEPS, QUIZ, MISSIONS
  *  script.js   — all interaction logic (this file)
  *  index.html  — HTML structure
  *  style.css   — visual styling
@@ -30,54 +32,99 @@ import {
 
 
 /* ============================================================
-   STEP 1 — DOM references
+   CONSTANTS
+   Starting values that resetMission() restores to on every restart.
    ============================================================ */
 
-const terminalOutput  = document.getElementById("terminalOutput");
-const terminalInput   = document.getElementById("terminalInput");
-const missionTimer    = document.getElementById("missionTimer");
-const promptLabel     = document.querySelector(".terminal-prompt-label");
-const terminalTitle   = document.querySelector(".terminal-title");
-const btnContainer    = document.getElementById("commandButtonsContainer");
-const statusList      = document.getElementById("missionStatusList");
-const quizPanel       = document.getElementById("quizPanel");
-const commandsHint    = document.querySelector(".commands-hint");
+/** XP the student starts with (demo baseline). */
+const INITIAL_XP  = 750;
 
-// XP panel elements (updated when the student earns XP)
-const xpBarEl      = document.getElementById("xpBar");
-const currentXPEl  = document.getElementById("currentXP");
-const maxXPEl      = document.getElementById("maxXP");
-const rankNameEl   = document.getElementById("rankName");
+/** Max XP for the current rank tier. */
+const MAX_XP = 1000;
 
-// Mission panel badge ("IN PROGRESS" → "COMPLETE")
+/** Starting rank name. */
+const INITIAL_RANK = "Script Kiddie";
+
+/** Boot messages shown in the terminal on load and after every restart. */
+const BOOT_MESSAGES = [
+  { type: "system", text: "Ethical CyberHackers Platform v1.0.0 \u2014 Boot sequence complete." },
+  { type: "system", text: "Welcome back, Agent GHOST_ZERO. Mission briefing loaded." },
+];
+
+
+/* ============================================================
+   DOM REFERENCES
+   ============================================================ */
+
+const terminalOutput = document.getElementById("terminalOutput");
+const terminalInput  = document.getElementById("terminalInput");
+const missionTimer   = document.getElementById("missionTimer");
+const promptLabel    = document.querySelector(".terminal-prompt-label");
+const terminalTitle  = document.querySelector(".terminal-title");
+const btnContainer   = document.getElementById("commandButtonsContainer");
+const statusList     = document.getElementById("missionStatusList");
+const quizPanel      = document.getElementById("quizPanel");
+const commandsHint   = document.querySelector(".commands-hint");
+
+// XP panel elements (right sidebar)
+const xpBarEl     = document.getElementById("xpBar");
+const currentXPEl = document.getElementById("currentXP");
+const maxXPEl     = document.getElementById("maxXP");
+const rankNameEl  = document.getElementById("rankName");
+
+// Mission panel badge ("IN PROGRESS" ↔ "COMPLETE")
 const missionBadge = document.querySelector(".mission-status-badge");
 
 
 /* ============================================================
-   STEP 2 — Application state
+   APPLICATION STATE
+   These variables track the current session.
+   resetMission() restores all of them to their initial values.
    ============================================================ */
 
-/** Which directory the student is currently in. */
-let currentDir = "~";
+let currentDir     = "~";      // which folder the student is in
+let currentXP      = INITIAL_XP;
+let missionComplete = false;
 
-/** Button keys the student can currently see. */
+// Which button keys are currently visible to the student
 const unlockedKeys = new Set();
 
-/** Mission step IDs that have been checked off. */
+// Which mission step IDs have been checked off
 const completedSteps = new Set();
-
-/** Current XP total (starts at 750 for demonstration). */
-let currentXP = 750;
-
-/** Max XP for the current rank tier. */
-const maxXP = 1000;
-
-/** Whether the mission has been fully completed. */
-let missionComplete = false;
 
 
 /* ============================================================
-   STEP 3 — Prompt helpers
+   TIMER
+   ============================================================ */
+
+let timerInterval = null;
+let secondsLeft   = 0;
+
+function formatTime(total) {
+  const mm = Math.floor(total / 60).toString().padStart(2, "0");
+  const ss = (total % 60).toString().padStart(2, "0");
+  return `${mm}:${ss}`;
+}
+
+function startTimer(durationSeconds) {
+  if (timerInterval) clearInterval(timerInterval);
+  secondsLeft = durationSeconds;
+  if (missionTimer) missionTimer.textContent = formatTime(secondsLeft);
+  timerInterval = setInterval(() => {
+    secondsLeft -= 1;
+    if (missionTimer) missionTimer.textContent = formatTime(secondsLeft);
+    if (secondsLeft <= 0) clearInterval(timerInterval);
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+}
+
+
+/* ============================================================
+   PROMPT HELPERS
    ============================================================ */
 
 function getPrompt() {
@@ -92,7 +139,7 @@ function updatePromptDisplay() {
 
 
 /* ============================================================
-   STEP 4 — Terminal output helpers
+   TERMINAL OUTPUT HELPERS
    ============================================================ */
 
 function printCommand(command) {
@@ -127,27 +174,39 @@ function scrollTerminal() {
   if (terminalOutput) terminalOutput.scrollTop = terminalOutput.scrollHeight;
 }
 
+/**
+ * Prints the initial system boot messages.
+ * Called on first load AND after every restart so the terminal always
+ * starts with the same familiar two lines.
+ */
+function printBootMessages() {
+  BOOT_MESSAGES.forEach((msg) => {
+    const line = document.createElement("div");
+    line.className = "terminal-line terminal-line--system";
+    line.innerHTML =
+      `<span class="terminal-prompt">${msg.type}</span>` +
+      `<span class="terminal-text">${msg.text}</span>`;
+    terminalOutput.appendChild(line);
+  });
+  printBlankLine();
+  scrollTerminal();
+}
+
 function clearTerminal() {
   terminalOutput.innerHTML = "";
-  const line = document.createElement("div");
-  line.className = "terminal-line terminal-line--system";
-  line.innerHTML =
-    `<span class="terminal-prompt">system</span>` +
-    `<span class="terminal-text">Terminal cleared. Click a button to continue.</span>`;
-  terminalOutput.appendChild(line);
 }
 
 
 /* ============================================================
-   STEP 5 — Command processor
-   Looks up FILESYSTEM data and shows the right output per command.
+   COMMAND PROCESSOR
+   Reads FILESYSTEM data and produces the right output per command.
    ============================================================ */
 
 function processCommand(command, buttonKey) {
   const cmd     = command.trim().toLowerCase();
   const dirData = FILESYSTEM[currentDir];
 
-  /* pwd */
+  // pwd
   if (cmd === "pwd") {
     printOutput(dirData.pwd);
     printBlankLine();
@@ -155,7 +214,7 @@ function processCommand(command, buttonKey) {
     return;
   }
 
-  /* ls */
+  // ls
   if (cmd === "ls") {
     printOutput(dirData.ls.join("  "));
     printBlankLine();
@@ -163,7 +222,7 @@ function processCommand(command, buttonKey) {
     return;
   }
 
-  /* cd <folder> */
+  // cd <folder>
   if (cmd.startsWith("cd ")) {
     const target     = cmd.slice(3).trim();
     const newPath    = `${currentDir}/${target}`;
@@ -181,7 +240,7 @@ function processCommand(command, buttonKey) {
     return;
   }
 
-  /* cat <filename> */
+  // cat <filename>
   if (cmd.startsWith("cat ")) {
     const filename = command.trim().slice(4).trim();
     const files    = dirData.files;
@@ -205,24 +264,25 @@ function processCommand(command, buttonKey) {
     return;
   }
 
-  /* clear */
+  // clear
   if (cmd === "clear") {
     clearTerminal();
+    printBootMessages();
     return;
   }
 
-  /* unknown */
+  // unknown
   printOutput(`bash: ${cmd.split(" ")[0]}: command not found`, "error");
   printBlankLine();
 }
 
 
 /* ============================================================
-   STEP 6 — Unlock & progression engine
+   UNLOCK & PROGRESSION ENGINE
    ============================================================ */
 
 /**
- * Called after every command.
+ * Called after every command button runs.
  * Unlocks any buttons gated on this key, marks mission steps,
  * and triggers the quiz if this was "cat-suspicious".
  *
@@ -231,22 +291,21 @@ function processCommand(command, buttonKey) {
 function afterCommand(buttonKey) {
   if (!buttonKey) return;
 
-  // Unlock buttons whose unlock condition was just met
+  // Unlock buttons whose condition was just met
   const btnDef = COMMAND_BUTTONS.find((b) => b.key === buttonKey);
   if (btnDef && btnDef.unlocksAfterRun.length > 0) {
     unlockButtons(btnDef.unlocksAfterRun);
   }
 
-  // Check off mission steps triggered by this button
+  // Check off any mission steps triggered by this button
   MISSION_STEPS.forEach((step) => {
     if (step.triggeredBy === buttonKey && !completedSteps.has(step.id)) {
       completeStep(step.id);
     }
   });
 
-  // Show the quiz after the student reads the suspicious file
+  // Show the quiz 800ms after reading the suspicious file
   if (buttonKey === "cat-suspicious") {
-    // Short delay so the student sees the file content before the quiz appears
     setTimeout(showQuiz, 800);
   }
 }
@@ -269,7 +328,7 @@ function completeStep(stepId) {
 
 
 /* ============================================================
-   STEP 7 — Render: command buttons
+   RENDER: COMMAND BUTTONS
    ============================================================ */
 
 function renderButtons(newlyUnlocked = []) {
@@ -311,7 +370,7 @@ function renderButtons(newlyUnlocked = []) {
 
 
 /* ============================================================
-   STEP 8 — Render: mission status tracker
+   RENDER: MISSION STATUS TRACKER
    ============================================================ */
 
 function renderMissionStatus() {
@@ -332,36 +391,27 @@ function renderMissionStatus() {
 
 
 /* ============================================================
-   STEP 9 — Quiz
-   Shown after the student reads suspicious_file.txt.
-   Builds the question and four answer buttons dynamically.
+   QUIZ  (Milestone 3)
+   Appears after the student reads suspicious_file.txt.
    ============================================================ */
 
-/**
- * Hides the command buttons, shows the quiz panel, and builds the quiz UI.
- * Called 800ms after "cat suspicious_file.txt" runs.
- */
+/** Hides command buttons and shows the quiz in their place. */
 function showQuiz() {
   if (!quizPanel || missionComplete) return;
 
-  // Hide the command buttons — the quiz replaces them
-  if (btnContainer)  btnContainer.style.display  = "none";
-  if (commandsHint)  commandsHint.style.display   = "none";
+  if (btnContainer) btnContainer.style.display = "none";
+  if (commandsHint) commandsHint.style.display  = "none";
 
-  // Build and show the quiz
   quizPanel.style.display = "block";
   quizPanel.innerHTML     = buildQuizHTML();
 
-  // Wire up each answer button
+  // Wire up answer buttons
   quizPanel.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
     btn.addEventListener("click", () => handleAnswer(btn.dataset.answerId));
   });
 }
 
-/**
- * Returns the HTML string for the quiz panel.
- * The answer buttons are wired up separately in showQuiz().
- */
+/** Returns the HTML string for the quiz panel. */
 function buildQuizHTML() {
   const answersHTML = QUIZ.answers
     .map(
@@ -386,7 +436,8 @@ function buildQuizHTML() {
 
 /**
  * Called when the student clicks an answer button.
- * Shows feedback, and if correct, awards XP and completes the mission.
+ * Awards XP and completes the mission on a correct answer;
+ * shows a retry message on a wrong answer.
  *
  * @param {string} answerId  "A", "B", "C", or "D"
  */
@@ -394,15 +445,17 @@ function handleAnswer(answerId) {
   const chosen  = QUIZ.answers.find((a) => a.id === answerId);
   const correct = chosen && chosen.correct;
 
-  // Disable all answer buttons to prevent re-clicking
+  // Disable all buttons immediately to prevent re-clicking
   quizPanel.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
     btn.disabled = true;
-    // Highlight which was right and which was chosen
+
     const btnId = btn.dataset.answerId;
     if (btnId === answerId && correct)  btn.classList.add("quiz-answer--correct");
     if (btnId === answerId && !correct) btn.classList.add("quiz-answer--wrong");
+
+    // If the student was wrong, quietly reveal which answer was right
     if (QUIZ.answers.find((a) => a.id === btnId && a.correct) && !correct) {
-      btn.classList.add("quiz-answer--reveal");  // show the right answer
+      btn.classList.add("quiz-answer--reveal");
     }
   });
 
@@ -410,89 +463,222 @@ function handleAnswer(answerId) {
   if (!feedbackEl) return;
 
   if (correct) {
-    feedbackEl.textContent  = QUIZ.correctFeedback;
-    feedbackEl.className    = "quiz-feedback quiz-feedback--correct";
+    feedbackEl.textContent = QUIZ.correctFeedback;
+    feedbackEl.className   = "quiz-feedback quiz-feedback--correct";
+
+    // Award XP first, then after 1.5 s swap the quiz for the completion screen
     awardXP(QUIZ.xpReward);
-    completeMission(QUIZ.newRank);
+    setTimeout(() => completeMission(QUIZ.newRank), 1500);
   } else {
-    feedbackEl.textContent  = QUIZ.incorrectFeedback;
-    feedbackEl.className    = "quiz-feedback quiz-feedback--wrong";
+    feedbackEl.textContent = QUIZ.incorrectFeedback;
+    feedbackEl.className   = "quiz-feedback quiz-feedback--wrong";
   }
 }
 
 
 /* ============================================================
-   STEP 10 — XP reward & mission completion
+   XP REWARD  (Milestone 3)
    ============================================================ */
 
 /**
  * Adds XP to the student's total and animates the XP bar.
- * Updates the on-screen XP value and bar width.
- *
  * @param {number} amount  XP to add (e.g. 100)
  */
 function awardXP(amount) {
-  currentXP = Math.min(currentXP + amount, maxXP);
+  currentXP = Math.min(currentXP + amount, MAX_XP);
 
-  // Update the numeric display
   if (currentXPEl) currentXPEl.textContent = currentXP;
 
-  // Animate the XP bar to the new width
-  const pct = Math.round((currentXP / maxXP) * 100);
+  const pct = Math.round((currentXP / MAX_XP) * 100);
   if (xpBarEl) {
     xpBarEl.style.transition = "width 1s ease";
     xpBarEl.style.width      = `${pct}%`;
-    // Brief glow pulse on the bar
     xpBarEl.classList.add("xp-bar--pulse");
     setTimeout(() => xpBarEl.classList.remove("xp-bar--pulse"), 1200);
   }
 
-  // Print a terminal confirmation line
   printOutput(`[+${amount} XP awarded]`, "info");
   printBlankLine();
 }
 
+
+/* ============================================================
+   MISSION COMPLETION  (Milestones 3 & 4)
+   ============================================================ */
+
 /**
- * Marks the mission as fully complete:
- *  - Updates the rank name in the XP panel
- *  - Changes the mission badge from "IN PROGRESS" to "COMPLETE"
- *  - Appends a "Mission Complete" banner inside the quiz panel
+ * Called after a correct quiz answer (with a 1.5 s delay so the student
+ * sees the XP bar animate first).
  *
- * @param {string} newRank  The rank name to display
+ * Replaces the quiz panel content with the full Mission Complete screen,
+ * which lists the four summary lines and includes a Restart button.
+ *
+ * @param {string} newRank  Rank name to display (e.g. "Cyber Intern Level 1")
  */
 function completeMission(newRank) {
   missionComplete = true;
 
-  // Update rank in the XP panel
+  // Update rank in the XP sidebar
   if (rankNameEl) {
     rankNameEl.textContent = newRank;
     rankNameEl.classList.add("rank-name--upgraded");
   }
 
-  // Flip the mission badge to "COMPLETE"
+  // Flip the mission badge from "IN PROGRESS" to "COMPLETE"
   if (missionBadge) {
     missionBadge.textContent = "COMPLETE";
     missionBadge.classList.add("mission-status-badge--complete");
   }
 
-  // Append a "Mission Complete" banner at the bottom of the quiz panel
-  const banner = document.createElement("div");
-  banner.className = "mission-complete-banner";
-  banner.innerHTML =
-    `<span class="mission-complete-icon">🏆</span>` +
-    `<div class="mission-complete-text">` +
-    `  <span class="mission-complete-title">Mission Complete</span>` +
-    `  <span class="mission-complete-sub">Well done, Agent. You identified a phishing attack.</span>` +
-    `</div>`;
-  quizPanel.appendChild(banner);
+  // Print a terminal confirmation
+  printOutput("[ MISSION COMPLETE \u2014 Well done, Agent. ]", "info");
 
-  // Print confirmation to the terminal
-  printOutput("[ MISSION COMPLETE — Well done, Agent. ]", "info");
+  // Replace the quiz panel with the full completion screen
+  if (quizPanel) {
+    quizPanel.innerHTML = buildCompletionHTML(newRank);
+
+    // Wire up the Restart Mission button
+    const restartBtn = document.getElementById("restartMissionBtn");
+    if (restartBtn) restartBtn.addEventListener("click", resetMission);
+  }
+}
+
+/**
+ * Returns the HTML string for the Mission Complete screen.
+ * Shown inside quizPanel after a correct answer.
+ *
+ * @param {string} newRank  The newly unlocked rank name
+ */
+function buildCompletionHTML(newRank) {
+  return `
+    <div class="completion-screen">
+
+      <!-- Header -->
+      <div class="completion-header">
+        <span class="completion-icon">🏆</span>
+        <div class="completion-titles">
+          <h2 class="completion-title">Mission Complete</h2>
+          <p class="completion-subtitle">You identified a phishing attempt.</p>
+        </div>
+      </div>
+
+      <!-- Summary rows -->
+      <ul class="completion-summary">
+        <li class="completion-row">
+          <span class="completion-row-icon">✓</span>
+          <span class="completion-row-label">Threat identified</span>
+          <span class="completion-row-value completion-row-value--green">Phishing email</span>
+        </li>
+        <li class="completion-row">
+          <span class="completion-row-icon">⚡</span>
+          <span class="completion-row-label">XP earned</span>
+          <span class="completion-row-value completion-row-value--cyan">+${QUIZ.xpReward} XP</span>
+        </li>
+        <li class="completion-row">
+          <span class="completion-row-icon">🎖️</span>
+          <span class="completion-row-label">Rank unlocked</span>
+          <span class="completion-row-value completion-row-value--yellow">${newRank}</span>
+        </li>
+      </ul>
+
+      <!-- Restart button -->
+      <button id="restartMissionBtn" class="restart-btn">
+        ↺ &nbsp;Restart Mission
+      </button>
+
+    </div>
+  `;
 }
 
 
 /* ============================================================
-   STEP 11 — Run a command end-to-end
+   RESET  (Milestone 4)
+   Wipes all state back to the starting point so the student
+   can replay the mission without refreshing the browser.
+   ============================================================ */
+
+/**
+ * Resets the entire session to its initial state:
+ *  - Terminal cleared and boot messages reprinted
+ *  - All state variables returned to starting values
+ *  - Command buttons and mission tracker re-rendered
+ *  - Quiz / completion panel hidden
+ *  - XP, rank, and mission badge restored
+ *  - Timer restarted
+ */
+function resetMission() {
+  // 1. Reset state variables
+  currentDir      = "~";
+  currentXP       = INITIAL_XP;
+  missionComplete = false;
+
+  unlockedKeys.clear();
+  completedSteps.clear();
+
+  COMMAND_BUTTONS.forEach((btn) => {
+    if (btn.unlockedAtStart) unlockedKeys.add(btn.key);
+  });
+
+  MISSION_STEPS.forEach((step) => {
+    if (step.triggeredBy === null) completedSteps.add(step.id);
+  });
+
+  // 2. Reset XP sidebar
+  if (currentXPEl) currentXPEl.textContent = INITIAL_XP;
+  if (xpBarEl) {
+    xpBarEl.style.transition = "width 0.4s ease";
+    xpBarEl.style.width      = `${Math.round((INITIAL_XP / MAX_XP) * 100)}%`;
+    xpBarEl.classList.remove("xp-bar--pulse");
+  }
+
+  // 3. Reset rank
+  if (rankNameEl) {
+    rankNameEl.textContent = INITIAL_RANK;
+    rankNameEl.classList.remove("rank-name--upgraded");
+  }
+
+  // 4. Reset mission badge
+  if (missionBadge) {
+    missionBadge.textContent = "IN PROGRESS";
+    missionBadge.classList.remove("mission-status-badge--complete");
+  }
+
+  // 5. Clear terminal and reprint boot messages
+  clearTerminal();
+  printBootMessages();
+
+  // 6. Update prompt (directory changed back to ~)
+  updatePromptDisplay();
+
+  // 7. Re-render command buttons and mission tracker
+  renderButtons();
+  renderMissionStatus();
+
+  // 8. Show command buttons area, hide quiz/completion panel
+  if (btnContainer) btnContainer.style.display = "";
+  if (commandsHint) commandsHint.style.display  = "";
+  if (quizPanel) {
+    quizPanel.style.display = "none";
+    quizPanel.innerHTML     = "";
+  }
+
+  // 9. Restart countdown timer
+  stopTimer();
+  const mission = getMissionById(activeMissionId);
+  if (mission && mission.timeLimitSec > 0) {
+    startTimer(mission.timeLimitSec);
+  }
+
+  // Return focus to terminal input
+  if (terminalInput) {
+    terminalInput.value = "";
+    terminalInput.focus();
+  }
+}
+
+
+/* ============================================================
+   RUN A COMMAND END-TO-END
    ============================================================ */
 
 function runCommand(command, buttonKey = "") {
@@ -504,8 +690,7 @@ function runCommand(command, buttonKey = "") {
 
 
 /* ============================================================
-   STEP 12 — Keyboard input (optional)
-   Note: typed commands don't trigger the unlock/quiz system.
+   KEYBOARD INPUT (optional — typed commands bypass unlock logic)
    ============================================================ */
 
 function initTerminalInput() {
@@ -520,51 +705,29 @@ function initTerminalInput() {
 }
 
 const clrButton = document.querySelector(".terminal-btn");
-if (clrButton) clrButton.addEventListener("click", clearTerminal);
+if (clrButton) clrButton.addEventListener("click", () => {
+  clearTerminal();
+  printBootMessages();
+});
 
 
 /* ============================================================
-   STEP 13 — Countdown timer
-   ============================================================ */
-
-let timerInterval = null;
-let secondsLeft   = 0;
-
-function formatTime(total) {
-  const mm = Math.floor(total / 60).toString().padStart(2, "0");
-  const ss = (total % 60).toString().padStart(2, "0");
-  return `${mm}:${ss}`;
-}
-
-function startTimer(durationSeconds) {
-  if (timerInterval) clearInterval(timerInterval);
-  secondsLeft = durationSeconds;
-  if (missionTimer) missionTimer.textContent = formatTime(secondsLeft);
-  timerInterval = setInterval(() => {
-    secondsLeft -= 1;
-    if (missionTimer) missionTimer.textContent = formatTime(secondsLeft);
-    if (secondsLeft <= 0) clearInterval(timerInterval);
-  }, 1000);
-}
-
-
-/* ============================================================
-   STEP 14 — Boot
+   BOOT — runs once on page load
    ============================================================ */
 
 function boot() {
-  // Unlock the starting buttons
+  // Unlock starting buttons
   COMMAND_BUTTONS.forEach((btn) => {
     if (btn.unlockedAtStart) unlockedKeys.add(btn.key);
   });
 
-  // Auto-complete "Mission Started" step
+  // Auto-complete "Mission Started" (triggered by null = on load)
   MISSION_STEPS.forEach((step) => {
     if (step.triggeredBy === null) completedSteps.add(step.id);
   });
 
-  // Render initial state
   updatePromptDisplay();
+  printBootMessages();
   renderButtons();
   renderMissionStatus();
 

@@ -115,23 +115,10 @@
             </div>
           </div>
 
-          <div class="terminal-body" id="terminalOutput" role="log" aria-live="polite">
-            <div class="terminal-line terminal-line--system">
-              <span class="terminal-prompt">system</span>
-              <span class="terminal-text">Ethical CyberHackers Platform v1.0.0 — Boot sequence complete.</span>
-            </div>
-            <div class="terminal-line terminal-line--system">
-              <span class="terminal-prompt">system</span>
-              <span class="terminal-text">Welcome back, Agent GHOST_ZERO. Mission briefing loaded.</span>
-            </div>
-            <div class="terminal-line terminal-line--separator">
-              <span>────────────────────────────────────────────────────</span>
-            </div>
-            <div class="terminal-line">
-              <span class="terminal-prompt">student@cybercorp:~$</span>
-              <span class="terminal-text terminal-text--input">▮</span>
-            </div>
-          </div>
+          <!-- Terminal output is populated entirely by script.js (boot messages,
+               commands, and results). Nothing is hardcoded here so that the
+               Restart Mission button can wipe and reprint cleanly. -->
+          <div class="terminal-body" id="terminalOutput" role="log" aria-live="polite"></div>
 
           <div class="terminal-input-row">
             <span class="terminal-prompt-label">student@cybercorp:~$</span>
