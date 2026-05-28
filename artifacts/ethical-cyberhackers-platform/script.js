@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "27 May 2026 — 23:45 CST";
+const BUILD_TIME = "28 May 2026 — 00:05 CST";
 
 /** Boot messages shown in the terminal on load and after every restart. */
 const BOOT_MESSAGES = [
@@ -300,9 +300,10 @@ function afterCommand(buttonKey) {
   if (!buttonKey) return;
 
   // Unlock buttons whose condition was just met
+  let newlyUnlocked = [];
   const btnDef = COMMAND_BUTTONS.find((b) => b.key === buttonKey);
   if (btnDef && btnDef.unlocksAfterRun.length > 0) {
-    unlockButtons(btnDef.unlocksAfterRun);
+    newlyUnlocked = unlockButtons(btnDef.unlocksAfterRun);
   }
 
   // Check off any mission steps triggered by this button
@@ -312,21 +313,30 @@ function afterCommand(buttonKey) {
     }
   });
 
+  // Re-render buttons once so the "next step" highlight moves forward and
+  // the just-used button gets dimmed — even when nothing new unlocked.
+  renderButtons(newlyUnlocked);
+
   // Show the quiz 800ms after reading the suspicious file
   if (buttonKey === "cat-suspicious") {
     setTimeout(showQuiz, 800);
   }
 }
 
+/**
+ * Adds keys to unlockedKeys and returns the subset that was actually new.
+ * Does NOT re-render — afterCommand() handles a single render pass so the
+ * "next step" highlight and "used" dimming stay in sync.
+ */
 function unlockButtons(keys) {
-  let anyNew = false;
+  const newlyUnlocked = [];
   keys.forEach((key) => {
     if (!unlockedKeys.has(key)) {
       unlockedKeys.add(key);
-      anyNew = true;
+      newlyUnlocked.push(key);
     }
   });
-  if (anyNew) renderButtons(keys);
+  return newlyUnlocked;
 }
 
 function completeStep(stepId) {
@@ -343,6 +353,27 @@ function renderButtons(newlyUnlocked = []) {
   if (!btnContainer) return;
   btnContainer.innerHTML = "";
 
+  // The "next recommended" button = the triggeredBy of the first
+  // incomplete mission step that has a real trigger (skips auto-completed
+  // steps like "Mission Started" whose triggeredBy is null).
+  let nextKey = null;
+  for (const step of MISSION_STEPS) {
+    if (step.triggeredBy && !completedSteps.has(step.id)) {
+      nextKey = step.triggeredBy;
+      break;
+    }
+  }
+
+  // Buttons that have already advanced the mission — dimmed to push the
+  // student's eye toward fresh options. They remain clickable so students
+  // can re-run pwd / ls etc. to reinforce the habit.
+  const usedKeys = new Set();
+  MISSION_STEPS.forEach((step) => {
+    if (step.triggeredBy && completedSteps.has(step.id)) {
+      usedKeys.add(step.triggeredBy);
+    }
+  });
+
   COMMAND_BUTTONS.forEach((btn) => {
     if (!unlockedKeys.has(btn.key)) return;
 
@@ -350,6 +381,13 @@ function renderButtons(newlyUnlocked = []) {
     el.className = `cmd-btn cmd-btn--${btn.style}`;
     el.dataset.command   = btn.command;
     el.dataset.buttonKey = btn.key;
+
+    // Spotlight the next step (overrides "used" dimming if both apply)
+    if (btn.key === nextKey) {
+      el.classList.add("cmd-btn--next");
+    } else if (usedKeys.has(btn.key)) {
+      el.classList.add("cmd-btn--used");
+    }
 
     if (newlyUnlocked.includes(btn.key)) {
       el.classList.add("cmd-btn--unlocking");

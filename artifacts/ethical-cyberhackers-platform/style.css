@@ -1477,6 +1477,64 @@ button {
 
 
 /* ======================================================
+   "NEXT STEP" HIGHLIGHT  (Milestone 5 polish)
+   Spotlights the button that advances the mission, and dims
+   buttons that have already been used so the student's eye is
+   drawn to fresh options. Used buttons remain fully clickable.
+   ====================================================== */
+
+.cmd-btn--next {
+  position: relative;
+  border-color: var(--color-green) !important;
+  box-shadow:
+    0 0 0 1px rgba(0,255,136,0.4),
+    0 0 18px rgba(0,255,136,0.35);
+  animation: nextStepPulse 2s ease-in-out infinite;
+}
+
+.cmd-btn--next::after {
+  content: "NEXT →";
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  padding: 2px 8px;
+  background: var(--color-green);
+  color: var(--color-bg);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(0,255,136,0.6);
+  pointer-events: none;
+}
+
+@keyframes nextStepPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(0,255,136,0.4),
+      0 0 18px rgba(0,255,136,0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(0,255,136,0.65),
+      0 0 28px rgba(0,255,136,0.55);
+  }
+}
+
+/* Already-used buttons — dimmed but still clickable */
+.cmd-btn--used {
+  opacity: 0.55;
+  filter: saturate(0.7);
+}
+
+.cmd-btn--used:hover {
+  opacity: 1;
+  filter: saturate(1);
+}
+
+
+/* ======================================================
    MISSION BRIEFING  (Milestone 5)
    Shown in the left mission panel before the student clicks
    "Begin Mission". Replaced by the live mission view afterwards.
