@@ -38,6 +38,16 @@ import {
   MISSION_TEMPLATE,
   createMissionFromTemplate,
   validateMissionData,
+  // Milestone 23E — central mission registry (course catalog).
+  // Note: the registry's `updateMissionStatus` is imported under an alias
+  // (`setRegistryMissionStatus`) to avoid colliding with the engine's
+  // own `updateMissionStatus` dispatcher that ticks status-checklist items.
+  missionRegistry,
+  MISSION_STATUS,
+  getRegistryMission,
+  getNextMissionId,
+  getMissionStatus,
+  updateMissionStatus as setRegistryMissionStatus,
 } from "/missions.js";
 
 
@@ -60,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 11:35 CST";
+const BUILD_TIME = "28 May 2026 — 12:10 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -1854,98 +1864,137 @@ function resetProgressTracker() {
 }
 
 
+/* ============================================================
+   COURSE PROGRESS — registry-driven render  (Milestone 23E)
+   ------------------------------------------------------------
+   The mission registry controls course order and mission
+   availability. renderCourseProgress() now loops missionRegistry
+   instead of hardcoding mission cards manually:
+
+     1. syncRegistryFromState() derives each entry's status from
+        the live state flags (missionComplete / mission2Complete)
+        which remain the source of truth for save/load.
+     2. We filter out placeholder-only entries when their gating
+        condition isn't met (Mission 3 stays hidden until Mission 2
+        is complete, preserving existing UX).
+     3. buildCourseCardHTML() turns one registry entry into its
+        course-card markup, including the Start/Replay button for
+        Mission 2 (the only mission with an action button today).
+   ============================================================ */
+
+/**
+ * Mirrors the live state flags onto the mission registry's `status`
+ * field. Called at the top of renderCourseProgress() so the registry
+ * always reflects current state without duplicating it.
+ */
+function syncRegistryFromState() {
+  // Mission 1 — Available until completed, then Completed
+  setRegistryMissionStatus(
+    "mission1",
+    missionComplete ? MISSION_STATUS.COMPLETED : MISSION_STATUS.AVAILABLE,
+  );
+
+  // Mission 2 — Locked → Unlocked (after M1) → Completed
+  let m2;
+  if (mission2Complete)      m2 = MISSION_STATUS.COMPLETED;
+  else if (missionComplete)  m2 = MISSION_STATUS.UNLOCKED;
+  else                       m2 = MISSION_STATUS.LOCKED;
+  setRegistryMissionStatus("mission2", m2);
+
+  // Mission 3 — Locked for the duration of Phase A
+  setRegistryMissionStatus("mission3", MISSION_STATUS.LOCKED);
+}
+
+/** Capitalizes the first letter of a status string for display. */
+function statusLabel(status) {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+/**
+ * Builds the HTML for a single course card from a registry entry.
+ * Returns "" for entries that should be hidden at this moment.
+ */
+function buildCourseCardHTML(entry) {
+  // Mission 3 is a locked placeholder — only surface it once Mission 2 is
+  // complete, matching the prior milestone's UX.
+  if (entry.placeholderOnly && !mission2Complete) return "";
+
+  const num    = String(entry.order).padStart(2, "0");
+  const mod    = entry.status;            // "locked" | "available" | "unlocked" | "completed"
+  const label  = statusLabel(entry.status);
+  const lock   = (mod === "locked") ? "🔒 " : "";
+
+  // The Start/Replay action button is currently Mission-2-specific. Any
+  // future mission that needs one can opt in here without changing the
+  // card scaffold above.
+  let actionHTML = "";
+  if (entry.missionId === "mission2") {
+    if (missionComplete && !mission2Complete) {
+      actionHTML = `
+        <div class="course-card-unlock-note">
+          ✓ Mission 2 unlocked: Network Basics
+        </div>
+        <button id="startMission2Btn" class="course-start-btn">
+          ▶&nbsp; Start Mission 2
+        </button>
+      `;
+    } else if (mission2Complete) {
+      actionHTML = `
+        <button id="startMission2Btn" class="course-start-btn course-start-btn--completed">
+          ▶&nbsp; Replay Mission 2
+        </button>
+      `;
+    }
+  }
+
+  return `
+    <li class="course-card course-card--${mod}">
+      <div class="course-card-row">
+        <span class="course-card-num">${num}</span>
+        <div class="course-card-info">
+          <span class="course-card-title">${entry.title}</span>
+          <span class="course-card-desc">${entry.description}</span>
+        </div>
+        <span class="course-card-status course-card-status--${mod}">
+          ${lock}${label}
+        </span>
+      </div>
+      ${actionHTML}
+    </li>
+  `;
+}
+
 function renderCourseProgress() {
   if (!courseProgressEl) return;
 
-  // Mission 1 status mirrors the live mission state
-  const m1Completed = missionComplete;
+  // 1. Sync registry status from live state flags
+  syncRegistryFromState();
 
-  // Status label + CSS modifier for each card
-  const m1Status = m1Completed
-    ? { label: "Completed", mod: "completed" }
-    : { label: "Available", mod: "available" };
+  // 2. Sort by `order` (defensive — the registry is already in order)
+  //    and render each visible card
+  const cardsHTML = missionRegistry
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map(buildCourseCardHTML)
+    .join("");
 
-  // Milestone 22 — Mission 2 has 3 possible states (Locked / Unlocked / Completed)
-  const m2Status = mission2Complete
-    ? { label: "Completed", mod: "completed" }
-    : m1Completed
-      ? { label: "Unlocked", mod: "unlocked" }
-      : { label: "Locked",   mod: "locked"   };
+  // 3. Header summary — Mission 3 only counts toward the total once it's
+  //    visible (after Mission 2 completion), preserving prior behavior.
+  const totalLabel = mission2Complete ? "3 missions" : "2 missions";
 
-  // Build the markup. The Start Mission 2 button + unlock notice only
-  // appear when Mission 1 is complete. Mission 3 is a locked placeholder
-  // shown only once both Mission 1 and Mission 2 are done.
   courseProgressEl.innerHTML = `
     <div class="course-progress-header">
       <span class="course-progress-label">COURSE PROGRESS</span>
-      <span class="course-progress-sub">${mission2Complete ? "3 missions" : "2 missions"}</span>
+      <span class="course-progress-sub">${totalLabel}</span>
     </div>
-
     <ul class="course-list">
-
-      <!-- Mission 1 card -->
-      <li class="course-card course-card--${m1Status.mod}">
-        <div class="course-card-row">
-          <span class="course-card-num">01</span>
-          <div class="course-card-info">
-            <span class="course-card-title">New Cybersecurity Intern</span>
-            <span class="course-card-desc">Investigate a suspicious workstation.</span>
-          </div>
-          <span class="course-card-status course-card-status--${m1Status.mod}">
-            ${m1Status.label}
-          </span>
-        </div>
-      </li>
-
-      <!-- Mission 2 card -->
-      <li class="course-card course-card--${m2Status.mod}">
-        <div class="course-card-row">
-          <span class="course-card-num">02</span>
-          <div class="course-card-info">
-            <span class="course-card-title">Network Basics</span>
-            <span class="course-card-desc">Identify devices and services on a network.</span>
-          </div>
-          <span class="course-card-status course-card-status--${m2Status.mod}">
-            ${m2Status.mod === "locked" ? "🔒 " : ""}${m2Status.label}
-          </span>
-        </div>
-
-        ${(m1Completed && !mission2Complete) ? `
-          <div class="course-card-unlock-note">
-            ✓ Mission 2 unlocked: Network Basics
-          </div>
-          <button id="startMission2Btn" class="course-start-btn">
-            ▶&nbsp; Start Mission 2
-          </button>
-        ` : ""}
-        ${mission2Complete ? `
-          <button id="startMission2Btn" class="course-start-btn course-start-btn--completed">
-            ▶&nbsp; Replay Mission 2
-          </button>
-        ` : ""}
-      </li>
-
-      ${mission2Complete ? `
-        <!-- Milestone 22 — Mission 3 placeholder. Locked teaser only,
-             no gameplay yet. Appears only after Mission 2 completion. -->
-        <li class="course-card course-card--locked">
-          <div class="course-card-row">
-            <span class="course-card-num">03</span>
-            <div class="course-card-info">
-              <span class="course-card-title">Reconnaissance &amp; Discovery</span>
-              <span class="course-card-desc">Mission 3 Locked: Reconnaissance &amp; Discovery coming next.</span>
-            </div>
-            <span class="course-card-status course-card-status--locked">🔒 Locked</span>
-          </div>
-        </li>
-      ` : ""}
+      ${cardsHTML}
     </ul>
   `;
 
-  // Wire up the Start Mission 2 button (only present when unlocked or completed).
-  // Milestone 19: clicking it takes the student to the full Mission 2 Overview
-  // takeover screen. Milestone 22: relabel + behavior on completion (Replay).
-  if (m1Completed) {
+  // 4. Wire up the Start/Replay Mission 2 button (only present when
+  //    Mission 1 is complete). Same handler as before.
+  if (missionComplete) {
     const startBtn = document.getElementById("startMission2Btn");
     if (startBtn) startBtn.addEventListener("click", showMission2Overview);
   }
@@ -2910,6 +2959,13 @@ window.MissionEngine = {
   MISSION_TEMPLATE,
   createMissionFromTemplate,
   validateMissionData,
+  // 23E — mission registry (course catalog)
+  missionRegistry,
+  MISSION_STATUS,
+  getRegistryMission,
+  getNextMissionId,
+  getMissionStatus,
+  setRegistryMissionStatus,
 };
 
 

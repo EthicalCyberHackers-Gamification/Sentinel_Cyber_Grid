@@ -316,11 +316,19 @@ export let activeMissionId = "mission-001";
 
 /**
  * Returns the Mission object for the given ID, or undefined if not found.
+ *
+ * Milestone 23E — also resolves Mission Registry ids (e.g. "mission1",
+ * "mission2", "mission3") so callers that only have a registry id can
+ * still ask for the mission record. Legacy ids ("mission-001") are
+ * checked first to preserve existing behavior.
+ *
  * @param {string} id
  * @returns {Object|undefined}
  */
 export function getMissionById(id) {
-  return MISSIONS.find((m) => m.id === id);
+  const legacy = MISSIONS.find((m) => m.id === id);
+  if (legacy) return legacy;
+  return getRegistryMission(id);
 }
 
 /**
@@ -749,4 +757,166 @@ export function validateMissionData(mission) {
   }
 
   return { valid: missing.length === 0, missing };
+}
+
+
+/* ============================================================
+   MISSION REGISTRY  (Milestone 23E — Phase A)
+   ------------------------------------------------------------
+   The mission registry controls course order and mission
+   availability. It is the single source of truth for:
+
+     - which missions exist in the course,
+     - what order they appear in,
+     - whether each one is Locked / Available / Unlocked / Completed,
+     - which entries are placeholder-only (no gameplay yet),
+     - which previous mission must be completed to unlock the next.
+
+   The registry is intentionally separate from MISSIONS_REGISTRY (the
+   data registry used by the engine). MISSIONS_REGISTRY holds the
+   per-mission GAMEPLAY data (commands, hints, quizzes, scorecards);
+   the Mission Registry below holds the per-mission COURSE METADATA
+   (order, status, unlock chain) and is what the Course Progress
+   panel renders from.
+
+   Why two registries:
+     - Course metadata changes frequently (statuses flip every time
+       the student completes a step) and is a thin catalog.
+     - Gameplay data is heavy, mission-shaped, and stable.
+     Keeping them separate prevents churn on one from forcing
+     re-validation of the other.
+
+   Status values:
+     "locked"     — student cannot start; prerequisite incomplete
+     "available"  — student can start (default for Mission 1)
+     "unlocked"   — student can start (prerequisite completed)
+     "completed"  — student has finished the mission
+
+   The registry uses short ids ("mission1"/"mission2"/"mission3")
+   per the Milestone 23E spec; these are distinct from the engine's
+   structured-data ids ("mission-001"/"mission-002"). The
+   `engineMissionDataId` field links a registry entry to its
+   corresponding entry in MISSIONS_REGISTRY when one exists.
+   ============================================================ */
+
+/** Allowed values for the `status` field on a registry entry. */
+export const MISSION_STATUS = {
+  LOCKED:    "locked",
+  AVAILABLE: "available",
+  UNLOCKED:  "unlocked",
+  COMPLETED: "completed",
+};
+
+/**
+ * missionRegistry — central catalog of every mission in the course.
+ * Renderers (e.g. renderCourseProgress in script.js) loop this array
+ * instead of hardcoding mission cards.
+ */
+export const missionRegistry = [
+  {
+    missionId:           "mission1",
+    title:               "New Cybersecurity Intern",
+    description:         "Investigate a suspicious workstation.",
+    order:               1,
+    status:              "available",     // Mission 1 is always available
+    placeholderOnly:     false,
+    prerequisiteId:      null,            // No prerequisite — entry point
+    engineMissionDataId: "mission-001",   // Links to MISSIONS_REGISTRY
+  },
+  {
+    missionId:           "mission2",
+    title:               "Network Basics",
+    description:         "Identify devices and services on a network.",
+    order:               2,
+    status:              "locked",        // Becomes "unlocked" after Mission 1
+    placeholderOnly:     false,
+    prerequisiteId:      "mission1",
+    engineMissionDataId: "mission-002",
+  },
+  {
+    missionId:           "mission3",
+    title:               "Reconnaissance & Discovery",
+    description:         "Mission 3 Locked: Reconnaissance & Discovery coming next.",
+    order:               3,
+    status:              "locked",        // Stays locked in Phase A
+    placeholderOnly:     true,            // No gameplay yet — locked teaser only
+    prerequisiteId:      "mission2",
+    engineMissionDataId: null,            // No engine data yet
+  },
+];
+
+
+/* ------------------------------------------------------------
+   Registry helpers — all pure functions over `missionRegistry`.
+   These never touch the DOM and never reach into script.js
+   state, so they are safe to call from anywhere.
+   ------------------------------------------------------------ */
+
+/**
+ * Returns the registry entry for the given registry-id, or undefined.
+ * @param {string} missionId  e.g. "mission1"
+ */
+export function getRegistryMission(missionId) {
+  return missionRegistry.find((m) => m.missionId === missionId);
+}
+
+/**
+ * Returns the missionId of the mission that follows `currentMissionId`
+ * in the course order, or null if there is no next mission.
+ * @param {string} currentMissionId
+ * @returns {string|null}
+ */
+export function getNextMissionId(currentMissionId) {
+  const cur = getRegistryMission(currentMissionId);
+  if (!cur) return null;
+  const next = missionRegistry
+    .filter((m) => m.order > cur.order)
+    .sort((a, b) => a.order - b.order)[0];
+  return next ? next.missionId : null;
+}
+
+/**
+ * Returns the current status string for `missionId`, or null if not
+ * in the registry. One of MISSION_STATUS values.
+ * @param {string} missionId
+ * @returns {string|null}
+ */
+export function getMissionStatus(missionId) {
+  const m = getRegistryMission(missionId);
+  return m ? m.status : null;
+}
+
+/**
+ * Sets the status of `missionId` to `status`. Returns true on success,
+ * false if the mission id is unknown. Logs a console.warn (never shown
+ * to students) when called with an unknown id or invalid status.
+ *
+ * Callers in script.js typically invoke this from saveProgress /
+ * loadProgress / completeMission / resetMission hooks via the
+ * `syncRegistryFromState()` helper so the registry mirrors the live
+ * state flags (missionComplete / mission2Complete).
+ *
+ * @param {string} missionId
+ * @param {string} status     one of MISSION_STATUS values
+ * @returns {boolean}
+ */
+export function updateMissionStatus(missionId, status) {
+  const m = getRegistryMission(missionId);
+  if (!m) {
+    console.warn(
+      `[mission-registry] updateMissionStatus: unknown missionId "${missionId}". ` +
+      `Known ids: ${missionRegistry.map((x) => x.missionId).join(", ")}.`,
+    );
+    return false;
+  }
+  const allowed = Object.values(MISSION_STATUS);
+  if (!allowed.includes(status)) {
+    console.warn(
+      `[mission-registry] updateMissionStatus: invalid status "${status}" for "${missionId}". ` +
+      `Allowed: ${allowed.join(", ")}.`,
+    );
+    return false;
+  }
+  m.status = status;
+  return true;
 }

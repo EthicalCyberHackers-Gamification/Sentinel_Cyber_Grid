@@ -1,0 +1,76 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission Engine Foundation exists.
+* Mission 1 and Mission 2 use reusable mission data and reusable mission logic.
+* Mission Template System exists.
+* Mission Engine Guide exists in docs/MISSION_ENGINE_GUIDE.md.
+* Everything is frontend-only.
+
+Now implement Phase A — Milestone 23E: Mission Registry.
+
+Purpose:
+Create one central mission registry that controls which missions exist, their order, their locked/unlocked status, and their relationship to the course progression.
+
+Requirements:
+
+1. Do not add Mission 3 functionality yet.
+
+2. Do not redesign the UI.
+
+3. Do not break Mission 1 or Mission 2.
+
+4. In missions.js, create a missionRegistry array.
+
+5. The missionRegistry should include:
+
+Mission 1:
+
+* missionId: mission1
+* title: New Cybersecurity Intern
+* order: 1
+* status: available or completed based on saved progress
+
+Mission 2:
+
+* missionId: mission2
+* title: Network Basics
+* order: 2
+* status: locked, available, or completed based on saved progress
+
+Mission 3 placeholder:
+
+* missionId: mission3
+* title: Reconnaissance & Discovery
+* order: 3
+* status: locked
+* placeholderOnly: true
+
+6. Add reusable functions:
+
+getMissionById(missionId)
+
+getNextMissionId(currentMissionId)
+
+getMissionStatus(missionId)
+
+updateMissionStatus(missionId, status)
+
+renderCourseProgress()
+
+7. Use the mission registry to render the Course Progress panel instead of hardcoding mission cards manually.
+
+8. Mission 2 should still unlock only after Mission 1 is completed.
+
+9. Mission 3 should remain locked for now.
+
+10. Local progress save should still work for Mission 1 and Mission 2.
+
+11. Add comments explaining:
+    “The mission registry controls course order and mission availability.”
+
+12. Keep everything frontend-only.
+
+Goal:
+By the end of this step, course progression should be driven by a central mission registry instead of hardcoded mission cards.
