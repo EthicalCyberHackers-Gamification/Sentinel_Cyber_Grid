@@ -50,7 +50,13 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 04:25 CST";
+const BUILD_TIME = "28 May 2026 — 04:45 CST";
+
+/* Milestone 17 — Student name entered on the landing screen.
+   Frontend-only variable. Persists across mission restart and across
+   trips back to the Module Overview (the input keeps its value because
+   we only toggle display, never tear down the DOM). */
+let studentName = "";
 
 
 /* ============================================================
@@ -1179,7 +1185,7 @@ function buildCompletionHTML(newRank) {
           <div class="certificate-body">
             <div class="certificate-field">
               <span class="certificate-label">Awarded to</span>
-              <span class="certificate-value certificate-value--name">Student Cyber Intern</span>
+              <span class="certificate-value certificate-value--name">${escapeHtml(studentName) || "Student Cyber Intern"}</span>
             </div>
 
             <div class="certificate-field">
@@ -1425,12 +1431,36 @@ if (clrButton) clrButton.addEventListener("click", () => {
    ============================================================ */
 
 function enterModule() {
+  // Milestone 17 — capture the student name from the landing input.
+  // Safety net: ignore clicks if the name is empty (button should already
+  // be disabled, but defensive against keyboard / programmatic triggers).
+  const nameInput = document.getElementById("studentNameInput");
+  const typed = nameInput ? nameInput.value.trim() : "";
+  if (!typed) return;
+  studentName = typed;
+
+  // Render personalized greeting at the top of the mission panel
+  const welcomeEl = document.getElementById("welcomeMessage");
+  if (welcomeEl) {
+    welcomeEl.innerHTML = `Welcome, <strong>${escapeHtml(studentName)}</strong>`;
+  }
+
   // Milestone 11 — show the simulation loader first, then the dashboard.
   if (moduleLandingEl) moduleLandingEl.style.display = "none";
   runSimulationLoader(() => {
     if (dashboardEl)   dashboardEl.style.display = "";
     if (terminalInput) terminalInput.focus();
   });
+}
+
+/** Milestone 17 — escape user-supplied text before injecting into HTML. */
+function escapeHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /**
@@ -1727,6 +1757,26 @@ function boot() {
   if (enterBtn) enterBtn.addEventListener("click", enterModule);
   const backBtn = document.getElementById("backToModuleBtn");
   if (backBtn) backBtn.addEventListener("click", backToModuleOverview);
+
+  // Milestone 17 — Student Name input gating.
+  // The button starts disabled (set in index.html) and becomes enabled
+  // as soon as the input has a non-empty trimmed value. Pressing Enter
+  // inside the field triggers Enter Module when the name is valid.
+  const nameInput = document.getElementById("studentNameInput");
+  if (nameInput && enterBtn) {
+    const syncEnterBtn = () => {
+      const hasName = nameInput.value.trim().length > 0;
+      enterBtn.disabled = !hasName;
+    };
+    nameInput.addEventListener("input", syncEnterBtn);
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !enterBtn.disabled) {
+        e.preventDefault();
+        enterModule();
+      }
+    });
+    syncEnterBtn();
+  }
 
   // Start mission timer
   const mission = getMissionById(activeMissionId);

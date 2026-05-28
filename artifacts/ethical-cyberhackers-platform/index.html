@@ -127,7 +127,21 @@
           </ul>
         </section>
 
-        <button id="enterModuleBtn" class="enter-module-btn">
+        <!-- Milestone 17: Student Name input. The Enter Module button
+             below stays disabled until this field has a non-empty value. -->
+        <section class="module-section module-name-section">
+          <label for="studentNameInput" class="module-section-title">STUDENT NAME</label>
+          <input id="studentNameInput"
+                 class="student-name-input"
+                 type="text"
+                 placeholder="Enter your name"
+                 maxlength="40"
+                 autocomplete="off"
+                 spellcheck="false"
+                 aria-label="Student Name" />
+        </section>
+
+        <button id="enterModuleBtn" class="enter-module-btn" disabled>
           ▶&nbsp; Enter Module
         </button>
       </div>
@@ -176,6 +190,11 @@
       <!-- ===== MISSION PANEL ===== -->
       <section class="panel mission-panel" aria-label="Mission Panel">
         <div class="panel-header">
+          <!-- Milestone 17: personalized greeting. Populated by
+               enterModule() from the studentName variable. -->
+          <div class="welcome-row">
+            <span class="welcome-text" id="welcomeMessage" aria-live="polite"></span>
+          </div>
           <!-- Milestone 10: small text link back to the module landing.
                Toggles visibility only — does NOT reset mission progress. -->
           <button id="backToModuleBtn" class="back-to-module-btn" type="button">

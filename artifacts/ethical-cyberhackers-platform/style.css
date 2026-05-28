@@ -1477,6 +1477,79 @@ button {
 
 
 /* ======================================================
+   STUDENT NAME ENTRY  (Milestone 17)
+   Input on the landing screen + welcome line on the dashboard.
+   ====================================================== */
+
+.module-name-section .module-section-title {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.student-name-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.student-name-input::placeholder {
+  color: var(--color-text-dim);
+  opacity: 0.7;
+}
+.student-name-input:focus {
+  outline: none;
+  border-color: var(--color-cyan);
+  background: rgba(0,229,255,0.04);
+  box-shadow: 0 0 0 3px rgba(0,229,255,0.15);
+}
+
+/* Disabled state for the Enter Module button (when name is empty) */
+.enter-module-btn:disabled,
+.enter-module-btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+.enter-module-btn:disabled:hover,
+.enter-module-btn[disabled]:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Welcome line at the top of the mission panel header */
+.welcome-row {
+  margin-bottom: 8px;
+}
+.welcome-text {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  padding: 4px 10px;
+  border-left: 2px solid var(--color-cyan);
+  background: rgba(0,229,255,0.05);
+  border-radius: 0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0;
+}
+.welcome-text strong {
+  color: var(--color-cyan);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.welcome-text:empty {
+  display: none;
+}
+
+
+/* ======================================================
    CERTIFICATE PREVIEW  (Milestone 16)
    Rendered inside the completion screen, below the Mission
    Scorecard. Visually styled like a formal certificate but
