@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 07:00 CST";
+const BUILD_TIME = "28 May 2026 — 07:30 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -1214,6 +1214,9 @@ function completeMission(newRank) {
     missionBadge.classList.add("mission-status-badge--complete");
   }
 
+  // Keep the Mission 2 dashboard's AGENT PROFILE in sync after XP award
+  syncM2XPPanel();
+
   // Print a terminal confirmation
   printOutput("[ MISSION COMPLETE \u2014 Well done, Agent. ]", "info");
 
@@ -1935,6 +1938,30 @@ function setM2ManagerMessage(text) {
   if (el) el.textContent = text;
 }
 
+/** Mirror current XP/Rank/stats from M1 elements into the M2 dashboard's
+ *  AGENT PROFILE panel. Single source of truth is the M1 element values
+ *  (and the currentXP / MAX_XP / mission1Complete state vars). Called on
+ *  every M2 dashboard entry plus after XP changes. */
+function syncM2XPPanel() {
+  // XP value + bar
+  const m2Cur  = document.getElementById("m2CurrentXP");
+  const m2Max  = document.getElementById("m2MaxXP");
+  const m2Bar  = document.getElementById("m2XpBar");
+  if (m2Cur) m2Cur.textContent = currentXPEl ? currentXPEl.textContent : currentXP;
+  if (m2Max) m2Max.textContent = maxXPEl    ? maxXPEl.textContent    : MAX_XP;
+  if (m2Bar) {
+    const pct = Math.round((currentXP / MAX_XP) * 100);
+    m2Bar.style.width = `${pct}%`;
+  }
+  // Rank name
+  const m2Rank = document.getElementById("m2RankName");
+  if (m2Rank && rankNameEl) m2Rank.textContent = rankNameEl.textContent;
+  // Missions completed (M1 only awards; M2 doesn't yet)
+  const m2Stat = document.getElementById("m2StatMissions");
+  const m1Stat = document.getElementById("statMissions");
+  if (m2Stat && m1Stat) m2Stat.textContent = m1Stat.textContent;
+}
+
 let m2Started = false;
 const m2UnlockedCmds = new Set();
 const m2CompletedStatus = new Set();
@@ -1946,6 +1973,7 @@ function beginMission2() {
   const dashboard = document.getElementById("mission2Dashboard");
   if (overview)  overview.style.display  = "none";
   if (dashboard) dashboard.style.display = "";
+  syncM2XPPanel();
   window.scrollTo({ top: 0, behavior: "instant" });
 
   if (m2Started) return;

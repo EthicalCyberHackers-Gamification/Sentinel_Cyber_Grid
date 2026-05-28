@@ -1628,6 +1628,14 @@ button {
 }
 .unified-subtitle:empty { display: none; }
 
+/* ---- M20.2: Mission 2 dashboard now uses the SAME .dashboard
+   3-column grid as Mission 1. The legacy .m2-dashboard / .m2-dash-*
+   wrapper classes are no longer applied. The only M2-specific bits
+   that remain are .m2-terminal (terminal output styling) and the
+   .m2-cmd-grid / .m2-cmd-btn unlock-chain buttons in the COMMANDS
+   panel-body. The Mission 2 STATUS list now uses .objectives-list
+   inside .mission-objectives (matches M1's "Mission Progress"). */
+
 
 /* --- Milestone 20: Mission 2 dashboard + unlocked command button --- */
 
