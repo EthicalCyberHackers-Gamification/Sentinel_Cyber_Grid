@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 05:30 UTC";
+const BUILD_TIME = "27 May 2026 — 23:30 CST";
 
 /** Boot messages shown in the terminal on load and after every restart. */
 const BOOT_MESSAGES = [
