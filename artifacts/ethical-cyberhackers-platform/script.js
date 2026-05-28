@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 06:30 CST";
+const BUILD_TIME = "28 May 2026 — 07:00 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -1893,19 +1893,21 @@ const M2_STATUS = [
 ];
 
 // Per-command: terminal output lines + hint shown AFTER the command runs +
-// commands this one unlocks next.
+// commands this one unlocks next + supervisor message fired after the run.
 const M2_COMMANDS = {
   "ip-addr": {
     cmd:    "ip addr",
     output: ["eth0: inet 10.0.0.12/24"],
     nextHint: "Now check whether the target host is reachable.",
     unlocks: [],
+    managerMsg: "Good — you've identified your local IP. Now confirm whether the target host is reachable.",
   },
   "ping": {
     cmd:    "ping 10.0.0.5",
     output: ["64 bytes from 10.0.0.5: host is reachable"],
     nextHint: "The host is reachable. Scan for open services.",
     unlocks: ["nmap"],
+    managerMsg: "The host is alive. Let's see what services it's exposing — try a quick port scan.",
   },
   "nmap": {
     cmd:    "nmap 10.0.0.5",
@@ -1917,14 +1919,21 @@ const M2_COMMANDS = {
     ],
     nextHint: "Review the services and think about what they mean.",
     unlocks: ["review"],
+    managerMsg: "Three open ports — SSH, HTTP, and HTTPS. Review what those services tell us about this host.",
   },
   "review": {
     cmd:    "review services",
     output: ["The host has SSH, HTTP, and HTTPS services exposed."],
     nextHint: "Mission 2 commands complete.",
     unlocks: [],
+    managerMsg: "Great work, Agent. You've completed the Mission 2 command sequence — a real network recon mini-exercise.",
   },
 };
+
+function setM2ManagerMessage(text) {
+  const el = document.getElementById("m2ManagerText");
+  if (el) el.textContent = text;
+}
 
 let m2Started = false;
 const m2UnlockedCmds = new Set();
@@ -1947,9 +1956,10 @@ function beginMission2() {
   m2UnlockedCmds.add("ping");
   syncM2Buttons();
 
-  // Status + opening hint
+  // Status + opening hint + supervisor briefing
   markM2Status("started");
   setM2Hint("Start by identifying your local IP address.");
+  setM2ManagerMessage("Welcome to Mission 2, Agent. Let's map this network — start by identifying your local IP address.");
 
   // Print a small system line in the terminal so it's not empty
   printM2Line("[ Mission 2 environment ready ]", "m2-line--info");
@@ -1982,6 +1992,7 @@ function runM2Command(key) {
   def.unlocks.forEach((next) => m2UnlockedCmds.add(next));
   syncM2Buttons();
   setM2Hint(def.nextHint);
+  if (def.managerMsg) setM2ManagerMessage(def.managerMsg);
 }
 
 function syncM2Buttons() {
@@ -2038,6 +2049,7 @@ function resetMission2() {
   const term = document.getElementById("m2Terminal");
   if (term) term.innerHTML = "";
   setM2Hint("Start by identifying your local IP address.");
+  setM2ManagerMessage("Welcome back. Mission 2 is a network reconnaissance exercise. Click any unlocked command to begin.");
   renderM2Status();
 
   // Buttons back to disabled

@@ -251,12 +251,33 @@
 
         <div class="m2-dash-grid">
 
-          <!-- LEFT: Terminal + hint -->
+          <!-- LEFT: Supervisor + Terminal + hint -->
           <div class="m2-dash-main">
-            <div class="m2-dash-panel m2-dash-panel--terminal">
-              <div class="m2-dash-panel-header">
-                <span class="m2-dash-panel-title">TERMINAL</span>
-                <span class="m2-dash-panel-meta">student@cybercorp</span>
+
+            <!-- Sarah Reyes supervisor panel — parity with Mission 1.
+                 Messages are scripted by setM2ManagerMessage(key) and
+                 fire at each lifecycle moment (begin, ip-addr, ping,
+                 nmap, review). -->
+            <div id="m2ManagerPanel" class="manager-panel" aria-live="polite">
+              <div class="manager-header">
+                <div class="manager-avatar" aria-hidden="true">SR</div>
+                <div class="manager-meta">
+                  <span class="manager-name">Sarah Reyes</span>
+                  <span class="manager-role">Lead Analyst · Your Supervisor</span>
+                </div>
+                <span class="manager-status">
+                  <span class="manager-status-dot"></span>ONLINE
+                </span>
+              </div>
+              <p id="m2ManagerText" class="manager-text">
+                Welcome back. Mission 2 is a network reconnaissance exercise. Click any unlocked command to begin.
+              </p>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header panel-header--unified">
+                <span class="unified-panel-title">TERMINAL</span>
+                <span class="unified-panel-meta">student@cybercorp</span>
               </div>
               <div class="m2-terminal" id="m2Terminal" role="log" aria-live="polite"></div>
             </div>
@@ -269,9 +290,9 @@
 
           <!-- RIGHT: Commands + status -->
           <aside class="m2-dash-side">
-            <div class="m2-dash-panel">
-              <div class="m2-dash-panel-header">
-                <span class="m2-dash-panel-title">COMMANDS</span>
+            <div class="panel">
+              <div class="panel-header panel-header--unified">
+                <span class="unified-panel-title">COMMANDS</span>
               </div>
               <div class="m2-cmd-grid m2-cmd-grid--stacked" id="m2CmdGrid">
                 <button class="m2-cmd-btn" type="button" data-m2cmd="ip-addr" disabled>
@@ -289,9 +310,9 @@
               </div>
             </div>
 
-            <div class="m2-dash-panel">
-              <div class="m2-dash-panel-header">
-                <span class="m2-dash-panel-title">MISSION 2 STATUS</span>
+            <div class="panel">
+              <div class="panel-header panel-header--unified">
+                <span class="unified-panel-title">MISSION 2 STATUS</span>
               </div>
               <ul class="m2-status-list" id="m2StatusList"></ul>
             </div>
@@ -348,25 +369,28 @@
 
       <!-- ===== MISSION PANEL ===== -->
       <section class="panel mission-panel" aria-label="Mission Panel">
-        <div class="panel-header">
+        <!-- Unified mission header (M20.1 declutter): eyebrow + back link
+             on top row, green mono title, personalized welcome subtitle.
+             Replaces the previous ACTIVE MISSION label + IN PROGRESS pill
+             + welcome-row + standalone back button stack. -->
+        <header class="panel-header panel-header--mission">
+          <div class="unified-header-top">
+            <div class="unified-eyebrow">
+              <span class="unified-eyebrow-label">MISSION 01</span>
+              <span class="unified-eyebrow-sep">·</span>
+              <span class="unified-eyebrow-value">New Cybersecurity Intern</span>
+            </div>
+            <button id="backToModuleBtn" class="unified-back-link" type="button">
+              ← Module Overview
+            </button>
+          </div>
+          <h2 class="unified-title" id="missionTitle">
+            Investigate a suspicious workstation
+          </h2>
           <!-- Milestone 17: personalized greeting. Populated by
                enterModule() from the studentName variable. -->
-          <div class="welcome-row">
-            <span class="welcome-text" id="welcomeMessage" aria-live="polite"></span>
-          </div>
-          <!-- Milestone 10: small text link back to the module landing.
-               Toggles visibility only — does NOT reset mission progress. -->
-          <button id="backToModuleBtn" class="back-to-module-btn" type="button">
-            ← Module Overview
-          </button>
-          <div class="panel-title-row">
-            <span class="panel-label">ACTIVE MISSION</span>
-            <span class="mission-status-badge">IN PROGRESS</span>
-          </div>
-          <h2 class="mission-title" id="missionTitle">
-            Mission: Investigate suspicious workstation
-          </h2>
-        </div>
+          <p class="unified-subtitle welcome-text" id="welcomeMessage" aria-live="polite"></p>
+        </header>
 
         <div class="panel-body">
 
@@ -449,21 +473,6 @@
             <div id="progressTracker" class="progress-tracker-wrap"></div>
           </div>
 
-          <div class="mission-meta">
-            <div class="meta-item">
-              <span class="meta-label">DIFFICULTY</span>
-              <span class="meta-value difficulty--beginner">BEGINNER</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-label">XP REWARD</span>
-              <span class="meta-value">+250 XP</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-label">TIME LIMIT</span>
-              <span class="meta-value" id="missionTimer">30:00</span>
-            </div>
-          </div>
-
           <!-- ===== COURSE PROGRESS (Milestone 9) =====
                Shows the student that this is part of a larger course.
                script.js re-renders the cards on init, completeMission(),
@@ -478,21 +487,12 @@
 
         <!-- ===== TERMINAL PANEL ===== -->
         <section class="panel terminal-panel" aria-label="Terminal Panel">
-          <div class="panel-header">
-            <div class="terminal-traffic-lights" aria-hidden="true">
-              <span class="tl tl--red"></span>
-              <span class="tl tl--yellow"></span>
-              <span class="tl tl--green"></span>
-            </div>
-            <span class="terminal-title">student@cybercorp:~$</span>
-            <!-- Milestone 12: live training environment indicator -->
-            <div class="live-indicator" aria-label="Live Training Environment">
-              <span class="live-indicator-dot" aria-hidden="true"></span>
-              <span class="live-indicator-text">LIVE TRAINING ENVIRONMENT</span>
-            </div>
-            <div class="terminal-actions">
-              <button class="terminal-btn" title="Clear terminal">CLR</button>
-            </div>
+          <!-- Unified panel header (M20.1 declutter): matches Mission 2.
+               Replaces traffic lights + LIVE TRAINING ENVIRONMENT badge
+               + CLR button with a clean two-label strip. -->
+          <div class="panel-header panel-header--unified">
+            <span class="unified-panel-title">TERMINAL</span>
+            <span class="unified-panel-meta">student@cybercorp</span>
           </div>
 
           <!-- Terminal output is populated entirely by script.js (boot messages,
@@ -517,37 +517,12 @@
           </div>
         </section>
 
-        <!-- ===== SYSTEM STATUS WIDGET (Milestone 12) =====
-             Decorative-only: four green-dot indicators showing the
-             "training environment" is online. No real system check. -->
-        <div class="system-status" aria-label="System Status">
-          <div class="system-status-item">
-            <span class="system-status-dot"></span>
-            <span class="system-status-label">Simulation</span>
-            <span class="system-status-value">Online</span>
-          </div>
-          <div class="system-status-item">
-            <span class="system-status-dot"></span>
-            <span class="system-status-label">Terminal</span>
-            <span class="system-status-value">Active</span>
-          </div>
-          <div class="system-status-item">
-            <span class="system-status-dot"></span>
-            <span class="system-status-label">Mission Engine</span>
-            <span class="system-status-value">Ready</span>
-          </div>
-          <div class="system-status-item">
-            <span class="system-status-dot"></span>
-            <span class="system-status-label">Student Mode</span>
-            <span class="system-status-value system-status-value--cyan">Guided</span>
-          </div>
-        </div>
-
         <!-- ===== COMMAND BUTTONS PANEL ===== -->
         <section class="panel commands-panel" aria-label="Command Buttons Panel">
-          <div class="panel-header">
-            <span class="panel-label">COMMAND BUTTONS</span>
-            <span class="panel-sublabel">New commands unlock as you progress</span>
+          <!-- Unified panel header (M20.1 declutter): matches Mission 2. -->
+          <div class="panel-header panel-header--unified">
+            <span class="unified-panel-title">COMMANDS</span>
+            <span class="unified-panel-meta">New commands unlock as you progress</span>
           </div>
 
           <div class="panel-body">
@@ -586,8 +561,8 @@
 
       <!-- ===== XP / RANK PANEL ===== -->
       <aside class="panel xp-panel" aria-label="XP and Rank Panel">
-        <div class="panel-header">
-          <span class="panel-label">AGENT PROFILE</span>
+        <div class="panel-header panel-header--unified">
+          <span class="unified-panel-title">AGENT PROFILE</span>
         </div>
 
         <div class="panel-body">

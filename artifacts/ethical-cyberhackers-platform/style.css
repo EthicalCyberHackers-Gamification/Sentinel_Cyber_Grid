@@ -1547,6 +1547,88 @@ button {
   .m2-cmd-grid { grid-template-columns: 1fr; }
 }
 
+/* ======================================================
+   UNIFIED PANEL CHROME  (Milestone 20.1)
+   Shared across Mission 1 and Mission 2. A flat panel
+   with a thin cyan-tinted header strip (uppercase mono
+   title left, dim meta right) and a dark body.
+   ====================================================== */
+
+.panel-header--unified {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 10px 14px !important;
+  background: rgba(0, 229, 255, 0.04) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 10.5px !important;
+  letter-spacing: 1.6px !important;
+  text-transform: uppercase !important;
+}
+.unified-panel-title { color: var(--color-cyan); }
+.unified-panel-meta  { color: var(--color-text-dim); opacity: 0.7; }
+
+/* Mission-card header (richer: eyebrow row + title + subtitle).
+   Overrides the legacy .mission-panel .panel-header column layout. */
+.panel-header--mission {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  padding: 16px 18px !important;
+  background: rgba(0, 229, 255, 0.04) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+}
+.unified-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.unified-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+}
+.unified-eyebrow-sep { margin: 0 6px; opacity: 0.5; }
+.unified-eyebrow-value { color: var(--color-text-dim); letter-spacing: 1.5px; }
+.unified-back-link {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-cyan);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.unified-back-link:hover {
+  background: rgba(0, 229, 255, 0.08);
+  border-color: rgba(0, 229, 255, 0.3);
+}
+.unified-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: var(--color-green);
+  letter-spacing: 0.5px;
+  line-height: 1.25;
+}
+.unified-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-dim);
+}
+.unified-subtitle:empty { display: none; }
+
+
 /* --- Milestone 20: Mission 2 dashboard + unlocked command button --- */
 
 .m2-begin-btn {
