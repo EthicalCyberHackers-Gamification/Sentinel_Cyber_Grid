@@ -1417,6 +1417,108 @@ button {
 .trust-score--high .trust-score-bar-fill     { background: #4ade80; }
 
 /* ======================================================
+   Milestone 24G — Available Tools panel (Phase B)
+   ------------------------------------------------------
+   Quiet panel under the Trust Score on both mission
+   dashboards. Same chrome powers #toolsPanel and
+   #m2ToolsPanel. Each tool row color-shifts with its
+   state via the .tool-item--<state> modifier. The tool
+   unlock system prepares the platform for larger SOC-
+   style investigations with multiple interactive tools.
+   ====================================================== */
+.tools-panel {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(74, 222, 128, 0.18);
+}
+.tools-caption {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(226, 232, 240, 0.55);
+  font-style: italic;
+}
+.tools-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tool-item {
+  padding: 7px 10px;
+  border-radius: 0 4px 4px 0;
+  border-left: 2px solid rgba(148, 163, 184, 0.4);
+  background: rgba(148, 163, 184, 0.06);
+  transition: border-color 300ms ease, background-color 300ms ease, opacity 300ms ease;
+}
+.tool-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tool-item-name {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.92);
+}
+.tool-item-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  padding: 0 7px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-bg, #0b1220);
+  background: #94a3b8;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.tool-item-desc {
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(226, 232, 240, 0.6);
+}
+
+/* State color tokens — left border + pill shift with tool state. */
+.tool-item--locked {
+  opacity: 0.55;
+}
+.tool-item--locked .tool-item-pill {
+  background: #64748b;
+}
+.tool-item--available {
+  border-left-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.07);
+}
+.tool-item--available .tool-item-pill {
+  background: #38bdf8;
+}
+.tool-item--active {
+  border-left-color: #facc15;
+  background: rgba(250, 204, 21, 0.08);
+}
+.tool-item--active .tool-item-pill {
+  background: #facc15;
+}
+.tool-item--completed {
+  border-left-color: #4ade80;
+  background: rgba(74, 222, 128, 0.07);
+}
+.tool-item--completed .tool-item-pill {
+  background: #4ade80;
+}
+
+/* ======================================================
    Milestone 24E-2 — Interactive Alert Modal (Phase B)
    ------------------------------------------------------
    Forced-acknowledgement modal that pops when an alert is

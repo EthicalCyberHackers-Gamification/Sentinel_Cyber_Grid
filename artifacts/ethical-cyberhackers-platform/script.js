@@ -70,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 18:45 CST";
+const BUILD_TIME = "28 May 2026 — 19:30 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -201,6 +201,241 @@ function renderEvidencePanel(missionId) {
         </li>
       `).join("")}
     </ul>
+  `;
+}
+
+/* ============================================================
+   Milestone 24G — Tool Unlock System (Phase B)
+   ------------------------------------------------------------
+   The tool unlock system prepares the platform for larger
+   SOC-style investigations with multiple interactive tools.
+   Instead of showing every tool at once, each mission exposes
+   a small set of tools that unlock as the student progresses
+   through the alert → investigate → evidence → decision →
+   consequence loop. This creates guided discovery.
+
+   Tool states (ordered):
+     "locked"    — not yet available
+     "available" — unlocked, ready to use
+     "active"    — currently the focus of the investigation
+     "completed" — the student finished this tool's step
+
+   This milestone is intentionally additive and visual: it
+   complements the existing command-progression unlocking
+   (COMMAND_BUTTONS / m2UnlockedCmds) rather than replacing it.
+   Tool ids are globally unique (mission-prefixed) so the
+   reusable functions below can take just a toolId.
+   ============================================================ */
+const TOOL_STATES = ["locked", "available", "active", "completed"];
+
+const TOOL_DEFINITIONS = {
+  "mission-001": [
+    {
+      id: "m1-file-inspector",
+      name: "File Inspector",
+      description: "Open and read workstation files to spot suspicious content.",
+      initial: "available",
+    },
+    {
+      id: "m1-terminal",
+      name: "Terminal",
+      description: "Run investigation commands to explore the workstation.",
+      initial: "available",
+    },
+    {
+      id: "m1-finding-report",
+      name: "Finding Report",
+      description: "Report the suspicious activity you discovered.",
+      initial: "locked",
+    },
+    {
+      id: "m1-quiz",
+      name: "Quiz",
+      description: "Confirm your understanding of the threat.",
+      initial: "locked",
+    },
+    {
+      id: "m1-reflection",
+      name: "Reflection",
+      description: "Reflect on what you learned from the investigation.",
+      initial: "locked",
+    },
+  ],
+  "mission-002": [
+    {
+      id: "m2-network-identity",
+      name: "Network Identity",
+      description: "Identify your own host's position on the network.",
+      initial: "available",
+    },
+    {
+      id: "m2-reachability",
+      name: "Reachability Check",
+      description: "Confirm whether the target host is reachable.",
+      initial: "available",
+    },
+    {
+      id: "m2-service-scanner",
+      name: "Service Scanner",
+      description: "Scan the target for open network services.",
+      initial: "locked",
+    },
+    {
+      id: "m2-analyst-review",
+      name: "Analyst Review",
+      description: "Assess the exposed services and recommend action.",
+      initial: "locked",
+    },
+    {
+      id: "m2-quiz",
+      name: "Quiz",
+      description: "Confirm your understanding of open services.",
+      initial: "locked",
+    },
+  ],
+};
+
+/* Build a quick toolId → missionId lookup so the reusable functions
+   can resolve a tool's mission from its id alone. */
+const TOOL_MISSION_BY_ID = (() => {
+  const map = {};
+  Object.entries(TOOL_DEFINITIONS).forEach(([mid, tools]) => {
+    tools.forEach((t) => { map[t.id] = mid; });
+  });
+  return map;
+})();
+
+/* Live tool-state store, keyed by mission id then tool id. Populated by
+   initializeMissionTools(). In-memory only (re-derived as the student
+   plays); it is never persisted because mission start is not persisted. */
+const toolStateByMission = {
+  "mission-001": {},
+  "mission-002": {},
+};
+
+/** Returns the human-readable label for a tool state (for the panel pill). */
+function toolStateLabel(state) {
+  switch (state) {
+    case "available": return "Available";
+    case "active":    return "Active";
+    case "completed": return "Completed";
+    default:          return "Locked";
+  }
+}
+
+/** Reset a mission's tools to the starting states from TOOL_DEFINITIONS. */
+function initializeMissionTools(missionId) {
+  const mid   = missionId || getActiveMissionId();
+  const defs  = TOOL_DEFINITIONS[mid];
+  if (!defs) return;
+  const state = {};
+  defs.forEach((t) => { state[t.id] = t.initial; });
+  toolStateByMission[mid] = state;
+  renderAvailableTools(mid);
+}
+
+/** Unlock a locked tool → "available". No-op if already past locked. */
+function unlockTool(toolId) {
+  const mid = TOOL_MISSION_BY_ID[toolId];
+  if (!mid) return;
+  const state = toolStateByMission[mid];
+  if (!state) return;
+  if (state[toolId] === "locked") {
+    state[toolId] = "available";
+    renderAvailableTools(mid);
+  }
+}
+
+/** Make a tool the active focus. Demotes any other active tool in the same
+ *  mission back to "available", and unlocks the target first if needed.
+ *  Completed tools are left as-is (you don't re-activate finished work). */
+function setActiveTool(toolId) {
+  const mid = TOOL_MISSION_BY_ID[toolId];
+  if (!mid) return;
+  const state = toolStateByMission[mid];
+  if (!state) return;
+  if (state[toolId] === "completed") return;
+  Object.keys(state).forEach((id) => {
+    if (id !== toolId && state[id] === "active") state[id] = "available";
+  });
+  state[toolId] = "active";
+  renderAvailableTools(mid);
+}
+
+/** Mark a tool as completed. */
+function markToolCompleted(toolId) {
+  const mid = TOOL_MISSION_BY_ID[toolId];
+  if (!mid) return;
+  const state = toolStateByMission[mid];
+  if (!state) return;
+  state[toolId] = "completed";
+  renderAvailableTools(mid);
+}
+
+/** Mark every tool in a mission as completed (used on mission completion). */
+function markAllToolsCompleted(missionId) {
+  const mid   = missionId || getActiveMissionId();
+  const state = toolStateByMission[mid];
+  if (!state) return;
+  Object.keys(state).forEach((id) => { state[id] = "completed"; });
+  renderAvailableTools(mid);
+}
+
+/** Restart helper — same as initialize, named per the spec. */
+function resetToolsForMission(missionId) {
+  initializeMissionTools(missionId);
+}
+
+/** Returns the list of completed tool names for a mission (for scorecards). */
+function getCompletedToolNames(missionId) {
+  const mid   = missionId || getActiveMissionId();
+  const defs  = TOOL_DEFINITIONS[mid] || [];
+  const state = toolStateByMission[mid] || {};
+  return defs.filter((t) => state[t.id] === "completed").map((t) => t.name);
+}
+
+/** Builds the "TOOLS USED" scorecard section for a mission. Reuses the
+ *  existing .scorecard-section / .scorecard-skills chrome. */
+function buildToolsScorecardHTML(missionId) {
+  const names = getCompletedToolNames(missionId);
+  if (!names.length) return "";
+  const items = names.map((n) =>
+    `<li><span class="scorecard-bullet">▹</span>${escapeHtml(n)}</li>`
+  ).join("");
+  return `
+    <div class="scorecard-section scorecard-tools">
+      <span class="scorecard-section-label">TOOLS USED</span>
+      <ul class="scorecard-skills">${items}</ul>
+    </div>
+  `;
+}
+
+/** Render the "Available Tools" panel for the given mission id. */
+function renderAvailableTools(missionId) {
+  const mid    = missionId || getActiveMissionId();
+  const hostId = mid === "mission-002" ? "m2ToolsPanel" : "toolsPanel";
+  const host   = document.getElementById(hostId);
+  if (!host) return;
+  const defs  = TOOL_DEFINITIONS[mid] || [];
+  const state = toolStateByMission[mid] || {};
+
+  const items = defs.map((t) => {
+    const s = state[t.id] || "locked";
+    return `
+      <li class="tool-item tool-item--${s}">
+        <div class="tool-item-head">
+          <span class="tool-item-name">${escapeHtml(t.name)}</span>
+          <span class="tool-item-pill">${toolStateLabel(s)}</span>
+        </div>
+        <p class="tool-item-desc">${escapeHtml(t.description)}</p>
+      </li>
+    `;
+  }).join("");
+
+  host.innerHTML = `
+    <h3 class="objectives-title">Available Tools</h3>
+    <p class="tools-caption">Tools unlock as your investigation progresses.</p>
+    <ul class="tools-list">${items}</ul>
   `;
 }
 
@@ -1818,6 +2053,12 @@ function afterCommand(buttonKey) {
     setThreatLevel("High", "mission-001");
     // Milestone 24F — threat just rose to High → manager reacts.
     updateManagerReaction("threat_increased", { missionId: "mission-001" });
+    // Milestone 24G — suspicious file inspected via the terminal →
+    // File Inspector + Terminal work done; Finding Report unlocks next.
+    markToolCompleted("m1-file-inspector");
+    markToolCompleted("m1-terminal");
+    unlockTool("m1-finding-report");
+    setActiveTool("m1-finding-report");
     // Milestone 24D — evidence collected → reach the decision point.
     // The Decision Actions panel gates showFindingPanel: only a
     // correct/acceptable action advances to the finding submission.
@@ -2063,6 +2304,10 @@ function handleFindingAnswer(answerId) {
     setThreatLevel("Medium", "mission-001");
     // Milestone 24C — careful analyst work → +10 trust.
     increaseTrustScore(10);
+    // Milestone 24G — finding submitted → Finding Report done; Quiz unlocks.
+    markToolCompleted("m1-finding-report");
+    unlockTool("m1-quiz");
+    setActiveTool("m1-quiz");
 
     // 2. Append a small Analyst Report summary card
     const report = document.createElement("div");
@@ -2182,6 +2427,11 @@ function handleAnswer(answerId) {
 
     // Milestone 24C — correct Mission 1 quiz → +10 trust.
     increaseTrustScore(10);
+
+    // Milestone 24G — quiz passed → Quiz done; Reflection unlocks.
+    markToolCompleted("m1-quiz");
+    unlockTool("m1-reflection");
+    setActiveTool("m1-reflection");
 
     // Milestone 14: insert Reflection Checkpoint BEFORE XP + scorecard.
     // XP is awarded only after a correct reflection (see handleReflectionAnswer).
@@ -2340,6 +2590,9 @@ function completeMission(newRank) {
   // ("Alert Resolved" badge per spec #12).
   markAlertResolved("mission-001");
 
+  // Milestone 24G — mission complete → every M1 tool is marked completed.
+  markAllToolsCompleted("mission-001");
+
   // Milestone 15: mark every step complete (spec #8). The loop is a safety
   // net in case any earlier step's hook didn't fire (e.g. the optional
   // "cat-employee-notes" path); the final "complete" step is always set here.
@@ -2476,6 +2729,9 @@ function buildCompletionHTML(newRank) {
           </ul>
         </div>
 
+        <!-- Milestone 24G — Tools Used (Mission 1 scorecard) -->
+        ${buildToolsScorecardHTML("mission-001")}
+
         <!-- Milestone 24A — Evidence Collected (Mission 1 scorecard) -->
         ${buildEvidenceScorecardHTML("mission-001")}
 
@@ -2607,6 +2863,10 @@ function beginMission() {
   setManagerMessage("started");
   // Milestone 24F — dynamic manager reaction for mission start (M1).
   updateManagerReaction("mission_started", { missionId: "mission-001" });
+  // Milestone 24G — initialize the M1 tool set (File Inspector + Terminal
+  // available, rest locked) and make the Terminal the active focus.
+  initializeMissionTools("mission-001");
+  setActiveTool("m1-terminal");
   // Milestone 15: advance tracker — Begin Mission done, Inspect Location is now current
   markProgressStep("begin-mission");
   // Milestone 24E / 24E-2 — ensure the M1 alert exists in the "New"
@@ -2683,6 +2943,8 @@ function resetMission() {
   clearEvidenceForMission("mission-001");
   // Milestone 24B — restart resets Mission 1's threat level to baseline.
   resetThreatLevelForMission("mission-001");
+  // Milestone 24G — restart resets Mission 1's tools to their start states.
+  resetToolsForMission("mission-001");
 
   // Pre-populate the starting buttons (they stay hidden until Begin Mission)
   COMMAND_BUTTONS.forEach((btn) => {
@@ -3405,6 +3667,10 @@ function runM2Command(key) {
     setThreatLevel("High", "mission-002");
     // Milestone 24F — threat just rose to High → manager reacts.
     updateManagerReaction("threat_increased", { missionId: "mission-002" });
+    // Milestone 24G — service scan done; service evidence collected →
+    // Service Scanner complete, Analyst Review unlocks.
+    markToolCompleted("m2-service-scanner");
+    unlockTool("m2-analyst-review");
   }
   if (key === "review") {
     addEvidence(
@@ -3414,6 +3680,19 @@ function runM2Command(key) {
     );
     // Milestone 24B — analyst has reviewed and flagged the services → threat eases.
     setThreatLevel("Medium", "mission-002");
+    // Milestone 24G — student opened the analyst review step → make it active.
+    setActiveTool("m2-analyst-review");
+  }
+  // Milestone 24G — per-command tool transitions for the early M2 steps.
+  if (key === "ip-addr") {
+    // Host identified → Network Identity work is done.
+    markToolCompleted("m2-network-identity");
+  }
+  if (key === "ping") {
+    // Reachability confirmed → Reachability Check done; Service Scanner unlocks.
+    markToolCompleted("m2-reachability");
+    unlockTool("m2-service-scanner");
+    setActiveTool("m2-service-scanner");
   }
 
   // Milestone 21/24D — after `review services`, gate the Analyst Review
@@ -3519,6 +3798,10 @@ function handleM2AnalystAnswer(letter) {
   m2AnalystAnswered = true;
   // Milestone 24C — correct M2 analyst review → +10 trust.
   increaseTrustScore(10);
+  // Milestone 24G — analyst review answered → Analyst Review done; Quiz unlocks.
+  markToolCompleted("m2-analyst-review");
+  unlockTool("m2-quiz");
+  setActiveTool("m2-quiz");
   markM2Status("analyst-review");
   markM2Status("threat-assessment");
   setM2Hint("Mission 2 threat assessment complete. Final assessment incoming.");
@@ -3639,6 +3922,9 @@ function handleM2QuizAnswer(letter) {
   // Milestone 24E — M2 complete ⇒ alert moves to Resolved.
   markAlertResolved("mission-002");
 
+  // Milestone 24G — mission complete → every M2 tool is marked completed.
+  markAllToolsCompleted("mission-002");
+
   // Award XP (uses the existing M1 XP system — M2 shares the global bar)
   awardXP(M2_QUIZ.xpReward);
 
@@ -3741,6 +4027,9 @@ function renderM2Scorecard() {
               `<li><span class="scorecard-bullet">▹</span>${escapeHtml(s)}</li>`).join("")}
           </ul>
         </div>
+
+        <!-- Milestone 24G — Tools Used (Mission 2 scorecard) -->
+        ${buildToolsScorecardHTML("mission-002")}
 
         <!-- Milestone 24A — Evidence Collected (Mission 2 scorecard) -->
         ${buildEvidenceScorecardHTML("mission-002")}
@@ -3887,6 +4176,8 @@ function resetMission2() {
   clearEvidenceForMission("mission-002");
   // Milestone 24B — restart resets Mission 2's threat level to baseline.
   resetThreatLevelForMission("mission-002");
+  // Milestone 24G — restart resets Mission 2's tools to their start states.
+  resetToolsForMission("mission-002");
   // Persist — clears mission2Complete flag from localStorage too
   saveProgress();
   // Course progress reflects the regression (M2 back to "Unlocked")
@@ -4194,6 +4485,10 @@ function completeMissionEngine(newRank) {
     // Milestone 24E — engine-driven M2 completion also resolves the alert.
     markAlertResolved("mission-002");
 
+    // Milestone 24G — engine-driven M2 completion finalizes the tool set too,
+    // mirroring the quiz-driven path so the scorecard's TOOLS USED is correct.
+    markAllToolsCompleted("mission-002");
+
     // Persist + dashboard sync + status checklist + supervisor/hint copy
     saveProgress();
     syncM2XPPanel();
@@ -4332,6 +4627,17 @@ window.MissionEngine = {
   getManagerReaction,
   renderManagerReaction,
   updateManagerReaction,
+  // 24G — tool unlock system (Phase B)
+  TOOL_DEFINITIONS,
+  initializeMissionTools,
+  unlockTool,
+  setActiveTool,
+  markToolCompleted,
+  markAllToolsCompleted,
+  resetToolsForMission,
+  renderAvailableTools,
+  getCompletedToolNames,
+  toolStateByMission,
 };
 
 
@@ -4559,6 +4865,12 @@ function boot() {
   renderMissionStatus();
   renderCourseProgress();   // Milestone 9 — initial render (Mission 2 locked)
   renderProgressTracker();  // Milestone 15 — initial render (Briefing complete, Begin Mission current)
+
+  // Milestone 24G — render the Available Tools panels at their starting
+  // states for both missions so the panels aren't empty before the
+  // student clicks Begin Mission. Re-initialized on begin/reset.
+  initializeMissionTools("mission-001");
+  initializeMissionTools("mission-002");
 
   // Milestone 6: show the awaiting hint on initial load
   setHint(HINTS.awaiting, "muted");

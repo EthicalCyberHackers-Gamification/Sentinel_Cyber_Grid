@@ -1,0 +1,111 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Phase A Baseline is complete.
+* Mission Engine is ready.
+* Evidence Collection works.
+* Threat Level Meter works.
+* Trust Score System works.
+* Decision Consequence System works.
+* Alert Loop System works.
+* Dynamic Manager Reaction System works.
+* Mission 1 and Mission 2 still work.
+* Everything is frontend-only.
+
+Now implement Phase B — Milestone 24G: Tool Unlock System.
+
+Purpose:
+Students should not see every tool immediately. Tools should unlock as the investigation progresses. This creates guided discovery and supports the alert → investigate → evidence → decision → consequence loop.
+
+Requirements:
+
+1. Do not add Mission 3 functionality yet.
+
+2. Do not redesign the UI.
+
+3. Do not break Mission 1 or Mission 2.
+
+4. Add or update an “Available Tools” panel.
+
+5. Tools should support these states:
+
+* Locked
+* Available
+* Active
+* Completed
+
+6. Add reusable functions:
+
+* initializeMissionTools(missionId)
+* unlockTool(toolId)
+* setActiveTool(toolId)
+* markToolCompleted(toolId)
+* renderAvailableTools()
+* resetToolsForMission(missionId)
+
+7. Mission 1 tools:
+
+* File Inspector
+* Terminal
+* Finding Report
+* Quiz
+* Reflection
+
+Mission 1 starting state:
+
+* File Inspector: Available
+* Terminal: Available
+* Finding Report: Locked
+* Quiz: Locked
+* Reflection: Locked
+
+Mission 1 unlock logic:
+
+* Finding Report unlocks after suspicious file evidence is collected.
+* Quiz unlocks after finding submission is correct.
+* Reflection unlocks after quiz is correct.
+* All tools show Completed after mission completion.
+
+8. Mission 2 tools:
+
+* Network Identity
+* Reachability Check
+* Service Scanner
+* Analyst Review
+* Quiz
+
+Mission 2 starting state:
+
+* Network Identity: Available
+* Reachability Check: Available
+* Service Scanner: Locked
+* Analyst Review: Locked
+* Quiz: Locked
+
+Mission 2 unlock logic:
+
+* Service Scanner unlocks after reachability is confirmed.
+* Analyst Review unlocks after service evidence is collected.
+* Quiz unlocks after analyst review is correct.
+* All tools show Completed after mission completion.
+
+9. Tool changes should be visual only at first unless existing logic already supports tool-based gating.
+
+10. Do not remove current command unlocking. The Tool Unlock System should complement the command progression, not replace it yet.
+
+11. Add short descriptions for each tool so students understand what it does.
+
+12. Restarting a mission should reset tool states.
+
+13. Completing a mission should include tools used in the scorecard.
+
+14. Do not add backend, database, authentication, AI, or new pages.
+
+15. Keep everything frontend-only.
+
+16. Add comments explaining:
+    “The tool unlock system prepares the platform for larger SOC-style investigations with multiple interactive tools.”
+
+Goal:
+By the end of this step, each mission should show a clear set of tools that unlock as the student progresses through the investigation.
