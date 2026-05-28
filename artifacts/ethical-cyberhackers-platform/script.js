@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 08:55 CST";
+const BUILD_TIME = "28 May 2026 — 09:25 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -89,6 +89,8 @@ function saveProgress() {
       rank: rankNameEl ? rankNameEl.textContent : INITIAL_RANK,
       mission1Complete: !!missionComplete,
       mission2Unlocked: !!missionComplete, // mirrors completion in this build
+      // Milestone 22 — Mission 2 completion flag (kept separate from M1).
+      mission2Complete: !!mission2Complete,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -168,6 +170,16 @@ function restoreSavedProgress() {
     renderCourseProgress();
     // Milestone 22 — returning student: swap M1 primary CTA to "Continue".
     updateMission1CTA();
+  }
+
+  // 5. Milestone 22 — Mission 2 completion. Mirror state so the
+  //    Course Progress card shows Mission 2 as Completed on reload.
+  if (data.mission2Complete) {
+    mission2Complete = true;
+    // Mark all M2 status entries done so re-entering the M2 dashboard
+    // shows the full checklist of ticks (matches what the student saw).
+    M2_STATUS.forEach((s) => m2CompletedStatus.add(s.id));
+    renderCourseProgress();
   }
 
   updateSaveIndicator(true);
@@ -1843,16 +1855,20 @@ function renderCourseProgress() {
     ? { label: "Completed", mod: "completed" }
     : { label: "Available", mod: "available" };
 
-  const m2Status = m1Completed
-    ? { label: "Unlocked", mod: "unlocked" }
-    : { label: "Locked",   mod: "locked"   };
+  // Milestone 22 — Mission 2 has 3 possible states (Locked / Unlocked / Completed)
+  const m2Status = mission2Complete
+    ? { label: "Completed", mod: "completed" }
+    : m1Completed
+      ? { label: "Unlocked", mod: "unlocked" }
+      : { label: "Locked",   mod: "locked"   };
 
   // Build the markup. The Start Mission 2 button + unlock notice only
-  // appear when Mission 1 is complete.
+  // appear when Mission 1 is complete. Mission 3 is a locked placeholder
+  // shown only once both Mission 1 and Mission 2 are done.
   courseProgressEl.innerHTML = `
     <div class="course-progress-header">
       <span class="course-progress-label">COURSE PROGRESS</span>
-      <span class="course-progress-sub">2 missions</span>
+      <span class="course-progress-sub">${mission2Complete ? "3 missions" : "2 missions"}</span>
     </div>
 
     <ul class="course-list">
@@ -1884,7 +1900,7 @@ function renderCourseProgress() {
           </span>
         </div>
 
-        ${m1Completed ? `
+        ${(m1Completed && !mission2Complete) ? `
           <div class="course-card-unlock-note">
             ✓ Mission 2 unlocked: Network Basics
           </div>
@@ -1892,13 +1908,33 @@ function renderCourseProgress() {
             ▶&nbsp; Start Mission 2
           </button>
         ` : ""}
+        ${mission2Complete ? `
+          <button id="startMission2Btn" class="course-start-btn course-start-btn--completed">
+            ▶&nbsp; Replay Mission 2
+          </button>
+        ` : ""}
       </li>
+
+      ${mission2Complete ? `
+        <!-- Milestone 22 — Mission 3 placeholder. Locked teaser only,
+             no gameplay yet. Appears only after Mission 2 completion. -->
+        <li class="course-card course-card--locked">
+          <div class="course-card-row">
+            <span class="course-card-num">03</span>
+            <div class="course-card-info">
+              <span class="course-card-title">Reconnaissance &amp; Discovery</span>
+              <span class="course-card-desc">Mission 3 Locked: Reconnaissance &amp; Discovery coming next.</span>
+            </div>
+            <span class="course-card-status course-card-status--locked">🔒 Locked</span>
+          </div>
+        </li>
+      ` : ""}
     </ul>
   `;
 
-  // Wire up the Start Mission 2 button (only present when unlocked).
-  // Milestone 19: clicking it now takes the student to the full
-  // Mission 2 Overview takeover screen.
+  // Wire up the Start Mission 2 button (only present when unlocked or completed).
+  // Milestone 19: clicking it takes the student to the full Mission 2 Overview
+  // takeover screen. Milestone 22: relabel + behavior on completion (Replay).
   if (m1Completed) {
     const startBtn = document.getElementById("startMission2Btn");
     if (startBtn) startBtn.addEventListener("click", showMission2Overview);
@@ -1947,7 +1983,40 @@ const M2_STATUS = [
   // Milestone 21 — Analyst Review + Threat Assessment
   { id: "analyst-review",     label: "Analyst Review Completed" },
   { id: "threat-assessment",  label: "Threat Assessment Complete" },
+  // Milestone 22 — Mission 2 final completion (quiz passed)
+  { id: "m2-complete",        label: "Mission 2 Complete" },
 ];
+
+// Milestone 22 — Mission 2 quiz, XP reward, and scorecard data.
+const M2_QUIZ = {
+  question: "What does an open network service mean?",
+  answers: [
+    { letter: "A", text: "The computer is automatically hacked." },
+    { letter: "B", text: "The computer is running a service that can accept network connections." },
+    { letter: "C", text: "The computer has no security risks." },
+    { letter: "D", text: "The IP address is fake." },
+  ],
+  correct:    "B",
+  correctMsg: "Correct. Open services are normal, but analysts must review them for security risk.",
+  wrongMsg:   "Review the scan output again. Open services accept network connections and must be assessed.",
+  xpReward:   100,
+  newRank:    "Cyber Intern Level 2",
+};
+
+const M2_SCORECARD = {
+  missionName:     "Network Basics",
+  skills: [
+    "Identifying local IP address",
+    "Checking host reachability",
+    "Reading scan-style output",
+    "Recognizing open services",
+    "Understanding attack surface",
+  ],
+  threatAssessment: "The target host exposes SSH, HTTP, and HTTPS services that should be reviewed for secure configuration.",
+};
+
+let mission2Complete    = false;
+let m2QuizAnswered      = false;
 
 // Per-command: terminal output lines + hint shown AFTER the command runs +
 // commands this one unlocks next + supervisor message fired after the run.
@@ -2182,8 +2251,8 @@ function handleM2AnalystAnswer(letter) {
   m2AnalystAnswered = true;
   markM2Status("analyst-review");
   markM2Status("threat-assessment");
-  setM2Hint("Mission 2 threat assessment complete.");
-  setM2ManagerMessage("Excellent reasoning, Agent. You're starting to think like an analyst — well done.");
+  setM2Hint("Mission 2 threat assessment complete. Final assessment incoming.");
+  setM2ManagerMessage("Excellent reasoning, Agent. You're starting to think like an analyst — one final question to confirm your understanding.");
 
   const outcome = document.getElementById("m2AnalystOutcome");
   if (outcome) {
@@ -2202,6 +2271,189 @@ function handleM2AnalystAnswer(letter) {
 
   // Terminal confirmation
   printM2Line("[ ANALYST REVIEW COMPLETE — Threat assessment recorded. ]", "m2-line--info");
+
+  // Milestone 22 — reveal the Mission 2 final quiz after the outcome blocks.
+  renderM2Quiz();
+}
+
+/* ============================================================
+   Milestone 22 — Mission 2 Quiz, XP Reward, Completion
+   ============================================================ */
+
+function renderM2Quiz() {
+  // Append a second .quiz-panel into the same #m2AnalystReview host.
+  const host = document.getElementById("m2AnalystReview");
+  if (!host) return;
+  // Avoid duplicating if already rendered
+  if (host.querySelector("#m2QuizPanel")) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.id = "m2QuizPanel";
+  wrapper.innerHTML = `
+    <div class="quiz-panel quiz-panel--m2" style="display:block; margin-top: 16px;">
+      <div class="quiz-header">
+        <span class="quiz-label">Final Assessment</span>
+        <span class="quiz-badge">Mission 2 Quiz</span>
+      </div>
+      <p class="quiz-question">${M2_QUIZ.question}</p>
+      <div class="quiz-answers" id="m2QuizAnswers">
+        ${M2_QUIZ.answers.map((a) => `
+          <button class="quiz-answer-btn" type="button" data-m2quiz="${a.letter}">
+            <span class="quiz-answer-letter">${a.letter}</span>
+            <span class="quiz-answer-text">${escapeHtml(a.text)}</span>
+          </button>
+        `).join("")}
+      </div>
+      <div id="m2QuizFeedback" class="quiz-feedback" style="display:none;"></div>
+    </div>
+  `;
+  host.appendChild(wrapper);
+  wrapper.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+    btn.addEventListener("click", () => handleM2QuizAnswer(btn.getAttribute("data-m2quiz")));
+  });
+  m2QuizAnswered = false;
+}
+
+function handleM2QuizAnswer(letter) {
+  if (m2QuizAnswered) return;
+  const isCorrect = letter === M2_QUIZ.correct;
+
+  const answersWrap = document.getElementById("m2QuizAnswers");
+  if (answersWrap) {
+    answersWrap.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+      const l = btn.getAttribute("data-m2quiz");
+      btn.disabled = true;
+      if (l === M2_QUIZ.correct) {
+        btn.classList.add(isCorrect ? "quiz-answer--correct" : "quiz-answer--reveal");
+      } else if (l === letter) {
+        btn.classList.add("quiz-answer--wrong");
+      }
+    });
+  }
+
+  const fb = document.getElementById("m2QuizFeedback");
+  if (fb) {
+    fb.style.display = "";
+    fb.textContent   = isCorrect ? M2_QUIZ.correctMsg : M2_QUIZ.wrongMsg;
+    fb.classList.toggle("quiz-feedback--correct", isCorrect);
+    fb.classList.toggle("quiz-feedback--wrong",  !isCorrect);
+  }
+
+  if (!isCorrect) {
+    // Allow retry on wrong answers, same pattern as analyst review.
+    setTimeout(() => {
+      if (!answersWrap) return;
+      answersWrap.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+        const l = btn.getAttribute("data-m2quiz");
+        if (l === letter) return;
+        btn.disabled = false;
+        btn.classList.remove("quiz-answer--reveal");
+      });
+    }, 600);
+    return;
+  }
+
+  // Correct path — complete Mission 2
+  m2QuizAnswered   = true;
+  mission2Complete = true;
+
+  // Award XP (uses the existing M1 XP system — M2 shares the global bar)
+  awardXP(M2_QUIZ.xpReward);
+
+  // Rank bump (only if it's a forward move — don't downgrade if already higher)
+  if (rankNameEl && rankNameEl.textContent !== M2_QUIZ.newRank) {
+    rankNameEl.textContent = M2_QUIZ.newRank;
+    rankNameEl.classList.add("rank-name--upgraded");
+  }
+
+  // Persist + sync the M2 dashboard's mirrored profile panel
+  saveProgress();
+  syncM2XPPanel();
+
+  // Mark final status + update course progress
+  markM2Status("m2-complete");
+  setM2Hint("Mission 2 complete. See your scorecard below.");
+  setM2ManagerMessage("Outstanding, Agent. You've completed Mission 2. Review your scorecard and prepare for Mission 3.");
+  renderCourseProgress();
+
+  // Replace the analyst review host content with the completion + scorecard
+  // (keeps everything inside the COMMANDS panel — same pattern as M1).
+  setTimeout(() => renderM2Scorecard(), 1200);
+
+  // Terminal confirmation
+  printM2Line("[ MISSION 2 COMPLETE — Network Basics passed. +100 XP awarded. ]", "m2-line--info");
+}
+
+function renderM2Scorecard() {
+  const host = document.getElementById("m2AnalystReview");
+  if (!host) return;
+  host.innerHTML = `
+    <div class="completion-screen">
+
+      <div class="completion-header">
+        <span class="completion-icon">🏆</span>
+        <div class="completion-titles">
+          <h2 class="completion-title">Mission 2 Complete</h2>
+          <p class="completion-subtitle">You completed Network Basics.</p>
+        </div>
+      </div>
+
+      <div class="scorecard">
+
+        <div class="scorecard-section">
+          <span class="scorecard-section-label">MISSION 2 SCORECARD</span>
+        </div>
+
+        <ul class="scorecard-rows">
+          <li class="scorecard-row">
+            <span class="scorecard-key">Mission</span>
+            <span class="scorecard-val">${M2_SCORECARD.missionName}</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">Result</span>
+            <span class="scorecard-val scorecard-val--green">Completed</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">XP Earned</span>
+            <span class="scorecard-val scorecard-val--cyan">+${M2_QUIZ.xpReward} XP</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">Rank</span>
+            <span class="scorecard-val scorecard-val--yellow">${rankNameEl ? rankNameEl.textContent : M2_QUIZ.newRank}</span>
+          </li>
+        </ul>
+
+        <div class="scorecard-section">
+          <span class="scorecard-section-label">SKILLS PRACTICED</span>
+          <ul class="scorecard-skills">
+            ${M2_SCORECARD.skills.map((s) =>
+              `<li><span class="scorecard-bullet">▹</span>${escapeHtml(s)}</li>`).join("")}
+          </ul>
+        </div>
+
+        <div class="scorecard-section">
+          <span class="scorecard-section-label">THREAT ASSESSMENT</span>
+          <p class="m2-finding-text" style="margin-top:6px;">
+            ${escapeHtml(M2_SCORECARD.threatAssessment)}
+          </p>
+        </div>
+
+      </div>
+
+      <button id="restartMission2Btn" class="begin-mission-btn" type="button" style="margin-top:18px;">
+        ↻&nbsp; Restart Mission 2
+      </button>
+    </div>
+  `;
+  host.style.display = "";
+
+  const restartBtn = document.getElementById("restartMission2Btn");
+  if (restartBtn) restartBtn.addEventListener("click", () => {
+    // Restart Mission 2 only — does not touch Mission 1.
+    resetMission2();
+    // Re-enter the dashboard fresh
+    beginMission2();
+  });
 }
 
 function syncM2Buttons() {
@@ -2255,6 +2507,12 @@ function resetMission2() {
   m2UnlockedCmds.clear();
   m2CompletedStatus.clear();
   m2AnalystAnswered = false;
+  m2QuizAnswered    = false;
+  mission2Complete  = false;
+  // Persist — clears mission2Complete flag from localStorage too
+  saveProgress();
+  // Course progress reflects the regression (M2 back to "Unlocked")
+  renderCourseProgress();
 
   const term = document.getElementById("m2Terminal");
   if (term) term.innerHTML = "";

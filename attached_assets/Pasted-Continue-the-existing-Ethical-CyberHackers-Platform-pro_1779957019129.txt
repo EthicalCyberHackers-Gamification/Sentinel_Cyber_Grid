@@ -1,0 +1,82 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission 1 is fully playable.
+* Mission 2 command functionality works.
+* Mission 2 includes Analyst Review and Threat Identification.
+* Everything is frontend-only.
+
+Now implement Milestone 22: Mission 2 Quiz, XP Reward, and Completion.
+
+Purpose:
+Mission 2 should now become a complete playable mission with assessment, XP reward, and completion status.
+
+Requirements:
+
+1. After the Mission 2 Analyst Review is answered correctly, show a Mission 2 quiz panel.
+
+2. Quiz question:
+   “What does an open network service mean?”
+
+3. Multiple choice answers:
+   A. The computer is automatically hacked.
+   B. The computer is running a service that can accept network connections.
+   C. The computer has no security risks.
+   D. The IP address is fake.
+
+4. Correct answer:
+   B. The computer is running a service that can accept network connections.
+
+5. If correct:
+
+* Show: “Correct. Open services are normal, but analysts must review them for security risk.”
+* Award +100 XP.
+* Update rank if appropriate.
+* Mark Mission 2 as completed.
+* Show “Mission 2 Complete.”
+
+6. If incorrect:
+
+* Show: “Review the scan output again. Open services accept network connections and must be assessed.”
+
+7. Add a Mission 2 Scorecard with:
+
+Mission:
+Network Basics
+
+Result:
+Completed
+
+Skills Practiced:
+
+* Identifying local IP address
+* Checking host reachability
+* Reading scan-style output
+* Recognizing open services
+* Understanding attack surface
+
+XP Earned:
+100 XP
+
+Threat Assessment:
+The target host exposes SSH, HTTP, and HTTPS services that should be reviewed for secure configuration.
+
+8. Update Course Progress:
+
+* Mission 1: Completed
+* Mission 2: Completed
+
+9. Add a placeholder:
+   “Mission 3 Locked: Reconnaissance & Discovery coming next.”
+
+10. Restart Mission 2 should reset only Mission 2 gameplay state.
+
+11. Do not add backend, database, login, AI, or new pages.
+
+12. Keep everything frontend-only.
+
+13. Do not break Mission 1.
+
+Goal:
+By the end of this step, Mission 2 should be playable from start to finish and end with XP, completion status, and a scorecard.
