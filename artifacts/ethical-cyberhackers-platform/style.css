@@ -610,7 +610,10 @@ button {
   gap: 4px;
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) transparent;
-  min-height: 200px;
+  /* Reduced, fixed-height terminal so output scrolls inside the panel
+     instead of stretching the whole page. */
+  min-height: 160px;
+  max-height: 280px;
 }
 
 .terminal-body::-webkit-scrollbar { width: 4px; }
@@ -4120,6 +4123,46 @@ body.alert-modal-open { overflow: hidden; }
   letter-spacing: 2px;
   font-weight: 700;
   color: var(--color-cyan);
+}
+
+/* ======================================================
+   Collapsible scorecard sections
+   ------------------------------------------------------
+   The label acts as a minimize/maximize toggle so each
+   scorecard block can be folded away for easier scrolling.
+   ====================================================== */
+.scorecard-section-label[role="button"] {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+  outline: none;
+}
+.scorecard-section-label[role="button"]::before {
+  content: "▾";
+  font-size: 9px;
+  line-height: 1;
+  color: var(--color-cyan);
+  transition: transform var(--transition, 0.15s ease);
+  transform: rotate(0deg);
+}
+.scorecard-section--collapsed > .scorecard-section-label[role="button"]::before {
+  transform: rotate(-90deg);
+}
+.scorecard-section-label[role="button"]:hover,
+.scorecard-section-label[role="button"]:focus-visible {
+  color: #67e8f9;
+}
+.scorecard-section-label[role="button"]:focus-visible {
+  text-decoration: underline;
+}
+/* When collapsed, hide everything except the clickable label. */
+.scorecard-section--collapsed {
+  gap: 0;
+}
+.scorecard-section--collapsed > *:not(.scorecard-section-label) {
+  display: none !important;
 }
 
 /* Key/value rows */

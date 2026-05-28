@@ -70,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 20:10 CST";
+const BUILD_TIME = "28 May 2026 — 21:05 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -2804,7 +2804,6 @@ function buildCompletionHTML(newRank) {
 
         <div class="scorecard-section">
           <span class="scorecard-section-label">MISSION SCORECARD</span>
-        </div>
 
         <!-- Key/value rows -->
         <ul class="scorecard-rows">
@@ -2841,6 +2840,7 @@ function buildCompletionHTML(newRank) {
           ${renderDecisionScorecardRows("mission-001")}
           ${renderAlertScorecardRows("mission-001")}
         </ul>
+        </div>
 
         <!-- Milestone 24H — Mission Outcome Summary (Mission 1).
              Restates the full Alert → Investigation → Evidence →
@@ -4112,7 +4112,6 @@ function renderM2Scorecard() {
 
         <div class="scorecard-section">
           <span class="scorecard-section-label">MISSION SCORECARD</span>
-        </div>
 
         <ul class="scorecard-rows">
           <li class="scorecard-row">
@@ -4148,6 +4147,7 @@ function renderM2Scorecard() {
           ${renderDecisionScorecardRows("mission-002")}
           ${renderAlertScorecardRows("mission-002")}
         </ul>
+        </div>
 
         <!-- Milestone 24H — Mission Outcome Summary (Mission 2).
              Restates the full Alert → Investigation → Evidence →
@@ -5102,8 +5102,74 @@ function boot() {
   // are in place, so any UI updates inside restore work correctly)
   restoreSavedProgress();
 
+  // Collapsible scorecard sections — wire the delegated toggle so any
+  // scorecard rendered now or later (Mission 1 / Mission 2) can be
+  // minimized/maximized for easier scrolling.
+  initCollapsibleSections();
+
   initTerminalInput();
   if (terminalInput) terminalInput.focus();
+}
+
+/* ============================================================
+   Collapsible scorecard sections
+   ------------------------------------------------------------
+   Lets students minimize/maximize each scorecard block
+   ("Mission Scorecard", "Mission Outcome Summary", "Skills
+   Practiced", etc.) so the completion screen is easier to
+   scroll and navigate. Uses a single delegated listener so it
+   works for every scorecard rendered now or in the future,
+   across both missions. Each .scorecard-section is self-
+   contained (its label + content live in the same element), so
+   toggling a "collapsed" class on the section is all that's
+   needed — CSS hides everything except the clickable label.
+   Frontend-only; no state is persisted.
+   ============================================================ */
+function initCollapsibleSections() {
+  const toggle = (label) => {
+    const section = label.closest(".scorecard-section");
+    if (!section) return;
+    const collapsed = section.classList.toggle("scorecard-section--collapsed");
+    label.setAttribute("aria-expanded", String(!collapsed));
+  };
+
+  document.addEventListener("click", (e) => {
+    const label = e.target.closest(".scorecard-section-label");
+    if (label) toggle(label);
+  });
+
+  // Keyboard support — Enter / Space toggles a focused label.
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const label = e.target.closest(".scorecard-section-label");
+    if (!label) return;
+    e.preventDefault();
+    toggle(label);
+  });
+
+  // Make any rendered labels focusable + announce their toggle role.
+  // A MutationObserver covers scorecards injected after boot.
+  const tagLabels = (root) => {
+    (root.querySelectorAll
+      ? root.querySelectorAll(".scorecard-section-label")
+      : []
+    ).forEach((label) => {
+      if (label.dataset.collapsible === "1") return;
+      label.dataset.collapsible = "1";
+      label.setAttribute("role", "button");
+      label.setAttribute("tabindex", "0");
+      label.setAttribute("aria-expanded", "true");
+    });
+  };
+  tagLabels(document);
+  const observer = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      m.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) tagLabels(node);
+      });
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 }
 
 document.addEventListener("DOMContentLoaded", boot);
