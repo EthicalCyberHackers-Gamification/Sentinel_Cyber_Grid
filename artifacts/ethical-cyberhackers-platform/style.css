@@ -1186,6 +1186,85 @@ button {
   color: var(--color-accent, #4ade80);
 }
 
+/* ======================================================
+   Milestone 24A — Evidence Collection (Phase B)
+   ------------------------------------------------------
+   Quiet, low-key panel that lives in the left mission
+   column on both M1 and M2 dashboards. The same styles
+   power both #evidencePanel and #m2EvidencePanel.
+   ====================================================== */
+.evidence-panel {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(74, 222, 128, 0.18);
+}
+.evidence-panel .objectives-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.evidence-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--color-bg, #0b1220);
+  background: var(--color-accent, #4ade80);
+  border-radius: 9px;
+}
+.evidence-empty {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.55);
+  font-style: italic;
+}
+.evidence-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.evidence-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: rgba(226, 232, 240, 0.92);
+  background: rgba(74, 222, 128, 0.06);
+  border-left: 2px solid var(--color-accent, #4ade80);
+  padding: 6px 10px;
+  border-radius: 0 4px 4px 0;
+}
+.evidence-bullet {
+  color: var(--color-accent, #4ade80);
+  flex-shrink: 0;
+}
+.evidence-text {
+  flex: 1;
+}
+
+/* Scorecard variant — reuses .scorecard-section chrome. */
+.scorecard-evidence .scorecard-skills {
+  margin-top: 6px;
+}
+.scorecard-evidence-empty {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.55);
+  font-style: italic;
+}
+
 /* Milestone 23G — Phase A baseline label.
    Small, quiet pill in the footer that signals the platform has
    reached the "Mission Engine Ready" baseline. Intentionally low-key

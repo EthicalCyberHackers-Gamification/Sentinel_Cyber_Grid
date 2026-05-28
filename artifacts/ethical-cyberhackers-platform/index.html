@@ -316,6 +316,15 @@
             <h3 class="objectives-title">Mission 2 Status</h3>
             <ul class="objectives-list" id="m2StatusList"></ul>
           </div>
+
+          <!-- ===== EVIDENCE COLLECTED (Milestone 24A — Phase B) =====
+               Mission 2's evidence panel. Populated by
+               renderEvidencePanel("mission-002"). The evidence system
+               supports future decision consequences and threat scoring. -->
+          <div id="m2EvidencePanel" class="evidence-panel">
+            <h3 class="objectives-title">Evidence Collected</h3>
+            <p class="evidence-empty">No evidence collected yet.</p>
+          </div>
         </div>
       </section>
 
@@ -637,6 +646,16 @@
                and resetMission(). Mission 2 is locked until Mission 1
                is completed. -->
           <div id="courseProgress" class="course-progress"></div>
+
+          <!-- ===== EVIDENCE COLLECTED (Milestone 24A — Phase B) =====
+               Populated by renderEvidencePanel() in script.js as the
+               student runs investigative commands. Starts empty.
+               The evidence system supports future decision consequences
+               and threat scoring. -->
+          <div id="evidencePanel" class="evidence-panel">
+            <h3 class="objectives-title">Evidence Collected</h3>
+            <p class="evidence-empty">No evidence collected yet.</p>
+          </div>
         </div>
       </section>
 

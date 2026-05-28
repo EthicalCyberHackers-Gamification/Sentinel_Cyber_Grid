@@ -70,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 13:05 CST";
+const BUILD_TIME = "28 May 2026 — 14:10 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -85,6 +85,136 @@ let studentName = "";
    ============================================================ */
 
 const STORAGE_KEY = "ech.progress.v1";
+
+/* ============================================================
+   Milestone 24A — Evidence Collection System (Phase B)
+   ------------------------------------------------------------
+   The evidence system supports future decision consequences and
+   threat scoring. Each mission accumulates findings ("evidence")
+   as the student runs investigative commands. The collected
+   evidence is shown in the dashboard's "Evidence Collected"
+   panel and surfaced again in the mission scorecard.
+
+   Storage shape (in-memory + persisted to localStorage):
+     evidenceLog = {
+       "mission-001": [ { id, text, at }, ... ],
+       "mission-002": [ { id, text, at }, ... ],
+     }
+
+   Frontend-only. No backend, no AI, no DB.
+   ============================================================ */
+const evidenceLog = {
+  "mission-001": [],
+  "mission-002": [],
+};
+
+/** Returns the active mission id by inspecting which dashboard is visible. */
+function getActiveMissionId() {
+  const m2 = document.getElementById("mission2Dashboard");
+  if (m2 && m2.style.display && m2.style.display !== "none") {
+    return "mission-002";
+  }
+  return "mission-001";
+}
+
+/** True if the given evidence id has already been recorded for the mission. */
+function hasEvidence(evidenceId, missionId) {
+  const mid = missionId || getActiveMissionId();
+  const list = evidenceLog[mid];
+  if (!list) return false;
+  return list.some((e) => e.id === evidenceId);
+}
+
+/**
+ * Add a piece of evidence to a mission. No-op if the same evidenceId
+ * has already been added (prevents duplicates when a command is
+ * re-clicked). Re-renders the panel and persists progress.
+ *
+ * Future Phase B mechanics (trust score, threat meter, dynamic
+ * manager reactions) will read from evidenceLog to react to what
+ * the student has actually uncovered.
+ */
+function addEvidence(evidenceId, evidenceText, missionId) {
+  const mid = missionId || getActiveMissionId();
+  if (!evidenceLog[mid]) evidenceLog[mid] = [];
+  if (hasEvidence(evidenceId, mid)) return false;
+  evidenceLog[mid].push({
+    id: evidenceId,
+    text: String(evidenceText || ""),
+    at: Date.now(),
+  });
+  renderEvidencePanel(mid);
+  try { saveProgress(); } catch (_) { /* save errors are non-fatal */ }
+  return true;
+}
+
+/** Clear all evidence for a single mission (used on mission restart). */
+function clearEvidenceForMission(missionId) {
+  const mid = missionId || getActiveMissionId();
+  evidenceLog[mid] = [];
+  renderEvidencePanel(mid);
+  try { saveProgress(); } catch (_) { /* save errors are non-fatal */ }
+}
+
+/** Render the "Evidence Collected" panel for the given mission id. */
+function renderEvidencePanel(missionId) {
+  const mid    = missionId || getActiveMissionId();
+  const hostId = mid === "mission-002" ? "m2EvidencePanel" : "evidencePanel";
+  const host   = document.getElementById(hostId);
+  if (!host) return;
+  const list = evidenceLog[mid] || [];
+
+  if (list.length === 0) {
+    host.innerHTML = `
+      <h3 class="objectives-title">Evidence Collected</h3>
+      <p class="evidence-empty">No evidence collected yet.</p>
+    `;
+    return;
+  }
+
+  host.innerHTML = `
+    <h3 class="objectives-title">
+      Evidence Collected
+      <span class="evidence-count">${list.length}</span>
+    </h3>
+    <ul class="evidence-list">
+      ${list.map((e) => `
+        <li class="evidence-item">
+          <span class="evidence-bullet">▹</span>
+          <span class="evidence-text">${escapeHtml(e.text)}</span>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+}
+
+/** Returns an array of plain-text evidence strings for a mission. */
+function getEvidenceList(missionId) {
+  const mid = missionId || getActiveMissionId();
+  return (evidenceLog[mid] || []).map((e) => e.text);
+}
+
+/** Renders the evidence section that appears inside completion scorecards. */
+function buildEvidenceScorecardHTML(missionId) {
+  const items = getEvidenceList(missionId);
+  if (!items.length) {
+    return `
+      <div class="scorecard-section scorecard-evidence">
+        <span class="scorecard-section-label">EVIDENCE COLLECTED</span>
+        <p class="scorecard-evidence-empty">No evidence was recorded during this mission.</p>
+      </div>
+    `;
+  }
+  return `
+    <div class="scorecard-section scorecard-evidence">
+      <span class="scorecard-section-label">EVIDENCE COLLECTED</span>
+      <ul class="scorecard-skills">
+        ${items.map((t) =>
+          `<li><span class="scorecard-bullet">▹</span>${escapeHtml(t)}</li>`).join("")}
+      </ul>
+    </div>
+  `;
+}
 
 /** Read the saved progress object, or null if nothing/invalid. */
 function loadSavedProgress() {
@@ -111,6 +241,8 @@ function saveProgress() {
       mission2Unlocked: !!missionComplete, // mirrors completion in this build
       // Milestone 22 — Mission 2 completion flag (kept separate from M1).
       mission2Complete: !!mission2Complete,
+      // Milestone 24A — persist collected evidence so it survives reload.
+      evidence: (typeof evidenceLog === "object" && evidenceLog) ? evidenceLog : {},
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -200,6 +332,22 @@ function restoreSavedProgress() {
     // shows the full checklist of ticks (matches what the student saw).
     M2_STATUS.forEach((s) => m2CompletedStatus.add(s.id));
     renderCourseProgress();
+  }
+
+  // 6. Milestone 24A — restore evidence collected during prior sessions.
+  //    Filtered to known mission ids so a corrupted/older save can't
+  //    inject arbitrary keys into evidenceLog.
+  if (data.evidence && typeof data.evidence === "object") {
+    ["mission-001", "mission-002"].forEach((mid) => {
+      const arr = data.evidence[mid];
+      if (Array.isArray(arr)) {
+        evidenceLog[mid] = arr
+          .filter((e) => e && typeof e.id === "string" && typeof e.text === "string")
+          .map((e) => ({ id: e.id, text: e.text, at: e.at || Date.now() }));
+      }
+    });
+    renderEvidencePanel("mission-001");
+    renderEvidencePanel("mission-002");
   }
 
   updateSaveIndicator(true);
@@ -751,6 +899,13 @@ function afterCommand(buttonKey) {
   // suspicious file. The quiz is no longer triggered directly — it now
   // unlocks only after the student submits the correct finding.
   if (buttonKey === "cat-suspicious") {
+    // Milestone 24A — record the first evidence item for Mission 1.
+    // Will not duplicate if the student clicks `cat suspicious_file.txt` again.
+    addEvidence(
+      "m1-suspicious-file",
+      "Suspicious password request found in suspicious_file.txt",
+      "mission-001"
+    );
     setTimeout(showFindingPanel, 800);
   }
 
@@ -1354,6 +1509,9 @@ function buildCompletionHTML(newRank) {
           </ul>
         </div>
 
+        <!-- Milestone 24A — Evidence Collected (Mission 1 scorecard) -->
+        ${buildEvidenceScorecardHTML("mission-001")}
+
         <!-- What You Learned -->
         <div class="scorecard-section scorecard-learned">
           <span class="scorecard-section-label">WHAT YOU LEARNED</span>
@@ -1545,6 +1703,9 @@ function resetMission() {
 
   unlockedKeys.clear();
   completedSteps.clear();
+
+  // Milestone 24A — restarting Mission 1 clears only Mission 1's evidence.
+  clearEvidenceForMission("mission-001");
 
   // Pre-populate the starting buttons (they stay hidden until Begin Mission)
   COMMAND_BUTTONS.forEach((btn) => {
@@ -2232,6 +2393,25 @@ function runM2Command(key) {
   setM2Hint(def.nextHint);
   if (def.managerMsg) setM2ManagerMessage(def.managerMsg);
 
+  // Milestone 24A — Evidence Collection (Mission 2).
+  // `nmap` reveals the open services; `review services` is the analyst
+  // step that flags those services as needing follow-up. addEvidence is
+  // idempotent, so re-clicking either command will not duplicate items.
+  if (key === "nmap") {
+    addEvidence(
+      "m2-open-ports",
+      "Target host exposes SSH, HTTP, and HTTPS services",
+      "mission-002"
+    );
+  }
+  if (key === "review") {
+    addEvidence(
+      "m2-services-review",
+      "Multiple exposed services require security review",
+      "mission-002"
+    );
+  }
+
   // Milestone 21 — after the final command (review services), reveal the
   // Analyst Review multiple-choice panel inside the COMMANDS column.
   if (key === "review") renderM2AnalystReview();
@@ -2510,6 +2690,9 @@ function renderM2Scorecard() {
           </ul>
         </div>
 
+        <!-- Milestone 24A — Evidence Collected (Mission 2 scorecard) -->
+        ${buildEvidenceScorecardHTML("mission-002")}
+
         <!-- What You Learned -->
         <div class="scorecard-section scorecard-learned">
           <span class="scorecard-section-label">WHAT YOU LEARNED</span>
@@ -2648,6 +2831,8 @@ function resetMission2() {
   m2AnalystAnswered = false;
   m2QuizAnswered    = false;
   mission2Complete  = false;
+  // Milestone 24A — restarting Mission 2 clears only Mission 2's evidence.
+  clearEvidenceForMission("mission-002");
   // Persist — clears mission2Complete flag from localStorage too
   saveProgress();
   // Course progress reflects the regression (M2 back to "Unlocked")
@@ -2968,6 +3153,13 @@ window.MissionEngine = {
   setRegistryMissionStatus,
   // 23F — health check
   runMissionEngineHealthCheck,
+  // 24A — evidence collection system (Phase B)
+  addEvidence,
+  renderEvidencePanel,
+  hasEvidence,
+  clearEvidenceForMission,
+  getEvidenceList,
+  evidenceLog,
 };
 
 

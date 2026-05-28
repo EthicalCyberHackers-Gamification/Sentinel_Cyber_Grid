@@ -1,0 +1,72 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Phase A Baseline is complete.
+* Mission Engine is ready.
+* Mission Registry exists.
+* Mission Template exists.
+* Mission Health Check exists.
+* Mission 1 and Mission 2 work.
+* Everything is frontend-only.
+
+Now begin Phase B: Simulation Mechanics Layer.
+
+Milestone 24A:
+Add Evidence Collection System.
+
+Purpose:
+Students should not only click commands. They should collect evidence like real cybersecurity analysts. Evidence will later support decision-making, trust score, threat level, and manager reactions.
+
+Requirements:
+
+1. Do not add Mission 3 yet.
+
+2. Do not redesign the UI.
+
+3. Do not break Mission 1 or Mission 2.
+
+4. Add an “Evidence Collected” panel to the dashboard.
+
+5. The panel should start empty or show:
+   “No evidence collected yet.”
+
+6. Add reusable evidence functions in script.js:
+
+* addEvidence(evidenceId, evidenceText)
+* renderEvidencePanel()
+* hasEvidence(evidenceId)
+* clearEvidenceForMission()
+
+7. Evidence should be stored in local mission state, not backend.
+
+8. For Mission 1, add evidence when the suspicious file is read:
+
+Evidence:
+Suspicious password request found in suspicious_file.txt
+
+9. For Mission 2, add evidence after nmap output:
+
+Evidence:
+Target host exposes SSH, HTTP, and HTTPS services
+
+10. For Mission 2, add evidence after service review:
+
+Evidence:
+Multiple exposed services require security review
+
+11. Evidence should not duplicate if the same command is clicked again.
+
+12. Restarting a mission should clear only that mission’s evidence.
+
+13. Completing a mission should show collected evidence in the scorecard.
+
+14. Keep all logic frontend-only.
+
+15. Do not add backend, database, AI, authentication, or new pages.
+
+16. Add comments explaining:
+    “The evidence system supports future decision consequences and threat scoring.”
+
+Goal:
+By the end of this step, Mission 1 and Mission 2 should collect and display evidence during the investigation.
