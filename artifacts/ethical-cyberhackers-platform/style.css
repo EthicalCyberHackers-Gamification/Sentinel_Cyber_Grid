@@ -1477,6 +1477,105 @@ button {
 
 
 /* ======================================================
+   MISSION BRIEFING  (Milestone 5)
+   Shown in the left mission panel before the student clicks
+   "Begin Mission". Replaced by the live mission view afterwards.
+   ====================================================== */
+
+.mission-briefing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-md);
+  margin-bottom: var(--gap-lg);
+}
+
+.briefing-section { display: flex; flex-direction: column; gap: var(--gap-xs); }
+
+.briefing-heading {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+}
+
+.briefing-text {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+/* Skills practiced list */
+.skills-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
+  padding-left: 2px;
+}
+
+.skills-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.skill-bullet {
+  color: var(--color-green);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+/* Begin Mission button — primary call-to-action */
+.begin-mission-btn {
+  width: 100%;
+  margin-top: var(--gap-sm);
+  padding: 10px var(--gap-md);
+  background: linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,229,255,0.08));
+  border: 1px solid rgba(0,255,136,0.5);
+  border-radius: var(--radius-md);
+  color: var(--color-green);
+  font-family: var(--font-hud);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-transform: uppercase;
+  box-shadow: 0 0 0 rgba(0,255,136,0);
+}
+
+.begin-mission-btn:hover {
+  background: linear-gradient(135deg, rgba(0,255,136,0.25), rgba(0,229,255,0.12));
+  border-color: var(--color-green);
+  box-shadow: 0 0 16px rgba(0,255,136,0.3);
+  transform: translateY(-1px);
+}
+
+.begin-mission-btn:active { transform: translateY(0); }
+
+/* "Awaiting Mission Start" placeholder row in the mission tracker */
+.step-item--awaiting {
+  border: 1px dashed var(--color-border) !important;
+  background: var(--color-bg-panel-alt);
+  color: var(--color-yellow);
+  opacity: 0.85;
+}
+
+.step-item--awaiting .step-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-yellow);
+}
+
+.step-item--awaiting .step-icon { color: var(--color-yellow); }
+
+
+/* ======================================================
    MISSION COMPLETE SCREEN  (Milestone 4)
    Replaces the quiz panel after a correct answer.
    ====================================================== */

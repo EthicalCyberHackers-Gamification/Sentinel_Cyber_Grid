@@ -69,11 +69,45 @@
         </div>
 
         <div class="panel-body">
-          <p class="mission-description" id="missionDescription">
-            A workstation on the internal network has been flagged for anomalous activity.
-            Your task is to gather digital evidence, identify the threat actor's footprint,
-            and report your findings — without being detected.
-          </p>
+
+          <!-- ===== MISSION BRIEFING (Milestone 5) =====
+               Shown until the student clicks "Begin Mission".
+               script.js hides this block once the mission starts and
+               shows it again on Restart Mission. -->
+          <div id="missionBriefing" class="mission-briefing">
+
+            <section class="briefing-section">
+              <h3 class="briefing-heading">Mission Briefing</h3>
+              <p class="briefing-text">
+                You are a new cybersecurity intern. Your manager has asked you to
+                inspect a workstation that may contain a suspicious file. Your job
+                is to use basic Linux commands to investigate safely.
+              </p>
+            </section>
+
+            <section class="briefing-section">
+              <h3 class="briefing-heading">Learning Objective</h3>
+              <p class="briefing-text">
+                By the end of this mission, you will understand how basic Linux
+                commands help cybersecurity analysts inspect files and identify
+                suspicious behavior.
+              </p>
+            </section>
+
+            <section class="briefing-section">
+              <h3 class="briefing-heading">Skills Practiced</h3>
+              <ul class="skills-list">
+                <li><span class="skill-bullet">▹</span>Reading terminal output</li>
+                <li><span class="skill-bullet">▹</span>Navigating folders</li>
+                <li><span class="skill-bullet">▹</span>Inspecting files</li>
+                <li><span class="skill-bullet">▹</span>Identifying phishing behavior</li>
+              </ul>
+            </section>
+
+            <button id="beginMissionBtn" class="begin-mission-btn">
+              ▶&nbsp; Begin Mission
+            </button>
+          </div>
 
           <div class="mission-objectives">
             <h3 class="objectives-title">Mission Progress</h3>

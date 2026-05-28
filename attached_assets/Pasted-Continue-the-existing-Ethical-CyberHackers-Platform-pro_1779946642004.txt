@@ -1,0 +1,58 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Command buttons work.
+* Terminal outputs display correctly.
+* Mission progression works.
+* Quiz works.
+* XP reward works.
+* Mission completion screen works.
+* Restart Mission works.
+
+Now implement Milestone 5: Mission Briefing and Learning Objective.
+
+Purpose:
+Before students begin clicking commands, they should understand what they are learning and why the mission matters. This makes the platform feel like structured training instead of just a game.
+
+Requirements:
+
+1. Add a “Mission Briefing” section near the top of the mission panel.
+
+Mission Briefing text:
+“You are a new cybersecurity intern. Your manager has asked you to inspect a workstation that may contain a suspicious file. Your job is to use basic Linux commands to investigate safely.”
+
+2. Add a “Learning Objective” section.
+
+Learning Objective text:
+“By the end of this mission, you will understand how basic Linux commands help cybersecurity analysts inspect files and identify suspicious behavior.”
+
+3. Add a “Skills Practiced” list:
+
+* Reading terminal output
+* Navigating folders
+* Inspecting files
+* Identifying phishing behavior
+
+4. Add a “Begin Mission” button.
+
+5. Before the student clicks “Begin Mission”:
+
+* Hide command buttons.
+* Terminal should show only the startup message.
+* Mission status should say “Awaiting Mission Start.”
+
+6. After the student clicks “Begin Mission”:
+
+* Show the first available command buttons.
+* Mission status should update to “Mission Started.”
+* Terminal should append:
+  system Mission started. Begin workstation inspection.
+
+7. Do not change the existing mission logic.
+8. Do not add backend, database, login, AI, or new pages.
+9. Keep all logic frontend-only.
+10. Preserve the current visual design.
+
+Goal:
+By the end of this step, the mission has a clear educational start point and students begin intentionally instead of randomly clicking commands.

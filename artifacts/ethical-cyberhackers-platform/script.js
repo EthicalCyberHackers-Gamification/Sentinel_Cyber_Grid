@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "27 May 2026 — 23:30 CST";
+const BUILD_TIME = "27 May 2026 — 23:45 CST";
 
 /** Boot messages shown in the terminal on load and after every restart. */
 const BOOT_MESSAGES = [
@@ -89,9 +89,10 @@ const missionBadge = document.querySelector(".mission-status-badge");
    resetMission() restores all of them to their initial values.
    ============================================================ */
 
-let currentDir     = "~";      // which folder the student is in
-let currentXP      = INITIAL_XP;
+let currentDir      = "~";      // which folder the student is in
+let currentXP       = INITIAL_XP;
 let missionComplete = false;
+let missionStarted  = false;    // false until student clicks "Begin Mission"
 
 // Which button keys are currently visible to the student
 const unlockedKeys = new Set();
@@ -384,6 +385,18 @@ function renderMissionStatus() {
   if (!statusList) return;
   statusList.innerHTML = "";
 
+  // Before the mission starts, show a single "Awaiting" placeholder row
+  if (!missionStarted) {
+    const li = document.createElement("li");
+    li.className = "step-item step-item--awaiting";
+    li.innerHTML =
+      `<span class="step-icon">⏸</span>` +
+      `<span class="step-emoji">⏳</span>` +
+      `<span class="step-label">Awaiting Mission Start</span>`;
+    statusList.appendChild(li);
+    return;
+  }
+
   MISSION_STEPS.forEach((step) => {
     const done = completedSteps.has(step.id);
     const li   = document.createElement("li");
@@ -599,6 +612,48 @@ function buildCompletionHTML(newRank) {
 
 
 /* ============================================================
+   BEGIN MISSION  (Milestone 5)
+   Called when the student clicks the "Begin Mission" button.
+   Transitions the UI from the briefing screen into the active
+   mission: reveals command buttons, marks Mission Started, and
+   prints a system line in the terminal.
+   ============================================================ */
+
+function beginMission() {
+  if (missionStarted) return;
+  missionStarted = true;
+
+  // Mark the "Mission Started" step as complete
+  MISSION_STEPS.forEach((step) => {
+    if (step.triggeredBy === null) completedSteps.add(step.id);
+  });
+
+  // Hide the briefing panel
+  const briefing = document.getElementById("missionBriefing");
+  if (briefing) briefing.style.display = "none";
+
+  // Show the command buttons + their hint paragraph
+  if (btnContainer) btnContainer.style.display = "";
+  if (commandsHint) commandsHint.style.display = "";
+
+  // Re-render mission progress (now shows the 4 real steps)
+  renderMissionStatus();
+
+  // Append the system "Mission started" line to the terminal
+  const line = document.createElement("div");
+  line.className = "terminal-line terminal-line--system terminal-line--new";
+  line.innerHTML =
+    `<span class="terminal-prompt">system</span>` +
+    `<span class="terminal-text">Mission started. Begin workstation inspection.</span>`;
+  terminalOutput.appendChild(line);
+  printBlankLine();
+  scrollTerminal();
+
+  if (terminalInput) terminalInput.focus();
+}
+
+
+/* ============================================================
    RESET  (Milestone 4)
    Wipes all state back to the starting point so the student
    can replay the mission without refreshing the browser.
@@ -614,21 +669,26 @@ function buildCompletionHTML(newRank) {
  *  - Timer restarted
  */
 function resetMission() {
-  // 1. Reset state variables
+  // 1. Reset state variables — back to the pre-briefing state
   currentDir      = "~";
   currentXP       = INITIAL_XP;
   missionComplete = false;
+  missionStarted  = false;     // back to "Awaiting Mission Start"
 
   unlockedKeys.clear();
   completedSteps.clear();
 
+  // Pre-populate the starting buttons (they stay hidden until Begin Mission)
   COMMAND_BUTTONS.forEach((btn) => {
     if (btn.unlockedAtStart) unlockedKeys.add(btn.key);
   });
 
-  MISSION_STEPS.forEach((step) => {
-    if (step.triggeredBy === null) completedSteps.add(step.id);
-  });
+  // NOTE: do NOT auto-complete the "Mission Started" step here.
+  // beginMission() checks it off when the student clicks Begin Mission.
+
+  // Re-show the briefing panel
+  const briefing = document.getElementById("missionBriefing");
+  if (briefing) briefing.style.display = "";
 
   // 2. Reset XP sidebar
   if (currentXPEl) currentXPEl.textContent = INITIAL_XP;
@@ -661,9 +721,10 @@ function resetMission() {
   renderButtons();
   renderMissionStatus();
 
-  // 8. Show command buttons area, hide quiz/completion panel
-  if (btnContainer) btnContainer.style.display = "";
-  if (commandsHint) commandsHint.style.display  = "";
+  // 8. Hide command buttons + hint (they reappear after Begin Mission),
+  //    and hide the quiz/completion panel.
+  if (btnContainer) btnContainer.style.display = "none";
+  if (commandsHint) commandsHint.style.display = "none";
   if (quizPanel) {
     quizPanel.style.display = "none";
     quizPanel.innerHTML     = "";
@@ -723,20 +784,26 @@ if (clrButton) clrButton.addEventListener("click", () => {
    ============================================================ */
 
 function boot() {
-  // Unlock starting buttons
+  // Pre-populate the starting buttons (stay hidden until Begin Mission)
   COMMAND_BUTTONS.forEach((btn) => {
     if (btn.unlockedAtStart) unlockedKeys.add(btn.key);
   });
 
-  // Auto-complete "Mission Started" (triggered by null = on load)
-  MISSION_STEPS.forEach((step) => {
-    if (step.triggeredBy === null) completedSteps.add(step.id);
-  });
+  // NOTE: missionStarted is false on load, so "Mission Started" is NOT
+  // auto-completed. beginMission() handles that when the student clicks Begin.
 
   updatePromptDisplay();
   printBootMessages();
   renderButtons();
   renderMissionStatus();
+
+  // Hide command buttons + hint until the student clicks Begin Mission
+  if (btnContainer) btnContainer.style.display = "none";
+  if (commandsHint) commandsHint.style.display = "none";
+
+  // Wire up the Begin Mission button
+  const beginBtn = document.getElementById("beginMissionBtn");
+  if (beginBtn) beginBtn.addEventListener("click", beginMission);
 
   // Start mission timer
   const mission = getMissionById(activeMissionId);
