@@ -1417,6 +1417,139 @@ button {
 .trust-score--high .trust-score-bar-fill     { background: #4ade80; }
 
 /* ======================================================
+   Milestone 24E-2 — Interactive Alert Modal (Phase B)
+   ------------------------------------------------------
+   Forced-acknowledgement modal that pops when an alert is
+   in the "New" state. Backdrop blocks clicks, ESC ignored,
+   single [ ▶ Investigate ] button drives state forward.
+   ====================================================== */
+.alert-modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.alert-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.75);
+  backdrop-filter: blur(2px);
+}
+.alert-modal {
+  position: relative;
+  z-index: 1;
+  width: min(520px, calc(100vw - 32px));
+  background: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-left: 4px solid #facc15;
+  border-radius: 10px;
+  padding: 22px 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  animation: alertModalIn 180ms ease-out;
+}
+@keyframes alertModalIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.alert-modal--low      { border-left-color: #4ade80; }
+.alert-modal--medium   { border-left-color: #facc15; }
+.alert-modal--high     { border-left-color: #fb923c; }
+.alert-modal--critical { border-left-color: #ef4444; }
+
+.alert-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.alert-modal-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #facc15;
+}
+.alert-modal-severity {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #0b1220;
+  background: #facc15;
+  padding: 3px 10px;
+  border-radius: 9px;
+}
+.alert-modal--low      .alert-modal-label,
+.alert-modal--low      .alert-modal-severity { color: #0b1220; }
+.alert-modal--low      .alert-modal-severity { background: #4ade80; }
+.alert-modal--low      .alert-modal-label    { color: #4ade80; }
+.alert-modal--high     .alert-modal-severity { background: #fb923c; }
+.alert-modal--high     .alert-modal-label    { color: #fb923c; }
+.alert-modal--critical .alert-modal-severity { background: #ef4444; color: #fff; }
+.alert-modal--critical .alert-modal-label    { color: #ef4444; }
+
+.alert-modal-title {
+  margin: 6px 0 8px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+.alert-modal-message {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(226, 232, 240, 0.92);
+}
+.alert-modal-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px dashed rgba(148, 163, 184, 0.3);
+  padding: 10px 0 14px;
+}
+.alert-modal-meta-key {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.85);
+}
+.alert-modal-state-pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 9px;
+  background: rgba(148, 163, 184, 0.3);
+  color: #e2e8f0;
+}
+.alert-modal-investigate {
+  width: 100%;
+  padding: 12px 18px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #0b1220;
+  background: #4ade80;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 150ms ease, transform 80ms ease;
+}
+.alert-modal-investigate:hover  { background: #6ee7a3; }
+.alert-modal-investigate:active { transform: translateY(1px); }
+.alert-modal-investigate:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+/* Body scroll lock while the forced-ack modal is up. */
+body.alert-modal-open { overflow: hidden; }
+
+/* ======================================================
    Milestone 24E — Alert Center panel (Phase B)
    ------------------------------------------------------
    The alert loop system creates the foundation for a real

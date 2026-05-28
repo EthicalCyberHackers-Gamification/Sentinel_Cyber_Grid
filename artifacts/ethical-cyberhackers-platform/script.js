@@ -70,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 17:45 CST";
+const BUILD_TIME = "28 May 2026 — 18:15 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -821,6 +821,115 @@ function renderAlertCenter(missionId) {
       </div>
     </section>
   `;
+}
+
+/* ------------------------------------------------------------
+   Milestone 24E-2 — Interactive Alert Modal
+   ------------------------------------------------------------
+   When a mission's alert is created in the "New" state, a modal
+   pops over the dashboard with the alert details and a single
+   [ ▶ Investigate ] button. The student must click it to
+   acknowledge the alert — only then does the alert transition
+   to "Investigating" and the mission proceed.
+
+   This makes the "New" state meaningful (otherwise it was only
+   visible for a frame) and mirrors how a real SOC analyst
+   acknowledges an incoming SIEM alert before working it.
+
+   Modal behavior:
+     - Forced acknowledgement: ESC and backdrop click do nothing.
+     - Focus moves to the Investigate button on open.
+     - On reload while alert is still "New", the modal re-fires
+       the next time the dashboard is entered (state is the
+       source of truth — not a session flag).
+   ============================================================ */
+
+let _previousFocus = null;
+
+/**
+ * Show the modal if and only if the alert exists and is in "New".
+ * No-op for any other state, so callers can fire-and-forget on
+ * dashboard entry / mission begin.
+ */
+function showAlertModal(missionId) {
+  const mid = missionId || getActiveMissionId();
+  const a   = alertByMission[mid];
+  if (!a || a.state !== "New") return;
+
+  const root = document.getElementById("alertModalRoot");
+  if (!root) return;
+  if (root.querySelector(".alert-modal")) return; // already open
+
+  const sevSlug = String(a.severity || "Medium").toLowerCase();
+  _previousFocus = document.activeElement;
+
+  root.style.display = "";
+  root.innerHTML = `
+    <div class="alert-modal-backdrop" data-modal-backdrop></div>
+    <div class="alert-modal alert-modal--${sevSlug}"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="alertModalTitle"
+         aria-describedby="alertModalMessage"
+         data-mission="${mid}">
+      <header class="alert-modal-header">
+        <span class="alert-modal-label">⚠ Incoming Alert</span>
+        <span class="alert-modal-severity">${escapeHtml(a.severity)}</span>
+      </header>
+      <h2 id="alertModalTitle" class="alert-modal-title">${escapeHtml(a.title)}</h2>
+      <p  id="alertModalMessage" class="alert-modal-message">${escapeHtml(a.message)}</p>
+      <div class="alert-modal-meta">
+        <span class="alert-modal-meta-key">Status</span>
+        <span class="alert-modal-state-pill">New — awaiting acknowledgement</span>
+      </div>
+      <button id="alertModalInvestigateBtn"
+              class="alert-modal-investigate"
+              type="button"
+              data-mission="${mid}">
+        ▶&nbsp; Investigate
+      </button>
+    </div>
+  `;
+
+  // Forced acknowledgement — ESC and backdrop click are ignored.
+  // Capture-phase listener on the modal root swallows Escape so it
+  // can't bubble to any global handlers.
+  const swallowEsc = (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); }
+  };
+  root._escHandler = swallowEsc;
+  document.addEventListener("keydown", swallowEsc, true);
+
+  // Lock body scroll so the dashboard can't be peeked behind the modal.
+  document.body.classList.add("alert-modal-open");
+
+  const btn = document.getElementById("alertModalInvestigateBtn");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      const targetMid = btn.getAttribute("data-mission") || mid;
+      closeAlertModal();
+      markAlertInvestigating(targetMid);
+    });
+    // Move focus to the only actionable control.
+    try { btn.focus(); } catch (_) { /* non-fatal */ }
+  }
+}
+
+/** Tear down the modal and restore page state. Idempotent. */
+function closeAlertModal() {
+  const root = document.getElementById("alertModalRoot");
+  if (!root) return;
+  if (root._escHandler) {
+    document.removeEventListener("keydown", root._escHandler, true);
+    root._escHandler = null;
+  }
+  root.innerHTML     = "";
+  root.style.display = "none";
+  document.body.classList.remove("alert-modal-open");
+  if (_previousFocus && typeof _previousFocus.focus === "function") {
+    try { _previousFocus.focus(); } catch (_) { /* non-fatal */ }
+  }
+  _previousFocus = null;
 }
 
 /** Read the current alert state for a mission (for tests / scorecard). */
@@ -2422,11 +2531,12 @@ function beginMission() {
   setManagerMessage("started");
   // Milestone 15: advance tracker — Begin Mission done, Inspect Location is now current
   markProgressStep("begin-mission");
-  // Milestone 24E — alert moves from New → Investigating when the
-  // mission begins. createMissionAlert ensures the alert exists
-  // (idempotent on replay because resetMission clears it first).
+  // Milestone 24E / 24E-2 — ensure the M1 alert exists in the "New"
+  // state, then pop the interactive modal so the student must click
+  // [ ▶ Investigate ] to acknowledge it. The modal's button is what
+  // calls markAlertInvestigating(); we no longer auto-transition.
   if (!alertByMission["mission-001"]) createMissionAlert("mission-001");
-  markAlertInvestigating("mission-001");
+  showAlertModal("mission-001");
 
   // Mark the "Mission Started" step as complete
   MISSION_STEPS.forEach((step) => {
@@ -3167,9 +3277,9 @@ function beginMission2() {
   // student who left Mission 2 mid-way starts the replay from Medium too.
   setThreatLevel("Medium", "mission-002");
 
-  // Milestone 24E — alert moves from New → Investigating when M2 begins.
+  // Milestone 24E / 24E-2 — same forced-acknowledgement modal for M2.
   if (!alertByMission["mission-002"]) createMissionAlert("mission-002");
-  markAlertInvestigating("mission-002");
+  showAlertModal("mission-002");
 }
 
 /** Return from the Mission 2 Dashboard back to the Mission 2 Overview.
@@ -4060,6 +4170,9 @@ window.MissionEngine = {
   markAlertResolved,
   clearAlert,
   getAlertState,
+  // 24E-2 — interactive alert modal
+  showAlertModal,
+  closeAlertModal,
 };
 
 
