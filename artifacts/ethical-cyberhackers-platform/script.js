@@ -28,6 +28,12 @@ import {
   QUIZ,
   getMissionById,
   activeMissionId,
+  // Milestone 23A — mission engine data + lookup
+  MISSION_1,
+  MISSION_2,
+  MISSIONS_REGISTRY,
+  getMissionData,
+  setActiveMissionId,
 } from "/missions.js";
 
 
@@ -50,7 +56,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 09:50 CST";
+const BUILD_TIME = "28 May 2026 — 10:30 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -2614,6 +2620,269 @@ function resetMission2() {
   const dashboard = document.getElementById("mission2Dashboard");
   if (dashboard) dashboard.style.display = "none";
 }
+
+
+/* ============================================================
+   MISSION ENGINE  (Milestone 23A)
+   ------------------------------------------------------------
+   This mission engine allows future missions to be added by
+   creating mission data objects instead of hardcoding each
+   mission. The functions below are a thin, reusable dispatch
+   layer: each one reads the currently-active mission from
+   `currentMissionId` and forwards to the right legacy
+   implementation (the M1 helpers above for `mission-001`, the
+   M2 helpers above for `mission-002`).
+
+   Phase A is conservative on purpose: the existing M1 and M2
+   code paths remain the source of truth for behavior. Nothing
+   below replaces an existing call — these are *additional*
+   entry points that callers (including future Mission 3) can
+   use without knowing which mission is active.
+
+   To add Mission 3:
+     1. Add a MISSION_3 object to missions.js and register it.
+     2. Add a `"mission-003"` branch to each dispatcher below.
+     3. Implement the per-mission renderers (or, ideally, make
+        them table-driven so step 2 becomes unnecessary).
+   ============================================================ */
+
+/** The mission the engine currently routes to. Defaults to Mission 1. */
+let currentMissionId = "mission-001";
+
+/** Returns the structured mission data object for the active mission. */
+function getActiveMission() {
+  return getMissionData(currentMissionId) || MISSION_1;
+}
+
+/**
+ * Switches the active mission. Updates both the engine's local id and
+ * the shared `activeMissionId` exported by missions.js so any future
+ * consumer (e.g. analytics, save-state) sees the same value.
+ */
+function loadMission(missionId) {
+  if (!MISSIONS_REGISTRY[missionId]) {
+    console.warn(`[engine] loadMission: unknown missionId "${missionId}"`);
+    return;
+  }
+  currentMissionId = missionId;
+  setActiveMissionId(missionId);
+}
+
+/** Renders the mission briefing / overview screen for the active mission. */
+function renderMissionBriefing() {
+  if (currentMissionId === "mission-002") {
+    showMission2Overview();
+  } else {
+    // Mission 1's "briefing" lives in the Module Overview screen; the
+    // dashboard itself opens via beginMission(). We expose the overview
+    // navigation here so callers don't need to know the difference.
+    backToModuleOverview();
+  }
+}
+
+/** Renders / refreshes the command-button panel for the active mission. */
+function renderCommandButtons() {
+  if (currentMissionId === "mission-002") {
+    syncM2Buttons();
+  } else {
+    renderButtons();
+  }
+}
+
+/**
+ * Executes a single command by its key.
+ *   M1 keys are COMMAND_BUTTONS[].key (e.g. "ls-home", "cat-suspicious").
+ *   M2 keys are M2_COMMANDS keys      (e.g. "ip", "ping", "nmap", "review").
+ */
+function handleCommandClick(commandId) {
+  if (currentMissionId === "mission-002") {
+    runM2Command(commandId);
+    return;
+  }
+  const btn = COMMAND_BUTTONS.find((b) => b.key === commandId);
+  if (!btn) {
+    console.warn(`[engine] handleCommandClick: unknown M1 command "${commandId}"`);
+    return;
+  }
+  runCommand(btn.command, btn.key);
+}
+
+/** Appends a single command + its output to the active mission's terminal. */
+function appendTerminalOutput(commandText, outputText) {
+  if (currentMissionId === "mission-002") {
+    if (commandText) printM2Line(`<span class="m2-prompt">$</span> ${escapeHtml(commandText)}`, "m2-line--cmd");
+    if (outputText)  printM2Line(escapeHtml(outputText));
+  } else {
+    if (commandText) printCommand(commandText);
+    if (outputText)  printOutput(outputText);
+  }
+}
+
+/**
+ * Marks a status entry complete by id (preferred) or, as a fallback,
+ * sets a free-text status label. Both missions track status via their
+ * own checklists, so callers normally pass an id.
+ */
+function updateMissionStatus(statusIdOrText) {
+  if (currentMissionId === "mission-002") {
+    markM2Status(statusIdOrText);
+  } else {
+    completeStep(statusIdOrText);
+  }
+}
+
+/** Updates the hint-panel text for the active mission. */
+function updateHintPanel(hintText) {
+  if (currentMissionId === "mission-002") {
+    setM2Hint(hintText);
+  } else {
+    setHint(hintText);
+  }
+}
+
+/**
+ * Updates the supervisor / manager message panel for the active mission.
+ * M1's legacy setManagerMessage takes a KEY into MANAGER_MESSAGES; the
+ * engine accepts free text and writes it through to the M1 element
+ * directly so callers can stay mission-agnostic.
+ */
+function updateManagerMessage(messageText) {
+  if (currentMissionId === "mission-002") {
+    setM2ManagerMessage(messageText);
+    return;
+  }
+  const el = document.getElementById("managerMessageText")
+          || document.querySelector(".manager-message-text");
+  if (el) el.textContent = messageText;
+}
+
+/** Unlocks a single command in the active mission's command panel. */
+function unlockCommand(commandId) {
+  if (currentMissionId === "mission-002") {
+    m2UnlockedCmds.add(commandId);
+    syncM2Buttons();
+  } else {
+    unlockButtons([commandId]);
+  }
+}
+
+/** Reveals the finding-submission step (M1 finding panel / M2 analyst review). */
+function showFindingSubmission() {
+  if (currentMissionId === "mission-002") {
+    renderM2AnalystReview();
+  } else {
+    showFindingPanel();
+  }
+}
+
+/**
+ * Reveals the multiple-choice quiz for the active mission.
+ * Note: legacy M1 `showQuiz` already exists and is reused here; M2
+ * routes to its renderer (`renderM2Quiz`).
+ */
+function showQuizEngine() {
+  if (currentMissionId === "mission-002") {
+    renderM2Quiz();
+  } else {
+    showQuiz();
+  }
+}
+
+/**
+ * Reveals the reflection question. Mission 2 has no reflection step
+ * in the current curriculum — this is a no-op there by design.
+ */
+function showReflectionEngine() {
+  if (currentMissionId === "mission-002") return;
+  showReflection();
+}
+
+/**
+ * Marks the active mission complete. Both legacy paths handle their
+ * own XP, rank bump, persistence, and status updates internally; the
+ * engine just routes to the right finalizer.
+ *
+ * `newRank` is optional and only used by Mission 1's legacy
+ * `completeMission(newRank)` signature — Mission 2 derives its rank
+ * from M2_QUIZ.newRank.
+ */
+function completeMissionEngine(newRank) {
+  if (currentMissionId === "mission-002") {
+    // M2's terminal-state finalization runs inside handleM2QuizAnswer
+    // (it awards XP, bumps rank, persists, and renders the scorecard).
+    // If a caller invokes the engine directly without going through
+    // the quiz, mirror those side-effects here.
+    if (!mission2Complete) {
+      mission2Complete = true;
+      m2QuizAnswered   = true;
+      const rankToSet = newRank || M2_QUIZ.newRank;
+      if (rankNameEl && rankNameEl.textContent !== rankToSet) {
+        rankNameEl.textContent = rankToSet;
+        rankNameEl.classList.add("rank-name--upgraded");
+      }
+      saveProgress();
+      syncM2XPPanel();
+      markM2Status("m2-complete");
+      renderCourseProgress();
+    }
+    return;
+  }
+  completeMission(newRank || QUIZ.newRank);
+}
+
+/** Renders the completion / scorecard screen for the active mission. */
+function showScorecard() {
+  if (currentMissionId === "mission-002") {
+    renderM2Scorecard();
+  } else {
+    // M1's scorecard is rendered inside the quiz panel via buildCompletionHTML.
+    const panel = document.getElementById("quizPanel");
+    if (panel) {
+      panel.innerHTML  = buildCompletionHTML(rankNameEl ? rankNameEl.textContent : QUIZ.newRank);
+      panel.style.display = "";
+      const restart = document.getElementById("restartMissionBtn");
+      if (restart) restart.addEventListener("click", resetMission);
+    }
+  }
+}
+
+/**
+ * Resets a specific mission back to its starting state.
+ *   resetMission("mission-001") → wipes M1 only
+ *   resetMission("mission-002") → wipes M2 only (does NOT touch M1)
+ * If no id is given, resets the currently active mission.
+ */
+function resetMissionEngine(missionId) {
+  const target = missionId || currentMissionId;
+  if (target === "mission-002") {
+    resetMission2();
+  } else {
+    resetMission();
+  }
+}
+
+// Expose the engine on window so future modules / debugging can use it
+// without changing the import shape of script.js. (Module scope means
+// these names are otherwise unreachable from the devtools console.)
+window.MissionEngine = {
+  loadMission,
+  getActiveMission,
+  renderMissionBriefing,
+  renderCommandButtons,
+  handleCommandClick,
+  appendTerminalOutput,
+  updateMissionStatus,
+  updateHintPanel,
+  updateManagerMessage,
+  unlockCommand,
+  showFindingSubmission,
+  showQuiz:        showQuizEngine,
+  showReflection:  showReflectionEngine,
+  awardXP,
+  completeMission: completeMissionEngine,
+  showScorecard,
+  resetMission:    resetMissionEngine,
+};
 
 
 /* ============================================================

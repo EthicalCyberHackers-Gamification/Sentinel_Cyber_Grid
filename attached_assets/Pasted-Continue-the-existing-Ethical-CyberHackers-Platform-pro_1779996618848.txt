@@ -1,0 +1,98 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission 1 is fully playable.
+* Mission 2 is fully playable.
+* Student name entry works.
+* Local progress save works.
+* XP, rank, scorecards, hints, quizzes, reflection, manager messages, and mission completion all work.
+* Everything is frontend-only.
+
+Now begin Phase A: Mission Engine Foundation.
+
+Milestone 23A:
+Refactor the project so Mission 1 and Mission 2 use reusable mission data and reusable mission logic.
+
+Purpose:
+The platform should stop depending on hardcoded mission-specific logic. Future missions should be easier to add by creating mission data objects instead of rewriting the entire app.
+
+Requirements:
+
+1. Do not add Mission 3 yet.
+2. Do not redesign the UI.
+3. Do not remove any existing working feature.
+4. Mission 1 and Mission 2 must still work from start to finish after the refactor.
+5. Keep everything frontend-only.
+
+Create or update `missions.js` so it contains structured mission objects for Mission 1 and Mission 2.
+
+Each mission object should include:
+
+* missionId
+* title
+* roleContext
+* briefing
+* learningObjective
+* skillsPracticed
+* startingStatus
+* commands
+* commandUnlockRules
+* hints
+* managerMessages
+* findingQuestion
+* quiz
+* reflection
+* xpReward
+* scorecard
+* nextMissionPreview
+
+Create reusable mission engine functions in `script.js`:
+
+* loadMission(missionId)
+* renderMissionBriefing()
+* renderCommandButtons()
+* handleCommandClick(commandId)
+* appendTerminalOutput(commandText, outputText)
+* updateMissionStatus(statusText)
+* updateHintPanel(hintText)
+* updateManagerMessage(messageText)
+* unlockCommand(commandId)
+* showFindingSubmission()
+* showQuiz()
+* showReflection()
+* awardXP(amount)
+* completeMission()
+* showScorecard()
+* resetMission(missionId)
+
+Mission 1 should preserve:
+
+* Linux-style command investigation
+* suspicious file discovery
+* finding submission
+* quiz
+* reflection
+* XP reward
+* scorecard
+* certificate preview
+
+Mission 2 should preserve:
+
+* IP address discovery
+* ping test
+* nmap-style output
+* service review
+* analyst review
+* quiz
+* XP reward
+* scorecard
+
+Add comments explaining:
+“This mission engine allows future missions to be added by creating mission data objects instead of hardcoding each mission.”
+
+Important:
+This refactor should be conservative. Preserve current behavior first. Clean architecture matters, but do not break the working demo.
+
+Goal:
+By the end of this step, Mission 1 and Mission 2 should still work exactly as before, but the code should be more reusable and ready for future missions.

@@ -322,3 +322,154 @@ export let activeMissionId = "mission-001";
 export function getMissionById(id) {
   return MISSIONS.find((m) => m.id === id);
 }
+
+/**
+ * Reassigns the active mission id. Lets script.js switch missions through
+ * the engine (`loadMission`) without mutating the imported binding directly
+ * (ES module imports are read-only from the importer's side).
+ * @param {string} id
+ */
+export function setActiveMissionId(id) {
+  activeMissionId = id;
+}
+
+
+/* ============================================================
+   MISSION ENGINE — STRUCTURED MISSION DATA  (Milestone 23A)
+   ------------------------------------------------------------
+   This mission engine allows future missions to be added by
+   creating mission data objects instead of hardcoding each
+   mission. Each MISSION_<n> object below is a complete, declarative
+   description of one mission: its briefing, commands, hints,
+   manager messages, quiz, reflection, XP reward, and scorecard.
+
+   The engine functions in script.js (loadMission, renderMissionBriefing,
+   handleCommandClick, showQuiz, showScorecard, resetMission, ...) read
+   from these objects and from the MISSIONS_REGISTRY map at the bottom
+   of this file. Adding Mission 3 should be a matter of:
+
+     1. Adding a MISSION_3 object below.
+     2. Registering it in MISSIONS_REGISTRY.
+     3. Wiring it up in the dispatcher branches in script.js.
+
+   IMPORTANT — Phase A (23A) is a CONSERVATIVE refactor. The existing
+   per-mission implementations (M1 and M2) remain in script.js and stay
+   the source of truth for behavior. These data objects either point
+   directly at the legacy data (COMMAND_BUTTONS, MISSION_STEPS, QUIZ,
+   FINDING, REFLECTION, M2_*) or capture metadata. Nothing here is meant
+   to replace existing behavior in Phase A — only to make the shape of
+   each mission visible and reusable.
+   ============================================================ */
+
+/* ---------- Mission 1 — New Cybersecurity Intern ---------- */
+export const MISSION_1 = {
+  missionId:        "mission-001",
+  title:            "New Cybersecurity Intern",
+  roleContext:      "You are a brand new analyst joining the CyberCorp blue team. Your manager has asked you to inspect a workstation flagged for suspicious activity.",
+  briefing:         "A workstation on the internal network has been flagged for anomalous activity. Use basic Linux-style investigation commands to inspect the user's files, identify the threat, and report your finding.",
+  learningObjective:"Practice basic Linux navigation and file inspection to identify a phishing/social-engineering attempt.",
+  skillsPracticed: [
+    "Basic Linux navigation",
+    "Reading terminal output",
+    "Inspecting files",
+    "Identifying suspicious messages",
+    "Reporting cybersecurity findings",
+  ],
+
+  startingStatus:   "Mission Started",
+
+  // Legacy data sources — the engine wraps these (no duplication).
+  commands:           COMMAND_BUTTONS,
+  commandUnlockRules: COMMAND_BUTTONS.map((b) => ({
+    key:             b.key,
+    unlockedAtStart: b.unlockedAtStart,
+    unlocksAfterRun: b.unlocksAfterRun,
+  })),
+
+  // Hint / manager message dictionaries are defined in script.js
+  // (HINTS, MANAGER_MESSAGES). The engine reads them through accessors
+  // so we don't duplicate the content here.
+  hints:           "__from_script:HINTS",
+  managerMessages: "__from_script:MANAGER_MESSAGES",
+
+  findingQuestion: "__from_script:FINDING",
+  quiz:            QUIZ,
+  reflection:      "__from_script:REFLECTION",
+
+  xpReward: QUIZ.xpReward,
+  newRank:  QUIZ.newRank,
+
+  scorecard: {
+    missionLabel:     "New Cybersecurity Intern",
+    threatIdentified: "Phishing attempt involving password theft",
+    whatYouLearned:   "You learned how cybersecurity analysts use simple command-line investigation steps to inspect files, identify suspicious behavior, and report a possible phishing attempt.",
+    certSkills: [
+      "Basic Linux-style investigation",
+      "File inspection",
+      "Phishing recognition",
+      "Cybersecurity reporting",
+    ],
+  },
+
+  nextMissionPreview: {
+    title:       "Network Basics",
+    description: "Learn how analysts identify devices and services on a network.",
+  },
+};
+
+
+/* ---------- Mission 2 — Network Basics ---------- */
+// Mission 2's runtime data (commands, hints, manager messages, analyst
+// review, quiz, scorecard) live in script.js as M2_* constants because
+// they're tightly coupled to the M2 dashboard renderer. The data object
+// below describes the mission's *shape* — the engine consults it for
+// metadata and for the scorecard / next mission preview content.
+export const MISSION_2 = {
+  missionId:        "mission-002",
+  title:            "Network Basics",
+  roleContext:      "You are now a Cyber Intern reviewing a network reconnaissance exercise. Your manager wants you to identify your own host, confirm reachability, scan for open services, and assess the attack surface.",
+  briefing:         "Run a short series of network commands against a target host. Identify the open services, then complete an analyst review and a final assessment to confirm your understanding.",
+  learningObjective:"Practice basic network reconnaissance and reason about open services as an attack surface.",
+  skillsPracticed: [
+    "Identifying local IP address",
+    "Checking host reachability",
+    "Reading scan-style output",
+    "Recognizing open services",
+    "Understanding attack surface",
+  ],
+
+  startingStatus:   "Mission 2 Started",
+
+  // Engine consults M2_COMMANDS / M2_STATUS / M2_ANALYST_REVIEW / M2_QUIZ
+  // / M2_SCORECARD live from script.js (kept there to avoid breaking the
+  // existing dashboard renderer in Phase A).
+  commands:           "__from_script:M2_COMMANDS",
+  commandUnlockRules: "__from_script:M2_COMMANDS",
+  hints:              "__from_script:M2_HINTS",
+  managerMessages:    "__from_script:M2_MANAGER_MESSAGES",
+  findingQuestion:    "__from_script:M2_ANALYST_REVIEW",
+  quiz:               "__from_script:M2_QUIZ",
+  reflection:         null,                     // M2 has no reflection step
+
+  xpReward: 100,
+  newRank:  "Cyber Intern Level 2",
+
+  scorecard: "__from_script:M2_SCORECARD",
+
+  nextMissionPreview: {
+    title:       "Reconnaissance & Discovery",
+    description: "Go deeper into how analysts gather information about a target before any active scanning.",
+  },
+};
+
+
+/* ---------- Registry — single lookup table the engine reads ---------- */
+export const MISSIONS_REGISTRY = {
+  "mission-001": MISSION_1,
+  "mission-002": MISSION_2,
+};
+
+/** Returns the structured mission object for the given id (or undefined). */
+export function getMissionData(id) {
+  return MISSIONS_REGISTRY[id];
+}
