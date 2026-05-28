@@ -70,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 16:15 CST";
+const BUILD_TIME = "28 May 2026 — 17:15 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -367,6 +367,281 @@ function renderTrustScore() {
   });
 }
 
+/* ============================================================
+   Milestone 24D — Decision Consequence System (Phase B)
+   ------------------------------------------------------------
+   The decision system creates consequences and prepares the
+   platform for the addictive alert-investigate-decide-reward
+   loop. Each mission reaches a decision point after evidence
+   has been gathered. The analyst then chooses an action; the
+   choice affects Trust Score, Threat Level, the manager's tone,
+   and whether the mission advances to the next step.
+
+   Decision kinds:
+     - "correct"     → +10 trust, eases threat, advances flow
+     - "acceptable"  → no trust change, keeps threat, advances
+     - "poor"        → -10 trust, raises threat, does NOT
+                        advance — the manager guides the
+                        student back to make a better choice
+                        (mission cannot be failed by this).
+
+   The decision the student ultimately commits to (the one
+   that advanced the flow) is recorded for the scorecard.
+   ============================================================ */
+
+/** Action catalog. `advance: true` means correct/acceptable → unlock next step. */
+const DECISION_ACTIONS = {
+  /* ---------- Mission 1 ---------- */
+  "m1-escalate": {
+    missionId: "mission-001",
+    label:     "Escalate to Manager",
+    kind:      "correct",
+    trustDelta: +10,
+    threatLevel: "Medium",
+    managerMsg: "Good decision. You escalated the suspicious password request with evidence.",
+    consequence: "Manager briefed; investigation continues with leadership aware of the phishing attempt.",
+    advance: true,
+  },
+  "m1-ignore": {
+    missionId: "mission-001",
+    label:     "Ignore Alert",
+    kind:      "poor",
+    trustDelta: -10,
+    threatLevel: "Critical",
+    managerMsg: "Ignoring a suspicious password request can allow account compromise. Review the evidence.",
+    consequence: "Manager flagged the dismissal as risky. Try a safer action before continuing.",
+    advance: false,
+  },
+  "m1-continue": {
+    missionId: "mission-001",
+    label:     "Continue Investigation",
+    kind:      "acceptable",
+    trustDelta: 0,
+    threatLevel: "High",
+    managerMsg: "Continue investigating, but prepare to report the suspicious finding.",
+    consequence: "Investigation continues; the suspicious finding will be reported soon.",
+    advance: true,
+  },
+
+  /* ---------- Mission 2 ---------- */
+  "m2-recommend": {
+    missionId: "mission-002",
+    label:     "Recommend Security Review",
+    kind:      "correct",
+    trustDelta: +10,
+    threatLevel: "Medium",
+    managerMsg: "Good recommendation. Exposed services should be reviewed for secure configuration.",
+    consequence: "Security review queued for the exposed services.",
+    advance: true,
+  },
+  "m2-ignore": {
+    missionId: "mission-002",
+    label:     "Ignore Open Services",
+    kind:      "poor",
+    trustDelta: -10,
+    threatLevel: "High",
+    managerMsg: "Open services should not be ignored. They increase attack surface if poorly secured.",
+    consequence: "Manager flagged the dismissal as risky. Try a safer action before continuing.",
+    advance: false,
+  },
+  "m2-continue": {
+    missionId: "mission-002",
+    label:     "Continue Investigation",
+    kind:      "acceptable",
+    trustDelta: 0,
+    threatLevel: "Medium",
+    managerMsg: "Continue reviewing the network findings before finalizing your report.",
+    consequence: "Investigation continues; report will follow once findings are confirmed.",
+    advance: true,
+  },
+};
+
+/** Final committed decision per mission (the one that advanced the flow). */
+let decisionTaken = {};      // { "mission-001": "m1-escalate", ... }
+/** Has the decision flow advanced for this mission? (gates re-show) */
+let decisionAdvanced = {};   // { "mission-001": true, ... }
+
+/** Map missionId → host DOM id for the decision panel. */
+function decisionHostId(missionId) {
+  return missionId === "mission-002" ? "m2DecisionActions" : "decisionActions";
+}
+
+/**
+ * Reveal the Decision Actions panel for `missionId`. Called when the
+ * mission reaches its decision point (after evidence is collected).
+ * Idempotent — once a decision has advanced this mission, this is a
+ * no-op so re-clicking the trigger command (e.g. `cat suspicious_file.txt`
+ * or `review services`) cannot re-summon the panel.
+ */
+function showDecisionActions(missionId) {
+  if (decisionAdvanced[missionId]) return;
+  const host = document.getElementById(decisionHostId(missionId));
+  if (!host) return;
+
+  // Idempotency — if the panel is already rendered and waiting on the
+  // student (e.g. they made a poor choice and then re-clicked the
+  // trigger command like `cat suspicious_file.txt` or `review services`),
+  // do NOT rebuild it. Rebuilding would re-enable the poor button and
+  // allow trust to be farmed downward by repeating the same bad choice.
+  if (host.querySelector(".decision-panel")) {
+    host.style.display = "";
+    return;
+  }
+
+  const actions = Object.entries(DECISION_ACTIONS)
+    .filter(([, def]) => def.missionId === missionId);
+
+  host.style.display = "";
+  host.innerHTML = `
+    <div class="decision-panel" data-mission="${missionId}">
+      <div class="decision-header">
+        <span class="decision-label">Decision Actions</span>
+        <span class="decision-badge">Choose carefully</span>
+      </div>
+      <p class="decision-question">
+        Evidence is in. What's your next move?
+      </p>
+      <div class="decision-buttons">
+        ${actions.map(([id, def]) => `
+          <button class="decision-btn decision-btn--${def.kind}"
+                  type="button"
+                  data-decision="${id}">
+            ${escapeHtml(def.label)}
+          </button>
+        `).join("")}
+      </div>
+      <div class="decision-feedback" data-feedback style="display:none;"></div>
+    </div>
+  `;
+
+  host.querySelectorAll(".decision-btn").forEach((btn) => {
+    btn.addEventListener("click", () =>
+      handleDecisionAction(btn.getAttribute("data-decision"))
+    );
+  });
+}
+
+/** Hide and clear the decision panel for `missionId`. */
+function hideDecisionActions(missionId) {
+  const host = document.getElementById(decisionHostId(missionId));
+  if (!host) return;
+  host.style.display = "none";
+  host.innerHTML = "";
+}
+
+/**
+ * Apply the consequence side-effects for `actionId` — trust delta,
+ * threat level, and manager message. Pure data application; does NOT
+ * touch the DOM panel or unlock next steps (that's handleDecisionAction).
+ */
+function applyDecisionConsequence(actionId) {
+  const def = DECISION_ACTIONS[actionId];
+  if (!def) return null;
+
+  // 1. Trust delta (clamped 0–100 inside the trust helpers).
+  if (def.trustDelta > 0)      increaseTrustScore(def.trustDelta);
+  else if (def.trustDelta < 0) decreaseTrustScore(-def.trustDelta);
+
+  // 2. Threat level for this mission.
+  setThreatLevel(def.threatLevel, def.missionId);
+
+  // 3. Manager message — M1 writes directly to #managerText (the
+  //    legacy setManagerMessage only accepts MANAGER_MESSAGES keys);
+  //    M2 has a raw-text helper.
+  if (def.missionId === "mission-002") {
+    if (typeof setM2ManagerMessage === "function") {
+      setM2ManagerMessage(def.managerMsg);
+    }
+  } else {
+    const el = document.getElementById("managerText");
+    if (el) el.textContent = def.managerMsg;
+  }
+
+  return def;
+}
+
+/**
+ * Handle a click on a Decision Action button. Applies the consequence,
+ * shows inline feedback, and — for correct/acceptable actions — hides
+ * the panel and unlocks the next mission step. Poor actions disable
+ * just the poor button (so trust cannot be farmed downward) but keep
+ * the other choices enabled so the student can make a better call.
+ */
+function handleDecisionAction(actionId) {
+  const def = DECISION_ACTIONS[actionId];
+  if (!def) return;
+  if (decisionAdvanced[def.missionId]) return; // already resolved
+
+  const host = document.getElementById(decisionHostId(def.missionId));
+  if (!host) return;
+
+  // Idempotency — if this specific button has already been clicked,
+  // don't re-apply its consequence.
+  const btn = host.querySelector(`.decision-btn[data-decision="${actionId}"]`);
+  if (btn && btn.disabled) return;
+
+  applyDecisionConsequence(actionId);
+
+  // Inline feedback inside the panel.
+  const fb = host.querySelector("[data-feedback]");
+  if (fb) {
+    fb.style.display = "";
+    fb.className     = `decision-feedback decision-feedback--${def.kind}`;
+    fb.textContent   = def.managerMsg;
+  }
+
+  // Disable the button the student just chose so the same consequence
+  // cannot be re-triggered. Mark with a state class for styling.
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add("decision-btn--chosen");
+  }
+
+  if (def.advance) {
+    // Correct or acceptable → record final decision, advance the flow.
+    decisionTaken[def.missionId]    = actionId;
+    decisionAdvanced[def.missionId] = true;
+
+    try { saveProgress(); } catch (_) { /* non-fatal */ }
+
+    // Brief pause so the student reads the feedback, then advance.
+    setTimeout(() => {
+      hideDecisionActions(def.missionId);
+      if (def.missionId === "mission-002") {
+        renderM2AnalystReview();
+      } else {
+        showFindingPanel();
+      }
+    }, 1100);
+  } else {
+    // Poor action — persist trust/threat changes; do NOT advance.
+    try { saveProgress(); } catch (_) { /* non-fatal */ }
+  }
+}
+
+/** Reset decision state for a mission. Used by resetMission / resetMission2. */
+function resetDecisionForMission(missionId) {
+  delete decisionTaken[missionId];
+  delete decisionAdvanced[missionId];
+  hideDecisionActions(missionId);
+}
+
+/** Build the "Decision Taken" + "Consequence" scorecard rows for a mission. */
+function renderDecisionScorecardRows(missionId) {
+  const actionId = decisionTaken[missionId];
+  const def = actionId ? DECISION_ACTIONS[actionId] : null;
+  if (!def) return "";
+  return `
+          <li class="scorecard-row">
+            <span class="scorecard-key">Decision Taken</span>
+            <span class="scorecard-val scorecard-val--cyan">${escapeHtml(def.label)}</span>
+          </li>
+          <li class="scorecard-row scorecard-row--wide">
+            <span class="scorecard-key">Consequence</span>
+            <span class="scorecard-val">${escapeHtml(def.consequence)}</span>
+          </li>`;
+}
+
 /** Returns an array of plain-text evidence strings for a mission. */
 function getEvidenceList(missionId) {
   const mid = missionId || getActiveMissionId();
@@ -433,6 +708,9 @@ function saveProgress() {
         ? threatLevelByMission : {},
       // Milestone 24C — persist global trust score so it survives reload.
       trustScore: typeof trustScore === "number" ? trustScore : DEFAULT_TRUST_SCORE,
+      // Milestone 24D — persist decision system state so it survives reload.
+      decisionTaken:    (typeof decisionTaken    === "object" && decisionTaken)    ? decisionTaken    : {},
+      decisionAdvanced: (typeof decisionAdvanced === "object" && decisionAdvanced) ? decisionAdvanced : {},
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -555,6 +833,23 @@ function restoreSavedProgress() {
     trustScore = clampTrust(data.trustScore);
   }
   renderTrustScore();
+
+  // 9. Milestone 24D — restore decision system state. Only known
+  //    action ids are accepted; unknown keys are ignored.
+  decisionTaken    = {};
+  decisionAdvanced = {};
+  if (data.decisionTaken && typeof data.decisionTaken === "object") {
+    Object.entries(data.decisionTaken).forEach(([mid, actionId]) => {
+      if (DECISION_ACTIONS[actionId] && DECISION_ACTIONS[actionId].missionId === mid) {
+        decisionTaken[mid] = actionId;
+      }
+    });
+  }
+  if (data.decisionAdvanced && typeof data.decisionAdvanced === "object") {
+    ["mission-001", "mission-002"].forEach((mid) => {
+      if (data.decisionAdvanced[mid] === true) decisionAdvanced[mid] = true;
+    });
+  }
 
   updateSaveIndicator(true);
 }
@@ -1123,7 +1418,19 @@ function afterCommand(buttonKey) {
     );
     // Milestone 24B — fresh indicator-of-compromise → threat rises.
     setThreatLevel("High", "mission-001");
-    setTimeout(showFindingPanel, 800);
+    // Milestone 24D — evidence collected → reach the decision point.
+    // The Decision Actions panel gates showFindingPanel: only a
+    // correct/acceptable action advances to the finding submission.
+    // (If the student already passed the decision earlier in this
+    // session, showDecisionActions is a no-op and we go straight to
+    // the finding panel.)
+    setTimeout(() => {
+      if (decisionAdvanced["mission-001"]) {
+        showFindingPanel();
+      } else {
+        showDecisionActions("mission-001");
+      }
+    }, 800);
   }
 
   // Milestone 13: supervisor message for this command (if any).
@@ -1738,6 +2045,7 @@ function buildCompletionHTML(newRank) {
             <span class="scorecard-key">Trust Score</span>
             <span class="scorecard-val scorecard-val--cyan">${getTrustScore()} / 100</span>
           </li>
+          ${renderDecisionScorecardRows("mission-001")}
         </ul>
 
         <!-- Skills Practiced -->
@@ -2017,6 +2325,10 @@ function resetMission() {
     findingPanel.style.display = "none";
     findingPanel.innerHTML     = "";
   }
+  // Milestone 24D — clear the Mission 1 decision state on restart so
+  // the student must re-make their decision when they reach the
+  // decision point again.
+  resetDecisionForMission("mission-001");
 
   // 9. Restart countdown timer
   stopTimer();
@@ -2666,9 +2978,18 @@ function runM2Command(key) {
     setThreatLevel("Medium", "mission-002");
   }
 
-  // Milestone 21 — after the final command (review services), reveal the
-  // Analyst Review multiple-choice panel inside the COMMANDS column.
-  if (key === "review") renderM2AnalystReview();
+  // Milestone 21/24D — after `review services`, gate the Analyst Review
+  // behind the Decision Actions panel. Only a correct/acceptable
+  // decision advances to renderM2AnalystReview(). If the student has
+  // already passed the decision earlier in this session,
+  // showDecisionActions is a no-op and we go straight to the review.
+  if (key === "review") {
+    if (decisionAdvanced["mission-002"]) {
+      renderM2AnalystReview();
+    } else {
+      showDecisionActions("mission-002");
+    }
+  }
 }
 
 /* ============================================================
@@ -2958,6 +3279,7 @@ function renderM2Scorecard() {
             <span class="scorecard-key">Trust Score</span>
             <span class="scorecard-val scorecard-val--cyan">${getTrustScore()} / 100</span>
           </li>
+          ${renderDecisionScorecardRows("mission-002")}
         </ul>
 
         <!-- Skills Practiced -->
@@ -3128,6 +3450,9 @@ function resetMission2() {
   // Milestone 21 — clear and hide the Analyst Review panel on reset
   const review = document.getElementById("m2AnalystReview");
   if (review) { review.innerHTML = ""; review.style.display = "none"; }
+
+  // Milestone 24D — clear the Mission 2 decision state on restart.
+  resetDecisionForMission("mission-002");
 
   // Buttons back to disabled
   document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
@@ -3455,6 +3780,15 @@ window.MissionEngine = {
   getTrustScore,
   renderTrustScore,
   resetTrustScoreForDemo,
+  // 24D — decision consequence system (Phase B)
+  DECISION_ACTIONS,
+  showDecisionActions,
+  handleDecisionAction,
+  applyDecisionConsequence,
+  hideDecisionActions,
+  resetDecisionForMission,
+  decisionTaken,
+  decisionAdvanced,
 };
 
 

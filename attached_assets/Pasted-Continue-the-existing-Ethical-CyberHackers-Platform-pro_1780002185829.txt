@@ -1,0 +1,128 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Phase A Baseline is complete.
+* Mission Engine is ready.
+* Evidence Collection System works.
+* Threat Level Meter works.
+* Trust Score System works.
+* Mission 1 and Mission 2 still work.
+* Everything is frontend-only.
+
+Now implement Phase B — Milestone 24D: Decision Consequence System.
+
+Purpose:
+Students should learn that cybersecurity decisions have consequences. Some actions are good when supported by evidence, while rushed actions should trigger manager warnings.
+
+Requirements:
+
+1. Do not add Mission 3 yet.
+
+2. Do not redesign the UI.
+
+3. Do not break Mission 1 or Mission 2.
+
+4. Add a “Decision Actions” panel.
+
+5. The panel should show action buttons only when a mission reaches the decision point.
+
+Mission 1 decision point:
+After the suspicious file is read and evidence is collected.
+
+Mission 1 actions:
+
+* Escalate to Manager
+* Ignore Alert
+* Continue Investigation
+
+Mission 2 decision point:
+After services are reviewed and evidence is collected.
+
+Mission 2 actions:
+
+* Recommend Security Review
+* Ignore Open Services
+* Continue Investigation
+
+6. Add reusable functions:
+
+* showDecisionActions(missionId)
+* handleDecisionAction(actionId)
+* applyDecisionConsequence(actionId)
+* hideDecisionActions()
+
+7. Mission 1 consequences:
+
+Escalate to Manager:
+
+* Correct action
+* Increase Trust Score by 10
+* Set Threat Level to Medium
+* Manager message:
+  “Good decision. You escalated the suspicious password request with evidence.”
+
+Ignore Alert:
+
+* Poor action
+* Decrease Trust Score by 10
+* Set Threat Level to Critical
+* Manager message:
+  “Ignoring a suspicious password request can allow account compromise. Review the evidence.”
+
+Continue Investigation:
+
+* Acceptable action
+* No trust change
+* Keep Threat Level High
+* Manager message:
+  “Continue investigating, but prepare to report the suspicious finding.”
+
+8. Mission 2 consequences:
+
+Recommend Security Review:
+
+* Correct action
+* Increase Trust Score by 10
+* Set Threat Level to Medium
+* Manager message:
+  “Good recommendation. Exposed services should be reviewed for secure configuration.”
+
+Ignore Open Services:
+
+* Poor action
+* Decrease Trust Score by 10
+* Set Threat Level to High
+* Manager message:
+  “Open services should not be ignored. They increase attack surface if poorly secured.”
+
+Continue Investigation:
+
+* Acceptable action
+* No trust change
+* Keep Threat Level Medium
+* Manager message:
+  “Continue reviewing the network findings before finalizing your report.”
+
+9. Correct decisions should unlock the next mission step.
+
+10. Poor decisions should not fail the mission, but should guide the student back.
+
+11. Decision outcomes should be shown in the scorecard:
+    Decision Taken:
+    [student action]
+
+Consequence:
+[brief result]
+
+12. Save updated Trust Score in localStorage.
+
+13. Keep everything frontend-only.
+
+14. Do not add backend, database, authentication, AI, or new pages.
+
+15. Add comments explaining:
+    “The decision system creates consequences and prepares the platform for the addictive alert-investigate-decide-reward loop.”
+
+Goal:
+By the end of this step, Mission 1 and Mission 2 should include meaningful decision actions that affect threat level, trust score, manager response, and mission flow.

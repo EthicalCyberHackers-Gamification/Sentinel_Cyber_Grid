@@ -426,6 +426,10 @@
                  renderM2AnalystReview() after the student clicks
                  `review services`. Reuses the .quiz-panel chrome
                  from Mission 1 for visual consistency. -->
+            <!-- Milestone 24D — Decision Actions panel for Mission 2.
+                 Populated by showDecisionActions("mission-002"). -->
+            <div id="m2DecisionActions" class="decision-actions-host" style="display:none;"></div>
+
             <div id="m2AnalystReview" class="m2-analyst-host" style="display:none;"></div>
           </div>
         </section>
@@ -798,6 +802,12 @@
                  Appears after reading suspicious_file.txt, BEFORE the quiz.
                  Student must correctly identify the suspicious behavior
                  to unlock the knowledge-check quiz. -->
+            <!-- Milestone 24D — Decision Actions panel for Mission 1.
+                 The decision system creates consequences and prepares
+                 the platform for the addictive alert-investigate-decide-
+                 reward loop. Populated by showDecisionActions("mission-001"). -->
+            <div id="decisionActions" class="decision-actions-host" style="display:none;"></div>
+
             <div id="findingPanel" class="finding-panel" style="display:none;"></div>
 
             <!-- Quiz panel — hidden until the student submits the
