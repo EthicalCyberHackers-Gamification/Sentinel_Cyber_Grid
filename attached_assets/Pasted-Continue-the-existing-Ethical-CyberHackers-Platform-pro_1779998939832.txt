@@ -1,0 +1,96 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission Engine Foundation exists.
+* Mission 1 and Mission 2 use reusable mission data and reusable mission logic.
+* Mission Template System exists.
+* Mission Engine Guide exists.
+* Mission Registry exists.
+* Mission Engine Health Check exists.
+* Everything is frontend-only.
+
+Now implement Phase A — Milestone 23G: Freeze Phase A Baseline.
+
+Purpose:
+Create a clear project baseline before adding more features. This gives the project a stable checkpoint so future changes can be compared against the last known working version.
+
+Requirements:
+
+1. Do not add Mission 3 functionality yet.
+
+2. Do not redesign the UI.
+
+3. Do not change Mission 1 or Mission 2 behavior.
+
+4. Create a new file:
+
+docs/PHASE_A_BASELINE.md
+
+5. In this file, document the current stable platform baseline.
+
+Include these sections:
+
+# Phase A Baseline
+
+## Current Platform State
+
+Explain that the platform now has a reusable mission engine, mission registry, mission template, health check, and two working missions.
+
+## Working Missions
+
+* Mission 1: New Cybersecurity Intern
+* Mission 2: Network Basics
+
+## Core Systems Completed
+
+* Mission data objects
+* Mission engine functions
+* Mission registry
+* Mission template
+* Mission validation
+* Mission health check
+* Local progress save
+* XP and rank system
+* Scorecards
+* Guided hints
+* Manager messages
+* Course progress panel
+
+## Do Not Break Checklist
+
+List:
+
+* Module landing screen
+* Student name entry
+* Simulation loading screen
+* Mission 1 full flow
+* Mission 2 full flow
+* Mission unlock progression
+* XP/rank updates
+* Local save
+* Restart buttons
+* Certificate preview
+* Mission engine health check
+
+## Next Development Phase
+
+State that the next phase should begin adding stronger simulation mechanics gradually:
+
+* evidence collection
+* trust score
+* threat level meter
+* decision consequences
+* dynamic manager reactions
+* alert loop
+
+6. Add a visible small footer label in the app:
+
+Phase A Baseline: Mission Engine Ready
+
+7. Do not add backend, database, AI, authentication, or new pages.
+
+8. Keep everything frontend-only.
+
+Goal:
+By the end of this step, the project should have a documented stable baseline before future simulation features are added.

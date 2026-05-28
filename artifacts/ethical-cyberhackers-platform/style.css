@@ -1186,6 +1186,21 @@ button {
   color: var(--color-accent, #4ade80);
 }
 
+/* Milestone 23G — Phase A baseline label.
+   Small, quiet pill in the footer that signals the platform has
+   reached the "Mission Engine Ready" baseline. Intentionally low-key
+   so it reads as a build/version annotation, not a feature. */
+.footer-phase-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--color-accent, #4ade80);
+  border: 1px solid var(--color-accent, #4ade80);
+  border-radius: 3px;
+  padding: 2px 8px;
+  opacity: 0.75;
+}
+
 
 /* ======================================================
    RESPONSIVE LAYOUT
