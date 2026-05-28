@@ -273,6 +273,11 @@
               <span class="tl tl--green"></span>
             </div>
             <span class="terminal-title">student@cybercorp:~$</span>
+            <!-- Milestone 12: live training environment indicator -->
+            <div class="live-indicator" aria-label="Live Training Environment">
+              <span class="live-indicator-dot" aria-hidden="true"></span>
+              <span class="live-indicator-text">LIVE TRAINING ENVIRONMENT</span>
+            </div>
             <div class="terminal-actions">
               <button class="terminal-btn" title="Clear terminal">CLR</button>
             </div>
@@ -285,6 +290,8 @@
 
           <div class="terminal-input-row">
             <span class="terminal-prompt-label">student@cybercorp:~$</span>
+            <!-- Milestone 12: blinking cursor next to the prompt -->
+            <span class="terminal-cursor" aria-hidden="true">▌</span>
             <input
               type="text"
               id="terminalInput"
@@ -297,6 +304,32 @@
             />
           </div>
         </section>
+
+        <!-- ===== SYSTEM STATUS WIDGET (Milestone 12) =====
+             Decorative-only: four green-dot indicators showing the
+             "training environment" is online. No real system check. -->
+        <div class="system-status" aria-label="System Status">
+          <div class="system-status-item">
+            <span class="system-status-dot"></span>
+            <span class="system-status-label">Simulation</span>
+            <span class="system-status-value">Online</span>
+          </div>
+          <div class="system-status-item">
+            <span class="system-status-dot"></span>
+            <span class="system-status-label">Terminal</span>
+            <span class="system-status-value">Active</span>
+          </div>
+          <div class="system-status-item">
+            <span class="system-status-dot"></span>
+            <span class="system-status-label">Mission Engine</span>
+            <span class="system-status-value">Ready</span>
+          </div>
+          <div class="system-status-item">
+            <span class="system-status-dot"></span>
+            <span class="system-status-label">Student Mode</span>
+            <span class="system-status-value system-status-value--cyan">Guided</span>
+          </div>
+        </div>
 
         <!-- ===== COMMAND BUTTONS PANEL ===== -->
         <section class="panel commands-panel" aria-label="Command Buttons Panel">

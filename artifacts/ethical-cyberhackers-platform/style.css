@@ -1477,6 +1477,180 @@ button {
 
 
 /* ======================================================
+   DASHBOARD MOTION EFFECTS  (Milestone 12)
+   Lightweight, GPU-friendly visuals. All animations use
+   opacity/transform/box-shadow so they don't trigger layout.
+   ====================================================== */
+
+/* --- 1. Soft glowing border on the terminal panel --- */
+.terminal-panel {
+  animation: terminalGlow 4s ease-in-out infinite;
+}
+@keyframes terminalGlow {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(0,255,136,0.15),
+      0 0 18px rgba(0,255,136,0.08);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(0,255,136,0.35),
+      0 0 28px rgba(0,255,136,0.18);
+  }
+}
+
+/* --- 2. Slow pulse on the active mission status badge --- */
+.mission-status-badge:not(.mission-status-badge--complete) {
+  animation: badgePulse 2.4s ease-in-out infinite;
+}
+@keyframes badgePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255,193,7,0.5);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255,193,7,0);
+    opacity: 0.85;
+  }
+}
+
+/* --- 3. Blinking cursor inside the terminal input row --- */
+.terminal-cursor {
+  display: inline-block;
+  color: var(--color-green);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  margin: 0 4px 0 2px;
+  animation: terminalCursorBlink 1s steps(2, start) infinite;
+}
+@keyframes terminalCursorBlink {
+  to { opacity: 0; }
+}
+
+/* --- 4. Slight hover lift on mission/course cards --- */
+.course-card,
+.module-mission-item {
+  transition: transform 0.2s ease, border-color 0.3s ease, box-shadow 0.2s ease, background 0.3s ease, opacity 0.3s ease;
+}
+.course-card:not(.course-card--locked):hover,
+.module-mission-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,255,136,0.08);
+  border-color: rgba(0,255,136,0.35);
+}
+
+/* --- 5. Shimmer animation on the XP progress bar --- */
+.xp-bar {
+  position: relative;
+  overflow: hidden;
+}
+.xp-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.25) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: xpBarShimmer 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes xpBarShimmer {
+  0%   { transform: translateX(-100%); }
+  60%  { transform: translateX(100%);  }
+  100% { transform: translateX(100%);  }
+}
+
+/* --- 6. Live Training Environment indicator (in terminal header) --- */
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  margin-right: 12px;
+  padding: 3px 10px;
+  border: 1px solid rgba(0,255,136,0.35);
+  border-radius: 999px;
+  background: rgba(0,255,136,0.06);
+}
+.live-indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-green);
+  box-shadow: 0 0 8px var(--color-green);
+  animation: liveDotPulse 1.2s ease-in-out infinite;
+}
+@keyframes liveDotPulse {
+  0%, 100% { opacity: 1;    transform: scale(1);    }
+  50%      { opacity: 0.45; transform: scale(0.85); }
+}
+.live-indicator-text {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  color: var(--color-green);
+}
+
+/* --- 7. System Status widget --- */
+.system-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(90deg, rgba(0,255,136,0.03), rgba(0,229,255,0.02));
+  margin-top: var(--gap-md);
+}
+.system-status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 140px;
+  padding: 4px 8px;
+}
+.system-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-green);
+  box-shadow: 0 0 6px var(--color-green);
+  animation: liveDotPulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+/* Stagger the dot pulses so they don't all blink in unison */
+.system-status-item:nth-child(2) .system-status-dot { animation-delay: 0.4s; }
+.system-status-item:nth-child(3) .system-status-dot { animation-delay: 0.8s; }
+.system-status-item:nth-child(4) .system-status-dot { animation-delay: 1.2s; }
+
+.system-status-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  flex: 1;
+}
+.system-status-value {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: var(--color-green);
+}
+.system-status-value--cyan {
+  color: var(--color-cyan);
+}
+
+
+/* ======================================================
    SIMULATION LOADING SCREEN  (Milestone 11)
    Plays after "Enter Module" and before the dashboard.
    Pure visual: fake boot log + progress bar + blinking cursor.
