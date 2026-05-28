@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 07:50 CST";
+const BUILD_TIME = "28 May 2026 — 08:10 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -1217,6 +1217,15 @@ function completeMission(newRank) {
   // Keep the Mission 2 dashboard's AGENT PROFILE in sync after XP award
   syncM2XPPanel();
 
+  // Mission is over — hide the command buttons, their hint paragraph, and
+  // the HINT pill. The completion screen takes over the COMMANDS panel,
+  // so leaving the old training buttons (pwd / ls / cat / cd) visible
+  // just adds noise. Re-shown by resetMission() if the student restarts.
+  if (btnContainer) btnContainer.style.display = "none";
+  if (commandsHint) commandsHint.style.display = "none";
+  const hintPanelEl = document.getElementById("hintPanel");
+  if (hintPanelEl) hintPanelEl.style.display = "none";
+
   // Print a terminal confirmation
   printOutput("[ MISSION COMPLETE \u2014 Well done, Agent. ]", "info");
 
@@ -1519,6 +1528,9 @@ function resetMission() {
   //    and hide the quiz/completion panel.
   if (btnContainer) btnContainer.style.display = "none";
   if (commandsHint) commandsHint.style.display = "none";
+  // Restore the HINT pill that completeMission() hid
+  const hintPanelReset = document.getElementById("hintPanel");
+  if (hintPanelReset) hintPanelReset.style.display = "";
   if (quizPanel) {
     quizPanel.style.display = "none";
     quizPanel.innerHTML     = "";
