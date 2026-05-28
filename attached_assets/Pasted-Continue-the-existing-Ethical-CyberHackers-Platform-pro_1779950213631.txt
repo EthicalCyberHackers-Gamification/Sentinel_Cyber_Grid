@@ -1,0 +1,79 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission 1 is fully playable.
+* Mission 1 includes briefing, guided commands, terminal output, finding submission, quiz, XP reward, mission completion screen, scorecard, and restart.
+* Mission 2 appears as locked before Mission 1 completion.
+* Mission 2 unlocks after Mission 1 completion.
+* “Start Mission 2” currently shows a placeholder.
+
+Now implement Milestone 10: Module Landing Screen.
+
+Purpose:
+Before students enter missions, they should see a structured course/module introduction. This makes the platform feel like a real online training program instead of a single activity screen.
+
+Requirements:
+
+1. Add a Module Landing Screen shown before Mission 1 starts.
+
+2. The landing screen should include:
+
+Course:
+Cybersecurity Internship Simulator – Level 1
+
+Module 1:
+Cybersecurity Intern Onboarding
+
+Module Goal:
+Learn how cybersecurity analysts safely inspect a workstation, identify suspicious behavior, and report a possible phishing attempt.
+
+Estimated Time:
+15–20 minutes
+
+Missions in this Module:
+
+* Mission 1: New Cybersecurity Intern
+* Mission 2: Network Basics
+
+Skills You Will Practice:
+
+* Reading cybersecurity instructions
+* Using basic Linux-style commands
+* Inspecting files
+* Identifying phishing behavior
+* Reporting findings
+
+3. Add a button:
+   “Enter Module”
+
+4. Before clicking “Enter Module”:
+
+* Hide the mission interface.
+* Hide terminal commands.
+* Hide quiz.
+* Hide finding submission.
+* Hide scorecard.
+* Show only the module landing screen and course progress panel if appropriate.
+
+5. After clicking “Enter Module”:
+
+* Show Mission 1 interface.
+* Mission 1 should still require the existing “Begin Mission” button before commands appear.
+
+6. Add a simple “Back to Module Overview” button from the Mission 1 screen.
+
+7. Do not break existing Mission 1 functionality.
+
+8. Do not build Mission 2 yet.
+
+9. Do not add backend, database, login, AI, or new pages.
+
+10. Keep all logic frontend-only.
+
+11. Preserve current visual design.
+
+12. Keep code simple and clearly commented.
+
+Goal:
+By the end of this step, the student should first see a course/module overview, then enter the playable mission experience.

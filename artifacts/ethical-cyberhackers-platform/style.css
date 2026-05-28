@@ -1477,6 +1477,227 @@ button {
 
 
 /* ======================================================
+   MODULE LANDING SCREEN  (Milestone 10)
+   Full-width intro screen shown before the dashboard.
+   "Enter Module" hides this and reveals the dashboard.
+   ====================================================== */
+
+.module-landing {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 24px 64px;
+  min-height: calc(100vh - 120px);
+  animation: scorecardFadeIn 0.4s ease-out;
+}
+
+.module-landing-card {
+  width: 100%;
+  max-width: 760px;
+  background: linear-gradient(180deg, rgba(0,255,136,0.04), rgba(0,229,255,0.02));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 36px 40px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.module-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.module-eyebrow-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  color: var(--color-cyan);
+  padding: 4px 8px;
+  border: 1px solid var(--color-cyan);
+  border-radius: var(--radius-sm);
+}
+.module-eyebrow-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+}
+.module-eyebrow-sep {
+  color: var(--color-cyan);
+}
+
+.module-title {
+  margin: 0;
+  font-family: var(--font-display, var(--font-mono));
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-green);
+  line-height: 1.2;
+  letter-spacing: 0.5px;
+}
+
+.module-meta-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--color-border);
+}
+.module-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 110px;
+}
+.module-meta-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--color-text-dim);
+}
+.module-meta-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.module-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.module-section-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  color: var(--color-cyan);
+}
+.module-section-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+/* Missions list */
+.module-mission-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.module-mission-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.02);
+}
+.module-mission-num {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-cyan);
+  flex-shrink: 0;
+  width: 28px;
+}
+.module-mission-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.module-mission-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.module-mission-desc {
+  font-size: 11.5px;
+  color: var(--color-text-dim);
+}
+
+/* Skills list */
+.module-skills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 6px 16px;
+}
+.module-skills li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+.module-skill-bullet {
+  color: var(--color-green);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+/* Enter Module button — matches Begin Mission button styling */
+.enter-module-btn {
+  margin-top: 8px;
+  padding: 14px 20px;
+  background: linear-gradient(90deg, rgba(0,255,136,0.18), rgba(0,255,136,0.08));
+  border: 1px solid rgba(0,255,136,0.6);
+  border-radius: var(--radius-md);
+  color: var(--color-green);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+.enter-module-btn:hover {
+  background: linear-gradient(90deg, rgba(0,255,136,0.3), rgba(0,255,136,0.15));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,255,136,0.2);
+}
+
+/* Back to Module Overview button (lives inside the mission panel header) */
+.back-to-module-btn {
+  align-self: flex-start;
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-dim);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.back-to-module-btn:hover {
+  color: var(--color-cyan);
+  border-color: var(--color-cyan);
+}
+
+
+/* ======================================================
    COURSE PROGRESS  (Milestone 9)
    Two-mission card list inside the Active Mission panel.
    Mission 2 is locked (dimmed) until Mission 1 completes.

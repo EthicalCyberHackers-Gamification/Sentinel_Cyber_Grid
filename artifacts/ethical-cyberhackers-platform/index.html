@@ -53,12 +53,97 @@
       </div>
     </header>
 
+    <!-- ===== MODULE LANDING SCREEN (Milestone 10) =====
+         Shown first on page load. Hides the entire dashboard until the
+         student clicks "Enter Module". The "Back to Module Overview"
+         button inside the mission panel returns the student here without
+         resetting their mission progress. -->
+    <section id="moduleLanding" class="module-landing" aria-label="Module Overview">
+      <div class="module-landing-card">
+
+        <div class="module-eyebrow">
+          <span class="module-eyebrow-label">COURSE</span>
+          <span class="module-eyebrow-value">
+            Cybersecurity Internship Simulator <span class="module-eyebrow-sep">—</span> Level 1
+          </span>
+        </div>
+
+        <h1 class="module-title">
+          Module 1: Cybersecurity Intern Onboarding
+        </h1>
+
+        <div class="module-meta-row">
+          <div class="module-meta-item">
+            <span class="module-meta-label">ESTIMATED TIME</span>
+            <span class="module-meta-value">15–20 minutes</span>
+          </div>
+          <div class="module-meta-item">
+            <span class="module-meta-label">DIFFICULTY</span>
+            <span class="module-meta-value difficulty--beginner">BEGINNER</span>
+          </div>
+          <div class="module-meta-item">
+            <span class="module-meta-label">MISSIONS</span>
+            <span class="module-meta-value">2</span>
+          </div>
+        </div>
+
+        <section class="module-section">
+          <h2 class="module-section-title">MODULE GOAL</h2>
+          <p class="module-section-text">
+            Learn how cybersecurity analysts safely inspect a workstation,
+            identify suspicious behavior, and report a possible phishing
+            attempt.
+          </p>
+        </section>
+
+        <section class="module-section">
+          <h2 class="module-section-title">MISSIONS IN THIS MODULE</h2>
+          <ol class="module-mission-list">
+            <li class="module-mission-item">
+              <span class="module-mission-num">01</span>
+              <div class="module-mission-body">
+                <span class="module-mission-name">New Cybersecurity Intern</span>
+                <span class="module-mission-desc">Investigate a suspicious workstation.</span>
+              </div>
+            </li>
+            <li class="module-mission-item">
+              <span class="module-mission-num">02</span>
+              <div class="module-mission-body">
+                <span class="module-mission-name">Network Basics</span>
+                <span class="module-mission-desc">Identify devices and services on a network.</span>
+              </div>
+            </li>
+          </ol>
+        </section>
+
+        <section class="module-section">
+          <h2 class="module-section-title">SKILLS YOU WILL PRACTICE</h2>
+          <ul class="module-skills">
+            <li><span class="module-skill-bullet">▹</span>Reading cybersecurity instructions</li>
+            <li><span class="module-skill-bullet">▹</span>Using basic Linux-style commands</li>
+            <li><span class="module-skill-bullet">▹</span>Inspecting files</li>
+            <li><span class="module-skill-bullet">▹</span>Identifying phishing behavior</li>
+            <li><span class="module-skill-bullet">▹</span>Reporting findings</li>
+          </ul>
+        </section>
+
+        <button id="enterModuleBtn" class="enter-module-btn">
+          ▶&nbsp; Enter Module
+        </button>
+      </div>
+    </section>
+
     <!-- ===== MAIN DASHBOARD ===== -->
-    <main class="dashboard">
+    <main class="dashboard" id="dashboard" style="display:none;">
 
       <!-- ===== MISSION PANEL ===== -->
       <section class="panel mission-panel" aria-label="Mission Panel">
         <div class="panel-header">
+          <!-- Milestone 10: small text link back to the module landing.
+               Toggles visibility only — does NOT reset mission progress. -->
+          <button id="backToModuleBtn" class="back-to-module-btn" type="button">
+            ← Module Overview
+          </button>
           <div class="panel-title-row">
             <span class="panel-label">ACTIVE MISSION</span>
             <span class="mission-status-badge">IN PROGRESS</span>

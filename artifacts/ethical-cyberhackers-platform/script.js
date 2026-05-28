@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 01:40 CST";
+const BUILD_TIME = "28 May 2026 — 02:00 CST";
 
 
 /* ============================================================
@@ -127,6 +127,10 @@ const quizPanel      = document.getElementById("quizPanel");
 const findingPanel   = document.getElementById("findingPanel");
 const commandsHint   = document.querySelector(".commands-hint");
 const courseProgressEl = document.getElementById("courseProgress");
+
+// Milestone 10 — Module landing screen elements
+const moduleLandingEl  = document.getElementById("moduleLanding");
+const dashboardEl      = document.getElementById("dashboard");
 
 // XP panel elements (right sidebar)
 const xpBarEl     = document.getElementById("xpBar");
@@ -1109,6 +1113,29 @@ if (clrButton) clrButton.addEventListener("click", () => {
 
 
 /* ============================================================
+   MODULE LANDING  (Milestone 10)
+   Visibility-only toggle between the landing screen and the live
+   dashboard. Does NOT reset mission progress — students can come
+   back to the module overview mid-mission and resume seamlessly.
+   The existing "Begin Mission" gate inside the mission panel
+   remains in place after entering the module.
+   ============================================================ */
+
+function enterModule() {
+  if (moduleLandingEl) moduleLandingEl.style.display = "none";
+  if (dashboardEl)     dashboardEl.style.display     = "";
+  if (terminalInput)   terminalInput.focus();
+}
+
+function backToModuleOverview() {
+  if (dashboardEl)     dashboardEl.style.display     = "none";
+  if (moduleLandingEl) moduleLandingEl.style.display = "";
+  // Scroll the landing back to the top so the student sees the title
+  if (moduleLandingEl) moduleLandingEl.scrollTop = 0;
+}
+
+
+/* ============================================================
    COURSE PROGRESS  (Milestone 9)
    Renders the two mission cards in the left sidebar.
    Mission 1's status is derived from `missionComplete`.
@@ -1246,6 +1273,12 @@ function boot() {
   // Wire up the Begin Mission button
   const beginBtn = document.getElementById("beginMissionBtn");
   if (beginBtn) beginBtn.addEventListener("click", beginMission);
+
+  // Milestone 10 — wire up Enter Module + Back to Module Overview
+  const enterBtn = document.getElementById("enterModuleBtn");
+  if (enterBtn) enterBtn.addEventListener("click", enterModule);
+  const backBtn = document.getElementById("backToModuleBtn");
+  if (backBtn) backBtn.addEventListener("click", backToModuleOverview);
 
   // Start mission timer
   const mission = getMissionById(activeMissionId);
