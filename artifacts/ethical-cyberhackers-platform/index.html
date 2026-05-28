@@ -220,48 +220,89 @@
           </ul>
         </section>
 
-        <!-- Milestone 20 — interactive Mission 2 play area. Commands start
-             disabled; clicking "Begin Mission 2" unlocks ip addr + ping,
-             and subsequent commands unlock in sequence. -->
-        <section class="module-section">
-          <h2 class="module-section-title">COMMANDS</h2>
-
-          <button id="m2BeginBtn" class="enter-module-btn m2-begin-btn" type="button">
-            ▶&nbsp; Begin Mission 2
-          </button>
-
-          <div class="m2-cmd-grid" id="m2CmdGrid" style="display:none;">
-            <button class="m2-cmd-btn" type="button" data-m2cmd="ip-addr" disabled>
-              <span class="m2-cmd-prompt">$</span> ip addr
-            </button>
-            <button class="m2-cmd-btn" type="button" data-m2cmd="ping" disabled>
-              <span class="m2-cmd-prompt">$</span> ping 10.0.0.5
-            </button>
-            <button class="m2-cmd-btn" type="button" data-m2cmd="nmap" disabled>
-              <span class="m2-cmd-prompt">$</span> nmap 10.0.0.5
-            </button>
-            <button class="m2-cmd-btn" type="button" data-m2cmd="review" disabled>
-              <span class="m2-cmd-prompt">$</span> review services
-            </button>
-          </div>
-
-          <div class="m2-play-area" id="m2PlayArea" style="display:none;">
-            <div class="m2-terminal" id="m2Terminal" role="log" aria-live="polite"></div>
-            <div class="m2-hint-row">
-              <span class="m2-hint-label">HINT</span>
-              <span class="m2-hint" id="m2Hint">Click "Begin Mission 2" to start.</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="module-section m2-status-section" id="m2StatusSection" style="display:none;">
-          <h2 class="module-section-title">MISSION 2 STATUS</h2>
-          <ul class="m2-status-list" id="m2StatusList"></ul>
-        </section>
+        <button id="m2BeginBtn" class="enter-module-btn m2-begin-btn" type="button">
+          ▶&nbsp; Begin Mission 2
+        </button>
 
         <button id="mission2BackBtn" class="enter-module-btn enter-module-btn--secondary" type="button">
           ←&nbsp; Back to Module Overview
         </button>
+      </div>
+    </section>
+
+    <!-- ===== MISSION 2 DASHBOARD (Milestone 20 fix) =====
+         Dedicated play screen reached by clicking "Begin Mission 2"
+         on the overview. Mirrors Mission 1's dashboard layout in a
+         simpler form: header, terminal, command grid, hint, status. -->
+    <section id="mission2Dashboard" class="m2-dashboard" aria-label="Mission 2 Dashboard" style="display:none;">
+      <div class="m2-dashboard-inner">
+
+        <header class="m2-dash-header">
+          <div class="m2-dash-eyebrow">
+            <span class="m2-dash-eyebrow-label">MISSION 02</span>
+            <span class="m2-dash-eyebrow-sep">·</span>
+            <span class="m2-dash-eyebrow-value">Network Basics</span>
+          </div>
+          <h1 class="m2-dash-title">Identify devices &amp; services on the network</h1>
+          <p class="m2-dash-subtitle">
+            Run the commands in order. Each one unlocks the next.
+          </p>
+        </header>
+
+        <div class="m2-dash-grid">
+
+          <!-- LEFT: Terminal + hint -->
+          <div class="m2-dash-main">
+            <div class="m2-dash-panel m2-dash-panel--terminal">
+              <div class="m2-dash-panel-header">
+                <span class="m2-dash-panel-title">TERMINAL</span>
+                <span class="m2-dash-panel-meta">student@cybercorp</span>
+              </div>
+              <div class="m2-terminal" id="m2Terminal" role="log" aria-live="polite"></div>
+            </div>
+
+            <div class="m2-hint-row">
+              <span class="m2-hint-label">HINT</span>
+              <span class="m2-hint" id="m2Hint">Start by identifying your local IP address.</span>
+            </div>
+          </div>
+
+          <!-- RIGHT: Commands + status -->
+          <aside class="m2-dash-side">
+            <div class="m2-dash-panel">
+              <div class="m2-dash-panel-header">
+                <span class="m2-dash-panel-title">COMMANDS</span>
+              </div>
+              <div class="m2-cmd-grid m2-cmd-grid--stacked" id="m2CmdGrid">
+                <button class="m2-cmd-btn" type="button" data-m2cmd="ip-addr" disabled>
+                  <span class="m2-cmd-prompt">$</span> ip addr
+                </button>
+                <button class="m2-cmd-btn" type="button" data-m2cmd="ping" disabled>
+                  <span class="m2-cmd-prompt">$</span> ping 10.0.0.5
+                </button>
+                <button class="m2-cmd-btn" type="button" data-m2cmd="nmap" disabled>
+                  <span class="m2-cmd-prompt">$</span> nmap 10.0.0.5
+                </button>
+                <button class="m2-cmd-btn" type="button" data-m2cmd="review" disabled>
+                  <span class="m2-cmd-prompt">$</span> review services
+                </button>
+              </div>
+            </div>
+
+            <div class="m2-dash-panel">
+              <div class="m2-dash-panel-header">
+                <span class="m2-dash-panel-title">MISSION 2 STATUS</span>
+              </div>
+              <ul class="m2-status-list" id="m2StatusList"></ul>
+            </div>
+          </aside>
+        </div>
+
+        <footer class="m2-dash-footer">
+          <button id="m2DashBackBtn" class="enter-module-btn enter-module-btn--secondary" type="button">
+            ←&nbsp; Back to Mission 2 Overview
+          </button>
+        </footer>
       </div>
     </section>
 

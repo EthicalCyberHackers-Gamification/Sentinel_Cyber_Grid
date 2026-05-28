@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 06:00 CST";
+const BUILD_TIME = "28 May 2026 — 06:30 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -1931,18 +1931,16 @@ const m2UnlockedCmds = new Set();
 const m2CompletedStatus = new Set();
 
 function beginMission2() {
+  // Navigate from the Mission 2 Overview to the Mission 2 Dashboard.
+  // (Idempotent — re-clicking just re-shows the dashboard.)
+  const overview  = document.getElementById("mission2Overview");
+  const dashboard = document.getElementById("mission2Dashboard");
+  if (overview)  overview.style.display  = "none";
+  if (dashboard) dashboard.style.display = "";
+  window.scrollTo({ top: 0, behavior: "instant" });
+
   if (m2Started) return;
   m2Started = true;
-
-  // Reveal play area + status section, hide Begin button
-  const beginBtn = document.getElementById("m2BeginBtn");
-  if (beginBtn) beginBtn.style.display = "none";
-  const grid = document.getElementById("m2CmdGrid");
-  if (grid) grid.style.display = "";
-  const play = document.getElementById("m2PlayArea");
-  if (play) play.style.display = "";
-  const statusSec = document.getElementById("m2StatusSection");
-  if (statusSec) statusSec.style.display = "";
 
   // Unlock the two starting commands
   m2UnlockedCmds.add("ip-addr");
@@ -1955,6 +1953,17 @@ function beginMission2() {
 
   // Print a small system line in the terminal so it's not empty
   printM2Line("[ Mission 2 environment ready ]", "m2-line--info");
+}
+
+/** Return from the Mission 2 Dashboard back to the Mission 2 Overview.
+ *  Mission 2 progress (m2Started, unlocks, status) is preserved so the
+ *  student can resume by clicking Begin Mission 2 again. */
+function backToMission2Overview() {
+  const overview  = document.getElementById("mission2Overview");
+  const dashboard = document.getElementById("mission2Dashboard");
+  if (dashboard) dashboard.style.display = "none";
+  if (overview)  overview.style.display  = "";
+  window.scrollTo({ top: 0, behavior: "instant" });
 }
 
 function runM2Command(key) {
@@ -2020,29 +2029,26 @@ function renderM2Status() {
   }).join("");
 }
 
-/** Resets Mission 2 in-memory state + the overview UI back to pre-Begin. */
+/** Resets Mission 2 in-memory state + dashboard UI back to a fresh state. */
 function resetMission2() {
   m2Started = false;
   m2UnlockedCmds.clear();
   m2CompletedStatus.clear();
 
-  const beginBtn = document.getElementById("m2BeginBtn");
-  if (beginBtn) beginBtn.style.display = "";
-  const grid = document.getElementById("m2CmdGrid");
-  if (grid) grid.style.display = "none";
-  const play = document.getElementById("m2PlayArea");
-  if (play) play.style.display = "none";
-  const statusSec = document.getElementById("m2StatusSection");
-  if (statusSec) statusSec.style.display = "none";
   const term = document.getElementById("m2Terminal");
   if (term) term.innerHTML = "";
-  setM2Hint("Click \"Begin Mission 2\" to start.");
+  setM2Hint("Start by identifying your local IP address.");
+  renderM2Status();
 
   // Buttons back to disabled
   document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
     btn.disabled = true;
     btn.classList.remove("m2-cmd-btn--unlocked");
   });
+
+  // Hide the dashboard if it's currently showing
+  const dashboard = document.getElementById("mission2Dashboard");
+  if (dashboard) dashboard.style.display = "none";
 }
 
 
@@ -2121,6 +2127,8 @@ function boot() {
   // Milestone 20 — Mission 2 gameplay wiring
   const m2BeginBtn = document.getElementById("m2BeginBtn");
   if (m2BeginBtn) m2BeginBtn.addEventListener("click", beginMission2);
+  const m2DashBackBtn = document.getElementById("m2DashBackBtn");
+  if (m2DashBackBtn) m2DashBackBtn.addEventListener("click", backToMission2Overview);
   document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
     btn.addEventListener("click", () => runM2Command(btn.getAttribute("data-m2cmd")));
   });

@@ -1547,11 +1547,111 @@ button {
   .m2-cmd-grid { grid-template-columns: 1fr; }
 }
 
-/* --- Milestone 20: unlocked command button + play area --- */
+/* --- Milestone 20: Mission 2 dashboard + unlocked command button --- */
 
 .m2-begin-btn {
   width: 100%;
+  margin-top: 8px;
   margin-bottom: 12px;
+}
+
+/* Mission 2 Dashboard — dedicated takeover play screen */
+.m2-dashboard {
+  min-height: 100vh;
+  padding: 28px 20px;
+  background:
+    radial-gradient(ellipse at top, rgba(0,229,255,0.06), transparent 60%),
+    var(--color-bg, #0a0e14);
+}
+.m2-dashboard-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.m2-dash-header {
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 16px;
+}
+.m2-dash-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+  margin-bottom: 8px;
+}
+.m2-dash-eyebrow-sep { margin: 0 8px; opacity: 0.5; }
+.m2-dash-eyebrow-value { color: var(--color-text-dim); letter-spacing: 1.5px; }
+.m2-dash-title {
+  margin: 0 0 6px 0;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  color: var(--color-green);
+  letter-spacing: 0.5px;
+}
+.m2-dash-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-dim);
+}
+
+.m2-dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+.m2-dash-main { display: flex; flex-direction: column; gap: 14px; }
+.m2-dash-side { display: flex; flex-direction: column; gap: 14px; }
+
+.m2-dash-panel {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.m2-dash-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(0,229,255,0.04);
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+.m2-dash-panel-title { color: var(--color-cyan); }
+.m2-dash-panel-meta  { color: var(--color-text-dim); opacity: 0.7; }
+.m2-dash-panel--terminal .m2-terminal {
+  border: none;
+  border-radius: 0;
+  min-height: 280px;
+  max-height: 420px;
+}
+
+.m2-cmd-grid--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.m2-dash-panel .m2-status-list { padding: 10px 12px; }
+
+.m2-dash-footer {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 8px;
+}
+.m2-dash-footer .enter-module-btn { width: auto; padding: 10px 20px; }
+
+@media (max-width: 880px) {
+  .m2-dash-grid { grid-template-columns: 1fr; }
+  .m2-dash-side { order: 2; }
 }
 
 .m2-cmd-btn--unlocked {
