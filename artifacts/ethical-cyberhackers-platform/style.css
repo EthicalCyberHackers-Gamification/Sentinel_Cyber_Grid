@@ -723,6 +723,59 @@ button {
 }
 .cmd-btn--investigate .cmd-name { color: var(--color-green); }
 
+/* ---- Day 2: Basic command buttons ---- */
+
+/* Hint text above the buttons */
+.commands-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-dim);
+  margin-bottom: var(--gap-md);
+  padding: var(--gap-sm) var(--gap-md);
+  background-color: var(--color-bg-panel-alt);
+  border-left: 2px solid var(--color-cyan-dim);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Day 2 button row — larger cards laid out in a 2×2 grid */
+.command-buttons--day2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-md);
+}
+
+/* Day 2 buttons are bigger and easier to read */
+.cmd-btn--day2,
+.command-buttons--day2 .cmd-btn {
+  padding: var(--gap-md);
+  min-width: 0;
+  width: 100%;
+}
+
+/* Description line — the plain-English explanation under each button */
+.cmd-desc {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  font-style: italic;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* Basic (cyan) style for the first three Day 2 buttons */
+.cmd-btn--basic {
+  border-color: rgba(0, 229, 255, 0.2);
+}
+.cmd-btn--basic:hover {
+  border-color: var(--color-cyan-dim);
+  background-color: rgba(0, 229, 255, 0.05);
+  box-shadow: 0 4px 14px rgba(0,229,255,0.12);
+}
+.cmd-btn--basic .cmd-name { color: var(--color-cyan); }
+.cmd-btn--basic .cmd-code { color: var(--color-cyan-dim); opacity: 0.8; }
+
+/* Larger icon in Day 2 buttons */
+.command-buttons--day2 .cmd-icon { font-size: 18px; }
+
 
 /* ======================================================
    XP / RANK PANEL

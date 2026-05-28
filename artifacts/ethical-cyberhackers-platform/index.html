@@ -125,7 +125,7 @@
               <span class="tl tl--yellow"></span>
               <span class="tl tl--green"></span>
             </div>
-            <span class="terminal-title">root@cyberhackers:~#</span>
+            <span class="terminal-title">student@cybercorp:~$</span>
             <div class="terminal-actions">
               <button class="terminal-btn" title="Clear terminal">CLR</button>
             </div>
@@ -144,13 +144,13 @@
               <span>────────────────────────────────────────────────────</span>
             </div>
             <div class="terminal-line">
-              <span class="terminal-prompt">root@cyberhackers:~#</span>
+              <span class="terminal-prompt">student@cybercorp:~$</span>
               <span class="terminal-text terminal-text--input">▮</span>
             </div>
           </div>
 
           <div class="terminal-input-row">
-            <span class="terminal-prompt-label">root@cyberhackers:~#</span>
+            <span class="terminal-prompt-label">student@cybercorp:~$</span>
             <input
               type="text"
               id="terminalInput"
@@ -167,75 +167,48 @@
         <!-- ===== COMMAND BUTTONS PANEL ===== -->
         <section class="panel commands-panel" aria-label="Command Buttons Panel">
           <div class="panel-header">
-            <span class="panel-label">QUICK COMMANDS</span>
-            <span class="panel-sublabel">Click to execute</span>
+            <span class="panel-label">COMMAND BUTTONS</span>
+            <span class="panel-sublabel">Day 2 — Basic Linux commands</span>
           </div>
 
           <div class="panel-body">
-            <div class="commands-grid">
+            <p class="commands-hint">
+              Click a button to send that command to the terminal above.
+            </p>
 
-              <div class="command-group">
-                <h3 class="command-group-title">Reconnaissance</h3>
-                <div class="command-buttons">
-                  <button class="cmd-btn cmd-btn--recon" data-command="nmap -sV 192.168.1.1">
-                    <span class="cmd-icon">📡</span>
-                    <span class="cmd-name">Port Scan</span>
-                    <code class="cmd-code">nmap -sV</code>
-                  </button>
-                  <button class="cmd-btn cmd-btn--recon" data-command="ping -c 4 192.168.1.1">
-                    <span class="cmd-icon">🔎</span>
-                    <span class="cmd-name">Ping Host</span>
-                    <code class="cmd-code">ping</code>
-                  </button>
-                  <button class="cmd-btn cmd-btn--recon" data-command="whois 192.168.1.1">
-                    <span class="cmd-icon">🌐</span>
-                    <span class="cmd-name">WHOIS</span>
-                    <code class="cmd-code">whois</code>
-                  </button>
-                </div>
-              </div>
+            <div class="command-buttons command-buttons--day2">
 
-              <div class="command-group">
-                <h3 class="command-group-title">Analysis</h3>
-                <div class="command-buttons">
-                  <button class="cmd-btn cmd-btn--analysis" data-command="ps aux">
-                    <span class="cmd-icon">⚙️</span>
-                    <span class="cmd-name">List Processes</span>
-                    <code class="cmd-code">ps aux</code>
-                  </button>
-                  <button class="cmd-btn cmd-btn--analysis" data-command="netstat -an">
-                    <span class="cmd-icon">🔗</span>
-                    <span class="cmd-name">Network Connections</span>
-                    <code class="cmd-code">netstat</code>
-                  </button>
-                  <button class="cmd-btn cmd-btn--analysis" data-command="ls -la /var/log">
-                    <span class="cmd-icon">📂</span>
-                    <span class="cmd-name">View Logs</span>
-                    <code class="cmd-code">ls /var/log</code>
-                  </button>
-                </div>
-              </div>
+              <!-- pwd — print working directory -->
+              <button class="cmd-btn cmd-btn--basic" data-command="pwd">
+                <span class="cmd-icon">📍</span>
+                <span class="cmd-name">Where am I?</span>
+                <code class="cmd-code">pwd</code>
+                <span class="cmd-desc">Print current directory</span>
+              </button>
 
-              <div class="command-group">
-                <h3 class="command-group-title">Investigation</h3>
-                <div class="command-buttons">
-                  <button class="cmd-btn cmd-btn--investigate" data-command="cat /var/log/auth.log">
-                    <span class="cmd-icon">🔍</span>
-                    <span class="cmd-name">Auth Log</span>
-                    <code class="cmd-code">cat auth.log</code>
-                  </button>
-                  <button class="cmd-btn cmd-btn--investigate" data-command="find / -name '*.txt' 2>/dev/null">
-                    <span class="cmd-icon">🗂️</span>
-                    <span class="cmd-name">Find Files</span>
-                    <code class="cmd-code">find</code>
-                  </button>
-                  <button class="cmd-btn cmd-btn--investigate" data-command="strings suspicious_file">
-                    <span class="cmd-icon">🧬</span>
-                    <span class="cmd-name">String Dump</span>
-                    <code class="cmd-code">strings</code>
-                  </button>
-                </div>
-              </div>
+              <!-- ls — list files -->
+              <button class="cmd-btn cmd-btn--basic" data-command="ls">
+                <span class="cmd-icon">📂</span>
+                <span class="cmd-name">List Files</span>
+                <code class="cmd-code">ls</code>
+                <span class="cmd-desc">Show files in this folder</span>
+              </button>
+
+              <!-- cd documents — change directory -->
+              <button class="cmd-btn cmd-btn--basic" data-command="cd documents">
+                <span class="cmd-icon">📁</span>
+                <span class="cmd-name">Open Documents</span>
+                <code class="cmd-code">cd documents</code>
+                <span class="cmd-desc">Navigate into documents/</span>
+              </button>
+
+              <!-- cat suspicious_file.txt — read a file -->
+              <button class="cmd-btn cmd-btn--investigate" data-command="cat suspicious_file.txt">
+                <span class="cmd-icon">🔍</span>
+                <span class="cmd-name">Read Suspicious File</span>
+                <code class="cmd-code">cat suspicious_file.txt</code>
+                <span class="cmd-desc">Print file contents to terminal</span>
+              </button>
 
             </div>
           </div>
