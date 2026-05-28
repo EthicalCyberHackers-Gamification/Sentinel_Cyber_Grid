@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 08:10 CST";
+const BUILD_TIME = "28 May 2026 — 08:30 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -1900,11 +1900,14 @@ function hideMission2Overview() {
 
 // Ordered status entries. Each is marked complete as the student progresses.
 const M2_STATUS = [
-  { id: "started",   label: "Mission 2 Started" },
-  { id: "ip-addr",   label: "Local IP Identified" },
-  { id: "ping",      label: "Host Reachability Confirmed" },
-  { id: "nmap",      label: "Open Services Found" },
-  { id: "review",    label: "Services Reviewed" },
+  { id: "started",            label: "Mission 2 Started" },
+  { id: "ip-addr",            label: "Local IP Identified" },
+  { id: "ping",               label: "Host Reachability Confirmed" },
+  { id: "nmap",               label: "Open Services Found" },
+  { id: "review",             label: "Services Reviewed" },
+  // Milestone 21 — Analyst Review + Threat Assessment
+  { id: "analyst-review",     label: "Analyst Review Completed" },
+  { id: "threat-assessment",  label: "Threat Assessment Complete" },
 ];
 
 // Per-command: terminal output lines + hint shown AFTER the command runs +
@@ -1939,11 +1942,29 @@ const M2_COMMANDS = {
   "review": {
     cmd:    "review services",
     output: ["The host has SSH, HTTP, and HTTPS services exposed."],
-    nextHint: "Mission 2 commands complete.",
+    nextHint: "Now think like an analyst — answer the Analyst Review question below.",
     unlocks: [],
-    managerMsg: "Great work, Agent. You've completed the Mission 2 command sequence — a real network recon mini-exercise.",
+    managerMsg: "Good. You've enumerated the services. Now think like an analyst — which of these exposed services could become a risk?",
   },
 };
+
+// Milestone 21 — Analyst Review question shown after `review services`.
+const M2_ANALYST_REVIEW = {
+  question: "Which exposed service could be risky if poorly secured?",
+  answers: [
+    { letter: "A", text: "SSH (22)" },
+    { letter: "B", text: "HTTP (80)" },
+    { letter: "C", text: "HTTPS (443)" },
+    { letter: "D", text: "Any exposed service could become risky if misconfigured or poorly secured." },
+  ],
+  correct: "D",
+  correctMsg: "Correct. Cybersecurity analysts evaluate all exposed services for possible weaknesses or misconfigurations.",
+  wrongMsg:   "Not quite. Analysts must evaluate all exposed services because any service can become vulnerable if configured improperly.",
+  finding:    "The target host exposes multiple network services that should be reviewed for security hardening and updates.",
+  summary:    "Open services increase functionality, but every exposed service can increase attack surface if not secured properly.",
+};
+
+let m2AnalystAnswered = false;
 
 function setM2ManagerMessage(text) {
   const el = document.getElementById("m2ManagerText");
@@ -2033,6 +2054,115 @@ function runM2Command(key) {
   syncM2Buttons();
   setM2Hint(def.nextHint);
   if (def.managerMsg) setM2ManagerMessage(def.managerMsg);
+
+  // Milestone 21 — after the final command (review services), reveal the
+  // Analyst Review multiple-choice panel inside the COMMANDS column.
+  if (key === "review") renderM2AnalystReview();
+}
+
+/* ============================================================
+   Milestone 21 — Analyst Review (Mission 2)
+   ============================================================ */
+
+function renderM2AnalystReview() {
+  const host = document.getElementById("m2AnalystReview");
+  if (!host) return;
+  // Reuse Mission 1's .quiz-panel chrome for visual consistency.
+  host.style.display = "";
+  host.innerHTML = `
+    <div class="quiz-panel quiz-panel--m2" style="display:block;">
+      <div class="quiz-header">
+        <span class="quiz-label">Analyst Review</span>
+        <span class="quiz-badge">Threat Assessment</span>
+      </div>
+      <p class="quiz-question">${M2_ANALYST_REVIEW.question}</p>
+      <div class="quiz-answers" id="m2AnalystAnswers">
+        ${M2_ANALYST_REVIEW.answers.map((a) => `
+          <button class="quiz-answer-btn" type="button" data-m2letter="${a.letter}">
+            <span class="quiz-answer-letter">${a.letter}</span>
+            <span class="quiz-answer-text">${escapeHtml(a.text)}</span>
+          </button>
+        `).join("")}
+      </div>
+      <div id="m2AnalystFeedback" class="quiz-feedback" style="display:none;"></div>
+      <div id="m2AnalystOutcome" style="display:none;"></div>
+    </div>
+  `;
+  // Wire up answer buttons
+  host.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+    btn.addEventListener("click", () => handleM2AnalystAnswer(btn.getAttribute("data-m2letter")));
+  });
+  m2AnalystAnswered = false;
+}
+
+function handleM2AnalystAnswer(letter) {
+  if (m2AnalystAnswered) return;
+  const isCorrect = letter === M2_ANALYST_REVIEW.correct;
+
+  const answersWrap = document.getElementById("m2AnalystAnswers");
+  if (answersWrap) {
+    answersWrap.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+      const l = btn.getAttribute("data-m2letter");
+      btn.disabled = true;
+      if (l === M2_ANALYST_REVIEW.correct) {
+        btn.classList.add(isCorrect ? "quiz-answer--correct" : "quiz-answer--reveal");
+      } else if (l === letter) {
+        btn.classList.add("quiz-answer--wrong");
+      }
+    });
+  }
+
+  const fb = document.getElementById("m2AnalystFeedback");
+  if (fb) {
+    fb.style.display = "";
+    fb.textContent   = isCorrect ? M2_ANALYST_REVIEW.correctMsg : M2_ANALYST_REVIEW.wrongMsg;
+    fb.classList.toggle("quiz-feedback--correct", isCorrect);
+    fb.classList.toggle("quiz-feedback--wrong",  !isCorrect);
+  }
+
+  if (!isCorrect) {
+    // Allow retry — re-enable the non-correct buttons (except the one tried)
+    setTimeout(() => {
+      if (!answersWrap) return;
+      answersWrap.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+        const l = btn.getAttribute("data-m2letter");
+        if (l === letter || l === M2_ANALYST_REVIEW.correct) return;
+        btn.disabled = false;
+      });
+      // Allow retry of the correct (in case the student wants to re-pick D)
+      const correctBtn = answersWrap.querySelector(`.quiz-answer-btn[data-m2letter="${M2_ANALYST_REVIEW.correct}"]`);
+      if (correctBtn) {
+        correctBtn.disabled = false;
+        correctBtn.classList.remove("quiz-answer--reveal");
+      }
+    }, 600);
+    return;
+  }
+
+  // Correct path — finalize
+  m2AnalystAnswered = true;
+  markM2Status("analyst-review");
+  markM2Status("threat-assessment");
+  setM2Hint("Mission 2 threat assessment complete.");
+  setM2ManagerMessage("Excellent reasoning, Agent. You're starting to think like an analyst — well done.");
+
+  const outcome = document.getElementById("m2AnalystOutcome");
+  if (outcome) {
+    outcome.style.display = "";
+    outcome.innerHTML = `
+      <div class="m2-finding-block">
+        <div class="m2-finding-label">Network Analyst Finding</div>
+        <p class="m2-finding-text">${M2_ANALYST_REVIEW.finding}</p>
+      </div>
+      <div class="m2-summary-block">
+        <div class="m2-summary-label">Learning Summary</div>
+        <p class="m2-summary-text">${M2_ANALYST_REVIEW.summary}</p>
+      </div>
+    `;
+  }
+
+  // Terminal confirmation
+  printM2Line("[ ANALYST REVIEW COMPLETE — Threat assessment recorded. ]", "m2-line--info");
 }
 
 function syncM2Buttons() {
@@ -2085,12 +2215,17 @@ function resetMission2() {
   m2Started = false;
   m2UnlockedCmds.clear();
   m2CompletedStatus.clear();
+  m2AnalystAnswered = false;
 
   const term = document.getElementById("m2Terminal");
   if (term) term.innerHTML = "";
   setM2Hint("Start by identifying your local IP address.");
   setM2ManagerMessage("Welcome back. Mission 2 is a network reconnaissance exercise. Click any unlocked command to begin.");
   renderM2Status();
+
+  // Milestone 21 — clear and hide the Analyst Review panel on reset
+  const review = document.getElementById("m2AnalystReview");
+  if (review) { review.innerHTML = ""; review.style.display = "none"; }
 
   // Buttons back to disabled
   document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {

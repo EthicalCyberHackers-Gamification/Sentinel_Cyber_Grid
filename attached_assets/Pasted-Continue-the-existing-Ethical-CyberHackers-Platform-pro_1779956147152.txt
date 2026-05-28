@@ -1,0 +1,65 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission 1 is fully playable.
+* Mission 2 command functionality works.
+* Students can:
+
+  * identify local IP address
+  * ping a host
+  * run a simulated nmap scan
+  * review exposed services
+* Everything is frontend-only.
+
+Now implement Milestone 21: Mission 2 Threat Identification and Analyst Reasoning.
+
+Purpose:
+Students should begin thinking like cybersecurity analysts, not just clicking commands. After reviewing open services, they should evaluate which exposed services may require security attention.
+
+Requirements:
+
+1. After the student clicks `review services`, show a new “Analyst Review” panel.
+
+2. Display:
+   “Which exposed service could be risky if poorly secured?”
+
+3. Multiple choice answers:
+   A. SSH (22)
+   B. HTTP (80)
+   C. HTTPS (443)
+   D. Any exposed service could become risky if misconfigured or poorly secured.
+
+4. Correct answer:
+   D. Any exposed service could become risky if misconfigured or poorly secured.
+
+5. If correct:
+
+* Show:
+  “Correct. Cybersecurity analysts evaluate all exposed services for possible weaknesses or misconfigurations.”
+* Unlock the next step.
+
+6. If incorrect:
+
+* Show:
+  “Not quite. Analysts must evaluate all exposed services because any service can become vulnerable if configured improperly.”
+
+7. Add a “Network Analyst Finding” summary:
+   “The target host exposes multiple network services that should be reviewed for security hardening and updates.”
+
+8. Add Mission 2 progress updates:
+
+* Analyst Review Completed
+* Threat Assessment Complete
+
+9. Add a small learning summary:
+   “Open services increase functionality, but every exposed service can increase attack surface if not secured properly.”
+
+10. Do not add backend, database, login, AI, or new pages.
+
+11. Keep everything frontend-only.
+
+12. Preserve the current visual style and mission flow.
+
+Goal:
+By the end of this step, Mission 2 should move from basic command interaction into beginner cybersecurity reasoning and threat assessment.

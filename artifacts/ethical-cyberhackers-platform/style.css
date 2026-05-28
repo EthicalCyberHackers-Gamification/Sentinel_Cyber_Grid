@@ -1628,6 +1628,44 @@ button {
 }
 .unified-subtitle:empty { display: none; }
 
+/* ======================================================
+   MILESTONE 21 — Mission 2 Analyst Review outcome blocks
+   Reuses .quiz-panel chrome for the question itself. These
+   two blocks (finding + summary) appear ONLY after the
+   correct answer is submitted.
+   ====================================================== */
+.m2-analyst-host { margin-top: var(--gap-md); }
+
+.m2-finding-block,
+.m2-summary-block {
+  margin-top: var(--gap-md);
+  padding: 12px 14px;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--color-border);
+  background: rgba(0, 229, 255, 0.04);
+}
+.m2-summary-block {
+  background: rgba(0, 255, 136, 0.05);
+  border-color: rgba(0, 255, 136, 0.25);
+}
+.m2-finding-label,
+.m2-summary-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+  margin-bottom: 6px;
+}
+.m2-summary-label { color: var(--color-green); }
+.m2-finding-text,
+.m2-summary-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
 /* ---- M20.2: Mission 2 dashboard now uses the SAME .dashboard
    3-column grid as Mission 1. The legacy .m2-dashboard / .m2-dash-*
    wrapper classes are no longer applied. The only M2-specific bits
