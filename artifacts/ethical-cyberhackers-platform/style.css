@@ -428,6 +428,79 @@ button {
   text-decoration-color: var(--color-text-muted);
 }
 
+/* ---- Mission Progress Steps (Milestone 2) ---- */
+/* These replace the static objectives list with a dynamic tracker */
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-panel-alt);
+  margin-bottom: 6px;
+  transition: all 0.3s ease;
+}
+
+.step-item:last-child { margin-bottom: 0; }
+
+/* Pending step — greyed out, not yet reached */
+.step-item--pending {
+  opacity: 0.45;
+}
+
+.step-item--pending .step-icon {
+  color: var(--color-text-muted);
+}
+
+.step-item--pending .step-label {
+  color: var(--color-text-dim);
+}
+
+/* Complete step — bright green with a glow */
+.step-item--complete {
+  border-color: rgba(0, 255, 136, 0.3);
+  background-color: rgba(0, 255, 136, 0.05);
+  opacity: 1;
+  animation: step-complete 0.4s ease forwards;
+}
+
+@keyframes step-complete {
+  0%   { transform: translateX(-4px); opacity: 0.6; }
+  100% { transform: translateX(0);    opacity: 1;   }
+}
+
+.step-item--complete .step-icon {
+  color: var(--color-green);
+  font-family: var(--font-mono);
+  font-weight: bold;
+}
+
+.step-item--complete .step-label {
+  color: var(--color-green);
+}
+
+.step-icon {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  width: 14px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.step-emoji {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.step-label {
+  font-size: 12px;
+  font-weight: 500;
+  flex: 1;
+}
+
 /* Mission Meta */
 .mission-meta {
   display: grid;
@@ -775,6 +848,38 @@ button {
 
 /* Larger icon in Day 2 buttons */
 .command-buttons--day2 .cmd-icon { font-size: 18px; }
+
+/* ---- Button unlock animation ---- */
+/* Plays when a new button is revealed by the progression system */
+@keyframes btn-unlock {
+  0%   { opacity: 0; transform: translateY(8px) scale(0.95); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+.cmd-btn--unlocking {
+  animation: btn-unlock 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Small "NEW" badge that appears on unlocked buttons */
+.cmd-btn--unlocking::after {
+  content: "NEW";
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1px;
+  background-color: var(--color-green);
+  color: var(--color-bg);
+  padding: 1px 5px;
+  border-radius: 99px;
+  font-weight: bold;
+  animation: btn-unlock 0.4s 0.1s both;
+}
+
+/* Buttons need position:relative for the ::after badge */
+.cmd-btn { position: relative; }
 
 
 /* ======================================================

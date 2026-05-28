@@ -76,25 +76,9 @@
           </p>
 
           <div class="mission-objectives">
-            <h3 class="objectives-title">Objectives</h3>
-            <ul class="objectives-list" id="objectivesList">
-              <li class="objective-item objective-item--pending">
-                <span class="objective-icon">○</span>
-                <span>Scan the target workstation for open ports</span>
-              </li>
-              <li class="objective-item objective-item--pending">
-                <span class="objective-icon">○</span>
-                <span>Identify running processes and services</span>
-              </li>
-              <li class="objective-item objective-item--pending">
-                <span class="objective-icon">○</span>
-                <span>Locate and read the hidden log file</span>
-              </li>
-              <li class="objective-item objective-item--pending">
-                <span class="objective-icon">○</span>
-                <span>Exfiltrate target data without detection</span>
-              </li>
-            </ul>
+            <h3 class="objectives-title">Mission Progress</h3>
+            <!-- JS fills this list in from MISSION_STEPS in missions.js -->
+            <ul class="objectives-list" id="missionStatusList"></ul>
           </div>
 
           <div class="mission-meta">
@@ -168,49 +152,16 @@
         <section class="panel commands-panel" aria-label="Command Buttons Panel">
           <div class="panel-header">
             <span class="panel-label">COMMAND BUTTONS</span>
-            <span class="panel-sublabel">Day 2 — Basic Linux commands</span>
+            <span class="panel-sublabel">New commands unlock as you progress</span>
           </div>
 
           <div class="panel-body">
             <p class="commands-hint">
-              Click a button to send that command to the terminal above.
+              Click a button below to run that command in the terminal.
+              More commands will unlock as you investigate.
             </p>
-
-            <div class="command-buttons command-buttons--day2">
-
-              <!-- pwd — print working directory -->
-              <button class="cmd-btn cmd-btn--basic" data-command="pwd">
-                <span class="cmd-icon">📍</span>
-                <span class="cmd-name">Where am I?</span>
-                <code class="cmd-code">pwd</code>
-                <span class="cmd-desc">Print current directory</span>
-              </button>
-
-              <!-- ls — list files -->
-              <button class="cmd-btn cmd-btn--basic" data-command="ls">
-                <span class="cmd-icon">📂</span>
-                <span class="cmd-name">List Files</span>
-                <code class="cmd-code">ls</code>
-                <span class="cmd-desc">Show files in this folder</span>
-              </button>
-
-              <!-- cd documents — change directory -->
-              <button class="cmd-btn cmd-btn--basic" data-command="cd documents">
-                <span class="cmd-icon">📁</span>
-                <span class="cmd-name">Open Documents</span>
-                <code class="cmd-code">cd documents</code>
-                <span class="cmd-desc">Navigate into documents/</span>
-              </button>
-
-              <!-- cat suspicious_file.txt — read a file -->
-              <button class="cmd-btn cmd-btn--investigate" data-command="cat suspicious_file.txt">
-                <span class="cmd-icon">🔍</span>
-                <span class="cmd-name">Read Suspicious File</span>
-                <code class="cmd-code">cat suspicious_file.txt</code>
-                <span class="cmd-desc">Print file contents to terminal</span>
-              </button>
-
-            </div>
+            <!-- JS dynamically renders buttons here from COMMAND_BUTTONS in missions.js -->
+            <div id="commandButtonsContainer" class="command-buttons command-buttons--day2"></div>
           </div>
         </section>
 
