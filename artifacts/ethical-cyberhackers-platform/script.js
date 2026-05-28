@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 09:25 CST";
+const BUILD_TIME = "28 May 2026 — 09:50 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -2005,6 +2005,7 @@ const M2_QUIZ = {
 
 const M2_SCORECARD = {
   missionName:     "Network Basics",
+  subtitle:        "You completed a network reconnaissance exercise.",
   skills: [
     "Identifying local IP address",
     "Checking host reachability",
@@ -2013,6 +2014,15 @@ const M2_SCORECARD = {
     "Understanding attack surface",
   ],
   threatAssessment: "The target host exposes SSH, HTTP, and HTTPS services that should be reviewed for secure configuration.",
+  whatYouLearned: "You learned how cybersecurity analysts map a network by identifying their own host, confirming reachability, scanning for open services, and assessing which services may increase the attack surface.",
+  nextMissionTitle: "Reconnaissance & Discovery",
+  nextMissionDesc:  "Go deeper into how analysts gather information about a target before any active scanning.",
+  certSkills: [
+    "Network host identification",
+    "Reachability testing",
+    "Service enumeration",
+    "Attack-surface reasoning",
+  ],
 };
 
 let mission2Complete    = false;
@@ -2387,21 +2397,26 @@ function handleM2QuizAnswer(letter) {
 function renderM2Scorecard() {
   const host = document.getElementById("m2AnalystReview");
   if (!host) return;
+  const currentRank = rankNameEl ? rankNameEl.textContent : M2_QUIZ.newRank;
+  // Mirrors M1's buildCompletionHTML() exactly — same .completion-screen
+  // / .scorecard / .certificate-preview chrome so M1 and M2 look identical.
   host.innerHTML = `
     <div class="completion-screen">
 
+      <!-- ===== Header ===== -->
       <div class="completion-header">
         <span class="completion-icon">🏆</span>
         <div class="completion-titles">
           <h2 class="completion-title">Mission 2 Complete</h2>
-          <p class="completion-subtitle">You completed Network Basics.</p>
+          <p class="completion-subtitle">${escapeHtml(M2_SCORECARD.subtitle)}</p>
         </div>
       </div>
 
+      <!-- ===== MISSION SCORECARD ===== -->
       <div class="scorecard">
 
         <div class="scorecard-section">
-          <span class="scorecard-section-label">MISSION 2 SCORECARD</span>
+          <span class="scorecard-section-label">MISSION SCORECARD</span>
         </div>
 
         <ul class="scorecard-rows">
@@ -2414,15 +2429,20 @@ function renderM2Scorecard() {
             <span class="scorecard-val scorecard-val--green">Completed</span>
           </li>
           <li class="scorecard-row">
+            <span class="scorecard-key">Threat Assessment</span>
+            <span class="scorecard-val">${escapeHtml(M2_SCORECARD.threatAssessment)}</span>
+          </li>
+          <li class="scorecard-row">
             <span class="scorecard-key">XP Earned</span>
             <span class="scorecard-val scorecard-val--cyan">+${M2_QUIZ.xpReward} XP</span>
           </li>
           <li class="scorecard-row">
             <span class="scorecard-key">Rank</span>
-            <span class="scorecard-val scorecard-val--yellow">${rankNameEl ? rankNameEl.textContent : M2_QUIZ.newRank}</span>
+            <span class="scorecard-val scorecard-val--yellow">${escapeHtml(currentRank)}</span>
           </li>
         </ul>
 
+        <!-- Skills Practiced -->
         <div class="scorecard-section">
           <span class="scorecard-section-label">SKILLS PRACTICED</span>
           <ul class="scorecard-skills">
@@ -2431,18 +2451,79 @@ function renderM2Scorecard() {
           </ul>
         </div>
 
-        <div class="scorecard-section">
-          <span class="scorecard-section-label">THREAT ASSESSMENT</span>
-          <p class="m2-finding-text" style="margin-top:6px;">
-            ${escapeHtml(M2_SCORECARD.threatAssessment)}
+        <!-- What You Learned -->
+        <div class="scorecard-section scorecard-learned">
+          <span class="scorecard-section-label">WHAT YOU LEARNED</span>
+          <p class="scorecard-learned-text">
+            ${escapeHtml(M2_SCORECARD.whatYouLearned)}
+          </p>
+        </div>
+
+        <!-- Next Mission Preview -->
+        <div class="scorecard-section scorecard-next">
+          <span class="scorecard-section-label">NEXT MISSION PREVIEW</span>
+          <p class="scorecard-next-text">
+            <strong class="scorecard-next-title">${escapeHtml(M2_SCORECARD.nextMissionTitle)}</strong>
+            — ${escapeHtml(M2_SCORECARD.nextMissionDesc)}
           </p>
         </div>
 
       </div>
 
-      <button id="restartMission2Btn" class="begin-mission-btn" type="button" style="margin-top:18px;">
-        ↻&nbsp; Restart Mission 2
+      <!-- ===== CERTIFICATE PREVIEW (parity with M1) ===== -->
+      <div class="certificate-preview" aria-label="Certificate of Completion Preview">
+
+        <div class="certificate-card">
+          <div class="certificate-watermark" aria-hidden="true">CYBERCORP</div>
+
+          <div class="certificate-header">
+            <span class="certificate-eyebrow">CyberCorp Training Academy</span>
+            <h3 class="certificate-title">Certificate of Completion Preview</h3>
+            <span class="certificate-seal" aria-hidden="true">★</span>
+          </div>
+
+          <div class="certificate-body">
+            <div class="certificate-field">
+              <span class="certificate-label">Awarded to</span>
+              <span class="certificate-value certificate-value--name">${escapeHtml(studentName) || "Student Cyber Intern"}</span>
+            </div>
+
+            <div class="certificate-field">
+              <span class="certificate-label">For completing</span>
+              <span class="certificate-value">Mission 2 — Network Basics</span>
+            </div>
+
+            <div class="certificate-field">
+              <span class="certificate-label">Skills Demonstrated</span>
+              <ul class="certificate-skills">
+                ${M2_SCORECARD.certSkills.map((s) =>
+                  `<li><span class="certificate-bullet">▹</span>${escapeHtml(s)}</li>`).join("")}
+              </ul>
+            </div>
+
+            <div class="certificate-field">
+              <span class="certificate-label">Status</span>
+              <span class="certificate-value certificate-value--status">Mission 2 Completed</span>
+            </div>
+          </div>
+
+          <div class="certificate-footer">
+            <p class="certificate-note">
+              Full certificate unlocks after completing all missions in the course.
+            </p>
+            <button class="certificate-download-btn" type="button" disabled
+                    title="Locked until all missions are complete">
+              🔒&nbsp; Download Certificate — Locked
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Restart button (matches M1's .restart-btn styling) -->
+      <button id="restartMission2Btn" class="restart-btn" type="button">
+        ↺ &nbsp;Restart Mission 2
       </button>
+
     </div>
   `;
   host.style.display = "";
@@ -2451,7 +2532,6 @@ function renderM2Scorecard() {
   if (restartBtn) restartBtn.addEventListener("click", () => {
     // Restart Mission 2 only — does not touch Mission 1.
     resetMission2();
-    // Re-enter the dashboard fresh
     beginMission2();
   });
 }
