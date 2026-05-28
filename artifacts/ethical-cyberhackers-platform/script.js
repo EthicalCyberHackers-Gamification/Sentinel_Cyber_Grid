@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 03:05 CST";
+const BUILD_TIME = "28 May 2026 — 03:25 CST";
 
 
 /* ============================================================
@@ -108,6 +108,35 @@ const MANAGER_MESSAGES = {
   "cat-suspicious":     "That message is suspicious. Submit your finding before taking the quiz.",
   findingCorrect:       "Good analyst work. Now confirm your understanding in the quiz.",
   missionComplete:      "Mission complete. You identified a phishing attempt and reported it properly.",
+};
+
+/* ============================================================
+   REFLECTION CHECKPOINT  (Milestone 14)
+   Shown after a correct quiz answer, BEFORE XP is awarded and
+   BEFORE the Mission Scorecard. Turns the activity into a
+   learning moment rather than just button-clicking.
+   ============================================================ */
+const REFLECTION = {
+  question: "What did this mission teach you?",
+  answers: [
+    {
+      id: "A",
+      text: "Cybersecurity analysts inspect files carefully before trusting them.",
+      correct: true,
+    },
+    {
+      id: "B",
+      text: "Any file inside a documents folder is automatically safe.",
+      correct: false,
+    },
+    {
+      id: "C",
+      text: "Sharing passwords through email is normal if the message sounds urgent.",
+      correct: false,
+    },
+  ],
+  correctFeedback:   "Correct. Careful inspection is part of cybersecurity analysis.",
+  incorrectFeedback: "Review the mission. The key lesson is to inspect suspicious messages carefully and never trust password requests.",
 };
 
 const HINTS = {
@@ -826,12 +855,92 @@ function handleAnswer(answerId) {
     feedbackEl.textContent = QUIZ.correctFeedback;
     feedbackEl.className   = "quiz-feedback quiz-feedback--correct";
 
-    // Award XP first, then after 1.5 s swap the quiz for the completion screen
-    awardXP(QUIZ.xpReward);
-    setTimeout(() => completeMission(QUIZ.newRank), 1500);
+    // Milestone 14: insert Reflection Checkpoint BEFORE XP + scorecard.
+    // XP is awarded only after a correct reflection (see handleReflectionAnswer).
+    setTimeout(showReflection, 1400);
   } else {
     feedbackEl.textContent = QUIZ.incorrectFeedback;
     feedbackEl.className   = "quiz-feedback quiz-feedback--wrong";
+  }
+}
+
+
+/* ============================================================
+   REFLECTION CHECKPOINT  (Milestone 14)
+   Reuses the quizPanel container — same pattern as finding→quiz.
+   On correct: award XP, then run completeMission() (scorecard).
+   On wrong:   show review message, allow retry. No XP yet.
+   ============================================================ */
+
+/** Swaps the quiz UI for the reflection prompt. */
+function showReflection() {
+  if (!quizPanel || missionComplete) return;
+  quizPanel.innerHTML = buildReflectionHTML();
+  quizPanel.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+    btn.addEventListener("click", () => handleReflectionAnswer(btn.dataset.answerId));
+  });
+}
+
+/** Returns the HTML for the Reflection Checkpoint panel.
+ *  Reuses the existing .quiz-* classes so styling stays consistent
+ *  with the rest of the mission UI (no new CSS required). */
+function buildReflectionHTML() {
+  const answersHTML = REFLECTION.answers
+    .map(
+      (a) =>
+        `<button class="quiz-answer-btn" data-answer-id="${a.id}">
+          <span class="quiz-answer-letter">${a.id}</span>
+          <span class="quiz-answer-text">${a.text}</span>
+        </button>`
+    )
+    .join("");
+
+  return `
+    <div class="quiz-header">
+      <span class="quiz-label">REFLECTION CHECKPOINT</span>
+      <span class="quiz-badge">Mission 001</span>
+    </div>
+    <p class="quiz-question">${REFLECTION.question}</p>
+    <div class="quiz-answers">${answersHTML}</div>
+    <div class="quiz-feedback" id="reflectionFeedback"></div>
+  `;
+}
+
+/**
+ * Handles reflection-answer clicks.
+ *  - Correct: success message → award XP → completeMission (scorecard)
+ *  - Wrong:   review message, re-enable buttons after a beat for retry
+ */
+function handleReflectionAnswer(answerId) {
+  const chosen  = REFLECTION.answers.find((a) => a.id === answerId);
+  const correct = chosen && chosen.correct;
+  const feedbackEl = document.getElementById("reflectionFeedback");
+
+  quizPanel.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+    btn.disabled = correct;             // freeze UI only on correct answer
+    const btnId = btn.dataset.answerId;
+    if (btnId === answerId && correct)  btn.classList.add("quiz-answer--correct");
+    if (btnId === answerId && !correct) btn.classList.add("quiz-answer--wrong");
+  });
+
+  if (!feedbackEl) return;
+
+  if (correct) {
+    feedbackEl.textContent = REFLECTION.correctFeedback;
+    feedbackEl.className   = "quiz-feedback quiz-feedback--correct";
+
+    // NOW it's safe to award XP and proceed to the Mission Scorecard.
+    awardXP(QUIZ.xpReward);
+    setTimeout(() => completeMission(QUIZ.newRank), 1500);
+  } else {
+    feedbackEl.textContent = REFLECTION.incorrectFeedback;
+    feedbackEl.className   = "quiz-feedback quiz-feedback--wrong";
+
+    // Let the student try again — clear the wrong-state styling after a beat.
+    setTimeout(() => {
+      const wrongBtn = quizPanel.querySelector(`.quiz-answer-btn[data-answer-id="${answerId}"]`);
+      if (wrongBtn) wrongBtn.classList.remove("quiz-answer--wrong");
+    }, 1200);
   }
 }
 

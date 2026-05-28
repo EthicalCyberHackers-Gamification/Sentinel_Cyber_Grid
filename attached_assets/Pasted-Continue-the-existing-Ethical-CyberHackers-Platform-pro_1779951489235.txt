@@ -1,0 +1,58 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Module Landing Screen works.
+* Simulation Loading Visualization works.
+* Dashboard motion effects work.
+* Manager/Supervisor Message Panel works.
+* Mission 1 is fully playable.
+* Everything is frontend-only.
+
+Now implement Milestone 14: Student Reflection Checkpoint.
+
+Purpose:
+Students should briefly reflect on what happened in the mission. This helps turn the activity into real learning, not just button-clicking.
+
+Requirements:
+
+1. After the quiz is answered correctly, but before showing the final Mission Scorecard, display a “Reflection Checkpoint” panel.
+
+2. The panel should ask:
+   “What did this mission teach you?”
+
+3. Provide three selectable reflection options:
+   A. Cybersecurity analysts inspect files carefully before trusting them.
+   B. Any file inside a documents folder is automatically safe.
+   C. Sharing passwords through email is normal if the message sounds urgent.
+
+4. Correct reflection:
+   A. Cybersecurity analysts inspect files carefully before trusting them.
+
+5. If the student selects the correct reflection:
+
+* Show: “Correct. Careful inspection is part of cybersecurity analysis.”
+* Then show the Mission Complete panel and Mission Scorecard.
+
+6. If the student selects the wrong reflection:
+
+* Show: “Review the mission. The key lesson is to inspect suspicious messages carefully and never trust password requests.”
+* Do not show the scorecard yet.
+
+7. Existing flow should now be:
+   Begin Mission → Use Commands → Read Suspicious File → Submit Finding → Quiz → Reflection Checkpoint → XP/Rank → Mission Complete → Scorecard
+
+8. XP should only be awarded after the reflection checkpoint is completed correctly.
+
+9. Do not remove the existing quiz or finding submission.
+
+10. Do not add backend, database, login, AI, or new pages.
+
+11. Keep all logic frontend-only.
+
+12. Preserve the current UI design.
+
+13. Keep code simple and clearly commented.
+
+Goal:
+By the end of this step, the mission includes a learning reflection before final completion.
