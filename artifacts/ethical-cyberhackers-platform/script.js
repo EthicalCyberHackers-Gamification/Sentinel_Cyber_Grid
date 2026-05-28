@@ -50,7 +50,31 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 00:25 CST";
+const BUILD_TIME = "28 May 2026 — 00:55 CST";
+
+
+/* ============================================================
+   FINDING  (Milestone 7 — Student Report Submission)
+   ============================================================
+   Multiple-choice "Submit Finding" panel that appears between
+   reading suspicious_file.txt and the knowledge-check quiz.
+   The student must identify the actual suspicious behavior
+   before the quiz unlocks — teaches them to document findings
+   like a real analyst.
+   ============================================================ */
+
+const FINDING = {
+  question: "What suspicious behavior did you find?",
+  answers: [
+    { id: "A", text: "A file asked the user to share their password with an unknown external email.", correct: true },
+    { id: "B", text: "The documents folder contained two files.",                                      correct: false },
+    { id: "C", text: "The terminal showed the current directory.",                                     correct: false },
+    { id: "D", text: "The workstation had a reports folder.",                                          correct: false },
+  ],
+  correctFeedback:   "Finding submitted. Good analyst work.",
+  incorrectFeedback: "Review the suspicious file before submitting your finding.",
+  reportSummary:     "Possible phishing attempt involving password theft.",
+};
 
 
 /* ============================================================
@@ -74,7 +98,7 @@ const HINTS = {
   "cd-documents":       "Now list the files inside the documents folder.",
   "ls-documents":       "Read both files. One contains normal guidance. One contains suspicious behavior.",
   "cat-employee-notes": "This file looks normal. Continue checking the remaining file.",
-  "cat-suspicious":     "You found suspicious behavior. Answer the quiz to complete the mission.",
+  "cat-suspicious":     "You found suspicious behavior. Submit your finding to unlock the quiz.",
   outOfSequence:        "Follow the mission path. Use the highlighted command next.",
 };
 
@@ -100,6 +124,7 @@ const terminalTitle  = document.querySelector(".terminal-title");
 const btnContainer   = document.getElementById("commandButtonsContainer");
 const statusList     = document.getElementById("missionStatusList");
 const quizPanel      = document.getElementById("quizPanel");
+const findingPanel   = document.getElementById("findingPanel");
 const commandsHint   = document.querySelector(".commands-hint");
 
 // XP panel elements (right sidebar)
@@ -405,9 +430,11 @@ function afterCommand(buttonKey) {
   // the just-used button gets dimmed — even when nothing new unlocked.
   renderButtons(newlyUnlocked);
 
-  // Show the quiz 800ms after reading the suspicious file
+  // Milestone 7: show the "Submit Finding" panel 800ms after reading the
+  // suspicious file. The quiz is no longer triggered directly — it now
+  // unlocks only after the student submits the correct finding.
   if (buttonKey === "cat-suspicious") {
-    setTimeout(showQuiz, 800);
+    setTimeout(showFindingPanel, 800);
   }
 }
 
@@ -537,8 +564,116 @@ function renderMissionStatus() {
 
 
 /* ============================================================
+   SUBMIT FINDING  (Milestone 7)
+   Appears between reading suspicious_file.txt and the quiz.
+   Student must pick the correct suspicious behavior to unlock
+   the knowledge-check quiz.
+   ============================================================ */
+
+/** Reveals the finding panel and hides command buttons. */
+function showFindingPanel() {
+  if (!findingPanel || missionComplete) return;
+
+  // Hide the command-button UI while the analyst writes their report
+  if (btnContainer) btnContainer.style.display = "none";
+  if (commandsHint) commandsHint.style.display = "none";
+
+  findingPanel.style.display = "block";
+  findingPanel.innerHTML     = buildFindingHTML();
+
+  // Wire up answer buttons
+  findingPanel.querySelectorAll(".finding-answer-btn").forEach((btn) => {
+    btn.addEventListener("click", () => handleFindingAnswer(btn.dataset.answerId));
+  });
+}
+
+/** Builds the HTML for the Submit Finding panel. */
+function buildFindingHTML() {
+  const answersHTML = FINDING.answers
+    .map(
+      (a) =>
+        `<button class="finding-answer-btn" data-answer-id="${a.id}">
+          <span class="finding-answer-letter">${a.id}</span>
+          <span class="finding-answer-text">${a.text}</span>
+        </button>`
+    )
+    .join("");
+
+  return `
+    <div class="finding-header">
+      <span class="finding-label">SUBMIT FINDING</span>
+      <span class="finding-badge">ANALYST REPORT</span>
+    </div>
+    <p class="finding-question">${FINDING.question}</p>
+    <div class="finding-answers">${answersHTML}</div>
+    <div class="finding-feedback" id="findingFeedback"></div>
+  `;
+}
+
+/**
+ * Handles a student's selection in the Submit Finding panel.
+ *  - Correct → shows success + Analyst Report summary, then unlocks the quiz
+ *  - Wrong   → shows retry message, quiz stays locked, buttons re-enabled
+ *
+ * @param {string} answerId  "A", "B", "C", or "D"
+ */
+function handleFindingAnswer(answerId) {
+  const chosen  = FINDING.answers.find((a) => a.id === answerId);
+  const correct = chosen && chosen.correct;
+  const feedbackEl = document.getElementById("findingFeedback");
+
+  // Visually mark the chosen answer
+  findingPanel.querySelectorAll(".finding-answer-btn").forEach((btn) => {
+    btn.disabled = correct;             // only freeze the UI on a correct answer
+    if (btn.dataset.answerId === answerId) {
+      btn.classList.add(correct ? "finding-answer--correct" : "finding-answer--wrong");
+    }
+  });
+
+  if (!feedbackEl) return;
+
+  if (correct) {
+    // 1. Success message
+    feedbackEl.textContent = FINDING.correctFeedback;
+    feedbackEl.className   = "finding-feedback finding-feedback--correct";
+
+    // 2. Append a small Analyst Report summary card
+    const report = document.createElement("div");
+    report.className = "analyst-report";
+    report.innerHTML = `
+      <span class="analyst-report-label">ANALYST REPORT</span>
+      <p class="analyst-report-line">
+        <span class="analyst-report-key">Finding:</span>
+        <span class="analyst-report-value">${FINDING.reportSummary}</span>
+      </p>
+    `;
+    findingPanel.appendChild(report);
+
+    // 3. Unlock the quiz after a short pause so the student can read the report
+    setTimeout(() => {
+      if (findingPanel) {
+        findingPanel.style.display = "none";
+        findingPanel.innerHTML     = "";
+      }
+      showQuiz();
+    }, 2200);
+  } else {
+    // Wrong answer — keep the quiz locked, let them try again
+    feedbackEl.textContent = FINDING.incorrectFeedback;
+    feedbackEl.className   = "finding-feedback finding-feedback--wrong";
+
+    // Re-enable the wrong button after a moment so the student can retry
+    setTimeout(() => {
+      const wrongBtn = findingPanel.querySelector(`.finding-answer-btn[data-answer-id="${answerId}"]`);
+      if (wrongBtn) wrongBtn.classList.remove("finding-answer--wrong");
+    }, 1200);
+  }
+}
+
+
+/* ============================================================
    QUIZ  (Milestone 3)
-   Appears after the student reads suspicious_file.txt.
+   Appears after the student submits the correct Finding.
    ============================================================ */
 
 /** Hides command buttons and shows the quiz in their place. */
@@ -862,6 +997,11 @@ function resetMission() {
   if (quizPanel) {
     quizPanel.style.display = "none";
     quizPanel.innerHTML     = "";
+  }
+  // Milestone 7: also hide & clear the Submit Finding panel on restart
+  if (findingPanel) {
+    findingPanel.style.display = "none";
+    findingPanel.innerHTML     = "";
   }
 
   // 9. Restart countdown timer

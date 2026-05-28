@@ -195,7 +195,14 @@
             <!-- JS dynamically renders buttons here from COMMAND_BUTTONS in missions.js -->
             <div id="commandButtonsContainer" class="command-buttons command-buttons--day2"></div>
 
-            <!-- Quiz panel — hidden until student reads suspicious_file.txt.
+            <!-- Submit Finding panel — Milestone 7.
+                 Appears after reading suspicious_file.txt, BEFORE the quiz.
+                 Student must correctly identify the suspicious behavior
+                 to unlock the knowledge-check quiz. -->
+            <div id="findingPanel" class="finding-panel" style="display:none;"></div>
+
+            <!-- Quiz panel — hidden until the student submits the
+                 correct Finding (Milestone 7).
                  JS builds the question and answer buttons inside here. -->
             <div id="quizPanel" class="quiz-panel" style="display:none;"></div>
           </div>

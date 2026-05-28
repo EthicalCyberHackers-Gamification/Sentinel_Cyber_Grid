@@ -1477,6 +1477,176 @@ button {
 
 
 /* ======================================================
+   SUBMIT FINDING PANEL  (Milestone 7)
+   Visually mirrors the quiz panel so the flow feels
+   continuous: analyst writes report, then takes quiz.
+   ====================================================== */
+
+.finding-panel {
+  padding: var(--gap-md);
+  border: 1px solid rgba(255,193,7,0.4);
+  border-radius: var(--radius-md);
+  background: rgba(255,193,7,0.05);
+  animation: findingFadeIn 0.4s ease-out;
+}
+
+@keyframes findingFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.finding-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--gap-sm);
+}
+
+.finding-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  color: var(--color-yellow);
+}
+
+.finding-badge {
+  padding: 2px 8px;
+  background: rgba(255,193,7,0.15);
+  border: 1px solid rgba(255,193,7,0.4);
+  border-radius: 3px;
+  color: var(--color-yellow);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+}
+
+.finding-question {
+  margin: var(--gap-sm) 0 var(--gap-md);
+  font-size: 14px;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.finding-answers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
+}
+
+.finding-answer-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap-sm);
+  padding: 10px var(--gap-md);
+  background: var(--color-bg-panel-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.finding-answer-btn:hover:not(:disabled) {
+  border-color: var(--color-yellow);
+  background: rgba(255,193,7,0.08);
+  transform: translateX(2px);
+}
+
+.finding-answer-btn:disabled { cursor: default; }
+
+.finding-answer-letter {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-yellow);
+}
+
+.finding-answer-text { flex: 1; }
+
+.finding-answer--correct {
+  border-color: var(--color-green) !important;
+  background: rgba(0,255,136,0.1) !important;
+  color: var(--color-green);
+}
+.finding-answer--correct .finding-answer-letter {
+  background: var(--color-green);
+  border-color: var(--color-green);
+  color: var(--color-bg);
+}
+
+.finding-answer--wrong {
+  border-color: var(--color-red, #ff4d6d) !important;
+  background: rgba(255,77,109,0.08) !important;
+  animation: findingShake 0.4s ease;
+}
+@keyframes findingShake {
+  0%,100% { transform: translateX(0); }
+  25%     { transform: translateX(-4px); }
+  75%     { transform: translateX(4px); }
+}
+
+.finding-feedback {
+  margin-top: var(--gap-md);
+  padding: 8px var(--gap-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  min-height: 18px;
+}
+.finding-feedback--correct {
+  color: var(--color-green);
+  background: rgba(0,255,136,0.08);
+  border-left: 3px solid var(--color-green);
+}
+.finding-feedback--wrong {
+  color: var(--color-yellow);
+  background: rgba(255,193,7,0.08);
+  border-left: 3px solid var(--color-yellow);
+}
+
+/* Analyst Report card — shown after a correct finding submission */
+.analyst-report {
+  margin-top: var(--gap-md);
+  padding: var(--gap-sm) var(--gap-md);
+  border: 1px solid var(--color-green);
+  border-radius: var(--radius-md);
+  background: rgba(0,255,136,0.06);
+  animation: findingFadeIn 0.5s ease-out;
+}
+.analyst-report-label {
+  display: inline-block;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  color: var(--color-green);
+}
+.analyst-report-line { margin: 0; font-size: 12.5px; line-height: 1.5; }
+.analyst-report-key {
+  color: var(--color-text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-right: 6px;
+}
+.analyst-report-value { color: var(--color-text); }
+
+
+/* ======================================================
    HINT PANEL  (Milestone 6 — Guided Hints)
    Always-visible coaching strip above the command buttons.
    Tone classes (--muted / --normal / --warning) swap the
