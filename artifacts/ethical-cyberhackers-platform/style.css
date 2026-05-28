@@ -1355,6 +1355,102 @@ button {
 .scorecard-val--threat-critical { color: #ef4444; }
 
 /* ======================================================
+   Milestone 24H — Mission Outcome Summary (Phase B)
+   ------------------------------------------------------
+   The Mission Outcome Summary reinforces the full
+   simulation loop and helps students understand the
+   impact of their decisions. Reuses the existing
+   .scorecard-section chrome; no UI redesign.
+   ====================================================== */
+.scorecard-outcome .outcome-loop {
+  margin: 6px 0 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-cyan, #22d3ee);
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.outcome-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.outcome-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+.outcome-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.outcome-row--block {
+  flex-direction: column;
+  gap: 4px;
+}
+.outcome-key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.85);
+  flex-shrink: 0;
+}
+.outcome-val {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(226, 232, 240, 0.95);
+  text-align: right;
+}
+.outcome-row--block .outcome-val {
+  text-align: left;
+  width: 100%;
+}
+.outcome-val--cyan    { color: var(--color-cyan, #22d3ee); font-weight: 600; }
+.outcome-val--good    { color: #4ade80; font-weight: 600; }
+.outcome-val--neutral { color: #facc15; font-weight: 600; }
+.outcome-val--poor    { color: #ef4444; font-weight: 600; }
+.outcome-val--threat            { font-weight: 700; }
+.outcome-val--threat-low        { color: #4ade80; }
+.outcome-val--threat-medium     { color: #facc15; }
+.outcome-val--threat-high       { color: #fb923c; }
+.outcome-val--threat-critical   { color: #ef4444; }
+.outcome-val--manager {
+  font-style: italic;
+  color: rgba(226, 232, 240, 0.9);
+  border-left: 2px solid var(--color-cyan, #22d3ee);
+  padding: 4px 0 4px 10px;
+  background: rgba(34, 211, 238, 0.05);
+  border-radius: 0 4px 4px 0;
+}
+.outcome-evidence-list {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.outcome-evidence-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.outcome-empty {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-style: italic;
+  color: rgba(226, 232, 240, 0.55);
+}
+
+/* ======================================================
    Milestone 24C — Trust Score (Phase B)
    ------------------------------------------------------
    Quiet panel under the Threat Level meter on both

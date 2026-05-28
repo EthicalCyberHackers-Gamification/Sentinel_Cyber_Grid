@@ -70,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 19:30 CST";
+const BUILD_TIME = "28 May 2026 — 20:10 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -406,6 +406,131 @@ function buildToolsScorecardHTML(missionId) {
     <div class="scorecard-section scorecard-tools">
       <span class="scorecard-section-label">TOOLS USED</span>
       <ul class="scorecard-skills">${items}</ul>
+    </div>
+  `;
+}
+
+/* ============================================================
+   Milestone 24H — Mission Outcome Summary (Phase B)
+   ------------------------------------------------------------
+   The Mission Outcome Summary reinforces the full simulation
+   loop and helps students understand the impact of their
+   decisions. It restates the complete SOC-style cycle the
+   student just completed — Alert → Investigation → Evidence →
+   Decision → Consequence → Reward — reading from existing
+   mission state only (alert, collected evidence, selected
+   decision, consequence text, threat level, trust score, XP,
+   tools used, manager feedback). No new state, no backend, no
+   AI: it's a richer, honest read-out of what actually happened,
+   including poor or neutral decisions.
+   ============================================================ */
+function buildOutcomeSummaryHTML(missionId) {
+  // --- Alert Received (24E state, with static-definition fallback) ---
+  const alert = alertByMission[missionId] || null;
+  const alertTitle = alert && alert.title
+    ? alert.title
+    : (ALERT_DEFINITIONS[missionId] ? ALERT_DEFINITIONS[missionId].title : "—");
+
+  // --- Evidence Collected (24A state) ---
+  const evidence = getEvidenceList(missionId);
+  const evidenceHTML = evidence.length
+    ? `<ul class="outcome-evidence-list">${evidence
+        .map((t) => `<li><span class="scorecard-bullet">▹</span>${escapeHtml(t)}</li>`)
+        .join("")}</ul>`
+    : `<span class="outcome-empty">No evidence was recorded.</span>`;
+
+  // --- Decision Taken + Consequence (24D state) ---
+  // Reflects the student's actual choice honestly, whether the
+  // decision was correct, acceptable/neutral, or poor.
+  const actionId = decisionTaken[missionId];
+  const def = actionId ? DECISION_ACTIONS[actionId] : null;
+  const decisionLabel = def ? def.label : "No decision recorded";
+  const consequence = def
+    ? def.consequence
+    : "No consequence was recorded for this mission.";
+  const kind = def ? def.kind : null;
+  const kindClass =
+    kind === "correct" ? " outcome-val--good"
+      : kind === "poor" ? " outcome-val--poor"
+      : kind === "acceptable" ? " outcome-val--neutral"
+      : "";
+
+  // --- Final Threat Level (24B state) ---
+  const threat = getThreatLevel(missionId);
+
+  // --- Trust Score Change (24C state) ---
+  // The only per-mission trust movement comes from the decision's
+  // trustDelta; show that change alongside the resulting score.
+  const delta = def && typeof def.trustDelta === "number" ? def.trustDelta : 0;
+  const deltaText = delta > 0 ? `+${delta}` : `${delta}`;
+  const trustNow = getTrustScore();
+
+  // --- XP Earned (per-mission quiz reward) ---
+  const xp = missionId === "mission-002"
+    ? (typeof M2_QUIZ === "object" && M2_QUIZ ? M2_QUIZ.xpReward : 0)
+    : (typeof QUIZ === "object" && QUIZ ? QUIZ.xpReward : 0);
+
+  // --- Tools Used (24G state) ---
+  const tools = getCompletedToolNames(missionId);
+  const toolsText = tools.length ? tools.join(", ") : "None";
+
+  // --- Manager Final Feedback (24F scripted reaction) ---
+  const managerFinal =
+    (MANAGER_REACTIONS[missionId] && MANAGER_REACTIONS[missionId].mission_completed) ||
+    "Mission complete.";
+
+  return `
+    <div class="scorecard-section scorecard-outcome">
+      <span class="scorecard-section-label">MISSION OUTCOME SUMMARY</span>
+      <p class="outcome-loop">Alert → Investigation → Evidence → Decision → Consequence → Reward</p>
+      <ul class="outcome-rows">
+
+        <li class="outcome-row">
+          <span class="outcome-key">Alert Received</span>
+          <span class="outcome-val">${escapeHtml(alertTitle)}</span>
+        </li>
+
+        <li class="outcome-row outcome-row--block">
+          <span class="outcome-key">Evidence Collected</span>
+          <span class="outcome-val">${evidenceHTML}</span>
+        </li>
+
+        <li class="outcome-row">
+          <span class="outcome-key">Decision Taken</span>
+          <span class="outcome-val${kindClass}">${escapeHtml(decisionLabel)}</span>
+        </li>
+
+        <li class="outcome-row outcome-row--block">
+          <span class="outcome-key">Consequence</span>
+          <span class="outcome-val">${escapeHtml(consequence)}</span>
+        </li>
+
+        <li class="outcome-row">
+          <span class="outcome-key">Final Threat Level</span>
+          <span class="outcome-val outcome-val--threat outcome-val--threat-${threat.toLowerCase()}">${escapeHtml(threat)}</span>
+        </li>
+
+        <li class="outcome-row">
+          <span class="outcome-key">Trust Score Change</span>
+          <span class="outcome-val outcome-val--cyan">${deltaText} (now ${trustNow} / 100)</span>
+        </li>
+
+        <li class="outcome-row">
+          <span class="outcome-key">XP Earned</span>
+          <span class="outcome-val outcome-val--cyan">+${xp} XP</span>
+        </li>
+
+        <li class="outcome-row">
+          <span class="outcome-key">Tools Used</span>
+          <span class="outcome-val">${escapeHtml(toolsText)}</span>
+        </li>
+
+        <li class="outcome-row outcome-row--block">
+          <span class="outcome-key">Manager Final Feedback</span>
+          <span class="outcome-val outcome-val--manager">${escapeHtml(managerFinal)}</span>
+        </li>
+
+      </ul>
     </div>
   `;
 }
@@ -2717,6 +2842,11 @@ function buildCompletionHTML(newRank) {
           ${renderAlertScorecardRows("mission-001")}
         </ul>
 
+        <!-- Milestone 24H — Mission Outcome Summary (Mission 1).
+             Restates the full Alert → Investigation → Evidence →
+             Decision → Consequence → Reward loop the student completed. -->
+        ${buildOutcomeSummaryHTML("mission-001")}
+
         <!-- Skills Practiced -->
         <div class="scorecard-section">
           <span class="scorecard-section-label">SKILLS PRACTICED</span>
@@ -4018,6 +4148,11 @@ function renderM2Scorecard() {
           ${renderDecisionScorecardRows("mission-002")}
           ${renderAlertScorecardRows("mission-002")}
         </ul>
+
+        <!-- Milestone 24H — Mission Outcome Summary (Mission 2).
+             Restates the full Alert → Investigation → Evidence →
+             Decision → Consequence → Reward loop the student completed. -->
+        ${buildOutcomeSummaryHTML("mission-002")}
 
         <!-- Skills Practiced -->
         <div class="scorecard-section">

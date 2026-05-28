@@ -1,0 +1,107 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Phase A Baseline is complete.
+* Mission Engine is ready.
+* Evidence Collection works.
+* Threat Level Meter works.
+* Trust Score System works.
+* Decision Consequence System works.
+* Alert Loop System works.
+* Dynamic Manager Reaction System works.
+* Tool Unlock System works.
+* Mission 1 and Mission 2 still work.
+* Everything is frontend-only.
+
+Now implement Phase B — Milestone 24H: Mission Outcome Summary Upgrade.
+
+Purpose:
+After a mission is completed, the student should clearly see the full cybersecurity investigation loop they completed:
+Alert → Investigation → Evidence → Decision → Consequence → Reward.
+
+Requirements:
+
+1. Do not add Mission 3 yet.
+
+2. Do not redesign the UI.
+
+3. Do not break Mission 1 or Mission 2.
+
+4. Upgrade the existing mission scorecard to include a “Mission Outcome Summary” section.
+
+5. The outcome summary should include:
+
+* Alert Received
+* Evidence Collected
+* Decision Taken
+* Consequence
+* Final Threat Level
+* Trust Score Change
+* XP Earned
+* Tools Used
+* Manager Final Feedback
+
+6. For Mission 1, example summary:
+
+Alert Received:
+Suspicious File Detected
+
+Evidence Collected:
+Suspicious password request found in suspicious_file.txt
+
+Decision Taken:
+Escalate to Manager
+
+Consequence:
+The suspicious password request was reported before account compromise.
+
+Final Threat Level:
+Low
+
+Manager Final Feedback:
+Mission complete. You identified and reported a possible phishing attempt.
+
+7. For Mission 2, example summary:
+
+Alert Received:
+Unknown Network Exposure
+
+Evidence Collected:
+Target host exposes SSH, HTTP, and HTTPS services
+
+Decision Taken:
+Recommend Security Review
+
+Consequence:
+The exposed services were flagged for configuration review.
+
+Final Threat Level:
+Low
+
+Manager Final Feedback:
+Mission complete. You identified exposed services and recommended review.
+
+8. If the student made a poor or neutral decision, the summary should reflect that decision honestly.
+
+9. Use existing mission state where possible:
+
+* alert state
+* collected evidence
+* selected decision
+* consequence text
+* threat level
+* trust score
+* XP
+* tools used
+* manager message
+
+10. Do not add backend, database, authentication, AI, or new pages.
+
+11. Keep everything frontend-only.
+
+12. Add comments explaining:
+    “The Mission Outcome Summary reinforces the full simulation loop and helps students understand the impact of their decisions.”
+
+Goal:
+By the end of this step, completed missions should feel like real cybersecurity case summaries rather than simple quiz completions.
