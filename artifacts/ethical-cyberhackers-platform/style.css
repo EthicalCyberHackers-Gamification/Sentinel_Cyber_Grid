@@ -1144,6 +1144,48 @@ button {
   padding-left: var(--gap-md);
 }
 
+/* Milestone 23F — developer-only Mission Engine Health Check trigger.
+   Styled as a quiet link-button so it stays out of the way of students
+   while still being clickable for whoever is debugging mission data. */
+.footer-devcheck-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+.footer-devcheck-btn:hover,
+.footer-devcheck-btn:focus-visible {
+  opacity: 1;
+  color: var(--color-accent, #4ade80);
+  border-color: var(--color-accent, #4ade80);
+  outline: none;
+}
+
+.footer-devcheck-result {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+  min-width: 1px;
+}
+.footer-devcheck-result.is-visible {
+  opacity: 0.9;
+}
+.footer-devcheck-result.is-fail {
+  color: #ff6b6b;
+}
+.footer-devcheck-result.is-pass {
+  color: var(--color-accent, #4ade80);
+}
+
 
 /* ======================================================
    RESPONSIVE LAYOUT

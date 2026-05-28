@@ -70,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 12:10 CST";
+const BUILD_TIME = "28 May 2026 — 12:45 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -2966,7 +2966,214 @@ window.MissionEngine = {
   getNextMissionId,
   getMissionStatus,
   setRegistryMissionStatus,
+  // 23F — health check
+  runMissionEngineHealthCheck,
 };
+
+
+/* ============================================================
+   MISSION ENGINE HEALTH CHECK  (Milestone 23F — Phase A)
+   ------------------------------------------------------------
+   The health check helps validate mission data before new
+   missions are added. It runs a series of structural assertions
+   over the Mission Registry, the structured mission data in
+   MISSIONS_REGISTRY, and the engine-level helpers — and logs a
+   PASS/FAIL line for each one to the browser console.
+
+   The check is non-destructive (no DOM mutation, no state change).
+   It is triggered manually via the "Run Mission Engine Check"
+   button in the footer; students never see anything unless they
+   click it. It is also exposed on window.MissionEngine so future
+   developers can call it from the devtools console.
+   ============================================================ */
+
+/**
+ * runMissionEngineHealthCheck()
+ *
+ * Returns: { ok: boolean, pass: string[], fail: string[] }
+ *
+ * The function prints a grouped block of PASS/FAIL lines to the
+ * console and returns a summary object so callers (e.g. the footer
+ * button handler) can render a short on-screen summary.
+ */
+function runMissionEngineHealthCheck() {
+  const pass = [];
+  const fail = [];
+
+  const check = (label, condition) => {
+    if (condition) pass.push(label);
+    else           fail.push(label);
+  };
+
+  /* ---- 1. Mission Registry ---- */
+  check("Mission registry found",
+    Array.isArray(missionRegistry) && missionRegistry.length > 0);
+
+  const m1Entry = getRegistryMission("mission1");
+  const m2Entry = getRegistryMission("mission2");
+  const m3Entry = getRegistryMission("mission3");
+
+  check("Mission 1 found in registry", !!m1Entry);
+  check("Mission 2 found in registry", !!m2Entry);
+  // Mission 3 is a known placeholder — surface its presence but never
+  // fail the run if it's intentionally absent.
+  if (m3Entry) pass.push("Mission 3 placeholder found in registry");
+
+  /* ---- 2. Registry order values valid (unique, sequential from 1) ---- */
+  if (Array.isArray(missionRegistry)) {
+    const orders = missionRegistry.map((m) => m.order).sort((a, b) => a - b);
+    const uniqueOrders = new Set(orders).size === orders.length;
+    const sequential   = orders.every((n, i) => n === i + 1);
+    check("Registry order values are unique",     uniqueOrders);
+    check("Registry order values are sequential", sequential);
+  }
+
+  /* ---- 3. Structured mission data (MISSIONS_REGISTRY) ---- */
+  const dataMissions = MISSIONS_REGISTRY
+    ? Object.entries(MISSIONS_REGISTRY)
+    : [];
+
+  check("Structured mission data registry found", dataMissions.length > 0);
+
+  for (const [id, mission] of dataMissions) {
+    const r = validateMissionData(mission);
+    if (r.valid) {
+      pass.push(`Mission data "${id}" has all required fields`);
+    } else {
+      fail.push(`Mission data "${id}" is missing: ${r.missing.join(", ")}`);
+    }
+
+    // scorecard presence (recommended field, but called out explicitly
+    // because the Phase A spec requires it for every mission)
+    const hasScorecard =
+      mission && mission.scorecard && typeof mission.scorecard === "object";
+    check(`Mission data "${id}" has a scorecard`, hasScorecard);
+  }
+
+  /* ---- 4. Commands shape (tolerant — accepts M1 and M2 schemas) ---- */
+  //
+  // The spec asks for each command to have:
+  //   commandId, label, commandText, outputText
+  //
+  // Mission 1's COMMAND_BUTTONS uses {key, label, command, desc, ...}
+  // and Mission 2's M2_COMMANDS is keyed-by-id with {cmd, output, ...}.
+  // We accept either schema so the check works against today's data
+  // without forcing a refactor.
+  const validateCommand = (cmd, id) => {
+    if (!cmd || typeof cmd !== "object") return false;
+    const commandId   = cmd.commandId   || cmd.key || id;
+    const label       = cmd.label;
+    const commandText = cmd.commandText || cmd.command || cmd.cmd;
+    const outputText  = cmd.outputText  || cmd.output  || cmd.desc;
+    return (
+      typeof commandId === "string"   && commandId.length > 0 &&
+      typeof label === "string"       && label.length > 0     &&
+      typeof commandText === "string" && commandText.length > 0 &&
+      (typeof outputText === "string" || Array.isArray(outputText)) &&
+      (Array.isArray(outputText) ? outputText.length > 0 : outputText.length > 0)
+    );
+  };
+
+  for (const [id, mission] of dataMissions) {
+    const commands = mission && mission.commands;
+    let entries = [];
+    if (Array.isArray(commands))        entries = commands.map((c) => [c.key || c.commandId, c]);
+    else if (commands && typeof commands === "object") entries = Object.entries(commands);
+
+    if (entries.length === 0) {
+      fail.push(`Mission data "${id}" has no commands`);
+      continue;
+    }
+
+    let allValid = true;
+    const bad = [];
+    for (const [cid, cmd] of entries) {
+      if (!validateCommand(cmd, cid)) {
+        allValid = false;
+        bad.push(cid);
+      }
+    }
+    if (allValid) {
+      pass.push(`Commands valid for "${id}" (${entries.length} command${entries.length === 1 ? "" : "s"})`);
+    } else {
+      fail.push(`Commands invalid for "${id}": ${bad.join(", ")}`);
+    }
+  }
+
+  /* ---- 5. Helper functions work ---- */
+  try {
+    const got = getMissionById("mission-001");
+    check("getMissionById() resolves legacy id 'mission-001'", !!got);
+  } catch (e) {
+    fail.push(`getMissionById() threw: ${e.message}`);
+  }
+  try {
+    const gotReg = getMissionById("mission1");
+    check("getMissionById() resolves registry id 'mission1'", !!gotReg);
+  } catch (e) {
+    fail.push(`getMissionById() (registry id) threw: ${e.message}`);
+  }
+  try {
+    const next1 = getNextMissionId("mission1");
+    const next2 = getNextMissionId("mission2");
+    const next3 = getNextMissionId("mission3");
+    check("getNextMissionId('mission1') === 'mission2'", next1 === "mission2");
+    check("getNextMissionId('mission2') === 'mission3'", next2 === "mission3");
+    check("getNextMissionId('mission3') === null",       next3 === null);
+  } catch (e) {
+    fail.push(`getNextMissionId() threw: ${e.message}`);
+  }
+
+  /* ---- 6. Final overall verdict ---- */
+  const ok = fail.length === 0;
+  if (ok) pass.push("Mission engine ready");
+
+  /* ---- 7. Pretty-print to the browser console ---- */
+  // Use console.group when available so the block is collapsible.
+  const groupFn   = typeof console.group       === "function" ? console.group       : console.log;
+  const groupEnd  = typeof console.groupEnd    === "function" ? console.groupEnd    : () => {};
+  groupFn("Mission Engine Health Check:");
+  for (const line of pass) console.log(`PASS: ${line}`);
+  for (const line of fail) console.warn(`FAIL: ${line}`);
+  console.log(`— ${pass.length} passed, ${fail.length} failed —`);
+  groupEnd();
+
+  return { ok, pass, fail };
+}
+
+/**
+ * Wires the footer's "Run Mission Engine Check" button. Renders a
+ * short status message next to the button (auto-hides after 5s) and
+ * funnels the full PASS/FAIL detail to the browser console.
+ *
+ * Students never see this — the button is a quiet developer link in
+ * the footer.
+ */
+function wireMissionEngineHealthCheckButton() {
+  const btn    = document.getElementById("missionEngineCheckBtn");
+  const result = document.getElementById("missionEngineCheckResult");
+  if (!btn) return;
+
+  let hideTimer = null;
+
+  btn.addEventListener("click", () => {
+    const { ok, fail } = runMissionEngineHealthCheck();
+
+    if (result) {
+      result.textContent = ok
+        ? "Mission Engine Check Complete. See browser console for details."
+        : `Mission Engine Check Complete — ${fail.length} issue${fail.length === 1 ? "" : "s"} found. See browser console.`;
+      result.classList.remove("is-pass", "is-fail");
+      result.classList.add("is-visible", ok ? "is-pass" : "is-fail");
+
+      if (hideTimer) clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        result.classList.remove("is-visible", "is-pass", "is-fail");
+        result.textContent = "";
+      }, 5000);
+    }
+  });
+}
 
 
 /* ============================================================
@@ -3051,6 +3258,10 @@ function boot() {
   // Inject the build timestamp into the footer so it's always visible
   const buildEl = document.getElementById("buildTimestamp");
   if (buildEl) buildEl.textContent = `build: ${BUILD_TIME}`;
+
+  // Milestone 23F — wire the developer-only Mission Engine Health Check
+  // button. Silent for students unless they click it.
+  wireMissionEngineHealthCheckButton();
 
   // Milestone 19 — wire the "Back to Module Overview" button on the
   // Mission 2 Overview takeover screen

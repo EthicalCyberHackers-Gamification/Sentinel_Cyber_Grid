@@ -817,6 +817,18 @@
     <footer class="site-footer">
       <span class="footer-text">Ethical CyberHackers Platform — For educational purposes only. All simulations are sandboxed.</span>
       <span class="footer-right">
+        <!-- Milestone 23F — developer-only health-check trigger.
+             The health check helps validate mission data before new
+             missions are added. Hidden visually as a thin link so
+             it does not distract students; result message appears
+             next to it for ~5 seconds after a run. -->
+        <button
+          id="missionEngineCheckBtn"
+          type="button"
+          class="footer-devcheck-btn"
+          title="Validate mission data (developer tool)"
+        >Run Mission Engine Check</button>
+        <span id="missionEngineCheckResult" class="footer-devcheck-result" role="status" aria-live="polite"></span>
         <span class="footer-version">v1.0.0</span>
         <!-- Build timestamp — populated by script.js from the BUILD_TIME constant.
              Update BUILD_TIME in script.js whenever you push a new revision. -->

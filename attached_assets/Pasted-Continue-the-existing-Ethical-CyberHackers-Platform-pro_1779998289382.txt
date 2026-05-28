@@ -1,0 +1,82 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission Engine Foundation exists.
+* Mission 1 and Mission 2 use reusable mission data and reusable mission logic.
+* Mission Template System exists.
+* Mission Engine Guide exists.
+* Mission Registry exists.
+* Course Progress is driven by the mission registry.
+* Everything is frontend-only.
+
+Now implement Phase A — Milestone 23F: Mission Engine Health Check.
+
+Purpose:
+Before adding more missions, the platform should be able to check whether mission data is valid and whether the mission engine is ready. This prevents future missions from silently breaking the app.
+
+Requirements:
+
+1. Do not add Mission 3 functionality yet.
+
+2. Do not redesign the UI.
+
+3. Do not break Mission 1 or Mission 2.
+
+4. Create a reusable function:
+
+runMissionEngineHealthCheck()
+
+5. The health check should verify:
+
+* missionRegistry exists
+* Mission 1 exists
+* Mission 2 exists
+* each mission has a missionId
+* each mission has a title
+* each mission has a briefing
+* each mission has commands
+* each command has:
+
+  * commandId
+  * label
+  * commandText
+  * outputText
+* each mission has an xpReward
+* each mission has a scorecard
+* missionRegistry order values are valid
+* getMissionById() works
+* getNextMissionId() works
+
+6. Log results in the browser console in a clear format:
+
+Mission Engine Health Check:
+PASS: Mission registry found
+PASS: Mission 1 found
+PASS: Mission 2 found
+PASS: Commands valid
+PASS: Mission engine ready
+
+7. If something is missing, log:
+
+FAIL: [specific missing item]
+
+8. Add a small developer-only button or link near the bottom of the page:
+
+Run Mission Engine Check
+
+9. When clicked:
+
+* Run the health check.
+* Show a simple on-screen result:
+  “Mission Engine Check Complete. See browser console for details.”
+
+10. Do not show technical errors to students unless the button is clicked.
+
+11. Keep everything frontend-only.
+
+12. Add comments explaining:
+    “The health check helps validate mission data before new missions are added.”
+
+Goal:
+By the end of this step, the app should include a basic internal quality check for the reusable mission engine.
