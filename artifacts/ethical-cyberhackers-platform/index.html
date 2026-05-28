@@ -279,6 +279,11 @@
             </p>
           </div>
 
+          <!-- Milestone 24E — Alert Center (Mission 2). Same component as
+               Mission 1, separate DOM host so each mission has its own
+               independent alert state. -->
+          <div id="m2AlertCenter" class="alert-center-host" style="display:none;"></div>
+
           <!-- Briefing sections — added M20.3 for visual parity with M1.
                Same .briefing-section / .briefing-heading / .briefing-text
                / .skills-list styling. -->
@@ -616,6 +621,13 @@
               Welcome, intern. Your first task is to inspect this workstation and report anything suspicious.
             </p>
           </div>
+
+          <!-- Milestone 24E — Alert Center (Mission 1).
+               The alert loop system creates the foundation for a real
+               SOC-style mission cycle. Populated by createMissionAlert
+               and updated via markAlertInvestigating / EvidenceFound /
+               DecisionRequired / Contained / markAlertResolved. -->
+          <div id="alertCenter" class="alert-center-host" style="display:none;"></div>
 
           <!-- ===== MISSION BRIEFING (Milestone 5) =====
                Shown until the student clicks "Begin Mission".

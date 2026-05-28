@@ -1,0 +1,104 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Phase A Baseline is complete.
+* Mission Engine is ready.
+* Evidence Collection works.
+* Threat Level Meter works.
+* Trust Score System works.
+* Decision Consequence System works.
+* Mission 1 and Mission 2 still work.
+* Everything is frontend-only.
+
+Now implement Phase B — Milestone 24E: Alert Loop System.
+
+Purpose:
+The platform should begin feeling like a cybersecurity operations environment. Each mission should start with an alert, then move into investigation, evidence, decision, consequence, reward, and next mission unlock.
+
+Core loop:
+Alert appears → student investigates → evidence is discovered → student makes decision → consequence occurs → manager reacts → XP/trust updates → next alert unlocks.
+
+Requirements:
+
+1. Do not add Mission 3 functionality yet.
+
+2. Do not redesign the UI.
+
+3. Do not break Mission 1 or Mission 2.
+
+4. Add an “Alert Center” panel to the dashboard.
+
+5. Alert Center should show the current mission alert.
+
+Mission 1 alert:
+Title:
+Suspicious File Detected
+
+Message:
+A workstation contains a file requesting password sharing with an unknown external email.
+
+Severity:
+Medium
+
+Mission 2 alert:
+Title:
+Unknown Network Exposure
+
+Message:
+A target host is exposing multiple network services that require review.
+
+Severity:
+Medium
+
+6. Add reusable alert functions:
+
+* createMissionAlert(missionId)
+* renderAlertCenter()
+* updateAlertSeverity(severity)
+* markAlertInvestigating()
+* markAlertContained()
+* clearAlert()
+
+7. Alert states should include:
+
+* New
+* Investigating
+* Evidence Found
+* Decision Required
+* Contained
+
+8. When mission begins:
+   Alert state should change to:
+   Investigating
+
+9. When evidence is collected:
+   Alert state should change to:
+   Evidence Found
+
+10. When decision actions appear:
+    Alert state should change to:
+    Decision Required
+
+11. When correct decision is made:
+    Alert state should change to:
+    Contained
+
+12. When mission is completed:
+    Alert Center should show:
+    Alert Resolved
+
+13. Add alert state to Mission 1 and Mission 2 scorecards.
+
+14. Restarting a mission should reset the alert for that mission.
+
+15. Keep all logic frontend-only.
+
+16. Do not add backend, database, authentication, AI, or new pages.
+
+17. Add comments explaining:
+    “The alert loop system creates the foundation for a real SOC-style mission cycle.”
+
+Goal:
+By the end of this step, Mission 1 and Mission 2 should follow the full simulation loop:
+Alert → Investigate → Evidence → Decision → Consequence → Reward.

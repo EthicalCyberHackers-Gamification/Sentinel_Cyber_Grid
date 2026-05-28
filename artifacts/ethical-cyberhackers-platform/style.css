@@ -1417,6 +1417,110 @@ button {
 .trust-score--high .trust-score-bar-fill     { background: #4ade80; }
 
 /* ======================================================
+   Milestone 24E — Alert Center panel (Phase B)
+   ------------------------------------------------------
+   The alert loop system creates the foundation for a real
+   SOC-style mission cycle. One host per mission
+   (#alertCenter, #m2AlertCenter); state-tinted status pill
+   walks New → Investigating → Evidence Found → Decision
+   Required → Contained → Resolved.
+   ====================================================== */
+.alert-center-host { margin: 12px 0; }
+.alert-center {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-left: 3px solid #facc15;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.alert-center--low      { border-left-color: #4ade80; }
+.alert-center--medium   { border-left-color: #facc15; }
+.alert-center--high     { border-left-color: #fb923c; }
+.alert-center--critical { border-left-color: #ef4444; }
+
+.alert-center-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.alert-center-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #facc15;
+}
+.alert-center-severity {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #0b1220;
+  background: #facc15;
+  padding: 2px 8px;
+  border-radius: 9px;
+}
+.alert-center--low      .alert-center-label,
+.alert-center--low      .alert-center-severity { color: #0b1220; }
+.alert-center--low      .alert-center-severity { background: #4ade80; }
+.alert-center--low      .alert-center-label    { color: #4ade80; }
+.alert-center--high     .alert-center-severity { background: #fb923c; }
+.alert-center--high     .alert-center-label    { color: #fb923c; }
+.alert-center--critical .alert-center-severity { background: #ef4444; color: #fff; }
+.alert-center--critical .alert-center-label    { color: #ef4444; }
+
+.alert-center-title {
+  margin: 4px 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+.alert-center-message {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.85);
+}
+.alert-center-state-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px dashed rgba(148, 163, 184, 0.25);
+  padding-top: 8px;
+}
+.alert-center-state-key {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.85);
+}
+.alert-center-state-pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 9px;
+  background: rgba(148, 163, 184, 0.25);
+  color: #e2e8f0;
+}
+.alert-center-state-pill--new                 { background: rgba(148, 163, 184, 0.3);  color: #e2e8f0; }
+.alert-center-state-pill--investigating       { background: rgba(56, 189, 248, 0.25);  color: #38bdf8; }
+.alert-center-state-pill--evidence-found      { background: rgba(96, 165, 250, 0.25);  color: #60a5fa; }
+.alert-center-state-pill--decision-required   { background: rgba(250, 204, 21, 0.25);  color: #facc15; }
+.alert-center-state-pill--contained           { background: rgba(74, 222, 128, 0.25);  color: #4ade80; }
+.alert-center-state-pill--resolved            { background: #4ade80; color: #0b1220; }
+
+/* Scorecard Alert Status row gets the same state tints. */
+.alert-status-val--new                { color: rgba(226, 232, 240, 0.92); }
+.alert-status-val--investigating      { color: #38bdf8; }
+.alert-status-val--evidence-found     { color: #60a5fa; }
+.alert-status-val--decision-required  { color: #facc15; }
+.alert-status-val--contained          { color: #4ade80; }
+.alert-status-val--resolved           { color: #4ade80; font-weight: 700; }
+
+/* ======================================================
    Milestone 24D — Decision Actions panel (Phase B)
    ------------------------------------------------------
    The decision system creates consequences and prepares

@@ -70,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 17:15 CST";
+const BUILD_TIME = "28 May 2026 — 17:45 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -144,6 +144,14 @@ function addEvidence(evidenceId, evidenceText, missionId) {
     at: Date.now(),
   });
   renderEvidencePanel(mid);
+  // Milestone 24E — first evidence in the loop moves the alert from
+  // Investigating to Evidence Found. Don't downgrade later states
+  // (Decision Required / Contained / Resolved) if more evidence is
+  // added afterwards.
+  const a = alertByMission[mid];
+  if (a && (a.state === "New" || a.state === "Investigating")) {
+    setAlertState(mid, "Evidence Found");
+  }
   try { saveProgress(); } catch (_) { /* save errors are non-fatal */ }
   return true;
 }
@@ -519,6 +527,10 @@ function showDecisionActions(missionId) {
       handleDecisionAction(btn.getAttribute("data-decision"))
     );
   });
+
+  // Milestone 24E — alert moves into Decision Required when the
+  // student is presented with the consequence choices.
+  markAlertDecisionRequired(missionId);
 }
 
 /** Hide and clear the decision panel for `missionId`. */
@@ -602,6 +614,14 @@ function handleDecisionAction(actionId) {
     decisionTaken[def.missionId]    = actionId;
     decisionAdvanced[def.missionId] = true;
 
+    // Milestone 24E — spec #11: a CORRECT decision moves the alert
+    // into Contained. Acceptable decisions advance the flow but the
+    // alert stays in Decision Required until mission completion
+    // ("Alert Resolved").
+    if (def.kind === "correct") {
+      markAlertContained(def.missionId);
+    }
+
     try { saveProgress(); } catch (_) { /* non-fatal */ }
 
     // Brief pause so the student reads the feedback, then advance.
@@ -639,6 +659,190 @@ function renderDecisionScorecardRows(missionId) {
           <li class="scorecard-row scorecard-row--wide">
             <span class="scorecard-key">Consequence</span>
             <span class="scorecard-val">${escapeHtml(def.consequence)}</span>
+          </li>`;
+}
+
+/* ============================================================
+   Milestone 24E — Alert Loop System (Phase B)
+   ------------------------------------------------------------
+   The alert loop system creates the foundation for a real
+   SOC-style mission cycle. Each mission opens with a SIEM-style
+   alert; the alert moves through states as the student works
+   the loop:
+
+     New → Investigating → Evidence Found → Decision Required
+         → Contained → Resolved
+
+   Wiring:
+     - beginMission / beginMission2  → markAlertInvestigating
+     - addEvidence (first time)       → state "Evidence Found"
+     - showDecisionActions            → markAlertDecisionRequired
+     - correct decision (kind=correct)→ markAlertContained
+     - completeMission / M2 complete  → "Alert Resolved" badge
+     - resetMission / resetMission2   → clearAlert + recreate
+   ============================================================ */
+
+/** Allowed alert states. The order matches the loop's natural progression. */
+const ALERT_STATES = ["New", "Investigating", "Evidence Found",
+                      "Decision Required", "Contained", "Resolved"];
+
+/** Static alert definitions per mission. Pulled in by createMissionAlert. */
+const ALERT_DEFINITIONS = {
+  "mission-001": {
+    title:    "Suspicious File Detected",
+    message:  "A workstation contains a file requesting password sharing with an unknown external email.",
+    severity: "Medium",
+  },
+  "mission-002": {
+    title:    "Unknown Network Exposure",
+    message:  "A target host is exposing multiple network services that require review.",
+    severity: "Medium",
+  },
+};
+
+/** Per-mission alert objects: { title, message, severity, state }. */
+let alertByMission = {};
+
+/** Map missionId → DOM host id for the Alert Center panel. */
+function alertHostId(missionId) {
+  return missionId === "mission-002" ? "m2AlertCenter" : "alertCenter";
+}
+
+/**
+ * Build (or rebuild) the alert object for `missionId` from its static
+ * definition and render it. Called by beginMission/beginMission2 and
+ * by the mission-reset helpers. Idempotent — re-creating an alert
+ * starts it back in the "New" state.
+ */
+function createMissionAlert(missionId) {
+  const def = ALERT_DEFINITIONS[missionId];
+  if (!def) return null;
+  alertByMission[missionId] = {
+    title:    def.title,
+    message:  def.message,
+    severity: def.severity,
+    state:    "New",
+  };
+  renderAlertCenter(missionId);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+  return alertByMission[missionId];
+}
+
+/** Internal — set the alert's state if the alert exists, then re-render. */
+function setAlertState(missionId, state) {
+  const a = alertByMission[missionId];
+  if (!a) return;
+  if (!ALERT_STATES.includes(state)) return;
+  a.state = state;
+  renderAlertCenter(missionId);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+}
+
+/** Transition helpers required by the spec. */
+function markAlertInvestigating(missionId) {
+  setAlertState(missionId || getActiveMissionId(), "Investigating");
+}
+function markAlertEvidenceFound(missionId) {
+  setAlertState(missionId || getActiveMissionId(), "Evidence Found");
+}
+function markAlertDecisionRequired(missionId) {
+  setAlertState(missionId || getActiveMissionId(), "Decision Required");
+}
+function markAlertContained(missionId) {
+  setAlertState(missionId || getActiveMissionId(), "Contained");
+}
+function markAlertResolved(missionId) {
+  setAlertState(missionId || getActiveMissionId(), "Resolved");
+}
+
+/** Update the alert's severity badge (Low / Medium / High / Critical). */
+function updateAlertSeverity(severity, missionId) {
+  const mid = missionId || getActiveMissionId();
+  const a   = alertByMission[mid];
+  if (!a) return;
+  const allowed = ["Low", "Medium", "High", "Critical"];
+  if (!allowed.includes(severity)) return;
+  a.severity = severity;
+  renderAlertCenter(mid);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+}
+
+/** Remove the alert for a mission and hide its panel. */
+function clearAlert(missionId) {
+  const mid = missionId || getActiveMissionId();
+  delete alertByMission[mid];
+  const host = document.getElementById(alertHostId(mid));
+  if (host) {
+    host.style.display = "none";
+    host.innerHTML     = "";
+  }
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+}
+
+/** Lowercase / no-space slug for CSS state classes. */
+function alertStateSlug(state) {
+  return String(state || "").toLowerCase().replace(/\s+/g, "-");
+}
+
+/**
+ * Render the Alert Center panel for `missionId`. When the state is
+ * "Resolved", show the "Alert Resolved" treatment per spec #12.
+ */
+function renderAlertCenter(missionId) {
+  const mid  = missionId || getActiveMissionId();
+  const host = document.getElementById(alertHostId(mid));
+  if (!host) return;
+  const a    = alertByMission[mid];
+  if (!a) {
+    host.style.display = "none";
+    host.innerHTML     = "";
+    return;
+  }
+
+  const sevSlug   = String(a.severity || "Medium").toLowerCase();
+  const stateSlug = alertStateSlug(a.state);
+  const isResolved = a.state === "Resolved";
+
+  host.style.display = "";
+  host.innerHTML = `
+    <section class="alert-center alert-center--${sevSlug} alert-center--state-${stateSlug}"
+             aria-live="polite">
+      <header class="alert-center-header">
+        <span class="alert-center-label">Alert Center</span>
+        <span class="alert-center-severity">${escapeHtml(a.severity)}</span>
+      </header>
+      <h3 class="alert-center-title">${escapeHtml(a.title)}</h3>
+      <p class="alert-center-message">${escapeHtml(a.message)}</p>
+      <div class="alert-center-state-row">
+        <span class="alert-center-state-key">Status</span>
+        <span class="alert-center-state-pill alert-center-state-pill--${stateSlug}">
+          ${isResolved ? "Alert Resolved" : escapeHtml(a.state)}
+        </span>
+      </div>
+    </section>
+  `;
+}
+
+/** Read the current alert state for a mission (for tests / scorecard). */
+function getAlertState(missionId) {
+  const mid = missionId || getActiveMissionId();
+  return alertByMission[mid] ? alertByMission[mid].state : null;
+}
+
+/** Build the "Alert" + "Alert Status" scorecard rows for a mission. */
+function renderAlertScorecardRows(missionId) {
+  const a = alertByMission[missionId];
+  if (!a) return "";
+  const stateSlug = alertStateSlug(a.state);
+  const stateText = a.state === "Resolved" ? "Alert Resolved" : a.state;
+  return `
+          <li class="scorecard-row">
+            <span class="scorecard-key">Alert</span>
+            <span class="scorecard-val scorecard-val--cyan">${escapeHtml(a.title)}</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">Alert Status</span>
+            <span class="scorecard-val alert-status-val alert-status-val--${stateSlug}">${escapeHtml(stateText)}</span>
           </li>`;
 }
 
@@ -711,6 +915,8 @@ function saveProgress() {
       // Milestone 24D — persist decision system state so it survives reload.
       decisionTaken:    (typeof decisionTaken    === "object" && decisionTaken)    ? decisionTaken    : {},
       decisionAdvanced: (typeof decisionAdvanced === "object" && decisionAdvanced) ? decisionAdvanced : {},
+      // Milestone 24E — persist alert state per mission so it survives reload.
+      alertByMission: (typeof alertByMission === "object" && alertByMission) ? alertByMission : {},
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -848,6 +1054,26 @@ function restoreSavedProgress() {
   if (data.decisionAdvanced && typeof data.decisionAdvanced === "object") {
     ["mission-001", "mission-002"].forEach((mid) => {
       if (data.decisionAdvanced[mid] === true) decisionAdvanced[mid] = true;
+    });
+  }
+
+  // 10. Milestone 24E — restore alert state per mission. Only known
+  //     mission ids and known alert states are accepted; everything
+  //     else is ignored so corrupt storage cannot crash the loop.
+  alertByMission = {};
+  if (data.alertByMission && typeof data.alertByMission === "object") {
+    ["mission-001", "mission-002"].forEach((mid) => {
+      const a   = data.alertByMission[mid];
+      const def = ALERT_DEFINITIONS[mid];
+      if (!a || typeof a !== "object" || !def) return;
+      alertByMission[mid] = {
+        title:    def.title,
+        message:  def.message,
+        severity: ["Low", "Medium", "High", "Critical"].includes(a.severity)
+                    ? a.severity : def.severity,
+        state:    ALERT_STATES.includes(a.state) ? a.state : "New",
+      };
+      renderAlertCenter(mid);
     });
   }
 
@@ -1925,6 +2151,10 @@ function completeMission(newRank) {
   // Milestone 24C — Mission 1 complete → +10 trust.
   increaseTrustScore(10);
 
+  // Milestone 24E — mission complete ⇒ alert moves to Resolved
+  // ("Alert Resolved" badge per spec #12).
+  markAlertResolved("mission-001");
+
   // Milestone 15: mark every step complete (spec #8). The loop is a safety
   // net in case any earlier step's hook didn't fire (e.g. the optional
   // "cat-employee-notes" path); the final "complete" step is always set here.
@@ -2046,6 +2276,7 @@ function buildCompletionHTML(newRank) {
             <span class="scorecard-val scorecard-val--cyan">${getTrustScore()} / 100</span>
           </li>
           ${renderDecisionScorecardRows("mission-001")}
+          ${renderAlertScorecardRows("mission-001")}
         </ul>
 
         <!-- Skills Practiced -->
@@ -2191,6 +2422,11 @@ function beginMission() {
   setManagerMessage("started");
   // Milestone 15: advance tracker — Begin Mission done, Inspect Location is now current
   markProgressStep("begin-mission");
+  // Milestone 24E — alert moves from New → Investigating when the
+  // mission begins. createMissionAlert ensures the alert exists
+  // (idempotent on replay because resetMission clears it first).
+  if (!alertByMission["mission-001"]) createMissionAlert("mission-001");
+  markAlertInvestigating("mission-001");
 
   // Mark the "Mission Started" step as complete
   MISSION_STEPS.forEach((step) => {
@@ -2329,6 +2565,12 @@ function resetMission() {
   // the student must re-make their decision when they reach the
   // decision point again.
   resetDecisionForMission("mission-001");
+
+  // Milestone 24E — restarting a mission resets its alert (spec #14).
+  // Recreate it immediately in the "New" state so the Alert Center
+  // is populated; beginMission() will flip it to "Investigating".
+  clearAlert("mission-001");
+  createMissionAlert("mission-001");
 
   // 9. Restart countdown timer
   stopTimer();
@@ -2924,6 +3166,10 @@ function beginMission2() {
   // already runs on a fresh page, but call it explicitly here so a returning
   // student who left Mission 2 mid-way starts the replay from Medium too.
   setThreatLevel("Medium", "mission-002");
+
+  // Milestone 24E — alert moves from New → Investigating when M2 begins.
+  if (!alertByMission["mission-002"]) createMissionAlert("mission-002");
+  markAlertInvestigating("mission-002");
 }
 
 /** Return from the Mission 2 Dashboard back to the Mission 2 Overview.
@@ -3193,6 +3439,9 @@ function handleM2QuizAnswer(letter) {
   increaseTrustScore(10);
   increaseTrustScore(10);
 
+  // Milestone 24E — M2 complete ⇒ alert moves to Resolved.
+  markAlertResolved("mission-002");
+
   // Award XP (uses the existing M1 XP system — M2 shares the global bar)
   awardXP(M2_QUIZ.xpReward);
 
@@ -3280,6 +3529,7 @@ function renderM2Scorecard() {
             <span class="scorecard-val scorecard-val--cyan">${getTrustScore()} / 100</span>
           </li>
           ${renderDecisionScorecardRows("mission-002")}
+          ${renderAlertScorecardRows("mission-002")}
         </ul>
 
         <!-- Skills Practiced -->
@@ -3453,6 +3703,10 @@ function resetMission2() {
 
   // Milestone 24D — clear the Mission 2 decision state on restart.
   resetDecisionForMission("mission-002");
+
+  // Milestone 24E — restarting Mission 2 resets its alert (spec #14).
+  clearAlert("mission-002");
+  createMissionAlert("mission-002");
 
   // Buttons back to disabled
   document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
@@ -3673,6 +3927,9 @@ function completeMissionEngine(newRank) {
       rankNameEl.classList.add("rank-name--upgraded");
     }
 
+    // Milestone 24E — engine-driven M2 completion also resolves the alert.
+    markAlertResolved("mission-002");
+
     // Persist + dashboard sync + status checklist + supervisor/hint copy
     saveProgress();
     syncM2XPPanel();
@@ -3789,6 +4046,20 @@ window.MissionEngine = {
   resetDecisionForMission,
   decisionTaken,
   decisionAdvanced,
+  // 24E — alert loop system (Phase B)
+  ALERT_STATES,
+  ALERT_DEFINITIONS,
+  alertByMission,
+  createMissionAlert,
+  renderAlertCenter,
+  updateAlertSeverity,
+  markAlertInvestigating,
+  markAlertEvidenceFound,
+  markAlertDecisionRequired,
+  markAlertContained,
+  markAlertResolved,
+  clearAlert,
+  getAlertState,
 };
 
 
