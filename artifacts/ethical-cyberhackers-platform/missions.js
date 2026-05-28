@@ -262,6 +262,55 @@ export const MISSIONS = [
   },
 ];
 
+/* ============================================================
+   QUIZ
+   Shown after the student reads suspicious_file.txt.
+   The student must answer correctly to earn XP and complete
+   the mission — turning clicking into actual learning.
+
+   Fields per answer:
+     id      : letter shown on the button (A / B / C / D)
+     text    : the answer text
+     correct : true for the one right answer, false for the rest
+   ============================================================ */
+
+export const QUIZ = {
+  question:
+    "What makes suspicious_file.txt dangerous?",
+
+  answers: [
+    {
+      id: "A",
+      text: "It is stored in the documents folder.",
+      correct: false,
+    },
+    {
+      id: "B",
+      text: "It asks the user to send a password to an unknown external email.",
+      correct: true,
+    },
+    {
+      id: "C",
+      text: "It has a short filename.",
+      correct: false,
+    },
+    {
+      id: "D",
+      text: "It mentions account suspension.",
+      correct: false,
+    },
+  ],
+
+  // Feedback shown after the student picks an answer
+  correctFeedback:   "Correct. This is a phishing attempt.",
+  incorrectFeedback: "Not correct. Review the suspicious file again.",
+
+  // Reward for the correct answer
+  xpReward: 100,
+  newRank:  "Cyber Intern Level 1",
+};
+
+
 /** ID of the currently active mission. */
 export let activeMissionId = "mission-001";
 

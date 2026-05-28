@@ -1220,6 +1220,246 @@ button {
 
 
 /* ======================================================
+   QUIZ PANEL  (Milestone 3)
+   ====================================================== */
+
+/* Container — replaces the command buttons area */
+.quiz-panel {
+  animation: type-in 0.3s ease forwards;
+}
+
+/* Header row */
+.quiz-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--gap-md);
+  padding-bottom: var(--gap-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.quiz-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--color-cyan);
+  text-transform: uppercase;
+}
+
+.quiz-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-panel-alt);
+  border: 1px solid var(--color-border);
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+/* Question text */
+.quiz-question {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-bright);
+  line-height: 1.5;
+  margin-bottom: var(--gap-md);
+}
+
+/* Grid of four answer buttons */
+.quiz-answers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-sm);
+  margin-bottom: var(--gap-md);
+}
+
+/* Individual answer button */
+.quiz-answer-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap-sm);
+  padding: var(--gap-sm) var(--gap-md);
+  background-color: var(--color-bg-panel-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition);
+  font-family: var(--font-body);
+}
+
+.quiz-answer-btn:hover:not(:disabled) {
+  border-color: var(--color-cyan-dim);
+  background-color: rgba(0, 229, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.quiz-answer-btn:disabled {
+  cursor: default;
+}
+
+/* The letter bubble (A / B / C / D) */
+.quiz-answer-letter {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-cyan);
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  border-radius: var(--radius-sm);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.quiz-answer-text {
+  font-size: 12px;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+/* States after submission */
+.quiz-answer--correct {
+  border-color: var(--color-green) !important;
+  background-color: rgba(0, 255, 136, 0.08) !important;
+}
+.quiz-answer--correct .quiz-answer-letter {
+  background: rgba(0, 255, 136, 0.2);
+  border-color: var(--color-green);
+  color: var(--color-green);
+}
+.quiz-answer--correct .quiz-answer-text { color: var(--color-green); }
+
+.quiz-answer--wrong {
+  border-color: var(--color-red) !important;
+  background-color: rgba(255, 51, 51, 0.06) !important;
+}
+.quiz-answer--wrong .quiz-answer-letter {
+  background: rgba(255, 51, 51, 0.15);
+  border-color: var(--color-red);
+  color: var(--color-red);
+}
+.quiz-answer--wrong .quiz-answer-text { color: var(--color-red); }
+
+/* Reveal the correct answer when a wrong one was picked */
+.quiz-answer--reveal {
+  border-color: rgba(0, 255, 136, 0.4) !important;
+  opacity: 0.75;
+}
+.quiz-answer--reveal .quiz-answer-letter {
+  color: var(--color-green);
+}
+
+/* Feedback line shown below the answers */
+.quiz-feedback {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: var(--gap-sm) var(--gap-md);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid transparent;
+  margin-bottom: var(--gap-md);
+  animation: type-in 0.25s ease forwards;
+}
+
+.quiz-feedback--correct {
+  color: var(--color-green);
+  background: rgba(0, 255, 136, 0.06);
+  border-left-color: var(--color-green);
+}
+
+.quiz-feedback--wrong {
+  color: var(--color-red);
+  background: rgba(255, 51, 51, 0.06);
+  border-left-color: var(--color-red);
+}
+
+
+/* ======================================================
+   MISSION COMPLETE BANNER  (Milestone 3)
+   ====================================================== */
+
+.mission-complete-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-md);
+  padding: var(--gap-md);
+  background: linear-gradient(135deg, rgba(0,255,136,0.1), rgba(0,229,255,0.06));
+  border: 1px solid rgba(0, 255, 136, 0.35);
+  border-radius: var(--radius-md);
+  animation: banner-appear 0.5s 0.2s ease both;
+}
+
+@keyframes banner-appear {
+  from { opacity: 0; transform: scale(0.97) translateY(6px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+
+.mission-complete-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 8px rgba(255,215,0,0.6));
+}
+
+.mission-complete-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mission-complete-title {
+  font-family: var(--font-hud);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-green);
+  text-shadow: 0 0 10px rgba(0,255,136,0.5);
+}
+
+.mission-complete-sub {
+  font-size: 11px;
+  color: var(--color-text-dim);
+}
+
+/* Mission badge flips from yellow to green when complete */
+.mission-status-badge--complete {
+  color: var(--color-green) !important;
+  background-color: rgba(0, 255, 136, 0.12) !important;
+  border-color: rgba(0, 255, 136, 0.4) !important;
+}
+
+
+/* ======================================================
+   XP BAR PULSE  (Milestone 3)
+   ====================================================== */
+
+@keyframes xp-pulse {
+  0%   { box-shadow: 0 0 0   rgba(0,255,136,0); }
+  50%  { box-shadow: 0 0 16px rgba(0,255,136,0.7); }
+  100% { box-shadow: 0 0 4px rgba(0,255,136,0.2); }
+}
+
+.xp-bar--pulse {
+  animation: xp-pulse 1.2s ease forwards;
+}
+
+/* Rank name glows gold when upgraded */
+@keyframes rank-upgrade {
+  0%   { color: var(--color-yellow); text-shadow: 0 0 20px var(--color-yellow); }
+  100% { color: var(--color-yellow); text-shadow: 0 0 8px  rgba(255,215,0,0.4); }
+}
+
+.rank-name--upgraded {
+  animation: rank-upgrade 1.5s ease forwards;
+  color: var(--color-yellow) !important;
+}
+
+
+/* ======================================================
    UTILITY ANIMATIONS
    ====================================================== */
 

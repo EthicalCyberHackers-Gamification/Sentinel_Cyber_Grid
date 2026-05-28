@@ -1,37 +1,29 @@
 /**
  * script.js
  * ---------
- * Ethical CyberHackers Platform — Milestone 2: Mission Progression
+ * Ethical CyberHackers Platform — Milestone 3: Quiz & XP Reward
  *
- * PURPOSE
- * -------
- * Students click command buttons and see realistic Linux terminal output.
- * Commands unlock gradually so the investigation feels guided, not overwhelming.
- *
- * PROGRESSION FLOW
- * ----------------
- *  Start    → pwd, ls are visible
- *  After ls → cd documents unlocks
- *  After cd → ls (documents), cat employee_notes.txt, cat suspicious_file.txt unlock
- *
- * HOW STATE WORKS
- * ---------------
- *  currentDir     : which folder the student is in (changes on `cd`)
- *  unlockedKeys   : Set of button keys currently visible (grows as student progresses)
- *  completedSteps : Set of step IDs already marked done (shown with a ✓ in Mission Panel)
+ * FLOW THIS FILE IMPLEMENTS
+ * -------------------------
+ *  1. Student clicks buttons → terminal shows output (Milestone 1 & 2)
+ *  2. Commands unlock gradually as the student investigates (Milestone 2)
+ *  3. After reading suspicious_file.txt → a quiz appears (Milestone 3)
+ *  4. Correct answer → +100 XP, rank update, "Mission Complete"
+ *  5. Wrong answer   → "Not correct. Review the suspicious file again."
  *
  * FILES
  * -----
- *  missions.js  — all data (FILESYSTEM, COMMAND_BUTTONS, MISSION_STEPS, MISSIONS)
- *  script.js    — all interaction logic (this file)
- *  index.html   — HTML structure
- *  style.css    — visual styling
+ *  missions.js — all data (FILESYSTEM, COMMAND_BUTTONS, MISSION_STEPS, QUIZ, MISSIONS)
+ *  script.js   — all interaction logic (this file)
+ *  index.html  — HTML structure
+ *  style.css   — visual styling
  */
 
 import {
   FILESYSTEM,
   COMMAND_BUTTONS,
   MISSION_STEPS,
+  QUIZ,
   getMissionById,
   activeMissionId,
 } from "/missions.js";
@@ -39,7 +31,6 @@ import {
 
 /* ============================================================
    STEP 1 — DOM references
-   Look up every HTML element we need, once, at the start.
    ============================================================ */
 
 const terminalOutput  = document.getElementById("terminalOutput");
@@ -49,34 +40,50 @@ const promptLabel     = document.querySelector(".terminal-prompt-label");
 const terminalTitle   = document.querySelector(".terminal-title");
 const btnContainer    = document.getElementById("commandButtonsContainer");
 const statusList      = document.getElementById("missionStatusList");
+const quizPanel       = document.getElementById("quizPanel");
+const commandsHint    = document.querySelector(".commands-hint");
+
+// XP panel elements (updated when the student earns XP)
+const xpBarEl      = document.getElementById("xpBar");
+const currentXPEl  = document.getElementById("currentXP");
+const maxXPEl      = document.getElementById("maxXP");
+const rankNameEl   = document.getElementById("rankName");
+
+// Mission panel badge ("IN PROGRESS" → "COMPLETE")
+const missionBadge = document.querySelector(".mission-status-badge");
 
 
 /* ============================================================
    STEP 2 — Application state
-   These variables track where the student is and what they've done.
    ============================================================ */
 
 /** Which directory the student is currently in. */
 let currentDir = "~";
 
-/** Set of button keys the student can currently see and click. */
+/** Button keys the student can currently see. */
 const unlockedKeys = new Set();
 
-/** Set of mission step IDs that have been marked complete. */
+/** Mission step IDs that have been checked off. */
 const completedSteps = new Set();
+
+/** Current XP total (starts at 750 for demonstration). */
+let currentXP = 750;
+
+/** Max XP for the current rank tier. */
+const maxXP = 1000;
+
+/** Whether the mission has been fully completed. */
+let missionComplete = false;
 
 
 /* ============================================================
-   STEP 3 — Prompt helper
-   Builds the shell prompt string for the current directory.
-   Example: "student@cybercorp:~/documents$"
+   STEP 3 — Prompt helpers
    ============================================================ */
 
 function getPrompt() {
   return `student@cybercorp:${currentDir}$`;
 }
 
-/** Updates every on-screen prompt to match the current directory. */
 function updatePromptDisplay() {
   const p = getPrompt();
   if (terminalTitle) terminalTitle.textContent = p;
@@ -86,15 +93,8 @@ function updatePromptDisplay() {
 
 /* ============================================================
    STEP 4 — Terminal output helpers
-   Functions for appending lines to the terminal panel.
    ============================================================ */
 
-/**
- * Prints the command the student "ran" (shown in green with the prompt).
- * Looks like:  student@cybercorp:~$ ls
- *
- * @param {string} command
- */
 function printCommand(command) {
   const line = document.createElement("div");
   line.className = "terminal-line terminal-line--new";
@@ -105,12 +105,6 @@ function printCommand(command) {
   scrollTerminal();
 }
 
-/**
- * Prints one line of output under a command.
- *
- * @param {string} text
- * @param {string} [type]  "default" | "warn" | "error" | "info"
- */
 function printOutput(text, type = "default") {
   const line = document.createElement("div");
   line.className = "terminal-line terminal-line--new";
@@ -121,7 +115,6 @@ function printOutput(text, type = "default") {
   scrollTerminal();
 }
 
-/** Prints an empty line to visually separate command blocks. */
 function printBlankLine() {
   const line = document.createElement("div");
   line.className = "terminal-line";
@@ -130,12 +123,10 @@ function printBlankLine() {
   scrollTerminal();
 }
 
-/** Scrolls the terminal so the latest line is always visible. */
 function scrollTerminal() {
   if (terminalOutput) terminalOutput.scrollTop = terminalOutput.scrollHeight;
 }
 
-/** Wipes the terminal and shows a fresh system message. */
 function clearTerminal() {
   terminalOutput.innerHTML = "";
   const line = document.createElement("div");
@@ -149,21 +140,14 @@ function clearTerminal() {
 
 /* ============================================================
    STEP 5 — Command processor
-   Handles each command the student runs, using the FILESYSTEM
-   data from missions.js to produce the correct output.
+   Looks up FILESYSTEM data and shows the right output per command.
    ============================================================ */
 
-/**
- * Processes one command string and prints the right output.
- *
- * @param {string} command   The full command (e.g. "cat suspicious_file.txt")
- * @param {string} buttonKey The key of the button that was clicked
- */
 function processCommand(command, buttonKey) {
   const cmd     = command.trim().toLowerCase();
   const dirData = FILESYSTEM[currentDir];
 
-  /* ---- pwd ---- */
+  /* pwd */
   if (cmd === "pwd") {
     printOutput(dirData.pwd);
     printBlankLine();
@@ -171,16 +155,15 @@ function processCommand(command, buttonKey) {
     return;
   }
 
-  /* ---- ls ---- */
+  /* ls */
   if (cmd === "ls") {
-    // Join items with two spaces — same layout as a real terminal one-liner
     printOutput(dirData.ls.join("  "));
     printBlankLine();
     afterCommand(buttonKey);
     return;
   }
 
-  /* ---- cd <folder> ---- */
+  /* cd <folder> */
   if (cmd.startsWith("cd ")) {
     const target     = cmd.slice(3).trim();
     const newPath    = `${currentDir}/${target}`;
@@ -189,7 +172,6 @@ function processCommand(command, buttonKey) {
     if (dirData.subdirs.includes(target) && FILESYSTEM[normalised]) {
       currentDir = normalised;
       updatePromptDisplay();
-      // Successful cd has no output — just like a real shell
       printBlankLine();
       afterCommand(buttonKey);
     } else {
@@ -199,9 +181,8 @@ function processCommand(command, buttonKey) {
     return;
   }
 
-  /* ---- cat <filename> ---- */
+  /* cat <filename> */
   if (cmd.startsWith("cat ")) {
-    // Use the original-cased command to look up the filename correctly
     const filename = command.trim().slice(4).trim();
     const files    = dirData.files;
 
@@ -224,57 +205,52 @@ function processCommand(command, buttonKey) {
     return;
   }
 
-  /* ---- clear ---- */
+  /* clear */
   if (cmd === "clear") {
     clearTerminal();
     return;
   }
 
-  /* ---- unknown ---- */
-  printOutput(
-    `bash: ${cmd.split(" ")[0]}: command not found`,
-    "error"
-  );
+  /* unknown */
+  printOutput(`bash: ${cmd.split(" ")[0]}: command not found`, "error");
   printBlankLine();
 }
 
 
 /* ============================================================
    STEP 6 — Unlock & progression engine
-   Called after every command to reveal new buttons and
-   check off mission steps.
    ============================================================ */
 
 /**
- * Called after a command runs successfully.
- * Unlocks any buttons gated on this button key,
- * and marks any mission steps that this key triggers.
+ * Called after every command.
+ * Unlocks any buttons gated on this key, marks mission steps,
+ * and triggers the quiz if this was "cat-suspicious".
  *
- * @param {string} buttonKey  The key of the button that was just clicked
+ * @param {string} buttonKey
  */
 function afterCommand(buttonKey) {
   if (!buttonKey) return;
 
-  // Find this button's definition to see what it unlocks
+  // Unlock buttons whose unlock condition was just met
   const btnDef = COMMAND_BUTTONS.find((b) => b.key === buttonKey);
   if (btnDef && btnDef.unlocksAfterRun.length > 0) {
     unlockButtons(btnDef.unlocksAfterRun);
   }
 
-  // Check if this button key completes a mission step
+  // Check off mission steps triggered by this button
   MISSION_STEPS.forEach((step) => {
     if (step.triggeredBy === buttonKey && !completedSteps.has(step.id)) {
       completeStep(step.id);
     }
   });
+
+  // Show the quiz after the student reads the suspicious file
+  if (buttonKey === "cat-suspicious") {
+    // Short delay so the student sees the file content before the quiz appears
+    setTimeout(showQuiz, 800);
+  }
 }
 
-/**
- * Adds new button keys to the unlocked set and re-renders the button panel.
- * New buttons appear with a short slide-in animation so the student notices them.
- *
- * @param {string[]} keys  Array of button keys to unlock
- */
 function unlockButtons(keys) {
   let anyNew = false;
   keys.forEach((key) => {
@@ -283,14 +259,9 @@ function unlockButtons(keys) {
       anyNew = true;
     }
   });
-  if (anyNew) renderButtons(keys); // pass newly unlocked keys for animation
+  if (anyNew) renderButtons(keys);
 }
 
-/**
- * Marks a mission step as complete and re-renders the status list.
- *
- * @param {string} stepId
- */
 function completeStep(stepId) {
   completedSteps.add(stepId);
   renderMissionStatus();
@@ -299,32 +270,22 @@ function completeStep(stepId) {
 
 /* ============================================================
    STEP 7 — Render: command buttons
-   Builds the button panel from the COMMAND_BUTTONS data.
-   Only buttons in `unlockedKeys` are shown.
-   Newly unlocked buttons play an appear animation.
    ============================================================ */
 
-/**
- * Renders all unlocked buttons into #commandButtonsContainer.
- *
- * @param {string[]} [newlyUnlocked]  Keys that were just unlocked (get animation)
- */
 function renderButtons(newlyUnlocked = []) {
   if (!btnContainer) return;
   btnContainer.innerHTML = "";
 
   COMMAND_BUTTONS.forEach((btn) => {
-    if (!unlockedKeys.has(btn.key)) return;  // skip locked buttons
+    if (!unlockedKeys.has(btn.key)) return;
 
     const el = document.createElement("button");
     el.className = `cmd-btn cmd-btn--${btn.style}`;
     el.dataset.command   = btn.command;
     el.dataset.buttonKey = btn.key;
 
-    // Newly unlocked buttons get an animation class so the student notices them
     if (newlyUnlocked.includes(btn.key)) {
       el.classList.add("cmd-btn--unlocking");
-      // Remove animation class after it plays so it doesn't re-trigger
       el.addEventListener("animationend", () => {
         el.classList.remove("cmd-btn--unlocking");
       }, { once: true });
@@ -351,8 +312,6 @@ function renderButtons(newlyUnlocked = []) {
 
 /* ============================================================
    STEP 8 — Render: mission status tracker
-   Builds the 4-step progress list inside #missionStatusList.
-   Completed steps show ✓ and a different colour.
    ============================================================ */
 
 function renderMissionStatus() {
@@ -361,30 +320,181 @@ function renderMissionStatus() {
 
   MISSION_STEPS.forEach((step) => {
     const done = completedSteps.has(step.id);
-
-    const li = document.createElement("li");
+    const li   = document.createElement("li");
     li.className = `step-item ${done ? "step-item--complete" : "step-item--pending"}`;
-
     li.innerHTML =
       `<span class="step-icon">${done ? "✓" : "○"}</span>` +
       `<span class="step-emoji">${step.icon}</span>` +
       `<span class="step-label">${step.label}</span>`;
-
     statusList.appendChild(li);
   });
 }
 
 
 /* ============================================================
-   STEP 9 — Run a command end-to-end
+   STEP 9 — Quiz
+   Shown after the student reads suspicious_file.txt.
+   Builds the question and four answer buttons dynamically.
    ============================================================ */
 
 /**
- * Echoes the command to the terminal, then processes and shows output.
- *
- * @param {string} command    The command string (e.g. "ls")
- * @param {string} [buttonKey] The key of the button that triggered it
+ * Hides the command buttons, shows the quiz panel, and builds the quiz UI.
+ * Called 800ms after "cat suspicious_file.txt" runs.
  */
+function showQuiz() {
+  if (!quizPanel || missionComplete) return;
+
+  // Hide the command buttons — the quiz replaces them
+  if (btnContainer)  btnContainer.style.display  = "none";
+  if (commandsHint)  commandsHint.style.display   = "none";
+
+  // Build and show the quiz
+  quizPanel.style.display = "block";
+  quizPanel.innerHTML     = buildQuizHTML();
+
+  // Wire up each answer button
+  quizPanel.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+    btn.addEventListener("click", () => handleAnswer(btn.dataset.answerId));
+  });
+}
+
+/**
+ * Returns the HTML string for the quiz panel.
+ * The answer buttons are wired up separately in showQuiz().
+ */
+function buildQuizHTML() {
+  const answersHTML = QUIZ.answers
+    .map(
+      (a) =>
+        `<button class="quiz-answer-btn" data-answer-id="${a.id}">
+          <span class="quiz-answer-letter">${a.id}</span>
+          <span class="quiz-answer-text">${a.text}</span>
+        </button>`
+    )
+    .join("");
+
+  return `
+    <div class="quiz-header">
+      <span class="quiz-label">KNOWLEDGE CHECK</span>
+      <span class="quiz-badge">Mission 001</span>
+    </div>
+    <p class="quiz-question">${QUIZ.question}</p>
+    <div class="quiz-answers">${answersHTML}</div>
+    <div class="quiz-feedback" id="quizFeedback"></div>
+  `;
+}
+
+/**
+ * Called when the student clicks an answer button.
+ * Shows feedback, and if correct, awards XP and completes the mission.
+ *
+ * @param {string} answerId  "A", "B", "C", or "D"
+ */
+function handleAnswer(answerId) {
+  const chosen  = QUIZ.answers.find((a) => a.id === answerId);
+  const correct = chosen && chosen.correct;
+
+  // Disable all answer buttons to prevent re-clicking
+  quizPanel.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+    btn.disabled = true;
+    // Highlight which was right and which was chosen
+    const btnId = btn.dataset.answerId;
+    if (btnId === answerId && correct)  btn.classList.add("quiz-answer--correct");
+    if (btnId === answerId && !correct) btn.classList.add("quiz-answer--wrong");
+    if (QUIZ.answers.find((a) => a.id === btnId && a.correct) && !correct) {
+      btn.classList.add("quiz-answer--reveal");  // show the right answer
+    }
+  });
+
+  const feedbackEl = document.getElementById("quizFeedback");
+  if (!feedbackEl) return;
+
+  if (correct) {
+    feedbackEl.textContent  = QUIZ.correctFeedback;
+    feedbackEl.className    = "quiz-feedback quiz-feedback--correct";
+    awardXP(QUIZ.xpReward);
+    completeMission(QUIZ.newRank);
+  } else {
+    feedbackEl.textContent  = QUIZ.incorrectFeedback;
+    feedbackEl.className    = "quiz-feedback quiz-feedback--wrong";
+  }
+}
+
+
+/* ============================================================
+   STEP 10 — XP reward & mission completion
+   ============================================================ */
+
+/**
+ * Adds XP to the student's total and animates the XP bar.
+ * Updates the on-screen XP value and bar width.
+ *
+ * @param {number} amount  XP to add (e.g. 100)
+ */
+function awardXP(amount) {
+  currentXP = Math.min(currentXP + amount, maxXP);
+
+  // Update the numeric display
+  if (currentXPEl) currentXPEl.textContent = currentXP;
+
+  // Animate the XP bar to the new width
+  const pct = Math.round((currentXP / maxXP) * 100);
+  if (xpBarEl) {
+    xpBarEl.style.transition = "width 1s ease";
+    xpBarEl.style.width      = `${pct}%`;
+    // Brief glow pulse on the bar
+    xpBarEl.classList.add("xp-bar--pulse");
+    setTimeout(() => xpBarEl.classList.remove("xp-bar--pulse"), 1200);
+  }
+
+  // Print a terminal confirmation line
+  printOutput(`[+${amount} XP awarded]`, "info");
+  printBlankLine();
+}
+
+/**
+ * Marks the mission as fully complete:
+ *  - Updates the rank name in the XP panel
+ *  - Changes the mission badge from "IN PROGRESS" to "COMPLETE"
+ *  - Appends a "Mission Complete" banner inside the quiz panel
+ *
+ * @param {string} newRank  The rank name to display
+ */
+function completeMission(newRank) {
+  missionComplete = true;
+
+  // Update rank in the XP panel
+  if (rankNameEl) {
+    rankNameEl.textContent = newRank;
+    rankNameEl.classList.add("rank-name--upgraded");
+  }
+
+  // Flip the mission badge to "COMPLETE"
+  if (missionBadge) {
+    missionBadge.textContent = "COMPLETE";
+    missionBadge.classList.add("mission-status-badge--complete");
+  }
+
+  // Append a "Mission Complete" banner at the bottom of the quiz panel
+  const banner = document.createElement("div");
+  banner.className = "mission-complete-banner";
+  banner.innerHTML =
+    `<span class="mission-complete-icon">🏆</span>` +
+    `<div class="mission-complete-text">` +
+    `  <span class="mission-complete-title">Mission Complete</span>` +
+    `  <span class="mission-complete-sub">Well done, Agent. You identified a phishing attack.</span>` +
+    `</div>`;
+  quizPanel.appendChild(banner);
+
+  // Print confirmation to the terminal
+  printOutput("[ MISSION COMPLETE — Well done, Agent. ]", "info");
+}
+
+
+/* ============================================================
+   STEP 11 — Run a command end-to-end
+   ============================================================ */
+
 function runCommand(command, buttonKey = "") {
   const trimmed = command.trim();
   if (!trimmed) return;
@@ -394,33 +504,27 @@ function runCommand(command, buttonKey = "") {
 
 
 /* ============================================================
-   STEP 10 — Keyboard input (optional typing)
-   The student can also type commands by hand.
-   Note: typed commands won't trigger the unlock system because
-   they don't have a button key. Button clicks are the intended path.
+   STEP 12 — Keyboard input (optional)
+   Note: typed commands don't trigger the unlock/quiz system.
    ============================================================ */
 
 function initTerminalInput() {
   if (!terminalInput) return;
-
   terminalInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       const typed = terminalInput.value;
       terminalInput.value = "";
-      runCommand(typed, ""); // no button key — won't unlock/progress
+      runCommand(typed, "");
     }
   });
 }
 
-// Wire up the CLR button in the terminal header
 const clrButton = document.querySelector(".terminal-btn");
-if (clrButton) {
-  clrButton.addEventListener("click", clearTerminal);
-}
+if (clrButton) clrButton.addEventListener("click", clearTerminal);
 
 
 /* ============================================================
-   STEP 11 — Countdown timer
+   STEP 13 — Countdown timer
    ============================================================ */
 
 let timerInterval = null;
@@ -436,7 +540,6 @@ function startTimer(durationSeconds) {
   if (timerInterval) clearInterval(timerInterval);
   secondsLeft = durationSeconds;
   if (missionTimer) missionTimer.textContent = formatTime(secondsLeft);
-
   timerInterval = setInterval(() => {
     secondsLeft -= 1;
     if (missionTimer) missionTimer.textContent = formatTime(secondsLeft);
@@ -446,36 +549,32 @@ function startTimer(durationSeconds) {
 
 
 /* ============================================================
-   STEP 12 — Boot
-   Sets up the initial state when the page first loads.
+   STEP 14 — Boot
    ============================================================ */
 
 function boot() {
-  // Set the starting unlocked buttons
+  // Unlock the starting buttons
   COMMAND_BUTTONS.forEach((btn) => {
     if (btn.unlockedAtStart) unlockedKeys.add(btn.key);
   });
 
-  // "Mission Started" step is auto-complete (triggeredBy: null)
+  // Auto-complete "Mission Started" step
   MISSION_STEPS.forEach((step) => {
     if (step.triggeredBy === null) completedSteps.add(step.id);
   });
 
-  // Render the initial UI
+  // Render initial state
   updatePromptDisplay();
   renderButtons();
   renderMissionStatus();
 
-  // Start the timer
+  // Start mission timer
   const mission = getMissionById(activeMissionId);
   if (mission && mission.timeLimitSec > 0) {
     startTimer(mission.timeLimitSec);
   }
 
-  // Wire up keyboard input
   initTerminalInput();
-
-  // Focus the terminal input
   if (terminalInput) terminalInput.focus();
 }
 
