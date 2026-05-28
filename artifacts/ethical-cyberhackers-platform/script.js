@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 05:10 CST";
+const BUILD_TIME = "28 May 2026 — 05:30 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -1828,43 +1828,43 @@ function renderCourseProgress() {
           <button id="startMission2Btn" class="course-start-btn">
             ▶&nbsp; Start Mission 2
           </button>
-          <div id="mission2Placeholder" class="mission2-placeholder" style="display:none;">
-            <p class="mission2-placeholder-text">
-              <strong>Mission 2 coming next:</strong>
-              You will learn how cybersecurity analysts identify devices
-              and services on a network.
-            </p>
-            <button id="closeMission2PlaceholderBtn" class="mission2-placeholder-close">
-              Got it
-            </button>
-          </div>
         ` : ""}
       </li>
     </ul>
   `;
 
-  // Wire up the Start Mission 2 button (only present when unlocked)
+  // Wire up the Start Mission 2 button (only present when unlocked).
+  // Milestone 19: clicking it now takes the student to the full
+  // Mission 2 Overview takeover screen.
   if (m1Completed) {
     const startBtn = document.getElementById("startMission2Btn");
-    const placeholder = document.getElementById("mission2Placeholder");
-    const closeBtn = document.getElementById("closeMission2PlaceholderBtn");
+    if (startBtn) startBtn.addEventListener("click", showMission2Overview);
+  }
+}
 
-    if (startBtn && placeholder) {
-      startBtn.addEventListener("click", () => {
-        placeholder.style.display = "block";
-        startBtn.disabled = true;
-        startBtn.classList.add("course-start-btn--used");
-      });
-    }
-    if (closeBtn && placeholder) {
-      closeBtn.addEventListener("click", () => {
-        placeholder.style.display = "none";
-        if (startBtn) {
-          startBtn.disabled = false;
-          startBtn.classList.remove("course-start-btn--used");
-        }
-      });
-    }
+/* ============================================================
+   MISSION 2 OVERVIEW  (Milestone 19)
+   Takeover screen previewing Mission 2. Hides the dashboard
+   and the module landing; "Back to Module Overview" returns
+   to the landing screen. Mission 2 gameplay is not yet built.
+   ============================================================ */
+
+function showMission2Overview() {
+  const overview = document.getElementById("mission2Overview");
+  if (!overview) return;
+  if (dashboardEl)     dashboardEl.style.display     = "none";
+  if (moduleLandingEl) moduleLandingEl.style.display = "none";
+  overview.style.display = "";
+  overview.scrollTop = 0;
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+function hideMission2Overview() {
+  const overview = document.getElementById("mission2Overview");
+  if (overview) overview.style.display = "none";
+  if (moduleLandingEl) {
+    moduleLandingEl.style.display = "";
+    moduleLandingEl.scrollTop = 0;
   }
 }
 
@@ -1935,6 +1935,11 @@ function boot() {
   // Inject the build timestamp into the footer so it's always visible
   const buildEl = document.getElementById("buildTimestamp");
   if (buildEl) buildEl.textContent = `build: ${BUILD_TIME}`;
+
+  // Milestone 19 — wire the "Back to Module Overview" button on the
+  // Mission 2 Overview takeover screen
+  const m2BackBtn = document.getElementById("mission2BackBtn");
+  if (m2BackBtn) m2BackBtn.addEventListener("click", hideMission2Overview);
 
   // Milestone 18 — wire Clear Saved Progress button(s)
   document.querySelectorAll(".clear-progress-btn").forEach((btn) => {

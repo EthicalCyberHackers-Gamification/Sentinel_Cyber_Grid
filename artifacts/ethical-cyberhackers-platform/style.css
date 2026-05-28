@@ -1477,6 +1477,78 @@ button {
 
 
 /* ======================================================
+   MISSION 2 OVERVIEW  (Milestone 19)
+   Takeover preview screen. Reuses .module-landing-card
+   styling for visual continuity with the module landing.
+   ====================================================== */
+
+.m2-status {
+  color: var(--color-cyan) !important;
+  letter-spacing: 1.2px;
+}
+
+.m2-cmd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.m2-cmd-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: rgba(0,0,0,0.35);
+  border: 1px dashed rgba(0,229,255,0.25);
+  border-radius: var(--radius-md);
+  color: var(--color-text-dim);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  text-align: left;
+  cursor: not-allowed;
+  opacity: 0.7;
+  transition: none;
+}
+.m2-cmd-btn:disabled { pointer-events: none; }
+.m2-cmd-prompt {
+  color: var(--color-cyan);
+  font-weight: 700;
+  opacity: 0.7;
+}
+
+.m2-coming-next {
+  margin: 14px 0 0 0;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--color-yellow, #ffd60a);
+  background: rgba(255,214,10,0.06);
+  border: 1px dashed rgba(255,214,10,0.35);
+  border-radius: var(--radius-sm, 4px);
+}
+
+/* Secondary variant of the Enter Module button — used for the
+   "Back to Module Overview" button on the M2 overview screen. */
+.enter-module-btn--secondary {
+  background: transparent !important;
+  color: var(--color-cyan) !important;
+  border: 1px solid var(--color-cyan) !important;
+  box-shadow: none !important;
+}
+.enter-module-btn--secondary:hover {
+  background: rgba(0,229,255,0.08) !important;
+}
+
+@media (max-width: 520px) {
+  .m2-cmd-grid { grid-template-columns: 1fr; }
+}
+
+
+/* ======================================================
    LOCAL PROGRESS SAVE  (Milestone 18)
    Small "Progress Saved Locally" pill + Clear button row
    shown under the Enter Module button on the landing screen.

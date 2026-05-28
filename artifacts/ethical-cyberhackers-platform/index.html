@@ -157,6 +157,100 @@
       </div>
     </section>
 
+    <!-- ===== MISSION 2 OVERVIEW SCREEN (Milestone 19) =====
+         Shown when the student clicks "Start Mission 2" from the
+         Course Progress panel. Hides the dashboard, shows this
+         takeover screen. Mission 2 gameplay itself is not built yet —
+         the command buttons here are disabled placeholders. -->
+    <section id="mission2Overview" class="module-landing" aria-label="Mission 2 Overview" style="display:none;">
+      <div class="module-landing-card">
+
+        <div class="module-eyebrow">
+          <span class="module-eyebrow-label">MISSION 02</span>
+          <span class="module-eyebrow-value">
+            Cybersecurity Internship Simulator <span class="module-eyebrow-sep">—</span> Network Track
+          </span>
+        </div>
+
+        <h1 class="module-title">
+          Network Basics
+        </h1>
+
+        <div class="module-meta-row">
+          <div class="module-meta-item">
+            <span class="module-meta-label">DIFFICULTY</span>
+            <span class="module-meta-value difficulty--beginner">BEGINNER</span>
+          </div>
+          <div class="module-meta-item">
+            <span class="module-meta-label">STATUS</span>
+            <span class="module-meta-value m2-status">PREVIEW</span>
+          </div>
+          <div class="module-meta-item">
+            <span class="module-meta-label">MISSION</span>
+            <span class="module-meta-value">02 of 02</span>
+          </div>
+        </div>
+
+        <section class="module-section">
+          <h2 class="module-section-title">MISSION BRIEFING</h2>
+          <p class="module-section-text">
+            Your cybersecurity manager has assigned you to inspect a small
+            company network. Your job is to identify connected devices and
+            understand which services may be exposed.
+          </p>
+        </section>
+
+        <section class="module-section">
+          <h2 class="module-section-title">LEARNING OBJECTIVE</h2>
+          <p class="module-section-text">
+            By the end of this mission, you will understand how analysts
+            identify devices, IP addresses, ports, and services during a
+            basic network investigation.
+          </p>
+        </section>
+
+        <section class="module-section">
+          <h2 class="module-section-title">SKILLS PRACTICED</h2>
+          <ul class="module-skills">
+            <li><span class="module-skill-bullet">▹</span>Understanding IP addresses</li>
+            <li><span class="module-skill-bullet">▹</span>Recognizing open ports</li>
+            <li><span class="module-skill-bullet">▹</span>Identifying common services</li>
+            <li><span class="module-skill-bullet">▹</span>Reading scan-style output</li>
+            <li><span class="module-skill-bullet">▹</span>Thinking like a network analyst</li>
+          </ul>
+        </section>
+
+        <section class="module-section">
+          <h2 class="module-section-title">COMMANDS (PREVIEW)</h2>
+          <div class="m2-cmd-grid">
+            <button class="m2-cmd-btn" type="button" disabled
+                    title="Mission 2 functionality coming next">
+              <span class="m2-cmd-prompt">$</span> ip addr
+            </button>
+            <button class="m2-cmd-btn" type="button" disabled
+                    title="Mission 2 functionality coming next">
+              <span class="m2-cmd-prompt">$</span> ping 10.0.0.5
+            </button>
+            <button class="m2-cmd-btn" type="button" disabled
+                    title="Mission 2 functionality coming next">
+              <span class="m2-cmd-prompt">$</span> nmap 10.0.0.5
+            </button>
+            <button class="m2-cmd-btn" type="button" disabled
+                    title="Mission 2 functionality coming next">
+              <span class="m2-cmd-prompt">$</span> review services
+            </button>
+          </div>
+          <p class="m2-coming-next">
+            🚧&nbsp; Mission 2 functionality coming next.
+          </p>
+        </section>
+
+        <button id="mission2BackBtn" class="enter-module-btn enter-module-btn--secondary" type="button">
+          ←&nbsp; Back to Module Overview
+        </button>
+      </div>
+    </section>
+
     <!-- ===== SIMULATION LOADING SCREEN (Milestone 11) =====
          Shown between "Enter Module" click and the dashboard.
          Pure visual — script.js types out a fake boot log and fills
