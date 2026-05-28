@@ -1477,6 +1477,171 @@ button {
 
 
 /* ======================================================
+   SIMULATION LOADING SCREEN  (Milestone 11)
+   Plays after "Enter Module" and before the dashboard.
+   Pure visual: fake boot log + progress bar + blinking cursor.
+   ====================================================== */
+
+.sim-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: radial-gradient(ellipse at center,
+    rgba(0,30,20,0.95) 0%,
+    rgba(0,10,15,0.98) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: simLoaderFadeIn 0.25s ease-out;
+}
+
+@keyframes simLoaderFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Subtle scanline overlay for the "old monitor" feel */
+.sim-loader::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0,255,136,0.025) 0px,
+    rgba(0,255,136,0.025) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events: none;
+}
+
+.sim-loader-card {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  background: rgba(0,15,12,0.85);
+  border: 1px solid rgba(0,255,136,0.4);
+  border-radius: var(--radius-md);
+  padding: 28px 32px;
+  box-shadow:
+    0 0 40px rgba(0,255,136,0.15),
+    inset 0 0 60px rgba(0,255,136,0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sim-loader-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(0,255,136,0.2);
+}
+.sim-loader-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--color-cyan);
+  font-weight: 700;
+}
+.sim-loader-title {
+  margin: 0;
+  font-family: var(--font-display, var(--font-mono));
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-green);
+  letter-spacing: 0.5px;
+}
+.sim-loader-sub {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--color-text-dim);
+  line-height: 1.4;
+}
+
+/* Fake terminal */
+.sim-loader-terminal {
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(0,255,136,0.15);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  min-height: 220px;
+  max-height: 280px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.sim-loader-line {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  animation: simLineIn 0.2s ease-out forwards;
+}
+.sim-loader-prompt {
+  color: var(--color-green);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.sim-loader-line-text {
+  color: var(--color-text-dim);
+}
+
+@keyframes simLineIn {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 0.9; transform: translateX(0); }
+}
+
+/* Active "current" line with blinking cursor */
+.sim-loader-current {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 4px;
+}
+.sim-loader-current-text {
+  color: var(--color-cyan);
+}
+.sim-loader-cursor {
+  color: var(--color-green);
+  animation: simCursorBlink 0.9s steps(2, start) infinite;
+}
+@keyframes simCursorBlink {
+  to { visibility: hidden; }
+}
+
+/* Progress bar */
+.sim-loader-progress {
+  height: 6px;
+  background: rgba(0,255,136,0.08);
+  border: 1px solid rgba(0,255,136,0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.sim-loader-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--color-cyan), var(--color-green));
+  transition: width 0.4s ease;
+  box-shadow: 0 0 8px rgba(0,255,136,0.5);
+}
+.sim-loader-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 1.5px;
+}
+.sim-loader-pct    { color: var(--color-green); font-weight: 700; }
+.sim-loader-status { color: var(--color-cyan);  font-weight: 700; }
+
+
+/* ======================================================
    MODULE LANDING SCREEN  (Milestone 10)
    Full-width intro screen shown before the dashboard.
    "Enter Module" hides this and reveals the dashboard.

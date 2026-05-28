@@ -133,6 +133,43 @@
       </div>
     </section>
 
+    <!-- ===== SIMULATION LOADING SCREEN (Milestone 11) =====
+         Shown between "Enter Module" click and the dashboard.
+         Pure visual — script.js types out a fake boot log and fills
+         the progress bar, then hides this screen and reveals the
+         dashboard. No real backend work happens here. -->
+    <section id="simLoader" class="sim-loader" aria-label="Initializing Training Simulation" style="display:none;">
+      <div class="sim-loader-card">
+
+        <div class="sim-loader-header">
+          <span class="sim-loader-eyebrow">CYBERCORP // SECURE BOOT</span>
+          <h2 class="sim-loader-title">Initializing Training Simulation</h2>
+          <p class="sim-loader-sub">
+            Bringing up the sandboxed analyst workstation. Please stand by.
+          </p>
+        </div>
+
+        <!-- Fake terminal — lines appended one by one by script.js -->
+        <div class="sim-loader-terminal" role="log" aria-live="polite">
+          <div class="sim-loader-lines" id="simLoaderLines"></div>
+          <div class="sim-loader-current">
+            <span id="simLoaderCurrent" class="sim-loader-current-text"></span>
+            <span class="sim-loader-cursor" aria-hidden="true">▌</span>
+          </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="sim-loader-progress" aria-hidden="true">
+          <div class="sim-loader-progress-fill" id="simLoaderBar"></div>
+        </div>
+        <div class="sim-loader-progress-meta">
+          <span id="simLoaderPct" class="sim-loader-pct">0%</span>
+          <span class="sim-loader-status" id="simLoaderStatus">BOOTING…</span>
+        </div>
+
+      </div>
+    </section>
+
     <!-- ===== MAIN DASHBOARD ===== -->
     <main class="dashboard" id="dashboard" style="display:none;">
 

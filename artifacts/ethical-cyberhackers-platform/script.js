@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 02:00 CST";
+const BUILD_TIME = "28 May 2026 — 02:25 CST";
 
 
 /* ============================================================
@@ -131,6 +131,33 @@ const courseProgressEl = document.getElementById("courseProgress");
 // Milestone 10 — Module landing screen elements
 const moduleLandingEl  = document.getElementById("moduleLanding");
 const dashboardEl      = document.getElementById("dashboard");
+
+// Milestone 11 — Simulation loading screen elements
+const simLoaderEl        = document.getElementById("simLoader");
+const simLoaderLinesEl   = document.getElementById("simLoaderLines");
+const simLoaderCurrentEl = document.getElementById("simLoaderCurrent");
+const simLoaderBarEl     = document.getElementById("simLoaderBar");
+const simLoaderPctEl     = document.getElementById("simLoaderPct");
+const simLoaderStatusEl  = document.getElementById("simLoaderStatus");
+
+/**
+ * Boot lines shown by the simulation loader. Each entry becomes one
+ * row in the fake terminal, with the progress bar advancing in step.
+ * Total runtime is roughly LINE_DELAY_MS * SIM_BOOT_LINES.length.
+ */
+const SIM_BOOT_LINES = [
+  "Initializing CyberCorp training environment...",
+  "Loading student profile...",
+  "Starting simulated workstation...",
+  "Mounting /home/student directory...",
+  "Loading mission files...",
+  "Checking terminal command system...",
+  "Activating phishing detection scenario...",
+  "Connecting analyst dashboard...",
+  "Simulation ready.",
+];
+const SIM_LINE_DELAY_MS = 450;     // delay between lines (≈4 s total)
+const SIM_FINAL_PAUSE_MS = 500;    // brief pause after the last line
 
 // XP panel elements (right sidebar)
 const xpBarEl     = document.getElementById("xpBar");
@@ -1122,9 +1149,77 @@ if (clrButton) clrButton.addEventListener("click", () => {
    ============================================================ */
 
 function enterModule() {
+  // Milestone 11 — show the simulation loader first, then the dashboard.
   if (moduleLandingEl) moduleLandingEl.style.display = "none";
-  if (dashboardEl)     dashboardEl.style.display     = "";
-  if (terminalInput)   terminalInput.focus();
+  runSimulationLoader(() => {
+    if (dashboardEl)   dashboardEl.style.display = "";
+    if (terminalInput) terminalInput.focus();
+  });
+}
+
+/**
+ * Milestone 11 — Simulation Loading Visualization.
+ * Plays a short fake boot sequence (≈4 s) then calls onDone().
+ * Purely visual: no real work happens, just timed DOM updates.
+ *
+ * @param {Function} onDone  Callback fired after the loader hides
+ */
+function runSimulationLoader(onDone) {
+  if (!simLoaderEl) { onDone && onDone(); return; }
+
+  // Reset loader to a clean starting state every time it runs
+  if (simLoaderLinesEl)   simLoaderLinesEl.innerHTML = "";
+  if (simLoaderCurrentEl) simLoaderCurrentEl.textContent = "";
+  if (simLoaderBarEl)     simLoaderBarEl.style.width = "0%";
+  if (simLoaderPctEl)     simLoaderPctEl.textContent = "0%";
+  if (simLoaderStatusEl)  simLoaderStatusEl.textContent = "BOOTING…";
+
+  simLoaderEl.style.display = "";
+
+  const total = SIM_BOOT_LINES.length;
+  let i = 0;
+
+  // Show one line at a time. The "current" line shows below the
+  // committed lines with a blinking cursor; on the next tick it gets
+  // committed to the list and replaced by the next line.
+  function tick() {
+    if (i > 0 && simLoaderLinesEl) {
+      // Commit the previous "current" line into the scroll-back list
+      const prev = document.createElement("div");
+      prev.className = "sim-loader-line";
+      prev.innerHTML =
+        `<span class="sim-loader-prompt">[ ok ]</span> ` +
+        `<span class="sim-loader-line-text">${SIM_BOOT_LINES[i - 1]}</span>`;
+      simLoaderLinesEl.appendChild(prev);
+    }
+
+    if (i >= total) {
+      // Final line committed — fill bar to 100%, then hand off
+      if (simLoaderBarEl)    simLoaderBarEl.style.width = "100%";
+      if (simLoaderPctEl)    simLoaderPctEl.textContent = "100%";
+      if (simLoaderStatusEl) simLoaderStatusEl.textContent = "READY";
+      if (simLoaderCurrentEl) simLoaderCurrentEl.textContent = "";
+
+      setTimeout(() => {
+        simLoaderEl.style.display = "none";
+        onDone && onDone();
+      }, SIM_FINAL_PAUSE_MS);
+      return;
+    }
+
+    // Show the next line as the active/current line
+    if (simLoaderCurrentEl) simLoaderCurrentEl.textContent = SIM_BOOT_LINES[i];
+
+    // Advance the progress bar proportionally
+    const pct = Math.round(((i + 1) / total) * 100);
+    if (simLoaderBarEl) simLoaderBarEl.style.width = `${pct}%`;
+    if (simLoaderPctEl) simLoaderPctEl.textContent = `${pct}%`;
+
+    i++;
+    setTimeout(tick, SIM_LINE_DELAY_MS);
+  }
+
+  tick();
 }
 
 function backToModuleOverview() {
