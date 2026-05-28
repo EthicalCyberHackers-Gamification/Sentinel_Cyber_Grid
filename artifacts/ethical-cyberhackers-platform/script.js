@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 02:45 CST";
+const BUILD_TIME = "28 May 2026 — 03:05 CST";
 
 
 /* ============================================================
@@ -89,6 +89,26 @@ const FINDING = {
      normal   — standard step-by-step guidance (cyan)
      warning  — student clicked out of sequence (yellow)
    ============================================================ */
+
+/* ============================================================
+   MANAGER MESSAGES  (Milestone 13)
+   Scripted supervisor messages shown in the "Supervisor Message"
+   panel. Keys map to lifecycle moments (awaiting, started, etc.)
+   and command-button keys. Updated by setManagerMessage().
+   No AI — purely scripted strings.
+   ============================================================ */
+const MANAGER_MESSAGES = {
+  awaiting:             "Welcome, intern. Your first task is to inspect this workstation and report anything suspicious.",
+  started:              "Start with basic orientation. Find out where you are in the system.",
+  "pwd":                "Good. Now inspect the current directory.",
+  "ls-home":            "You found several folders. Open the documents folder.",
+  "cd-documents":       "List the files inside this folder.",
+  "ls-documents":       "Review the available files carefully.",
+  "cat-employee-notes": "That file looks normal. Continue your investigation.",
+  "cat-suspicious":     "That message is suspicious. Submit your finding before taking the quiz.",
+  findingCorrect:       "Good analyst work. Now confirm your understanding in the quiz.",
+  missionComplete:      "Mission complete. You identified a phishing attempt and reported it properly.",
+};
 
 const HINTS = {
   awaiting:             "Read the briefing, then click Begin Mission.",
@@ -418,6 +438,24 @@ function updateHint(buttonKey) {
   setHint(HINTS[buttonKey], "normal");
 }
 
+/**
+ * Milestone 13: Updates the Supervisor Message panel.
+ * Pure DOM update + brief flash animation. No state, no AI.
+ * @param {string} key  Key into MANAGER_MESSAGES
+ */
+function setManagerMessage(key) {
+  const msg = MANAGER_MESSAGES[key];
+  if (!msg) return;
+  const panel  = document.getElementById("managerPanel");
+  const textEl = document.getElementById("managerText");
+  if (!panel || !textEl) return;
+  if (textEl.textContent.trim() === msg) return; // no-op if unchanged
+  textEl.textContent = msg;
+  panel.classList.remove("manager-panel--flash");
+  void panel.offsetWidth;                        // force reflow to restart anim
+  panel.classList.add("manager-panel--flash");
+}
+
 /** Writes text + tone class to the hint panel. */
 function setHint(text, tone) {
   const panel = document.getElementById("hintPanel");
@@ -467,6 +505,12 @@ function afterCommand(buttonKey) {
   // unlocks only after the student submits the correct finding.
   if (buttonKey === "cat-suspicious") {
     setTimeout(showFindingPanel, 800);
+  }
+
+  // Milestone 13: supervisor message for this command (if any).
+  // Uses the same key as HINTS so the mapping stays consistent.
+  if (MANAGER_MESSAGES[buttonKey]) {
+    setManagerMessage(buttonKey);
   }
 }
 
@@ -669,6 +713,9 @@ function handleFindingAnswer(answerId) {
     feedbackEl.textContent = FINDING.correctFeedback;
     feedbackEl.className   = "finding-feedback finding-feedback--correct";
 
+    // Milestone 13: supervisor acknowledges the finding
+    setManagerMessage("findingCorrect");
+
     // 2. Append a small Analyst Report summary card
     const report = document.createElement("div");
     report.className = "analyst-report";
@@ -831,6 +878,9 @@ function awardXP(amount) {
 function completeMission(newRank) {
   missionComplete = true;
 
+  // Milestone 13: supervisor's closing message
+  setManagerMessage("missionComplete");
+
   // Update rank in the XP sidebar
   if (rankNameEl) {
     rankNameEl.textContent = newRank;
@@ -972,6 +1022,8 @@ function beginMission() {
 
   // First in-mission hint
   setHint(HINTS.started, "normal");
+  // Milestone 13: supervisor's first in-mission message
+  setManagerMessage("started");
 
   // Mark the "Mission Started" step as complete
   MISSION_STEPS.forEach((step) => {
@@ -1028,6 +1080,8 @@ function resetMission() {
 
   // Reset hint back to the pre-briefing message
   setHint(HINTS.awaiting, "muted");
+  // Milestone 13: reset supervisor message back to the welcome line
+  setManagerMessage("awaiting");
 
   unlockedKeys.clear();
   completedSteps.clear();

@@ -192,6 +192,27 @@
 
         <div class="panel-body">
 
+          <!-- ===== SUPERVISOR MESSAGE (Milestone 13) =====
+               Scripted manager-style guidance. script.js calls
+               setManagerMessage(key) at each lifecycle moment.
+               Always visible — persists through briefing,
+               investigation, finding, quiz, and completion. -->
+          <div id="managerPanel" class="manager-panel" aria-live="polite">
+            <div class="manager-header">
+              <div class="manager-avatar" aria-hidden="true">SR</div>
+              <div class="manager-meta">
+                <span class="manager-name">Sarah Reyes</span>
+                <span class="manager-role">Lead Analyst · Your Supervisor</span>
+              </div>
+              <span class="manager-status">
+                <span class="manager-status-dot"></span>ONLINE
+              </span>
+            </div>
+            <p id="managerText" class="manager-text">
+              Welcome, intern. Your first task is to inspect this workstation and report anything suspicious.
+            </p>
+          </div>
+
           <!-- ===== MISSION BRIEFING (Milestone 5) =====
                Shown until the student clicks "Begin Mission".
                script.js hides this block once the mission starts and
