@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <title>Ethical CyberHackers Platform</title>
+    <meta name="description" content="Browser-based interactive cybersecurity training missions for beginners." />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:title" content="Ethical CyberHackers Platform" />
+    <meta property="og:description" content="Browser-based interactive cybersecurity training missions for beginners." />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+
+    <!-- ===== HEADER ===== -->
+    <header class="site-header">
+      <div class="header-brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="20,2 38,12 38,28 20,38 2,28 2,12" stroke="#00ff88" stroke-width="1.5" fill="none"/>
+            <polygon points="20,8 32,15 32,25 20,32 8,25 8,15" stroke="#00ff88" stroke-width="1" fill="rgba(0,255,136,0.05)"/>
+            <text x="20" y="25" text-anchor="middle" fill="#00ff88" font-size="14" font-family="monospace" font-weight="bold">&gt;_</text>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">Ethical CyberHackers</span>
+          <span class="brand-tagline">Training Platform</span>
+        </div>
+      </div>
+
+      <nav class="header-nav">
+        <a href="#" class="nav-link nav-link--active">Missions</a>
+        <a href="#" class="nav-link">Academy</a>
+        <a href="#" class="nav-link">Leaderboard</a>
+      </nav>
+
+      <div class="header-status">
+        <div class="status-indicator status-indicator--online">
+          <span class="status-dot"></span>
+          <span class="status-text">SECURE CONNECTION</span>
+        </div>
+        <div class="agent-badge">
+          <span class="agent-label">AGENT</span>
+          <span class="agent-name" id="agentName">GHOST_ZERO</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== MAIN DASHBOARD ===== -->
+    <main class="dashboard">
+
+      <!-- ===== MISSION PANEL ===== -->
+      <section class="panel mission-panel" aria-label="Mission Panel">
+        <div class="panel-header">
+          <div class="panel-title-row">
+            <span class="panel-label">ACTIVE MISSION</span>
+            <span class="mission-status-badge">IN PROGRESS</span>
+          </div>
+          <h2 class="mission-title" id="missionTitle">
+            Mission: Investigate suspicious workstation
+          </h2>
+        </div>
+
+        <div class="panel-body">
+          <p class="mission-description" id="missionDescription">
+            A workstation on the internal network has been flagged for anomalous activity.
+            Your task is to gather digital evidence, identify the threat actor's footprint,
+            and report your findings — without being detected.
+          </p>
+
+          <div class="mission-objectives">
+            <h3 class="objectives-title">Objectives</h3>
+            <ul class="objectives-list" id="objectivesList">
+              <li class="objective-item objective-item--pending">
+                <span class="objective-icon">○</span>
+                <span>Scan the target workstation for open ports</span>
+              </li>
+              <li class="objective-item objective-item--pending">
+                <span class="objective-icon">○</span>
+                <span>Identify running processes and services</span>
+              </li>
+              <li class="objective-item objective-item--pending">
+                <span class="objective-icon">○</span>
+                <span>Locate and read the hidden log file</span>
+              </li>
+              <li class="objective-item objective-item--pending">
+                <span class="objective-icon">○</span>
+                <span>Exfiltrate target data without detection</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="mission-meta">
+            <div class="meta-item">
+              <span class="meta-label">DIFFICULTY</span>
+              <span class="meta-value difficulty--beginner">BEGINNER</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">XP REWARD</span>
+              <span class="meta-value">+250 XP</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">TIME LIMIT</span>
+              <span class="meta-value" id="missionTimer">30:00</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== CENTER COLUMN: Terminal + Commands ===== -->
+      <div class="center-column">
+
+        <!-- ===== TERMINAL PANEL ===== -->
+        <section class="panel terminal-panel" aria-label="Terminal Panel">
+          <div class="panel-header">
+            <div class="terminal-traffic-lights" aria-hidden="true">
+              <span class="tl tl--red"></span>
+              <span class="tl tl--yellow"></span>
+              <span class="tl tl--green"></span>
+            </div>
+            <span class="terminal-title">root@cyberhackers:~#</span>
+            <div class="terminal-actions">
+              <button class="terminal-btn" title="Clear terminal">CLR</button>
+            </div>
+          </div>
+
+          <div class="terminal-body" id="terminalOutput" role="log" aria-live="polite">
+            <div class="terminal-line terminal-line--system">
+              <span class="terminal-prompt">system</span>
+              <span class="terminal-text">Ethical CyberHackers Platform v1.0.0 — Boot sequence complete.</span>
+            </div>
+            <div class="terminal-line terminal-line--system">
+              <span class="terminal-prompt">system</span>
+              <span class="terminal-text">Welcome back, Agent GHOST_ZERO. Mission briefing loaded.</span>
+            </div>
+            <div class="terminal-line terminal-line--separator">
+              <span>────────────────────────────────────────────────────</span>
+            </div>
+            <div class="terminal-line">
+              <span class="terminal-prompt">root@cyberhackers:~#</span>
+              <span class="terminal-text terminal-text--input">▮</span>
+            </div>
+          </div>
+
+          <div class="terminal-input-row">
+            <span class="terminal-prompt-label">root@cyberhackers:~#</span>
+            <input
+              type="text"
+              id="terminalInput"
+              class="terminal-input"
+              placeholder="Type a command or click a button below..."
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+            />
+          </div>
+        </section>
+
+        <!-- ===== COMMAND BUTTONS PANEL ===== -->
+        <section class="panel commands-panel" aria-label="Command Buttons Panel">
+          <div class="panel-header">
+            <span class="panel-label">QUICK COMMANDS</span>
+            <span class="panel-sublabel">Click to execute</span>
+          </div>
+
+          <div class="panel-body">
+            <div class="commands-grid">
+
+              <div class="command-group">
+                <h3 class="command-group-title">Reconnaissance</h3>
+                <div class="command-buttons">
+                  <button class="cmd-btn cmd-btn--recon" data-command="nmap -sV 192.168.1.1">
+                    <span class="cmd-icon">📡</span>
+                    <span class="cmd-name">Port Scan</span>
+                    <code class="cmd-code">nmap -sV</code>
+                  </button>
+                  <button class="cmd-btn cmd-btn--recon" data-command="ping -c 4 192.168.1.1">
+                    <span class="cmd-icon">🔎</span>
+                    <span class="cmd-name">Ping Host</span>
+                    <code class="cmd-code">ping</code>
+                  </button>
+                  <button class="cmd-btn cmd-btn--recon" data-command="whois 192.168.1.1">
+                    <span class="cmd-icon">🌐</span>
+                    <span class="cmd-name">WHOIS</span>
+                    <code class="cmd-code">whois</code>
+                  </button>
+                </div>
+              </div>
+
+              <div class="command-group">
+                <h3 class="command-group-title">Analysis</h3>
+                <div class="command-buttons">
+                  <button class="cmd-btn cmd-btn--analysis" data-command="ps aux">
+                    <span class="cmd-icon">⚙️</span>
+                    <span class="cmd-name">List Processes</span>
+                    <code class="cmd-code">ps aux</code>
+                  </button>
+                  <button class="cmd-btn cmd-btn--analysis" data-command="netstat -an">
+                    <span class="cmd-icon">🔗</span>
+                    <span class="cmd-name">Network Connections</span>
+                    <code class="cmd-code">netstat</code>
+                  </button>
+                  <button class="cmd-btn cmd-btn--analysis" data-command="ls -la /var/log">
+                    <span class="cmd-icon">📂</span>
+                    <span class="cmd-name">View Logs</span>
+                    <code class="cmd-code">ls /var/log</code>
+                  </button>
+                </div>
+              </div>
+
+              <div class="command-group">
+                <h3 class="command-group-title">Investigation</h3>
+                <div class="command-buttons">
+                  <button class="cmd-btn cmd-btn--investigate" data-command="cat /var/log/auth.log">
+                    <span class="cmd-icon">🔍</span>
+                    <span class="cmd-name">Auth Log</span>
+                    <code class="cmd-code">cat auth.log</code>
+                  </button>
+                  <button class="cmd-btn cmd-btn--investigate" data-command="find / -name '*.txt' 2>/dev/null">
+                    <span class="cmd-icon">🗂️</span>
+                    <span class="cmd-name">Find Files</span>
+                    <code class="cmd-code">find</code>
+                  </button>
+                  <button class="cmd-btn cmd-btn--investigate" data-command="strings suspicious_file">
+                    <span class="cmd-icon">🧬</span>
+                    <span class="cmd-name">String Dump</span>
+                    <code class="cmd-code">strings</code>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ===== XP / RANK PANEL ===== -->
+      <aside class="panel xp-panel" aria-label="XP and Rank Panel">
+        <div class="panel-header">
+          <span class="panel-label">AGENT PROFILE</span>
+        </div>
+
+        <div class="panel-body">
+
+          <!-- Rank badge -->
+          <div class="rank-badge-container">
+            <div class="rank-badge">
+              <span class="rank-icon">🛡️</span>
+              <span class="rank-name" id="rankName">Script Kiddie</span>
+            </div>
+            <div class="rank-subtitle">Current Rank</div>
+          </div>
+
+          <!-- XP progress -->
+          <div class="xp-section">
+            <div class="xp-labels">
+              <span class="xp-label">XP</span>
+              <span class="xp-value"><span id="currentXP">750</span> / <span id="maxXP">1000</span></span>
+            </div>
+            <div class="xp-bar-track" role="progressbar" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">
+              <div class="xp-bar-fill" id="xpBar" style="width: 75%"></div>
+            </div>
+            <div class="xp-next-rank">Next: <span class="xp-next-name">Packet Sniffer</span></div>
+          </div>
+
+          <!-- Stats -->
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-value" id="statMissions">3</span>
+              <span class="stat-label">Missions Completed</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="statStreak">5</span>
+              <span class="stat-label">Day Streak</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="statAccuracy">87%</span>
+              <span class="stat-label">Accuracy</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="statBadges">2</span>
+              <span class="stat-label">Badges Earned</span>
+            </div>
+          </div>
+
+          <!-- Badges -->
+          <div class="badges-section">
+            <h3 class="badges-title">Badges</h3>
+            <div class="badges-list">
+              <div class="badge-item badge-item--earned" title="First blood — completed your first mission">
+                <span class="badge-icon">🩸</span>
+                <span class="badge-label">First Blood</span>
+              </div>
+              <div class="badge-item badge-item--earned" title="Recon Pro — scanned 10 hosts">
+                <span class="badge-icon">🔭</span>
+                <span class="badge-label">Recon Pro</span>
+              </div>
+              <div class="badge-item badge-item--locked" title="Ghost — complete a mission undetected">
+                <span class="badge-icon">👻</span>
+                <span class="badge-label">Ghost</span>
+              </div>
+              <div class="badge-item badge-item--locked" title="Cryptographer — crack your first cipher">
+                <span class="badge-icon">🔐</span>
+                <span class="badge-label">Cryptographer</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent activity -->
+          <div class="activity-section">
+            <h3 class="activity-title">Recent Activity</h3>
+            <ul class="activity-list">
+              <li class="activity-item">
+                <span class="activity-dot activity-dot--success"></span>
+                <span class="activity-text">Completed "Intro to Recon" +100 XP</span>
+              </li>
+              <li class="activity-item">
+                <span class="activity-dot activity-dot--success"></span>
+                <span class="activity-text">Badge earned: Recon Pro</span>
+              </li>
+              <li class="activity-item">
+                <span class="activity-dot activity-dot--warn"></span>
+                <span class="activity-text">Attempted "Brute Force 101" — failed</span>
+              </li>
+            </ul>
+          </div>
+
+        </div>
+      </aside>
+
+    </main>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="site-footer">
+      <span class="footer-text">Ethical CyberHackers Platform — For educational purposes only. All simulations are sandboxed.</span>
+      <span class="footer-version">v1.0.0</span>
+    </footer>
+
+    <!-- Scripts -->
+    <script type="module" src="/missions.js"></script>
+    <script type="module" src="/script.js"></script>
+  </body>
+</html>
