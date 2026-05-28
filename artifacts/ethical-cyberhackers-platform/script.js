@@ -70,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 15:35 CST";
+const BUILD_TIME = "28 May 2026 — 16:15 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -274,6 +274,99 @@ function renderThreatLevel(missionId) {
   `;
 }
 
+/* ============================================================
+   Milestone 24C — Trust Score System (Phase B)
+   ------------------------------------------------------------
+   Trust Score prepares the platform for future decision
+   consequences and manager reactions. Unlike threat level
+   (per-mission, dynamic) and evidence (per-mission, additive),
+   trust is a SINGLE GLOBAL score representing the supervisor's
+   cumulative confidence in the analyst across the whole course.
+   It rises when the student demonstrates careful, correct
+   analyst work (correct findings, correct quiz answers,
+   completed missions) and is intentionally NOT reset on a
+   mission restart — only "Clear Saved Progress" zeroes it.
+   Phase B systems (decision branching, dynamic manager tone,
+   alert loop) will read getTrustScore() to react.
+
+   Range: 0 – 100, starting at 50.
+   ============================================================ */
+const DEFAULT_TRUST_SCORE = 50;
+const TRUST_MIN = 0;
+const TRUST_MAX = 100;
+let trustScore = DEFAULT_TRUST_SCORE;
+
+/** Clamp helper for trust values. */
+function clampTrust(n) {
+  if (typeof n !== "number" || !isFinite(n)) return trustScore;
+  return Math.max(TRUST_MIN, Math.min(TRUST_MAX, Math.round(n)));
+}
+
+/** Read the current trust score (0–100). */
+function getTrustScore() {
+  return trustScore;
+}
+
+/** Set the trust score to an absolute value. Clamps, re-renders, persists. */
+function setTrustScore(value) {
+  trustScore = clampTrust(value);
+  renderTrustScore();
+  try { saveProgress(); } catch (_) { /* save errors are non-fatal */ }
+  return trustScore;
+}
+
+/** Increase trust by `amount` (default 10). Caps at 100. */
+function increaseTrustScore(amount) {
+  const delta = typeof amount === "number" && isFinite(amount) ? amount : 10;
+  return setTrustScore(trustScore + delta);
+}
+
+/** Decrease trust by `amount` (default 10). Floors at 0. */
+function decreaseTrustScore(amount) {
+  const delta = typeof amount === "number" && isFinite(amount) ? amount : 10;
+  return setTrustScore(trustScore - delta);
+}
+
+/** Reset trust score to the demo baseline (50). Used by Clear Saved Progress. */
+function resetTrustScoreForDemo() {
+  trustScore = DEFAULT_TRUST_SCORE;
+  renderTrustScore();
+  try { saveProgress(); } catch (_) { /* save errors are non-fatal */ }
+  return trustScore;
+}
+
+/**
+ * Render the Trust Score panel into both #trustScore (M1 dashboard) and
+ * #m2TrustScore (M2 dashboard). The score is global, so both panels show
+ * the same value — whichever dashboard is currently visible will reflect
+ * the latest change. Safe to call before either panel exists (no-op).
+ */
+function renderTrustScore() {
+  const tier =
+    trustScore >= 75 ? "high"   :
+    trustScore >= 50 ? "medium" :
+    trustScore >= 25 ? "low"    : "critical";
+  const pct = Math.max(0, Math.min(100, trustScore));
+
+  ["trustScore", "m2TrustScore"].forEach((hostId) => {
+    const host = document.getElementById(hostId);
+    if (!host) return;
+    host.className = `trust-score trust-score--${tier}`;
+    host.innerHTML = `
+      <h3 class="objectives-title">
+        Trust Score
+        <span class="trust-score-pill">${trustScore} / 100</span>
+      </h3>
+      <div class="trust-score-bar" aria-label="Trust score: ${trustScore} out of 100">
+        <div class="trust-score-bar-fill" style="width: ${pct}%;"></div>
+      </div>
+      <p class="trust-score-caption">
+        Manager confidence in your investigation work.
+      </p>
+    `;
+  });
+}
+
 /** Returns an array of plain-text evidence strings for a mission. */
 function getEvidenceList(missionId) {
   const mid = missionId || getActiveMissionId();
@@ -338,6 +431,8 @@ function saveProgress() {
       // Milestone 24B — persist per-mission threat level so it survives reload.
       threatLevels: (typeof threatLevelByMission === "object" && threatLevelByMission)
         ? threatLevelByMission : {},
+      // Milestone 24C — persist global trust score so it survives reload.
+      trustScore: typeof trustScore === "number" ? trustScore : DEFAULT_TRUST_SCORE,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -455,6 +550,12 @@ function restoreSavedProgress() {
     renderThreatLevel("mission-002");
   }
 
+  // 8. Milestone 24C — restore trust score (clamped to 0–100).
+  if (typeof data.trustScore === "number" && isFinite(data.trustScore)) {
+    trustScore = clampTrust(data.trustScore);
+  }
+  renderTrustScore();
+
   updateSaveIndicator(true);
 }
 
@@ -487,6 +588,9 @@ function clearSavedProgress() {
     resetMission();
     // Milestone 20 — also reset Mission 2 state + UI.
     resetMission2();
+    // Milestone 24C — Clear Saved Progress zeroes the trust score back to 50
+    // (spec #12). Mission-restart does NOT reset it (spec #11).
+    resetTrustScoreForDemo();
   } finally {
     suppressSave = false;
   }
@@ -1247,6 +1351,8 @@ function handleFindingAnswer(answerId) {
     markProgressStep("submit-finding");
     // Milestone 24B — analyst submitted correct finding → threat eases.
     setThreatLevel("Medium", "mission-001");
+    // Milestone 24C — careful analyst work → +10 trust.
+    increaseTrustScore(10);
 
     // 2. Append a small Analyst Report summary card
     const report = document.createElement("div");
@@ -1361,6 +1467,9 @@ function handleAnswer(answerId) {
     // Milestone 15: tracker — Quiz complete; Reflection is now current
     markProgressStep("quiz");
 
+    // Milestone 24C — correct Mission 1 quiz → +10 trust.
+    increaseTrustScore(10);
+
     // Milestone 14: insert Reflection Checkpoint BEFORE XP + scorecard.
     // XP is awarded only after a correct reflection (see handleReflectionAnswer).
     setTimeout(showReflection, 1400);
@@ -1438,6 +1547,9 @@ function handleReflectionAnswer(answerId) {
     // Milestone 15: tracker — Reflection complete; Complete is now current
     markProgressStep("reflection");
 
+    // Milestone 24C — correct Mission 1 reflection → +10 trust.
+    increaseTrustScore(10);
+
     // NOW it's safe to award XP and proceed to the Mission Scorecard.
     awardXP(QUIZ.xpReward);
     setTimeout(() => completeMission(QUIZ.newRank), 1500);
@@ -1502,6 +1614,9 @@ function completeMission(newRank) {
 
   // Milestone 24B — mission complete → workstation is now safe (Low).
   setThreatLevel("Low", "mission-001");
+
+  // Milestone 24C — Mission 1 complete → +10 trust.
+  increaseTrustScore(10);
 
   // Milestone 15: mark every step complete (spec #8). The loop is a safety
   // net in case any earlier step's hook didn't fire (e.g. the optional
@@ -1617,6 +1732,11 @@ function buildCompletionHTML(newRank) {
           <li class="scorecard-row">
             <span class="scorecard-key">Final Threat Level</span>
             <span class="scorecard-val scorecard-val--threat scorecard-val--threat-${getThreatLevel("mission-001").toLowerCase()}">${escapeHtml(getThreatLevel("mission-001"))}</span>
+          </li>
+          <!-- Milestone 24C — manager trust score at end of mission. -->
+          <li class="scorecard-row">
+            <span class="scorecard-key">Trust Score</span>
+            <span class="scorecard-val scorecard-val--cyan">${getTrustScore()} / 100</span>
           </li>
         </ul>
 
@@ -2558,6 +2678,12 @@ function runM2Command(key) {
 function renderM2AnalystReview() {
   const host = document.getElementById("m2AnalystReview");
   if (!host) return;
+  // Milestone 24C idempotency — once the analyst review has been answered
+  // correctly (or the mission is complete), do NOT re-render. Re-rendering
+  // would wipe host.innerHTML (removing the #m2QuizPanel below it) and
+  // reset m2AnalystAnswered/m2QuizAnswered to false, letting the student
+  // farm trust/XP by re-clicking `review services`.
+  if (m2AnalystAnswered || mission2Complete) return;
   // Reuse Mission 1's .quiz-panel chrome for visual consistency.
   host.style.display = "";
   host.innerHTML = `
@@ -2632,6 +2758,8 @@ function handleM2AnalystAnswer(letter) {
 
   // Correct path — finalize
   m2AnalystAnswered = true;
+  // Milestone 24C — correct M2 analyst review → +10 trust.
+  increaseTrustScore(10);
   markM2Status("analyst-review");
   markM2Status("threat-assessment");
   setM2Hint("Mission 2 threat assessment complete. Final assessment incoming.");
@@ -2740,6 +2868,10 @@ function handleM2QuizAnswer(letter) {
   m2QuizAnswered   = true;
   mission2Complete = true;
 
+  // Milestone 24C — correct M2 quiz (+10) AND M2 completion (+10) → +20 trust.
+  increaseTrustScore(10);
+  increaseTrustScore(10);
+
   // Award XP (uses the existing M1 XP system — M2 shares the global bar)
   awardXP(M2_QUIZ.xpReward);
 
@@ -2820,6 +2952,11 @@ function renderM2Scorecard() {
           <li class="scorecard-row">
             <span class="scorecard-key">Final Threat Level</span>
             <span class="scorecard-val scorecard-val--threat scorecard-val--threat-${getThreatLevel("mission-002").toLowerCase()}">${escapeHtml(getThreatLevel("mission-002"))}</span>
+          </li>
+          <!-- Milestone 24C — manager trust score at end of mission. -->
+          <li class="scorecard-row">
+            <span class="scorecard-key">Trust Score</span>
+            <span class="scorecard-val scorecard-val--cyan">${getTrustScore()} / 100</span>
           </li>
         </ul>
 
@@ -3311,6 +3448,13 @@ window.MissionEngine = {
   renderThreatLevel,
   resetThreatLevelForMission,
   threatLevelByMission,
+  // 24C — trust score system (Phase B)
+  setTrustScore,
+  increaseTrustScore,
+  decreaseTrustScore,
+  getTrustScore,
+  renderTrustScore,
+  resetTrustScoreForDemo,
 };
 
 

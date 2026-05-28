@@ -345,6 +345,22 @@
               Threat level changes as the investigation develops.
             </p>
           </div>
+
+          <!-- ===== TRUST SCORE (Milestone 24C — Phase B) =====
+               Mission 2's trust score panel — mirrors #trustScore
+               since trust is a global, course-wide score. -->
+          <div id="m2TrustScore" class="trust-score trust-score--medium">
+            <h3 class="objectives-title">
+              Trust Score
+              <span class="trust-score-pill">50 / 100</span>
+            </h3>
+            <div class="trust-score-bar">
+              <div class="trust-score-bar-fill" style="width: 50%;"></div>
+            </div>
+            <p class="trust-score-caption">
+              Manager confidence in your investigation work.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -694,6 +710,23 @@
             </div>
             <p class="threat-meter-caption">
               Threat level changes as the investigation develops.
+            </p>
+          </div>
+
+          <!-- ===== TRUST SCORE (Milestone 24C — Phase B) =====
+               Populated by renderTrustScore(). Trust Score prepares
+               the platform for future decision consequences and
+               manager reactions. Range 0–100, starts at 50. -->
+          <div id="trustScore" class="trust-score trust-score--medium">
+            <h3 class="objectives-title">
+              Trust Score
+              <span class="trust-score-pill">50 / 100</span>
+            </h3>
+            <div class="trust-score-bar">
+              <div class="trust-score-bar-fill" style="width: 50%;"></div>
+            </div>
+            <p class="trust-score-caption">
+              Manager confidence in your investigation work.
             </p>
           </div>
         </div>

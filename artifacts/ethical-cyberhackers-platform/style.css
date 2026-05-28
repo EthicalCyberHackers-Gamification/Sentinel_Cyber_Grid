@@ -1354,6 +1354,68 @@ button {
 .scorecard-val--threat-high     { color: #fb923c; }
 .scorecard-val--threat-critical { color: #ef4444; }
 
+/* ======================================================
+   Milestone 24C — Trust Score (Phase B)
+   ------------------------------------------------------
+   Quiet panel under the Threat Level meter on both
+   mission dashboards. Same chrome powers #trustScore
+   and #m2TrustScore. Single global score (0–100).
+   ====================================================== */
+.trust-score {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(74, 222, 128, 0.18);
+}
+.trust-score .objectives-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.trust-score-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--color-bg, #0b1220);
+  background: #38bdf8;
+  border-radius: 9px;
+}
+.trust-score-bar {
+  height: 8px;
+  margin: 8px 0 6px;
+  background: rgba(148, 163, 184, 0.18);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.trust-score-bar-fill {
+  height: 100%;
+  background: #38bdf8;
+  border-radius: 4px;
+  transition: width 600ms ease, background-color 400ms ease;
+}
+.trust-score-caption {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(226, 232, 240, 0.55);
+  font-style: italic;
+}
+
+/* Tier color tokens — pill + bar fill shift with trust level. */
+.trust-score--critical .trust-score-pill,
+.trust-score--critical .trust-score-bar-fill { background: #ef4444; }
+.trust-score--low .trust-score-pill,
+.trust-score--low .trust-score-bar-fill      { background: #fb923c; }
+.trust-score--medium .trust-score-pill,
+.trust-score--medium .trust-score-bar-fill   { background: #38bdf8; }
+.trust-score--high .trust-score-pill,
+.trust-score--high .trust-score-bar-fill     { background: #4ade80; }
+
 /* Milestone 23G — Phase A baseline label.
    Small, quiet pill in the footer that signals the platform has
    reached the "Mission Engine Ready" baseline. Intentionally low-key

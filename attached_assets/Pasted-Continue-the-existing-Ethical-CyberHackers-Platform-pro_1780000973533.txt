@@ -1,0 +1,75 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Phase A Baseline is complete.
+* Mission Engine is ready.
+* Evidence Collection System works.
+* Threat Level Meter works.
+* Mission 1 and Mission 2 still work.
+* Everything is frontend-only.
+
+Now implement Phase B — Milestone 24C: Trust Score System.
+
+Purpose:
+Students should see that careful investigation builds trust. Wrong or rushed actions should reduce trust later. For this milestone, add the trust score foundation without adding complex penalties yet.
+
+Requirements:
+
+1. Do not add Mission 3 yet.
+
+2. Do not redesign the UI.
+
+3. Do not break Mission 1 or Mission 2.
+
+4. Add a “Trust Score” panel to the dashboard.
+
+5. Trust Score should start at:
+   50
+
+6. Add reusable functions:
+
+* setTrustScore(value)
+* increaseTrustScore(amount)
+* decreaseTrustScore(amount)
+* getTrustScore()
+* renderTrustScore()
+* resetTrustScoreForDemo()
+
+7. Trust Score rules:
+
+Mission 1:
+
+* Correct finding submission: +10 trust
+* Correct quiz answer: +10 trust
+* Correct reflection answer: +10 trust
+* Mission complete: +10 trust
+
+Mission 2:
+
+* Correct analyst review: +10 trust
+* Correct quiz answer: +10 trust
+* Mission complete: +10 trust
+
+8. Trust Score should never go below 0 or above 100.
+
+9. Add a short label:
+   “Manager confidence in your investigation work.”
+
+10. Add Trust Score to Mission 1 and Mission 2 scorecards.
+
+11. Restarting a mission should not reset total trust score unless Clear Saved Progress is clicked.
+
+12. Clear Saved Progress should reset Trust Score to 50.
+
+13. Save Trust Score in localStorage.
+
+14. Do not add backend, database, authentication, AI, or new pages.
+
+15. Keep everything frontend-only.
+
+16. Add comments explaining:
+    “Trust Score prepares the platform for future decision consequences and manager reactions.”
+
+Goal:
+By the end of this step, student progress should include a visible Trust Score that increases when they complete important analyst actions correctly.
