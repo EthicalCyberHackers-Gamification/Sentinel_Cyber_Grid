@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 01:15 CST";
+const BUILD_TIME = "28 May 2026 — 01:40 CST";
 
 
 /* ============================================================
@@ -126,6 +126,7 @@ const statusList     = document.getElementById("missionStatusList");
 const quizPanel      = document.getElementById("quizPanel");
 const findingPanel   = document.getElementById("findingPanel");
 const commandsHint   = document.querySelector(".commands-hint");
+const courseProgressEl = document.getElementById("courseProgress");
 
 // XP panel elements (right sidebar)
 const xpBarEl     = document.getElementById("xpBar");
@@ -814,6 +815,11 @@ function completeMission(newRank) {
   // Print a terminal confirmation
   printOutput("[ MISSION COMPLETE \u2014 Well done, Agent. ]", "info");
 
+  // Milestone 9 — flip Mission 1 to Completed and unlock Mission 2 in the
+  // Course Progress panel. Also print an unlock notice to the terminal.
+  printOutput("[ Mission 2 unlocked: Network Basics ]", "info");
+  renderCourseProgress();
+
   // Replace the quiz panel with the full completion screen
   if (quizPanel) {
     quizPanel.innerHTML = buildCompletionHTML(newRank);
@@ -1037,6 +1043,7 @@ function resetMission() {
   // 7. Re-render command buttons and mission tracker
   renderButtons();
   renderMissionStatus();
+  renderCourseProgress();   // Milestone 9 — re-lock Mission 2 on restart
 
   // 8. Hide command buttons + hint (they reappear after Begin Mission),
   //    and hide the quiz/completion panel.
@@ -1102,6 +1109,115 @@ if (clrButton) clrButton.addEventListener("click", () => {
 
 
 /* ============================================================
+   COURSE PROGRESS  (Milestone 9)
+   Renders the two mission cards in the left sidebar.
+   Mission 1's status is derived from `missionComplete`.
+   Mission 2 is locked until Mission 1 is completed; once unlocked
+   the card grows a "Start Mission 2" button that opens a small
+   placeholder panel (Mission 2 itself is not built yet).
+   ============================================================ */
+
+function renderCourseProgress() {
+  if (!courseProgressEl) return;
+
+  // Mission 1 status mirrors the live mission state
+  const m1Completed = missionComplete;
+
+  // Status label + CSS modifier for each card
+  const m1Status = m1Completed
+    ? { label: "Completed", mod: "completed" }
+    : { label: "Available", mod: "available" };
+
+  const m2Status = m1Completed
+    ? { label: "Unlocked", mod: "unlocked" }
+    : { label: "Locked",   mod: "locked"   };
+
+  // Build the markup. The Start Mission 2 button + unlock notice only
+  // appear when Mission 1 is complete.
+  courseProgressEl.innerHTML = `
+    <div class="course-progress-header">
+      <span class="course-progress-label">COURSE PROGRESS</span>
+      <span class="course-progress-sub">2 missions</span>
+    </div>
+
+    <ul class="course-list">
+
+      <!-- Mission 1 card -->
+      <li class="course-card course-card--${m1Status.mod}">
+        <div class="course-card-row">
+          <span class="course-card-num">01</span>
+          <div class="course-card-info">
+            <span class="course-card-title">New Cybersecurity Intern</span>
+            <span class="course-card-desc">Investigate a suspicious workstation.</span>
+          </div>
+          <span class="course-card-status course-card-status--${m1Status.mod}">
+            ${m1Status.label}
+          </span>
+        </div>
+      </li>
+
+      <!-- Mission 2 card -->
+      <li class="course-card course-card--${m2Status.mod}">
+        <div class="course-card-row">
+          <span class="course-card-num">02</span>
+          <div class="course-card-info">
+            <span class="course-card-title">Network Basics</span>
+            <span class="course-card-desc">Identify devices and services on a network.</span>
+          </div>
+          <span class="course-card-status course-card-status--${m2Status.mod}">
+            ${m2Status.mod === "locked" ? "🔒 " : ""}${m2Status.label}
+          </span>
+        </div>
+
+        ${m1Completed ? `
+          <div class="course-card-unlock-note">
+            ✓ Mission 2 unlocked: Network Basics
+          </div>
+          <button id="startMission2Btn" class="course-start-btn">
+            ▶&nbsp; Start Mission 2
+          </button>
+          <div id="mission2Placeholder" class="mission2-placeholder" style="display:none;">
+            <p class="mission2-placeholder-text">
+              <strong>Mission 2 coming next:</strong>
+              You will learn how cybersecurity analysts identify devices
+              and services on a network.
+            </p>
+            <button id="closeMission2PlaceholderBtn" class="mission2-placeholder-close">
+              Got it
+            </button>
+          </div>
+        ` : ""}
+      </li>
+    </ul>
+  `;
+
+  // Wire up the Start Mission 2 button (only present when unlocked)
+  if (m1Completed) {
+    const startBtn = document.getElementById("startMission2Btn");
+    const placeholder = document.getElementById("mission2Placeholder");
+    const closeBtn = document.getElementById("closeMission2PlaceholderBtn");
+
+    if (startBtn && placeholder) {
+      startBtn.addEventListener("click", () => {
+        placeholder.style.display = "block";
+        startBtn.disabled = true;
+        startBtn.classList.add("course-start-btn--used");
+      });
+    }
+    if (closeBtn && placeholder) {
+      closeBtn.addEventListener("click", () => {
+        placeholder.style.display = "none";
+        if (startBtn) {
+          startBtn.disabled = false;
+          startBtn.classList.remove("course-start-btn--used");
+        }
+      });
+    }
+  }
+}
+
+
+/* ============================================================
    BOOT — runs once on page load
    ============================================================ */
 
@@ -1118,6 +1234,7 @@ function boot() {
   printBootMessages();
   renderButtons();
   renderMissionStatus();
+  renderCourseProgress();   // Milestone 9 — initial render (Mission 2 locked)
 
   // Milestone 6: show the awaiting hint on initial load
   setHint(HINTS.awaiting, "muted");
