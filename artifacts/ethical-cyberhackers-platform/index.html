@@ -279,15 +279,38 @@
             </p>
           </div>
 
-          <section class="briefing-section">
-            <h3 class="briefing-heading">Skills Practiced</h3>
-            <ul class="skills-list">
-              <li><span class="skill-bullet">▹</span>Identifying your local IP</li>
-              <li><span class="skill-bullet">▹</span>Testing host reachability with ping</li>
-              <li><span class="skill-bullet">▹</span>Discovering open services with nmap</li>
-              <li><span class="skill-bullet">▹</span>Reviewing exposed network services</li>
-            </ul>
-          </section>
+          <!-- Briefing sections — added M20.3 for visual parity with M1.
+               Same .briefing-section / .briefing-heading / .briefing-text
+               / .skills-list styling. -->
+          <div class="mission-briefing">
+            <section class="briefing-section">
+              <h3 class="briefing-heading">Mission Briefing</h3>
+              <p class="briefing-text">
+                You're transitioning from workstation forensics to network
+                reconnaissance. Map the local network, find a target host,
+                and identify what services it's exposing.
+              </p>
+            </section>
+
+            <section class="briefing-section">
+              <h3 class="briefing-heading">Learning Objective</h3>
+              <p class="briefing-text">
+                By the end of this mission you'll know how to identify your
+                local IP, test host reachability with ping, discover open
+                ports with nmap, and reason about what those services mean.
+              </p>
+            </section>
+
+            <section class="briefing-section">
+              <h3 class="briefing-heading">Skills Practiced</h3>
+              <ul class="skills-list">
+                <li><span class="skill-bullet">▹</span>Identifying your local IP</li>
+                <li><span class="skill-bullet">▹</span>Testing host reachability with ping</li>
+                <li><span class="skill-bullet">▹</span>Discovering open services with nmap</li>
+                <li><span class="skill-bullet">▹</span>Reviewing exposed network services</li>
+              </ul>
+            </section>
+          </div>
 
           <div class="mission-objectives">
             <h3 class="objectives-title">Mission 2 Status</h3>
@@ -305,6 +328,21 @@
             <span class="unified-panel-meta">student@cybercorp</span>
           </div>
           <div class="terminal-body m2-terminal" id="m2Terminal" role="log" aria-live="polite"></div>
+
+          <!-- Decorative prompt row — visual parity with M1. The input
+               is disabled because Mission 2 is button-driven, but the
+               prompt + blinking cursor preserve the terminal silhouette. -->
+          <div class="terminal-input-row">
+            <span class="terminal-prompt-label">student@cybercorp:~$</span>
+            <span class="terminal-cursor" aria-hidden="true">▌</span>
+            <input
+              type="text"
+              class="terminal-input"
+              placeholder="Click an unlocked command button below..."
+              disabled
+              aria-hidden="true"
+            />
+          </div>
         </section>
 
         <section class="panel commands-panel" aria-label="Command Buttons Panel">
@@ -388,6 +426,49 @@
               <span class="stat-value">2</span>
               <span class="stat-label">Badges Earned</span>
             </div>
+          </div>
+
+          <!-- Badges + Recent Activity — added M20.3 for parity with M1.
+               Same .badges-section / .activity-section styling; same
+               static content for now. -->
+          <div class="badges-section">
+            <h3 class="badges-title">Badges</h3>
+            <div class="badges-list">
+              <div class="badge-item badge-item--earned" title="First blood — completed your first mission">
+                <span class="badge-icon">🩸</span>
+                <span class="badge-label">First Blood</span>
+              </div>
+              <div class="badge-item badge-item--earned" title="Recon Pro — scanned 10 hosts">
+                <span class="badge-icon">🔭</span>
+                <span class="badge-label">Recon Pro</span>
+              </div>
+              <div class="badge-item badge-item--locked" title="Ghost — complete a mission undetected">
+                <span class="badge-icon">👻</span>
+                <span class="badge-label">Ghost</span>
+              </div>
+              <div class="badge-item badge-item--locked" title="Cryptographer — crack your first cipher">
+                <span class="badge-icon">🔐</span>
+                <span class="badge-label">Cryptographer</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="activity-section">
+            <h3 class="activity-title">Recent Activity</h3>
+            <ul class="activity-list">
+              <li class="activity-item">
+                <span class="activity-dot activity-dot--success"></span>
+                <span class="activity-text">Completed "Intro to Recon" +100 XP</span>
+              </li>
+              <li class="activity-item">
+                <span class="activity-dot activity-dot--success"></span>
+                <span class="activity-text">Badge earned: Recon Pro</span>
+              </li>
+              <li class="activity-item">
+                <span class="activity-dot activity-dot--warn"></span>
+                <span class="activity-text">Attempted "Brute Force 101" — failed</span>
+              </li>
+            </ul>
           </div>
         </div>
       </aside>
