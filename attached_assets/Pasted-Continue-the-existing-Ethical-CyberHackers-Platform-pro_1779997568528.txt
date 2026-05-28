@@ -1,0 +1,113 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission Engine Foundation exists.
+* Mission 1 and Mission 2 use reusable mission data and reusable mission logic.
+* Mission Template System exists.
+* createMissionFromTemplate() exists.
+* validateMissionData() exists.
+* Everything is frontend-only.
+
+Now implement Phase A — Milestone 23D: Mission Engine Developer Notes.
+
+Purpose:
+Add clear internal documentation so future missions can be added without confusion or breaking the platform.
+
+Requirements:
+
+1. Create a new file:
+
+docs/MISSION_ENGINE_GUIDE.md
+
+2. In this file, document the mission engine structure.
+
+Include these sections:
+
+# Mission Engine Guide
+
+## Purpose
+
+Explain that the mission engine allows new cybersecurity missions to be added using structured mission data instead of hardcoded logic.
+
+## Mission Object Structure
+
+Document each field:
+
+* missionId
+* title
+* roleContext
+* briefing
+* learningObjective
+* skillsPracticed
+* startingStatus
+* commands
+* commandUnlockRules
+* hints
+* managerMessages
+* findingQuestion
+* quiz
+* reflection
+* xpReward
+* scorecard
+* nextMissionPreview
+
+## Command Structure
+
+Explain how each command should include:
+
+* commandId
+* label
+* commandText
+* outputText
+* unlocks
+* statusUpdate
+* hintUpdate
+* managerMessageUpdate
+
+## Adding a New Mission
+
+Provide step-by-step instructions:
+
+1. Copy the mission template.
+2. Create a new missionId.
+3. Add briefing and objective.
+4. Add commands.
+5. Add unlock rules.
+6. Add quiz.
+7. Add scorecard.
+8. Validate the mission data.
+9. Test the mission from start to finish.
+
+## Testing Checklist
+
+Include:
+
+* mission loads
+* commands appear
+* terminal output displays
+* hints update
+* manager messages update
+* quiz appears
+* XP awards correctly
+* scorecard appears
+* restart works
+* local progress save still works
+
+## Current Missions
+
+List:
+
+* Mission 1: New Cybersecurity Intern
+* Mission 2: Network Basics
+
+3. Do not change current mission functionality.
+
+4. Do not redesign UI.
+
+5. Do not add Mission 3 yet.
+
+6. Keep everything frontend-only.
+
+Goal:
+By the end of this step, the project should include clear documentation for scaling the mission system.
