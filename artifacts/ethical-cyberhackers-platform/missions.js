@@ -444,7 +444,17 @@ export const MISSION_2 = {
   // / M2_SCORECARD live from script.js (kept there to avoid breaking the
   // existing dashboard renderer in Phase A).
   commands:           "__from_script:M2_COMMANDS",
-  commandUnlockRules: "__from_script:M2_COMMANDS",
+  // Structured unlock rules — mirrors the shape used by MISSION_1 so
+  // Phase B can consume both missions through one resolver contract.
+  // Source of truth still lives in script.js's M2_COMMANDS (the engine
+  // reads `unlocks` from there at runtime). This array is the declarative
+  // mirror used for inspection and for future table-driven dispatch.
+  commandUnlockRules: [
+    { key: "ip-addr", unlockedAtStart: true,  unlocksAfterRun: []         },
+    { key: "ping",    unlockedAtStart: true,  unlocksAfterRun: ["nmap"]   },
+    { key: "nmap",    unlockedAtStart: false, unlocksAfterRun: ["review"] },
+    { key: "review",  unlockedAtStart: false, unlocksAfterRun: []         },
+  ],
   hints:              "__from_script:M2_HINTS",
   managerMessages:    "__from_script:M2_MANAGER_MESSAGES",
   findingQuestion:    "__from_script:M2_ANALYST_REVIEW",

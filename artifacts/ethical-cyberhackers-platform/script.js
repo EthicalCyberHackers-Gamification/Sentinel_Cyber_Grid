@@ -56,7 +56,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 10:30 CST";
+const BUILD_TIME = "28 May 2026 — 11:05 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -2751,8 +2751,10 @@ function updateManagerMessage(messageText) {
     setM2ManagerMessage(messageText);
     return;
   }
-  const el = document.getElementById("managerMessageText")
-          || document.querySelector(".manager-message-text");
+  // Mission 1's supervisor panel uses <p id="managerText"> (see index.html).
+  // Write the text directly — legacy setManagerMessage(key) only accepts
+  // a key into MANAGER_MESSAGES and would reject arbitrary text.
+  const el = document.getElementById("managerText");
   if (el) el.textContent = messageText;
 }
 
@@ -2808,23 +2810,38 @@ function showReflectionEngine() {
  */
 function completeMissionEngine(newRank) {
   if (currentMissionId === "mission-002") {
-    // M2's terminal-state finalization runs inside handleM2QuizAnswer
-    // (it awards XP, bumps rank, persists, and renders the scorecard).
-    // If a caller invokes the engine directly without going through
-    // the quiz, mirror those side-effects here.
-    if (!mission2Complete) {
-      mission2Complete = true;
-      m2QuizAnswered   = true;
-      const rankToSet = newRank || M2_QUIZ.newRank;
-      if (rankNameEl && rankNameEl.textContent !== rankToSet) {
-        rankNameEl.textContent = rankToSet;
-        rankNameEl.classList.add("rank-name--upgraded");
-      }
-      saveProgress();
-      syncM2XPPanel();
-      markM2Status("m2-complete");
-      renderCourseProgress();
+    // M2's normal completion runs inside handleM2QuizAnswer (quiz path).
+    // Calling the engine directly must mirror ALL the side-effects of
+    // that path so engine-driven completion is indistinguishable from
+    // quiz-driven completion.
+    if (mission2Complete) return;
+
+    mission2Complete = true;
+    m2QuizAnswered   = true;
+
+    // XP award — was missing in 23A; fixed in 23B per architect review.
+    awardXP(M2_QUIZ.xpReward);
+
+    // Rank bump
+    const rankToSet = newRank || M2_QUIZ.newRank;
+    if (rankNameEl && rankNameEl.textContent !== rankToSet) {
+      rankNameEl.textContent = rankToSet;
+      rankNameEl.classList.add("rank-name--upgraded");
     }
+
+    // Persist + dashboard sync + status checklist + supervisor/hint copy
+    saveProgress();
+    syncM2XPPanel();
+    markM2Status("m2-complete");
+    setM2Hint("Mission 2 complete. See your scorecard below.");
+    setM2ManagerMessage("Outstanding, Agent. You've completed Mission 2. Review your scorecard and prepare for Mission 3.");
+    renderCourseProgress();
+
+    // Render the scorecard so engine-driven completion produces the
+    // same final UI as the quiz path. printM2Line is best-effort —
+    // if no M2 terminal is on-screen yet, it just no-ops.
+    renderM2Scorecard();
+    printM2Line("[ MISSION 2 COMPLETE — Network Basics passed. +100 XP awarded. ]", "m2-line--info");
     return;
   }
   completeMission(newRank || QUIZ.newRank);
