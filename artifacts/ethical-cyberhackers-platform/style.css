@@ -1629,6 +1629,35 @@ button {
 .unified-subtitle:empty { display: none; }
 
 /* ======================================================
+   MILESTONE 22 — "Replay Mission 1" secondary link.
+   Sits directly under the primary CTA. Muted by default,
+   subtle hover. Only shown when M1 is complete.
+   ====================================================== */
+.replay-mission-link {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 6px 0;
+  background: transparent;
+  border: none;
+  color: var(--color-text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  text-align: center;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.18);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+.replay-mission-link:hover {
+  color: var(--color-text);
+  text-decoration-color: var(--color-cyan);
+}
+
+/* ======================================================
    MILESTONE 21 — Mission 2 Analyst Review outcome blocks
    Reuses .quiz-panel chrome for the question itself. These
    two blocks (finding + summary) appear ONLY after the

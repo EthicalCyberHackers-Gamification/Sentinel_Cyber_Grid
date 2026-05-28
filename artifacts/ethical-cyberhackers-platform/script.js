@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 08:30 CST";
+const BUILD_TIME = "28 May 2026 — 08:55 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -166,6 +166,8 @@ function restoreSavedProgress() {
     PROGRESS_STEPS.forEach((s) => completedProgressSteps.add(s.id));
     renderProgressTracker();
     renderCourseProgress();
+    // Milestone 22 — returning student: swap M1 primary CTA to "Continue".
+    updateMission1CTA();
   }
 
   updateSaveIndicator(true);
@@ -1234,6 +1236,14 @@ function completeMission(newRank) {
   printOutput("[ Mission 2 unlocked: Network Basics ]", "info");
   renderCourseProgress();
 
+  // Milestone 22 — swap the M1 primary CTA from "Begin Mission" to
+  // "Continue to Mission 2 →" so the next step is obvious if the
+  // student stays on / re-enters the M1 dashboard. (The button is
+  // currently hidden behind the completion screen until the student
+  // chooses Restart, but we update it eagerly so it's correct the
+  // moment they do.)
+  updateMission1CTA();
+
   // Replace the quiz panel with the full completion screen
   if (quizPanel) {
     quizPanel.innerHTML = buildCompletionHTML(newRank);
@@ -1398,6 +1408,30 @@ function buildCompletionHTML(newRank) {
 
 
 /* ============================================================
+   Milestone 22 — Mission 1 primary CTA state machine.
+   When the student lands on the M1 dashboard:
+     * Fresh student (missionComplete = false) → "▶ Begin Mission"
+     * Returning student (missionComplete = true) → "▶ Continue to Mission 2 →"
+       plus a small "Replay Mission 1" secondary link underneath.
+   The dispatcher attached in DOMContentLoaded reads data-mode to
+   decide whether to call beginMission() or showMission2Overview().
+   ============================================================ */
+function updateMission1CTA() {
+  const btn  = document.getElementById("beginMissionBtn");
+  const link = document.getElementById("replayMission1Link");
+  if (!btn) return;
+  if (missionComplete) {
+    btn.setAttribute("data-mode", "continue");
+    btn.innerHTML = "\u25B6&nbsp; Continue to Mission 2 \u2192";
+    if (link) link.style.display = "";
+  } else {
+    btn.setAttribute("data-mode", "begin");
+    btn.innerHTML = "\u25B6&nbsp; Begin Mission";
+    if (link) link.style.display = "none";
+  }
+}
+
+/* ============================================================
    BEGIN MISSION  (Milestone 5)
    Called when the student clicks the "Begin Mission" button.
    Transitions the UI from the briefing screen into the active
@@ -1491,6 +1525,11 @@ function resetMission() {
   // Re-show the briefing panel
   const briefing = document.getElementById("missionBriefing");
   if (briefing) briefing.style.display = "";
+
+  // Milestone 22 — restore the primary CTA to its current correct state
+  // (Replay leaves missionComplete=false; revisits after a finish stay
+  //  on "Continue to Mission 2").
+  updateMission1CTA();
 
   // 2. Reset XP sidebar
   if (currentXPEl) currentXPEl.textContent = INITIAL_XP;
@@ -2267,8 +2306,24 @@ function boot() {
   if (commandsHint) commandsHint.style.display = "none";
 
   // Wire up the Begin Mission button
+  // Milestone 22 — primary CTA dispatches based on data-mode set by
+  // updateMission1CTA(). "begin" → start M1; "continue" → jump to M2.
   const beginBtn = document.getElementById("beginMissionBtn");
-  if (beginBtn) beginBtn.addEventListener("click", beginMission);
+  if (beginBtn) beginBtn.addEventListener("click", () => {
+    const mode = beginBtn.getAttribute("data-mode");
+    if (mode === "continue") {
+      showMission2Overview();
+    } else {
+      beginMission();
+    }
+  });
+  const replayLink = document.getElementById("replayMission1Link");
+  if (replayLink) replayLink.addEventListener("click", () => {
+    // Replay = restart M1 from the briefing screen.
+    resetMission();
+    updateMission1CTA();
+  });
+  updateMission1CTA();
 
   // Milestone 10 — wire up Enter Module + Back to Module Overview
   const enterBtn = document.getElementById("enterModuleBtn");

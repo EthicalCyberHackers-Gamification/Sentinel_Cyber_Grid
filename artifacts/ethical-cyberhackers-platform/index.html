@@ -602,8 +602,13 @@
               </ul>
             </section>
 
-            <button id="beginMissionBtn" class="begin-mission-btn">
+            <!-- Milestone 22 — Primary CTA. Label + handler swap based on
+                 Mission 1 completion state. See updateMission1CTA(). -->
+            <button id="beginMissionBtn" class="begin-mission-btn" data-mode="begin">
               ▶&nbsp; Begin Mission
+            </button>
+            <button id="replayMission1Link" type="button" class="replay-mission-link" style="display:none;">
+              Replay Mission 1
             </button>
           </div>
 
