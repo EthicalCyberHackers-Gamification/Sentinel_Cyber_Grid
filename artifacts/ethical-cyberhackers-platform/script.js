@@ -50,13 +50,154 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 04:45 CST";
+const BUILD_TIME = "28 May 2026 — 05:10 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
    trips back to the Module Overview (the input keeps its value because
    we only toggle display, never tear down the DOM). */
 let studentName = "";
+
+/* ============================================================
+   LOCAL PROGRESS SAVE  (Milestone 18)
+   Lightweight localStorage layer. Single key holds an object
+   so save/load is atomic and easy to version. No backend.
+   ============================================================ */
+
+const STORAGE_KEY = "ech.progress.v1";
+
+/** Read the saved progress object, or null if nothing/invalid. */
+function loadSavedProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== "object") return null;
+    return data;
+  } catch (e) {
+    // localStorage disabled, quota error, malformed JSON — fail closed.
+    return null;
+  }
+}
+
+/** Write the current in-memory state to localStorage. Safe no-op on error. */
+function saveProgress() {
+  try {
+    const data = {
+      studentName,
+      xp: currentXP,
+      rank: rankNameEl ? rankNameEl.textContent : INITIAL_RANK,
+      mission1Complete: !!missionComplete,
+      mission2Unlocked: !!missionComplete, // mirrors completion in this build
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    updateSaveIndicator(true);
+  } catch (e) {
+    updateSaveIndicator(false);
+  }
+}
+
+/** Refreshes the "Progress Saved Locally" pills (landing + dashboard). */
+function updateSaveIndicator(saved) {
+  const has = saved && !!localStorage.getItem(STORAGE_KEY);
+  document.querySelectorAll(".save-indicator").forEach((el) => {
+    el.classList.toggle("save-indicator--saved", has);
+    el.textContent = has
+      ? "✓ Progress Saved Locally"
+      : "No saved progress yet";
+  });
+  // Clear button is only meaningful when there's something to clear
+  document.querySelectorAll(".clear-progress-btn").forEach((el) => {
+    el.disabled = !has;
+  });
+}
+
+/**
+ * Restore saved progress on page load. Called once from boot() AFTER all
+ * DOM references and renderers are wired up.
+ *
+ * Note: we deliberately do NOT auto-show the completion screen / certificate
+ * on reload. Restoring sets the dashboard state to reflect completion
+ * (badge = COMPLETE, course progress shows Mission 2 unlocked, XP/rank
+ * restored), and the student can Restart Mission to replay if they want.
+ */
+function restoreSavedProgress() {
+  const data = loadSavedProgress();
+  if (!data) {
+    updateSaveIndicator(false);
+    return;
+  }
+
+  // 1. Student name — fill input, enable Enter Module button
+  if (typeof data.studentName === "string" && data.studentName.trim()) {
+    studentName = data.studentName.trim();
+    const nameInput = document.getElementById("studentNameInput");
+    const enterBtn  = document.getElementById("enterModuleBtn");
+    if (nameInput) nameInput.value = studentName;
+    if (enterBtn)  enterBtn.disabled = false;
+  }
+
+  // 2. XP — restore value and bar width (no animation on initial load)
+  if (typeof data.xp === "number" && isFinite(data.xp)) {
+    currentXP = Math.max(0, Math.min(data.xp, MAX_XP));
+    if (currentXPEl) currentXPEl.textContent = currentXP;
+    if (xpBarEl) {
+      xpBarEl.style.transition = "none";
+      xpBarEl.style.width = `${Math.round((currentXP / MAX_XP) * 100)}%`;
+    }
+  }
+
+  // 3. Rank
+  if (typeof data.rank === "string" && data.rank && rankNameEl) {
+    rankNameEl.textContent = data.rank;
+    if (data.rank !== INITIAL_RANK) {
+      rankNameEl.classList.add("rank-name--upgraded");
+    }
+  }
+
+  // 4. Mission 1 completion → also unlocks Mission 2 via renderCourseProgress
+  if (data.mission1Complete) {
+    missionComplete = true;
+    if (missionBadge) {
+      missionBadge.textContent = "COMPLETE";
+      missionBadge.classList.add("mission-status-badge--complete");
+    }
+    // Mark all tracker steps complete to mirror state
+    PROGRESS_STEPS.forEach((s) => completedProgressSteps.add(s.id));
+    renderProgressTracker();
+    renderCourseProgress();
+  }
+
+  updateSaveIndicator(true);
+}
+
+/**
+ * Spec #6 — wipe saved data and reset the entire UI to its initial state.
+ * Resets student name, XP, rank, mission completion, and re-locks Mission 2.
+ */
+function clearSavedProgress() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+
+  // Reset student name + input + Enter Module button
+  studentName = "";
+  const nameInput = document.getElementById("studentNameInput");
+  const enterBtn  = document.getElementById("enterModuleBtn");
+  if (nameInput) nameInput.value = "";
+  if (enterBtn)  enterBtn.disabled = true;
+
+  // Reset welcome line (will be re-populated next time they enter)
+  const welcomeEl = document.getElementById("welcomeMessage");
+  if (welcomeEl) welcomeEl.innerHTML = "";
+
+  // Reset Mission 1 gameplay + XP + rank + badge + course progress + tracker.
+  // resetMission() handles all of that without touching localStorage.
+  resetMission();
+
+  // resetMission ran with the now-cleared studentName, so save would write
+  // a fresh empty record. We don't want that — leave storage empty. The
+  // indicator update below reflects "no saved progress".
+  updateSaveIndicator(false);
+}
 
 
 /* ============================================================
@@ -1010,6 +1151,7 @@ function handleReflectionAnswer(answerId) {
  */
 function awardXP(amount) {
   currentXP = Math.min(currentXP + amount, MAX_XP);
+  saveProgress(); // Milestone 18 — persist XP after every reward
 
   if (currentXPEl) currentXPEl.textContent = currentXP;
 
@@ -1079,6 +1221,9 @@ function completeMission(newRank) {
     const restartBtn = document.getElementById("restartMissionBtn");
     if (restartBtn) restartBtn.addEventListener("click", resetMission);
   }
+
+  // Milestone 18 — persist completion + new rank + unlock state
+  saveProgress();
 }
 
 /**
@@ -1445,6 +1590,9 @@ function enterModule() {
     welcomeEl.innerHTML = `Welcome, <strong>${escapeHtml(studentName)}</strong>`;
   }
 
+  // Milestone 18 — persist the name as soon as the student enters the module
+  saveProgress();
+
   // Milestone 11 — show the simulation loader first, then the dashboard.
   if (moduleLandingEl) moduleLandingEl.style.display = "none";
   runSimulationLoader(() => {
@@ -1787,6 +1935,19 @@ function boot() {
   // Inject the build timestamp into the footer so it's always visible
   const buildEl = document.getElementById("buildTimestamp");
   if (buildEl) buildEl.textContent = `build: ${BUILD_TIME}`;
+
+  // Milestone 18 — wire Clear Saved Progress button(s)
+  document.querySelectorAll(".clear-progress-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (confirm("Clear all saved progress? This cannot be undone.")) {
+        clearSavedProgress();
+      }
+    });
+  });
+
+  // Milestone 18 — restore saved progress (runs AFTER renderers + listeners
+  // are in place, so any UI updates inside restore work correctly)
+  restoreSavedProgress();
 
   initTerminalInput();
   if (terminalInput) terminalInput.focus();

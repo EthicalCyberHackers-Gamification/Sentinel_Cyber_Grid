@@ -1477,6 +1477,68 @@ button {
 
 
 /* ======================================================
+   LOCAL PROGRESS SAVE  (Milestone 18)
+   Small "Progress Saved Locally" pill + Clear button row
+   shown under the Enter Module button on the landing screen.
+   ====================================================== */
+
+.save-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--color-border);
+  flex-wrap: wrap;
+}
+
+.save-indicator {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm, 4px);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+.save-indicator--saved {
+  color: var(--color-green);
+  background: rgba(0,255,136,0.06);
+  border-color: rgba(0,255,136,0.25);
+}
+
+.clear-progress-btn {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--color-text-dim);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.clear-progress-btn:hover:not(:disabled) {
+  color: #ff6b6b;
+  border-color: rgba(255,107,107,0.5);
+  background: rgba(255,107,107,0.06);
+}
+.clear-progress-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+
+/* ======================================================
    STUDENT NAME ENTRY  (Milestone 17)
    Input on the landing screen + welcome line on the dashboard.
    ====================================================== */
