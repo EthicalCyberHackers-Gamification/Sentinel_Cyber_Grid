@@ -1,0 +1,125 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Phase A Baseline is complete.
+* Mission Engine is ready.
+* Evidence Collection works.
+* Threat Level Meter works.
+* Trust Score System works.
+* Decision Consequence System works.
+* Alert Loop System works.
+* Mission 1 and Mission 2 still work.
+* Everything is frontend-only.
+
+Now implement Phase B — Milestone 24F: Dynamic Manager Reaction System.
+
+Purpose:
+The manager should react based on what the student does, especially evidence discovery, threat changes, and decision quality. This makes the simulation feel more alive without adding AI.
+
+Requirements:
+
+1. Do not add Mission 3 functionality yet.
+
+2. Do not redesign the UI.
+
+3. Do not break Mission 1 or Mission 2.
+
+4. Keep manager reactions scripted, not AI-generated.
+
+5. Add reusable functions:
+
+* getManagerReaction(eventType, context)
+* updateManagerReaction(eventType, context)
+* renderManagerReaction(messageText)
+
+6. Supported event types:
+
+* mission_started
+* evidence_found
+* threat_increased
+* decision_correct
+* decision_poor
+* decision_neutral
+* quiz_correct
+* quiz_incorrect
+* mission_completed
+
+7. Mission 1 manager reactions:
+
+mission_started:
+“Start with the workstation files. Look for anything that asks for sensitive information.”
+
+evidence_found:
+“Good catch. A password request from an unknown external email is suspicious.”
+
+threat_increased:
+“This may indicate phishing behavior. Continue carefully.”
+
+decision_correct:
+“Good decision. You escalated the suspicious password request with evidence.”
+
+decision_poor:
+“Ignoring a password theft indicator can put the organization at risk.”
+
+decision_neutral:
+“Continue investigating, but prepare to submit a clear finding.”
+
+quiz_correct:
+“You understand the risk. Password requests through unknown email channels are dangerous.”
+
+quiz_incorrect:
+“Review the evidence again. Focus on what the message asked the user to do.”
+
+mission_completed:
+“Mission complete. You identified and reported a possible phishing attempt.”
+
+8. Mission 2 manager reactions:
+
+mission_started:
+“Start by identifying your network position, then check whether the target host is reachable.”
+
+evidence_found:
+“Good. Exposed services are important evidence during network review.”
+
+threat_increased:
+“Multiple exposed services increase the attack surface if they are poorly secured.”
+
+decision_correct:
+“Good recommendation. Security review is the right next step.”
+
+decision_poor:
+“Open services should not be ignored. They require proper review.”
+
+decision_neutral:
+“Continue the investigation until your recommendation is supported by evidence.”
+
+quiz_correct:
+“You understand that open services can accept network connections and require assessment.”
+
+quiz_incorrect:
+“Review the scan output again. Focus on what the open service list means.”
+
+mission_completed:
+“Mission complete. You identified exposed services and recommended review.”
+
+9. Manager reaction should update automatically when:
+
+* mission starts
+* evidence is collected
+* threat level changes to High or Critical
+* decision is made
+* quiz is answered
+* mission is completed
+
+10. Keep existing manager panel visually the same unless minor text-display improvements are needed.
+
+11. Do not add backend, database, authentication, AI, or new pages.
+
+12. Keep everything frontend-only.
+
+13. Add comments explaining:
+    “Dynamic manager reactions make the mission feel responsive while remaining safe and scripted.”
+
+Goal:
+By the end of this step, manager feedback should feel responsive to student choices and investigation progress.

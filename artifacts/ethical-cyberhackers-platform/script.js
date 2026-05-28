@@ -70,7 +70,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 18:15 CST";
+const BUILD_TIME = "28 May 2026 — 18:45 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -108,10 +108,14 @@ const evidenceLog = {
   "mission-002": [],
 };
 
-/** Returns the active mission id by inspecting which dashboard is visible. */
+/** Returns the active mission id by inspecting which dashboard is visible.
+ *  Uses computed style rather than the inline `style.display` string:
+ *  beginMission2 reveals the dashboard with `display = ""` (an empty
+ *  string, which is falsy), so an inline-string check would mis-report
+ *  Mission 2 as Mission 1 and misroute things like manager reactions. */
 function getActiveMissionId() {
   const m2 = document.getElementById("mission2Dashboard");
-  if (m2 && m2.style.display && m2.style.display !== "none") {
+  if (m2 && getComputedStyle(m2).display !== "none") {
     return "mission-002";
   }
   return "mission-001";
@@ -152,6 +156,10 @@ function addEvidence(evidenceId, evidenceText, missionId) {
   if (a && (a.state === "New" || a.state === "Investigating")) {
     setAlertState(mid, "Evidence Found");
   }
+  // Milestone 24F — dynamic manager reaction: the supervisor acknowledges
+  // freshly collected evidence. Scripted, not AI; routed to the active
+  // mission's Supervisor panel.
+  updateManagerReaction("evidence_found", { missionId: mid });
   try { saveProgress(); } catch (_) { /* save errors are non-fatal */ }
   return true;
 }
@@ -593,6 +601,17 @@ function handleDecisionAction(actionId) {
   if (btn && btn.disabled) return;
 
   applyDecisionConsequence(actionId);
+
+  // Milestone 24F — dynamic manager reaction keyed to decision quality.
+  // correct → decision_correct, poor → decision_poor, acceptable →
+  // decision_neutral. Scripted strings only — no AI.
+  const DECISION_EVENT_BY_KIND = {
+    correct:    "decision_correct",
+    poor:       "decision_poor",
+    acceptable: "decision_neutral",
+  };
+  const reactionEvent = DECISION_EVENT_BY_KIND[def.kind];
+  if (reactionEvent) updateManagerReaction(reactionEvent, { missionId: def.missionId });
 
   // Inline feedback inside the panel.
   const fb = host.querySelector("[data-feedback]");
@@ -1294,6 +1313,50 @@ const MANAGER_MESSAGES = {
 };
 
 /* ============================================================
+   Milestone 24F — Dynamic Manager Reaction System (Phase B)
+   ------------------------------------------------------------
+   Dynamic manager reactions make the mission feel responsive
+   while remaining safe and scripted. The manager's words change
+   based on what the student actually does — discovering evidence,
+   driving the threat level up, making a good or poor decision,
+   answering the quiz, and finishing the mission. There is no AI:
+   every line is a fixed string chosen by (missionId, eventType).
+
+   Supported event types (spec #6):
+     mission_started | evidence_found | threat_increased
+     decision_correct | decision_poor | decision_neutral
+     quiz_correct | quiz_incorrect | mission_completed
+
+   Reactions are routed to whichever mission's Supervisor panel is
+   currently on screen (Mission 1 #managerText, Mission 2
+   #m2ManagerText) via renderManagerReaction().
+   ============================================================ */
+const MANAGER_REACTIONS = {
+  "mission-001": {
+    mission_started:   "Start with the workstation files. Look for anything that asks for sensitive information.",
+    evidence_found:    "Good catch. A password request from an unknown external email is suspicious.",
+    threat_increased:  "This may indicate phishing behavior. Continue carefully.",
+    decision_correct:  "Good decision. You escalated the suspicious password request with evidence.",
+    decision_poor:     "Ignoring a password theft indicator can put the organization at risk.",
+    decision_neutral:  "Continue investigating, but prepare to submit a clear finding.",
+    quiz_correct:      "You understand the risk. Password requests through unknown email channels are dangerous.",
+    quiz_incorrect:    "Review the evidence again. Focus on what the message asked the user to do.",
+    mission_completed: "Mission complete. You identified and reported a possible phishing attempt.",
+  },
+  "mission-002": {
+    mission_started:   "Start by identifying your network position, then check whether the target host is reachable.",
+    evidence_found:    "Good. Exposed services are important evidence during network review.",
+    threat_increased:  "Multiple exposed services increase the attack surface if they are poorly secured.",
+    decision_correct:  "Good recommendation. Security review is the right next step.",
+    decision_poor:     "Open services should not be ignored. They require proper review.",
+    decision_neutral:  "Continue the investigation until your recommendation is supported by evidence.",
+    quiz_correct:      "You understand that open services can accept network connections and require assessment.",
+    quiz_incorrect:    "Review the scan output again. Focus on what the open service list means.",
+    mission_completed: "Mission complete. You identified exposed services and recommended review.",
+  },
+};
+
+/* ============================================================
    REFLECTION CHECKPOINT  (Milestone 14)
    Shown after a correct quiz answer, BEFORE XP is awarded and
    BEFORE the Mission Scorecard. Turns the activity into a
@@ -1753,6 +1816,8 @@ function afterCommand(buttonKey) {
     );
     // Milestone 24B — fresh indicator-of-compromise → threat rises.
     setThreatLevel("High", "mission-001");
+    // Milestone 24F — threat just rose to High → manager reacts.
+    updateManagerReaction("threat_increased", { missionId: "mission-001" });
     // Milestone 24D — evidence collected → reach the decision point.
     // The Decision Actions panel gates showFindingPanel: only a
     // correct/acceptable action advances to the finding submission.
@@ -1770,7 +1835,10 @@ function afterCommand(buttonKey) {
 
   // Milestone 13: supervisor message for this command (if any).
   // Uses the same key as HINTS so the mapping stays consistent.
-  if (MANAGER_MESSAGES[buttonKey]) {
+  // Milestone 24F — for `cat-suspicious` the dynamic evidence/threat
+  // reactions (fired above) own the Supervisor panel; don't let the
+  // legacy command message overwrite them.
+  if (MANAGER_MESSAGES[buttonKey] && buttonKey !== "cat-suspicious") {
     setManagerMessage(buttonKey);
   }
 
@@ -2106,6 +2174,9 @@ function handleAnswer(answerId) {
     feedbackEl.textContent = QUIZ.correctFeedback;
     feedbackEl.className   = "quiz-feedback quiz-feedback--correct";
 
+    // Milestone 24F — dynamic manager reaction for a correct M1 quiz answer.
+    updateManagerReaction("quiz_correct", { missionId: "mission-001" });
+
     // Milestone 15: tracker — Quiz complete; Reflection is now current
     markProgressStep("quiz");
 
@@ -2118,6 +2189,9 @@ function handleAnswer(answerId) {
   } else {
     feedbackEl.textContent = QUIZ.incorrectFeedback;
     feedbackEl.className   = "quiz-feedback quiz-feedback--wrong";
+
+    // Milestone 24F — dynamic manager reaction for a wrong M1 quiz answer.
+    updateManagerReaction("quiz_incorrect", { missionId: "mission-001" });
   }
 }
 
@@ -2253,6 +2327,8 @@ function completeMission(newRank) {
 
   // Milestone 13: supervisor's closing message
   setManagerMessage("missionComplete");
+  // Milestone 24F — dynamic manager reaction for mission completion (M1).
+  updateManagerReaction("mission_completed", { missionId: "mission-001" });
 
   // Milestone 24B — mission complete → workstation is now safe (Low).
   setThreatLevel("Low", "mission-001");
@@ -2529,6 +2605,8 @@ function beginMission() {
   setHint(HINTS.started, "normal");
   // Milestone 13: supervisor's first in-mission message
   setManagerMessage("started");
+  // Milestone 24F — dynamic manager reaction for mission start (M1).
+  updateManagerReaction("mission_started", { missionId: "mission-001" });
   // Milestone 15: advance tracker — Begin Mission done, Inspect Location is now current
   markProgressStep("begin-mission");
   // Milestone 24E / 24E-2 — ensure the M1 alert exists in the "New"
@@ -3268,6 +3346,8 @@ function beginMission2() {
   markM2Status("started");
   setM2Hint("Start by identifying your local IP address.");
   setM2ManagerMessage("Welcome to Mission 2, Agent. Let's map this network — start by identifying your local IP address.");
+  // Milestone 24F — dynamic manager reaction for mission start (M2).
+  updateManagerReaction("mission_started", { missionId: "mission-002" });
 
   // Print a small system line in the terminal so it's not empty
   printM2Line("[ Mission 2 environment ready ]", "m2-line--info");
@@ -3323,6 +3403,8 @@ function runM2Command(key) {
     );
     // Milestone 24B — open services discovered → threat rises.
     setThreatLevel("High", "mission-002");
+    // Milestone 24F — threat just rose to High → manager reacts.
+    updateManagerReaction("threat_increased", { missionId: "mission-002" });
   }
   if (key === "review") {
     addEvidence(
@@ -3528,6 +3610,8 @@ function handleM2QuizAnswer(letter) {
   }
 
   if (!isCorrect) {
+    // Milestone 24F — dynamic manager reaction for a wrong M2 quiz answer.
+    updateManagerReaction("quiz_incorrect", { missionId: "mission-002" });
     // Allow retry on wrong answers, same pattern as analyst review.
     setTimeout(() => {
       if (!answersWrap) return;
@@ -3540,6 +3624,9 @@ function handleM2QuizAnswer(letter) {
     }, 600);
     return;
   }
+
+  // Milestone 24F — dynamic manager reaction for a correct M2 quiz answer.
+  updateManagerReaction("quiz_correct", { missionId: "mission-002" });
 
   // Correct path — complete Mission 2
   m2QuizAnswered   = true;
@@ -3569,6 +3656,10 @@ function handleM2QuizAnswer(letter) {
   markM2Status("m2-complete");
   setM2Hint("Mission 2 complete. See your scorecard below.");
   setM2ManagerMessage("Outstanding, Agent. You've completed Mission 2. Review your scorecard and prepare for Mission 3.");
+  // Milestone 24F — dynamic manager reaction for mission completion (M2).
+  // Fires after the closing briefing so the scripted reaction is the
+  // final line the student sees in the Supervisor panel.
+  updateManagerReaction("mission_completed", { missionId: "mission-002" });
   renderCourseProgress();
 
   // Milestone 24B — Mission 2 complete → network secured (Low).
@@ -3966,6 +4057,69 @@ function updateManagerMessage(messageText) {
   if (el) el.textContent = messageText;
 }
 
+/* ------------------------------------------------------------
+   Milestone 24F — Dynamic Manager Reaction helpers
+   ------------------------------------------------------------
+   Dynamic manager reactions make the mission feel responsive
+   while remaining safe and scripted. These three functions are
+   the public API used by the mission loop:
+
+     getManagerReaction(eventType, context)    → returns the line
+     renderManagerReaction(messageText)        → paints + flashes
+     updateManagerReaction(eventType, context) → get + render
+
+   `context.missionId` overrides the mission; otherwise the active
+   mission (visible dashboard) is used. Unknown mission/event
+   combinations return "" and render nothing, so callers can
+   fire-and-forget without guarding.
+   ------------------------------------------------------------ */
+
+/** Look up the scripted manager line for an event. Returns "" if none. */
+function getManagerReaction(eventType, context) {
+  const mid = (context && context.missionId) || getActiveMissionId();
+  const byMission = MANAGER_REACTIONS[mid];
+  if (!byMission) return "";
+  return byMission[eventType] || "";
+}
+
+/**
+ * Paint a manager line into the active mission's Supervisor panel and
+ * give it the same brief flash used elsewhere so the change is noticed.
+ * Routes to Mission 2's panel when its dashboard is on screen.
+ */
+function renderManagerReaction(messageText) {
+  const text = String(messageText || "");
+  if (!text) return;
+
+  if (getActiveMissionId() === "mission-002") {
+    setM2ManagerMessage(text);
+    // Match M1's flash treatment on the M2 panel if it supports it.
+    const m2Panel = document.getElementById("m2ManagerPanel");
+    if (m2Panel) {
+      m2Panel.classList.remove("manager-panel--flash");
+      void m2Panel.offsetWidth;
+      m2Panel.classList.add("manager-panel--flash");
+    }
+    return;
+  }
+
+  const el = document.getElementById("managerText");
+  if (el) el.textContent = text;
+  const panel = document.getElementById("managerPanel");
+  if (panel) {
+    panel.classList.remove("manager-panel--flash");
+    void panel.offsetWidth;                  // force reflow to restart anim
+    panel.classList.add("manager-panel--flash");
+  }
+}
+
+/** Resolve a reaction for the event and render it. Returns the text used. */
+function updateManagerReaction(eventType, context) {
+  const text = getManagerReaction(eventType, context);
+  if (text) renderManagerReaction(text);
+  return text;
+}
+
 /** Unlocks a single command in the active mission's command panel. */
 function unlockCommand(commandId) {
   if (currentMissionId === "mission-002") {
@@ -4173,6 +4327,11 @@ window.MissionEngine = {
   // 24E-2 — interactive alert modal
   showAlertModal,
   closeAlertModal,
+  // 24F — dynamic manager reaction system
+  MANAGER_REACTIONS,
+  getManagerReaction,
+  renderManagerReaction,
+  updateManagerReaction,
 };
 
 
