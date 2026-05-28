@@ -1477,6 +1477,134 @@ button {
 
 
 /* ======================================================
+   MISSION SCORECARD  (Milestone 8)
+   Sits inside the existing Mission Complete panel, below
+   the 🏆 header and above the Restart button. Reuses the
+   completion-screen background so it feels like one card.
+   ====================================================== */
+
+.scorecard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-md);
+  margin: var(--gap-md) 0;
+  animation: scorecardFadeIn 0.5s ease-out;
+}
+
+@keyframes scorecardFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.scorecard-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-xs);
+  padding: var(--gap-sm) var(--gap-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.02);
+}
+
+.scorecard-section-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  color: var(--color-cyan);
+}
+
+/* Key/value rows */
+.scorecard-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.scorecard-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--gap-md);
+  padding: 8px var(--gap-md);
+  border-bottom: 1px dashed rgba(255,255,255,0.06);
+}
+.scorecard-row:last-child { border-bottom: none; }
+
+.scorecard-key {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.scorecard-val {
+  font-size: 13px;
+  color: var(--color-text);
+  text-align: right;
+  font-weight: 500;
+}
+.scorecard-val--green  { color: var(--color-green); }
+.scorecard-val--cyan   { color: var(--color-cyan); }
+.scorecard-val--yellow { color: var(--color-yellow); }
+
+/* Skills Practiced list */
+.scorecard-skills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.scorecard-skills li {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  font-size: 12.5px;
+  color: var(--color-text);
+}
+.scorecard-bullet {
+  color: var(--color-green);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+/* What You Learned — cyan accent */
+.scorecard-learned {
+  border-color: rgba(0,229,255,0.4);
+  background: rgba(0,229,255,0.05);
+}
+.scorecard-learned-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+
+/* Next Mission Preview — yellow accent */
+.scorecard-next {
+  border-color: rgba(255,193,7,0.4);
+  background: rgba(255,193,7,0.05);
+}
+.scorecard-next-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-text);
+}
+.scorecard-next-title {
+  color: var(--color-yellow);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+
+/* ======================================================
    SUBMIT FINDING PANEL  (Milestone 7)
    Visually mirrors the quiz panel so the flow feels
    continuous: analyst writes report, then takes quiz.

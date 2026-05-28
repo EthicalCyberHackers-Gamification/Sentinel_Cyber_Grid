@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 00:55 CST";
+const BUILD_TIME = "28 May 2026 — 01:15 CST";
 
 
 /* ============================================================
@@ -834,7 +834,7 @@ function buildCompletionHTML(newRank) {
   return `
     <div class="completion-screen">
 
-      <!-- Header -->
+      <!-- ===== Header (kept from Milestone 4) ===== -->
       <div class="completion-header">
         <span class="completion-icon">🏆</span>
         <div class="completion-titles">
@@ -843,24 +843,72 @@ function buildCompletionHTML(newRank) {
         </div>
       </div>
 
-      <!-- Summary rows -->
-      <ul class="completion-summary">
-        <li class="completion-row">
-          <span class="completion-row-icon">✓</span>
-          <span class="completion-row-label">Threat identified</span>
-          <span class="completion-row-value completion-row-value--green">Phishing email</span>
-        </li>
-        <li class="completion-row">
-          <span class="completion-row-icon">⚡</span>
-          <span class="completion-row-label">XP earned</span>
-          <span class="completion-row-value completion-row-value--cyan">+${QUIZ.xpReward} XP</span>
-        </li>
-        <li class="completion-row">
-          <span class="completion-row-icon">🎖️</span>
-          <span class="completion-row-label">Rank unlocked</span>
-          <span class="completion-row-value completion-row-value--yellow">${newRank}</span>
-        </li>
-      </ul>
+      <!-- ===== MISSION SCORECARD (Milestone 8) =====
+           Replaces the old 3-row summary with a full training summary.
+           All values are derived from the existing QUIZ + mission data so
+           they stay in sync if those change later. -->
+      <div class="scorecard">
+
+        <div class="scorecard-section">
+          <span class="scorecard-section-label">MISSION SCORECARD</span>
+        </div>
+
+        <!-- Key/value rows -->
+        <ul class="scorecard-rows">
+          <li class="scorecard-row">
+            <span class="scorecard-key">Mission</span>
+            <span class="scorecard-val">New Cybersecurity Intern</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">Result</span>
+            <span class="scorecard-val scorecard-val--green">Completed</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">Threat Identified</span>
+            <span class="scorecard-val">Phishing attempt involving password theft</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">XP Earned</span>
+            <span class="scorecard-val scorecard-val--cyan">+${QUIZ.xpReward} XP</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">Rank</span>
+            <span class="scorecard-val scorecard-val--yellow">${newRank}</span>
+          </li>
+        </ul>
+
+        <!-- Skills Practiced -->
+        <div class="scorecard-section">
+          <span class="scorecard-section-label">SKILLS PRACTICED</span>
+          <ul class="scorecard-skills">
+            <li><span class="scorecard-bullet">▹</span>Basic Linux navigation</li>
+            <li><span class="scorecard-bullet">▹</span>Reading terminal output</li>
+            <li><span class="scorecard-bullet">▹</span>Inspecting files</li>
+            <li><span class="scorecard-bullet">▹</span>Identifying suspicious messages</li>
+            <li><span class="scorecard-bullet">▹</span>Reporting cybersecurity findings</li>
+          </ul>
+        </div>
+
+        <!-- What You Learned -->
+        <div class="scorecard-section scorecard-learned">
+          <span class="scorecard-section-label">WHAT YOU LEARNED</span>
+          <p class="scorecard-learned-text">
+            You learned how cybersecurity analysts use simple command-line
+            investigation steps to inspect files, identify suspicious
+            behavior, and report a possible phishing attempt.
+          </p>
+        </div>
+
+        <!-- Next Mission Preview -->
+        <div class="scorecard-section scorecard-next">
+          <span class="scorecard-section-label">NEXT MISSION PREVIEW</span>
+          <p class="scorecard-next-text">
+            <strong class="scorecard-next-title">Network Basics</strong>
+            — Learn how analysts identify devices and services on a network.
+          </p>
+        </div>
+
+      </div>
 
       <!-- Restart button -->
       <button id="restartMissionBtn" class="restart-btn">
