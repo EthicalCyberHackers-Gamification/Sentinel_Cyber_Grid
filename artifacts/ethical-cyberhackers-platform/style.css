@@ -1477,6 +1477,103 @@ button {
 
 
 /* ======================================================
+   MISSION PROGRESS TRACKER  (Milestone 15)
+   10-step lifecycle tracker. Three visual states:
+   locked (dim), current (cyan + pulse), complete (green).
+   ====================================================== */
+
+.progress-tracker {
+  margin-top: var(--gap-md);
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgba(0,0,0,0.2);
+}
+.progress-tracker .objectives-title {
+  margin: 0 0 8px 0;
+}
+
+.progress-tracker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progress-tracker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm, 4px);
+  border-left: 2px solid transparent;
+  font-size: 12px;
+  transition: background 0.25s ease, border-color 0.25s ease, opacity 0.25s ease;
+}
+
+.progress-tracker-icon {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.progress-tracker-label {
+  flex: 1;
+  color: var(--color-text);
+}
+
+.progress-tracker-status {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+/* --- locked --- */
+.progress-tracker-item--locked {
+  opacity: 0.45;
+  border-left-color: rgba(255,255,255,0.08);
+}
+.progress-tracker-item--locked .progress-tracker-icon,
+.progress-tracker-item--locked .progress-tracker-status {
+  color: var(--color-text-dim);
+}
+
+/* --- current --- */
+.progress-tracker-item--current {
+  background: rgba(0,229,255,0.07);
+  border-left-color: var(--color-cyan);
+  animation: trackerCurrentPulse 2s ease-in-out infinite;
+}
+.progress-tracker-item--current .progress-tracker-icon,
+.progress-tracker-item--current .progress-tracker-status,
+.progress-tracker-item--current .progress-tracker-label {
+  color: var(--color-cyan);
+}
+@keyframes trackerCurrentPulse {
+  0%, 100% { box-shadow: inset 2px 0 0 0 rgba(0,229,255,0.5); }
+  50%      { box-shadow: inset 2px 0 0 0 rgba(0,229,255,1);   }
+}
+
+/* --- complete --- */
+.progress-tracker-item--complete {
+  background: rgba(0,255,136,0.05);
+  border-left-color: var(--color-green);
+}
+.progress-tracker-item--complete .progress-tracker-icon,
+.progress-tracker-item--complete .progress-tracker-status {
+  color: var(--color-green);
+}
+.progress-tracker-item--complete .progress-tracker-label {
+  color: var(--color-text);
+}
+
+
+/* ======================================================
    SUPERVISOR MESSAGE PANEL  (Milestone 13)
    Scripted manager-style guidance shown at the top of the
    Active Mission panel. Persists through all phases.

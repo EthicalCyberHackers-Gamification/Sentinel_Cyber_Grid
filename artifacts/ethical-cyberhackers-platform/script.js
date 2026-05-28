@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 03:25 CST";
+const BUILD_TIME = "28 May 2026 — 03:50 CST";
 
 
 /* ============================================================
@@ -116,6 +116,34 @@ const MANAGER_MESSAGES = {
    BEFORE the Mission Scorecard. Turns the activity into a
    learning moment rather than just button-clicking.
    ============================================================ */
+/* ============================================================
+   PROGRESS TRACKER  (Milestone 15)
+   10-step lifecycle tracker shown in the mission panel.
+   Each step has status "locked" | "current" | "complete".
+   - Order in the array IS the order students see.
+   - "Briefing" starts complete on page load.
+   - "Begin Mission" is the initial current step.
+   - The first non-complete step is automatically highlighted
+     as current — no separate "current" state to maintain.
+   markProgressStep() flips a step to complete and re-renders.
+   resetProgressTracker() returns everything to the initial state.
+   ============================================================ */
+const PROGRESS_STEPS = [
+  { id: "briefing",         label: "Briefing"         },
+  { id: "begin-mission",    label: "Begin Mission"    },
+  { id: "inspect-location", label: "Inspect Location" },
+  { id: "list-files",       label: "List Files"       },
+  { id: "open-documents",   label: "Open Documents"   },
+  { id: "inspect-files",    label: "Inspect Files"    },
+  { id: "submit-finding",   label: "Submit Finding"   },
+  { id: "quiz",             label: "Quiz"             },
+  { id: "reflection",       label: "Reflection"       },
+  { id: "complete",         label: "Complete"         },
+];
+
+// Source of truth for completion. Briefing is always pre-completed.
+const completedProgressSteps = new Set(["briefing"]);
+
 const REFLECTION = {
   question: "What did this mission teach you?",
   answers: [
@@ -541,6 +569,19 @@ function afterCommand(buttonKey) {
   if (MANAGER_MESSAGES[buttonKey]) {
     setManagerMessage(buttonKey);
   }
+
+  // Milestone 15: map command keys → progress tracker step ids.
+  // Steps not listed here advance via their own dedicated hooks
+  // (submit-finding, quiz, reflection, complete).
+  const PROGRESS_BY_COMMAND = {
+    "pwd":            "inspect-location",
+    "ls-home":        "list-files",
+    "cd-documents":   "open-documents",
+    "cat-suspicious": "inspect-files",
+  };
+  if (PROGRESS_BY_COMMAND[buttonKey]) {
+    markProgressStep(PROGRESS_BY_COMMAND[buttonKey]);
+  }
 }
 
 /**
@@ -744,6 +785,8 @@ function handleFindingAnswer(answerId) {
 
     // Milestone 13: supervisor acknowledges the finding
     setManagerMessage("findingCorrect");
+    // Milestone 15: tracker — Submit Finding complete; Quiz is now current
+    markProgressStep("submit-finding");
 
     // 2. Append a small Analyst Report summary card
     const report = document.createElement("div");
@@ -855,6 +898,9 @@ function handleAnswer(answerId) {
     feedbackEl.textContent = QUIZ.correctFeedback;
     feedbackEl.className   = "quiz-feedback quiz-feedback--correct";
 
+    // Milestone 15: tracker — Quiz complete; Reflection is now current
+    markProgressStep("quiz");
+
     // Milestone 14: insert Reflection Checkpoint BEFORE XP + scorecard.
     // XP is awarded only after a correct reflection (see handleReflectionAnswer).
     setTimeout(showReflection, 1400);
@@ -929,6 +975,9 @@ function handleReflectionAnswer(answerId) {
     feedbackEl.textContent = REFLECTION.correctFeedback;
     feedbackEl.className   = "quiz-feedback quiz-feedback--correct";
 
+    // Milestone 15: tracker — Reflection complete; Complete is now current
+    markProgressStep("reflection");
+
     // NOW it's safe to award XP and proceed to the Mission Scorecard.
     awardXP(QUIZ.xpReward);
     setTimeout(() => completeMission(QUIZ.newRank), 1500);
@@ -989,6 +1038,12 @@ function completeMission(newRank) {
 
   // Milestone 13: supervisor's closing message
   setManagerMessage("missionComplete");
+
+  // Milestone 15: mark every step complete (spec #8). The loop is a safety
+  // net in case any earlier step's hook didn't fire (e.g. the optional
+  // "cat-employee-notes" path); the final "complete" step is always set here.
+  PROGRESS_STEPS.forEach((s) => completedProgressSteps.add(s.id));
+  renderProgressTracker();
 
   // Update rank in the XP sidebar
   if (rankNameEl) {
@@ -1133,6 +1188,8 @@ function beginMission() {
   setHint(HINTS.started, "normal");
   // Milestone 13: supervisor's first in-mission message
   setManagerMessage("started");
+  // Milestone 15: advance tracker — Begin Mission done, Inspect Location is now current
+  markProgressStep("begin-mission");
 
   // Mark the "Mission Started" step as complete
   MISSION_STEPS.forEach((step) => {
@@ -1191,6 +1248,8 @@ function resetMission() {
   setHint(HINTS.awaiting, "muted");
   // Milestone 13: reset supervisor message back to the welcome line
   setManagerMessage("awaiting");
+  // Milestone 15: reset progress tracker (Briefing complete, Begin Mission current)
+  resetProgressTracker();
 
   unlockedKeys.clear();
   completedSteps.clear();
@@ -1402,6 +1461,63 @@ function backToModuleOverview() {
    placeholder panel (Mission 2 itself is not built yet).
    ============================================================ */
 
+/* ============================================================
+   PROGRESS TRACKER  (Milestone 15) — renderers + helpers
+   ============================================================ */
+
+/**
+ * Renders the 10-row tracker. The status of each row is derived:
+ *   - "complete" if its id is in completedProgressSteps
+ *   - "current"  if it's the FIRST non-complete row
+ *   - "locked"   otherwise
+ * This means we only ever mutate the completed set — current/locked
+ * are computed at render time so the highlight always lines up.
+ */
+function renderProgressTracker() {
+  const el = document.getElementById("progressTracker");
+  if (!el) return;
+
+  // Find index of the first non-complete step (the "current" one).
+  const currentIdx = PROGRESS_STEPS.findIndex(
+    (s) => !completedProgressSteps.has(s.id)
+  );
+
+  el.innerHTML = PROGRESS_STEPS.map((step, i) => {
+    let status;
+    if (completedProgressSteps.has(step.id))      status = "complete";
+    else if (i === currentIdx)                    status = "current";
+    else                                          status = "locked";
+
+    const icon =
+      status === "complete" ? "✓" :
+      status === "current"  ? "▸" :
+                              "•";
+
+    return `
+      <li class="progress-tracker-item progress-tracker-item--${status}">
+        <span class="progress-tracker-icon" aria-hidden="true">${icon}</span>
+        <span class="progress-tracker-label">${step.label}</span>
+        <span class="progress-tracker-status">${status.toUpperCase()}</span>
+      </li>
+    `;
+  }).join("");
+}
+
+/** Marks a single step as complete and re-renders. Safe to call twice. */
+function markProgressStep(id) {
+  if (completedProgressSteps.has(id)) return;
+  completedProgressSteps.add(id);
+  renderProgressTracker();
+}
+
+/** Resets the tracker to its initial state (only Briefing complete). */
+function resetProgressTracker() {
+  completedProgressSteps.clear();
+  completedProgressSteps.add("briefing");
+  renderProgressTracker();
+}
+
+
 function renderCourseProgress() {
   if (!courseProgressEl) return;
 
@@ -1520,6 +1636,7 @@ function boot() {
   renderButtons();
   renderMissionStatus();
   renderCourseProgress();   // Milestone 9 — initial render (Mission 2 locked)
+  renderProgressTracker();  // Milestone 15 — initial render (Briefing complete, Begin Mission current)
 
   // Milestone 6: show the awaiting hint on initial load
   setHint(HINTS.awaiting, "muted");
