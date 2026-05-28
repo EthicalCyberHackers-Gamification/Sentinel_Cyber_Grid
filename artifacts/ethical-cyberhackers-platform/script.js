@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 04:05 CST";
+const BUILD_TIME = "28 May 2026 — 04:25 CST";
 
 
 /* ============================================================
@@ -1159,6 +1159,60 @@ function buildCompletionHTML(newRank) {
           </p>
         </div>
 
+      </div>
+
+      <!-- ===== CERTIFICATE PREVIEW (Milestone 16) =====
+           Rendered inline inside the completion screen so it's
+           automatically cleared by resetMission() (which wipes
+           quizPanel.innerHTML) — no extra reset wiring needed. -->
+      <div class="certificate-preview" aria-label="Certificate of Completion Preview">
+
+        <div class="certificate-card">
+          <div class="certificate-watermark" aria-hidden="true">CYBERCORP</div>
+
+          <div class="certificate-header">
+            <span class="certificate-eyebrow">CyberCorp Training Academy</span>
+            <h3 class="certificate-title">Certificate of Completion Preview</h3>
+            <span class="certificate-seal" aria-hidden="true">★</span>
+          </div>
+
+          <div class="certificate-body">
+            <div class="certificate-field">
+              <span class="certificate-label">Awarded to</span>
+              <span class="certificate-value certificate-value--name">Student Cyber Intern</span>
+            </div>
+
+            <div class="certificate-field">
+              <span class="certificate-label">For completing</span>
+              <span class="certificate-value">Mission 1 — New Cybersecurity Intern</span>
+            </div>
+
+            <div class="certificate-field">
+              <span class="certificate-label">Skills Demonstrated</span>
+              <ul class="certificate-skills">
+                <li><span class="certificate-bullet">▹</span>Basic Linux-style investigation</li>
+                <li><span class="certificate-bullet">▹</span>File inspection</li>
+                <li><span class="certificate-bullet">▹</span>Phishing recognition</li>
+                <li><span class="certificate-bullet">▹</span>Cybersecurity reporting</li>
+              </ul>
+            </div>
+
+            <div class="certificate-field">
+              <span class="certificate-label">Status</span>
+              <span class="certificate-value certificate-value--status">Mission 1 Completed</span>
+            </div>
+          </div>
+
+          <div class="certificate-footer">
+            <p class="certificate-note">
+              Full certificate unlocks after completing all missions in the course.
+            </p>
+            <button class="certificate-download-btn" type="button" disabled
+                    title="Locked until all missions are complete">
+              🔒&nbsp; Download Certificate — Locked
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Restart button -->
