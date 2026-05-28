@@ -220,29 +220,43 @@
           </ul>
         </section>
 
+        <!-- Milestone 20 — interactive Mission 2 play area. Commands start
+             disabled; clicking "Begin Mission 2" unlocks ip addr + ping,
+             and subsequent commands unlock in sequence. -->
         <section class="module-section">
-          <h2 class="module-section-title">COMMANDS (PREVIEW)</h2>
-          <div class="m2-cmd-grid">
-            <button class="m2-cmd-btn" type="button" disabled
-                    title="Mission 2 functionality coming next">
+          <h2 class="module-section-title">COMMANDS</h2>
+
+          <button id="m2BeginBtn" class="enter-module-btn m2-begin-btn" type="button">
+            ▶&nbsp; Begin Mission 2
+          </button>
+
+          <div class="m2-cmd-grid" id="m2CmdGrid" style="display:none;">
+            <button class="m2-cmd-btn" type="button" data-m2cmd="ip-addr" disabled>
               <span class="m2-cmd-prompt">$</span> ip addr
             </button>
-            <button class="m2-cmd-btn" type="button" disabled
-                    title="Mission 2 functionality coming next">
+            <button class="m2-cmd-btn" type="button" data-m2cmd="ping" disabled>
               <span class="m2-cmd-prompt">$</span> ping 10.0.0.5
             </button>
-            <button class="m2-cmd-btn" type="button" disabled
-                    title="Mission 2 functionality coming next">
+            <button class="m2-cmd-btn" type="button" data-m2cmd="nmap" disabled>
               <span class="m2-cmd-prompt">$</span> nmap 10.0.0.5
             </button>
-            <button class="m2-cmd-btn" type="button" disabled
-                    title="Mission 2 functionality coming next">
+            <button class="m2-cmd-btn" type="button" data-m2cmd="review" disabled>
               <span class="m2-cmd-prompt">$</span> review services
             </button>
           </div>
-          <p class="m2-coming-next">
-            🚧&nbsp; Mission 2 functionality coming next.
-          </p>
+
+          <div class="m2-play-area" id="m2PlayArea" style="display:none;">
+            <div class="m2-terminal" id="m2Terminal" role="log" aria-live="polite"></div>
+            <div class="m2-hint-row">
+              <span class="m2-hint-label">HINT</span>
+              <span class="m2-hint" id="m2Hint">Click "Begin Mission 2" to start.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="module-section m2-status-section" id="m2StatusSection" style="display:none;">
+          <h2 class="module-section-title">MISSION 2 STATUS</h2>
+          <ul class="m2-status-list" id="m2StatusList"></ul>
         </section>
 
         <button id="mission2BackBtn" class="enter-module-btn enter-module-btn--secondary" type="button">

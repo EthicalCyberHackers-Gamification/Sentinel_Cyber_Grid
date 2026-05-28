@@ -1,0 +1,86 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission 1 is fully playable.
+* Local progress save works.
+* Mission 2 unlocks after Mission 1 completion.
+* Mission 2 overview screen exists.
+* Mission 2 command buttons exist as disabled placeholders.
+
+Now implement Milestone 20: Mission 2 Command Functionality.
+
+Purpose:
+Mission 2 should teach students how cybersecurity analysts identify devices and services on a network using safe, simulated command outputs.
+
+Requirements:
+
+1. Enable the Mission 2 command buttons after the student starts Mission 2.
+
+2. Add a “Begin Mission 2” button on the Mission 2 overview screen.
+
+3. Mission 2 command flow:
+
+Start with:
+
+* ip addr
+* ping 10.0.0.5
+
+After `ping 10.0.0.5`, unlock:
+
+* nmap 10.0.0.5
+
+After `nmap 10.0.0.5`, unlock:
+
+* review services
+
+4. Terminal outputs:
+
+For `ip addr`:
+
+student@cybercorp:~$ ip addr
+eth0: inet 10.0.0.12/24
+
+For `ping 10.0.0.5`:
+
+student@cybercorp:~$ ping 10.0.0.5
+64 bytes from 10.0.0.5: host is reachable
+
+For `nmap 10.0.0.5`:
+
+student@cybercorp:~$ nmap 10.0.0.5
+PORT     STATE  SERVICE
+22/tcp   open   ssh
+80/tcp   open   http
+443/tcp  open   https
+
+For `review services`:
+
+student@cybercorp:~$ review services
+The host has SSH, HTTP, and HTTPS services exposed.
+
+5. Add Mission 2 status updates:
+
+* Mission 2 Started
+* Local IP Identified
+* Host Reachability Confirmed
+* Open Services Found
+* Services Reviewed
+
+6. Add Mission 2 hint updates:
+
+* Start by identifying your local IP address.
+* Now check whether the target host is reachable.
+* The host is reachable. Scan for open services.
+* Review the services and think about what they mean.
+
+7. Do not add quiz yet.
+
+8. Do not add backend, database, login, authentication, AI, or new pages.
+
+9. Keep everything frontend-only.
+
+10. Do not break Mission 1.
+
+Goal:
+By the end of this step, Mission 2 should have a working guided command sequence with realistic terminal outputs.

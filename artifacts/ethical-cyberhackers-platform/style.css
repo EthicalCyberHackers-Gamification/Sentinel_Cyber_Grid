@@ -1547,6 +1547,125 @@ button {
   .m2-cmd-grid { grid-template-columns: 1fr; }
 }
 
+/* --- Milestone 20: unlocked command button + play area --- */
+
+.m2-begin-btn {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.m2-cmd-btn--unlocked {
+  cursor: pointer !important;
+  opacity: 1 !important;
+  color: var(--color-text) !important;
+  border-style: solid !important;
+  border-color: var(--color-cyan) !important;
+  background: rgba(0,229,255,0.08) !important;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease !important;
+}
+.m2-cmd-btn--unlocked:hover {
+  background: rgba(0,229,255,0.18) !important;
+  box-shadow: 0 0 0 1px rgba(0,229,255,0.35), 0 0 12px rgba(0,229,255,0.2);
+}
+.m2-cmd-btn--unlocked:active { transform: translateY(1px); }
+.m2-cmd-btn--unlocked .m2-cmd-prompt { opacity: 1; }
+
+.m2-play-area {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.m2-terminal {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--color-text);
+  background: #000;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  min-height: 140px;
+  max-height: 260px;
+  overflow-y: auto;
+  white-space: pre;
+}
+.m2-line { white-space: pre; }
+.m2-line--prompt { color: var(--color-text); margin-top: 2px; }
+.m2-line--prompt .m2-prompt {
+  color: var(--color-green);
+  font-weight: 700;
+}
+.m2-line--output { color: var(--color-text); padding-left: 0; }
+.m2-line--info {
+  color: var(--color-cyan);
+  font-style: italic;
+  font-size: 11.5px;
+  opacity: 0.85;
+}
+.m2-line--blank { height: 6px; }
+
+.m2-hint-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(0,229,255,0.05);
+  border-left: 2px solid var(--color-cyan);
+  border-radius: 0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0;
+}
+.m2-hint-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 1.5px;
+  color: var(--color-cyan);
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+.m2-hint {
+  font-size: 13px;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+/* Mission 2 Status list */
+.m2-status-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.m2-status-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm, 4px);
+  border-left: 2px solid transparent;
+  font-size: 12.5px;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.m2-status-item--pending {
+  opacity: 0.5;
+  border-left-color: rgba(255,255,255,0.08);
+}
+.m2-status-item--pending .m2-status-icon { color: var(--color-text-dim); }
+.m2-status-item--done {
+  background: rgba(0,255,136,0.05);
+  border-left-color: var(--color-green);
+}
+.m2-status-item--done .m2-status-icon { color: var(--color-green); }
+.m2-status-icon {
+  font-family: var(--font-mono);
+  width: 14px;
+  text-align: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
 
 /* ======================================================
    LOCAL PROGRESS SAVE  (Milestone 18)

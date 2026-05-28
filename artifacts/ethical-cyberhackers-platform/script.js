@@ -50,7 +50,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 05:30 CST";
+const BUILD_TIME = "28 May 2026 — 06:00 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -197,6 +197,15 @@ function clearSavedProgress() {
   // a fresh empty record. We don't want that — leave storage empty. The
   // indicator update below reflects "no saved progress".
   updateSaveIndicator(false);
+
+  // Milestone 20 — also reset Mission 2 state + UI (the overview is no
+  // longer reachable once Mission 1 is re-locked, but be defensive).
+  resetMission2();
+  // If the M2 overview is currently showing, return the user to landing.
+  const overview = document.getElementById("mission2Overview");
+  if (overview && overview.style.display !== "none") {
+    hideMission2Overview();
+  }
 }
 
 
@@ -1868,6 +1877,174 @@ function hideMission2Overview() {
   }
 }
 
+/* ============================================================
+   MISSION 2 GAMEPLAY  (Milestone 20)
+   Guided 4-command sequence on the Mission 2 Overview screen.
+   Self-contained — does not touch Mission 1 state.
+   ============================================================ */
+
+// Ordered status entries. Each is marked complete as the student progresses.
+const M2_STATUS = [
+  { id: "started",   label: "Mission 2 Started" },
+  { id: "ip-addr",   label: "Local IP Identified" },
+  { id: "ping",      label: "Host Reachability Confirmed" },
+  { id: "nmap",      label: "Open Services Found" },
+  { id: "review",    label: "Services Reviewed" },
+];
+
+// Per-command: terminal output lines + hint shown AFTER the command runs +
+// commands this one unlocks next.
+const M2_COMMANDS = {
+  "ip-addr": {
+    cmd:    "ip addr",
+    output: ["eth0: inet 10.0.0.12/24"],
+    nextHint: "Now check whether the target host is reachable.",
+    unlocks: [],
+  },
+  "ping": {
+    cmd:    "ping 10.0.0.5",
+    output: ["64 bytes from 10.0.0.5: host is reachable"],
+    nextHint: "The host is reachable. Scan for open services.",
+    unlocks: ["nmap"],
+  },
+  "nmap": {
+    cmd:    "nmap 10.0.0.5",
+    output: [
+      "PORT     STATE  SERVICE",
+      "22/tcp   open   ssh",
+      "80/tcp   open   http",
+      "443/tcp  open   https",
+    ],
+    nextHint: "Review the services and think about what they mean.",
+    unlocks: ["review"],
+  },
+  "review": {
+    cmd:    "review services",
+    output: ["The host has SSH, HTTP, and HTTPS services exposed."],
+    nextHint: "Mission 2 commands complete.",
+    unlocks: [],
+  },
+};
+
+let m2Started = false;
+const m2UnlockedCmds = new Set();
+const m2CompletedStatus = new Set();
+
+function beginMission2() {
+  if (m2Started) return;
+  m2Started = true;
+
+  // Reveal play area + status section, hide Begin button
+  const beginBtn = document.getElementById("m2BeginBtn");
+  if (beginBtn) beginBtn.style.display = "none";
+  const grid = document.getElementById("m2CmdGrid");
+  if (grid) grid.style.display = "";
+  const play = document.getElementById("m2PlayArea");
+  if (play) play.style.display = "";
+  const statusSec = document.getElementById("m2StatusSection");
+  if (statusSec) statusSec.style.display = "";
+
+  // Unlock the two starting commands
+  m2UnlockedCmds.add("ip-addr");
+  m2UnlockedCmds.add("ping");
+  syncM2Buttons();
+
+  // Status + opening hint
+  markM2Status("started");
+  setM2Hint("Start by identifying your local IP address.");
+
+  // Print a small system line in the terminal so it's not empty
+  printM2Line("[ Mission 2 environment ready ]", "m2-line--info");
+}
+
+function runM2Command(key) {
+  if (!m2Started) return;
+  if (!m2UnlockedCmds.has(key)) return;
+  const def = M2_COMMANDS[key];
+  if (!def) return;
+
+  // Print prompt line + each output line
+  printM2Line(`<span class="m2-prompt">student@cybercorp:~$</span> ${escapeHtml(def.cmd)}`, "m2-line--prompt");
+  def.output.forEach((line) => printM2Line(escapeHtml(line), "m2-line--output"));
+  printM2Line("", "m2-line--blank");
+
+  // Mark this status step complete + unlock next commands
+  markM2Status(key);
+  def.unlocks.forEach((next) => m2UnlockedCmds.add(next));
+  syncM2Buttons();
+  setM2Hint(def.nextHint);
+}
+
+function syncM2Buttons() {
+  document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
+    const key = btn.getAttribute("data-m2cmd");
+    const unlocked = m2UnlockedCmds.has(key);
+    btn.disabled = !unlocked;
+    btn.classList.toggle("m2-cmd-btn--unlocked", unlocked);
+    if (unlocked) btn.removeAttribute("title");
+  });
+}
+
+function printM2Line(html, cls = "") {
+  const term = document.getElementById("m2Terminal");
+  if (!term) return;
+  const div = document.createElement("div");
+  div.className = `m2-line ${cls}`.trim();
+  div.innerHTML = html;
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+}
+
+function setM2Hint(text) {
+  const el = document.getElementById("m2Hint");
+  if (el) el.textContent = text;
+}
+
+function markM2Status(id) {
+  if (m2CompletedStatus.has(id)) return;
+  m2CompletedStatus.add(id);
+  renderM2Status();
+}
+
+function renderM2Status() {
+  const list = document.getElementById("m2StatusList");
+  if (!list) return;
+  list.innerHTML = M2_STATUS.map((s) => {
+    const done = m2CompletedStatus.has(s.id);
+    return `
+      <li class="m2-status-item ${done ? "m2-status-item--done" : "m2-status-item--pending"}">
+        <span class="m2-status-icon">${done ? "✓" : "•"}</span>
+        <span class="m2-status-label">${s.label}</span>
+      </li>
+    `;
+  }).join("");
+}
+
+/** Resets Mission 2 in-memory state + the overview UI back to pre-Begin. */
+function resetMission2() {
+  m2Started = false;
+  m2UnlockedCmds.clear();
+  m2CompletedStatus.clear();
+
+  const beginBtn = document.getElementById("m2BeginBtn");
+  if (beginBtn) beginBtn.style.display = "";
+  const grid = document.getElementById("m2CmdGrid");
+  if (grid) grid.style.display = "none";
+  const play = document.getElementById("m2PlayArea");
+  if (play) play.style.display = "none";
+  const statusSec = document.getElementById("m2StatusSection");
+  if (statusSec) statusSec.style.display = "none";
+  const term = document.getElementById("m2Terminal");
+  if (term) term.innerHTML = "";
+  setM2Hint("Click \"Begin Mission 2\" to start.");
+
+  // Buttons back to disabled
+  document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
+    btn.disabled = true;
+    btn.classList.remove("m2-cmd-btn--unlocked");
+  });
+}
+
 
 /* ============================================================
    BOOT — runs once on page load
@@ -1940,6 +2117,14 @@ function boot() {
   // Mission 2 Overview takeover screen
   const m2BackBtn = document.getElementById("mission2BackBtn");
   if (m2BackBtn) m2BackBtn.addEventListener("click", hideMission2Overview);
+
+  // Milestone 20 — Mission 2 gameplay wiring
+  const m2BeginBtn = document.getElementById("m2BeginBtn");
+  if (m2BeginBtn) m2BeginBtn.addEventListener("click", beginMission2);
+  document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
+    btn.addEventListener("click", () => runM2Command(btn.getAttribute("data-m2cmd")));
+  });
+  renderM2Status();
 
   // Milestone 18 — wire Clear Saved Progress button(s)
   document.querySelectorAll(".clear-progress-btn").forEach((btn) => {
