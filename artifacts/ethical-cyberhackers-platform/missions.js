@@ -483,3 +483,270 @@ export const MISSIONS_REGISTRY = {
 export function getMissionData(id) {
   return MISSIONS_REGISTRY[id];
 }
+
+
+/* ============================================================
+   MISSION TEMPLATE  (Milestone 23C — Phase A)
+   ------------------------------------------------------------
+   The mission template protects the platform from breaking when
+   new missions are added. It is the canonical shape every mission
+   object should follow. Use it two ways:
+
+     1. As DOCUMENTATION — copy MISSION_TEMPLATE, fill in your
+        mission-specific values, and you have a Mission 3 / 4 / N
+        starting point that is structurally compatible with the
+        engine in script.js.
+
+     2. As a SAFETY NET — pass any partial mission object through
+        createMissionFromTemplate(custom) to merge it on top of
+        the defaults. Missing fields fall back to safe blanks
+        instead of becoming `undefined` and crashing the engine.
+
+   Pair with validateMissionData(mission) before registering a new
+   mission so missing REQUIRED fields are surfaced as console
+   warnings (never shown to students).
+   ============================================================ */
+
+/**
+ * MISSION_TEMPLATE — the canonical shape of a Mission data object.
+ * Every field is annotated. Copy this object and fill in real values
+ * to author a new mission; or pass a partial object through
+ * createMissionFromTemplate() to fill the gaps automatically.
+ *
+ * Required fields (enforced by validateMissionData):
+ *   missionId, title, briefing, commands, xpReward
+ *
+ * Recommended fields (engine reads them when present):
+ *   roleContext, learningObjective, skillsPracticed, startingStatus,
+ *   commandUnlockRules, hints, managerMessages, findingQuestion,
+ *   quiz, reflection, scorecard, nextMissionPreview
+ */
+export const MISSION_TEMPLATE = {
+  /* ---- IDENTITY ---- */
+
+  /** Stable unique id used by loadMission() and the registry. e.g. "mission-003" */
+  missionId:          "",
+
+  /** Human-readable mission name shown in headings and the course card. */
+  title:              "",
+
+
+  /* ---- STORY / FRAMING ---- */
+
+  /** One-sentence in-world role the student is playing this mission. */
+  roleContext:        "",
+
+  /** 1–3 sentence mission briefing shown on the overview screen. */
+  briefing:           "",
+
+  /** Single-sentence pedagogical goal — "by the end of this mission you will…" */
+  learningObjective:  "",
+
+  /** Bulleted list of skills practiced (rendered in the scorecard). */
+  skillsPracticed:    [],
+
+
+  /* ---- LIFECYCLE ---- */
+
+  /** Status-checklist label that ticks as soon as the student begins. */
+  startingStatus:     "",
+
+
+  /* ---- INTERACTION ---- */
+
+  /**
+   * The set of command buttons the student can click.
+   * Either an array (Mission 1 shape: COMMAND_BUTTONS) or an object
+   * keyed by command id (Mission 2 shape: M2_COMMANDS). The engine
+   * accepts both.
+   */
+  commands:           [],
+
+  /**
+   * Declarative unlock rules. Each entry:
+   *   { key, unlockedAtStart, unlocksAfterRun }
+   * Lets the engine know which commands are visible at start and
+   * which ones each command reveals when clicked.
+   */
+  commandUnlockRules: [],
+
+  /**
+   * Hint dictionary. Either a flat { key → text } map, an array of
+   * hint strings, or — for missions that compose hints dynamically —
+   * a callable. The engine simply forwards to updateHintPanel().
+   */
+  hints:              {},
+
+  /**
+   * Supervisor / manager message dictionary. Same shape as `hints`:
+   *   { triggerKey → "message text" }
+   * Used by updateManagerMessage() when the student hits a milestone.
+   */
+  managerMessages:    {},
+
+
+  /* ---- ASSESSMENT ---- */
+
+  /**
+   * The "what did you find?" submission step. Typically:
+   *   { question, answers:[{id,text,correct}], correctMsg, wrongMsg }
+   * Mission 2 reuses this shape for its Analyst Review.
+   */
+  findingQuestion:    null,
+
+  /**
+   * Final multiple-choice quiz. Shape:
+   *   { question, answers:[{id|letter,text,correct}],
+   *     correctFeedback, incorrectFeedback,
+   *     xpReward?, newRank? }
+   * If quiz.xpReward / quiz.newRank are present they take precedence
+   * over the mission-level xpReward / newRank.
+   */
+  quiz:               null,
+
+  /**
+   * Optional reflection question shown after the quiz.
+   * Set to null for missions that skip reflection (e.g. Mission 2).
+   */
+  reflection:         null,
+
+
+  /* ---- REWARDS ---- */
+
+  /** XP awarded when the mission is completed. */
+  xpReward:           0,
+
+  /** New rank string awarded on completion (optional). */
+  newRank:            "",
+
+
+  /* ---- COMPLETION SCREEN ---- */
+
+  /**
+   * Scorecard content rendered on the completion screen.
+   *   {
+   *     missionLabel:     string,
+   *     threatIdentified: string,
+   *     whatYouLearned:   string,
+   *     certSkills:       string[],
+   *   }
+   * Engine renderers (buildCompletionHTML / renderM2Scorecard) read
+   * from this object.
+   */
+  scorecard:          {
+    missionLabel:     "",
+    threatIdentified: "",
+    whatYouLearned:   "",
+    certSkills:       [],
+  },
+
+  /**
+   * Teaser shown on the completion screen for the *next* mission.
+   *   { title, description }
+   */
+  nextMissionPreview: {
+    title:       "",
+    description: "",
+  },
+};
+
+
+/**
+ * Required fields every mission MUST provide. Used by
+ * validateMissionData() — keep this list short on purpose: anything
+ * not listed here can safely fall back to a template default.
+ */
+const REQUIRED_MISSION_FIELDS = [
+  "missionId",
+  "title",
+  "briefing",
+  "commands",
+  "xpReward",
+];
+
+
+/**
+ * createMissionFromTemplate(custom)
+ * --------------------------------
+ * Returns a new mission object that merges `custom` on top of
+ * MISSION_TEMPLATE. Any field the caller omits falls back to a safe
+ * default from the template, so a typo or omission can never produce
+ * an `undefined` field that crashes the engine.
+ *
+ * Performs a shallow merge at the top level and a one-level-deep
+ * merge for the nested `scorecard` and `nextMissionPreview` objects
+ * so a caller can override e.g. just `scorecard.whatYouLearned`
+ * without wiping the other scorecard fields.
+ *
+ * @param {object} custom  Partial mission data (may include extras).
+ * @returns {object}       A fully-formed mission object.
+ */
+export function createMissionFromTemplate(custom) {
+  const safe = custom && typeof custom === "object" ? custom : {};
+
+  // Deep-merge the small nested objects so partial overrides work.
+  const mergedScorecard = {
+    ...MISSION_TEMPLATE.scorecard,
+    ...(safe.scorecard || {}),
+  };
+  const mergedNext = {
+    ...MISSION_TEMPLATE.nextMissionPreview,
+    ...(safe.nextMissionPreview || {}),
+  };
+
+  return {
+    ...MISSION_TEMPLATE,
+    ...safe,
+    scorecard:          mergedScorecard,
+    nextMissionPreview: mergedNext,
+  };
+}
+
+
+/**
+ * validateMissionData(mission)
+ * ----------------------------
+ * Lightweight required-field check. Returns:
+ *   { valid: boolean, missing: string[] }
+ *
+ * Logs a clear console.warn for each missing required field so
+ * mission authors see the problem in devtools. We deliberately do
+ * NOT surface validation warnings to students — they only matter to
+ * the developer who's wiring up a new mission.
+ *
+ * A field is considered "missing" when it is undefined, null, an
+ * empty string, an empty array, or an empty plain object.
+ *
+ * @param {object} mission
+ * @returns {{ valid: boolean, missing: string[] }}
+ */
+export function validateMissionData(mission) {
+  if (!mission || typeof mission !== "object") {
+    console.warn(
+      "[mission-template] validateMissionData: expected a mission object, got",
+      mission,
+    );
+    return { valid: false, missing: REQUIRED_MISSION_FIELDS.slice() };
+  }
+
+  const isEmpty = (v) => {
+    if (v === undefined || v === null) return true;
+    if (typeof v === "string") return v.trim() === "";
+    if (Array.isArray(v))     return v.length === 0;
+    if (typeof v === "object") return Object.keys(v).length === 0;
+    return false;
+  };
+
+  const missing = REQUIRED_MISSION_FIELDS.filter((f) => isEmpty(mission[f]));
+
+  if (missing.length > 0) {
+    const id = mission.missionId || "(no missionId)";
+    console.warn(
+      `[mission-template] Mission "${id}" is missing required field(s): ${missing.join(", ")}. ` +
+      `Pass the object through createMissionFromTemplate() and double-check the missing fields ` +
+      `before registering it in MISSIONS_REGISTRY.`,
+    );
+  }
+
+  return { valid: missing.length === 0, missing };
+}

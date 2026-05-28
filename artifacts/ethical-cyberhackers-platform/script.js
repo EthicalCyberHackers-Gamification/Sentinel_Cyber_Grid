@@ -34,6 +34,10 @@ import {
   MISSIONS_REGISTRY,
   getMissionData,
   setActiveMissionId,
+  // Milestone 23C — mission template + safety helpers
+  MISSION_TEMPLATE,
+  createMissionFromTemplate,
+  validateMissionData,
 } from "/missions.js";
 
 
@@ -56,7 +60,7 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 11:05 CST";
+const BUILD_TIME = "28 May 2026 — 11:35 CST";
 
 /* Milestone 17 — Student name entered on the landing screen.
    Frontend-only variable. Persists across mission restart and across
@@ -2881,6 +2885,9 @@ function resetMissionEngine(missionId) {
 // Expose the engine on window so future modules / debugging can use it
 // without changing the import shape of script.js. (Module scope means
 // these names are otherwise unreachable from the devtools console.)
+// Milestone 23C — also expose the mission template + safety helpers so
+// future mission authors can do `MissionEngine.createMissionFromTemplate(...)`
+// and `MissionEngine.validateMissionData(...)` from the console.
 window.MissionEngine = {
   loadMission,
   getActiveMission,
@@ -2899,6 +2906,10 @@ window.MissionEngine = {
   completeMission: completeMissionEngine,
   showScorecard,
   resetMission:    resetMissionEngine,
+  // 23C — template system
+  MISSION_TEMPLATE,
+  createMissionFromTemplate,
+  validateMissionData,
 };
 
 
