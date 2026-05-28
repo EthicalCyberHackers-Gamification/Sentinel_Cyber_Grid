@@ -50,7 +50,36 @@ const INITIAL_RANK = "Script Kiddie";
  * It appears in the footer so you can confirm you are running the latest version.
  * Format: "DD Mon YYYY — HH:MM UTC"
  */
-const BUILD_TIME = "28 May 2026 — 00:05 CST";
+const BUILD_TIME = "28 May 2026 — 00:25 CST";
+
+
+/* ============================================================
+   HINTS  (Milestone 6 — Guided Hints and Error Prevention)
+   ============================================================
+   Beginner-friendly guidance shown in the Hint Panel above the
+   command buttons. The hint changes after each step the student
+   completes so they always know what to do next without typing.
+
+   Three hint "tones":
+     muted    — the awaiting/briefing screen (calm gray)
+     normal   — standard step-by-step guidance (cyan)
+     warning  — student clicked out of sequence (yellow)
+   ============================================================ */
+
+const HINTS = {
+  awaiting:             "Read the briefing, then click Begin Mission.",
+  started:              "Start by checking your current location.",
+  "pwd":                "Now list the files and folders in your current location.",
+  "ls-home":            "You found several folders. Open the documents folder.",
+  "cd-documents":       "Now list the files inside the documents folder.",
+  "ls-documents":       "Read both files. One contains normal guidance. One contains suspicious behavior.",
+  "cat-employee-notes": "This file looks normal. Continue checking the remaining file.",
+  "cat-suspicious":     "You found suspicious behavior. Answer the quiz to complete the mission.",
+  outOfSequence:        "Follow the mission path. Use the highlighted command next.",
+};
+
+// Strict forward sequence (cat-employee-notes is optional and handled separately)
+const HINT_SEQUENCE = ["pwd", "ls-home", "cd-documents", "ls-documents", "cat-suspicious"];
 
 /** Boot messages shown in the terminal on load and after every restart. */
 const BOOT_MESSAGES = [
@@ -89,10 +118,11 @@ const missionBadge = document.querySelector(".mission-status-badge");
    resetMission() restores all of them to their initial values.
    ============================================================ */
 
-let currentDir      = "~";      // which folder the student is in
-let currentXP       = INITIAL_XP;
-let missionComplete = false;
-let missionStarted  = false;    // false until student clicks "Begin Mission"
+let currentDir       = "~";     // which folder the student is in
+let currentXP        = INITIAL_XP;
+let missionComplete  = false;
+let missionStarted   = false;   // false until student clicks "Begin Mission"
+let furthestSeqIndex = -1;      // tracks how far along HINT_SEQUENCE the student is
 
 // Which button keys are currently visible to the student
 const unlockedKeys = new Set();
@@ -296,8 +326,66 @@ function processCommand(command, buttonKey) {
  *
  * @param {string} buttonKey
  */
+/**
+ * Updates the Hint Panel text + tone based on the button the student
+ * just clicked. Called at the top of afterCommand() so the hint reacts
+ * to every click, including out-of-sequence ones.
+ */
+function updateHint(buttonKey) {
+  // cat-employee-notes is optional — only available after cd-documents
+  if (buttonKey === "cat-employee-notes") {
+    if (furthestSeqIndex >= 2) {           // i.e. cd-documents already done
+      setHint(HINTS["cat-employee-notes"], "normal");
+    } else {
+      setHint(HINTS.outOfSequence, "warning");
+    }
+    return;
+  }
+
+  const clickedIndex = HINT_SEQUENCE.indexOf(buttonKey);
+  if (clickedIndex === -1) return;          // unknown button; leave hint alone
+
+  if (clickedIndex > furthestSeqIndex + 1) {
+    // Skipping ahead — gentle nudge back to the highlighted button
+    setHint(HINTS.outOfSequence, "warning");
+    return;
+  }
+
+  if (clickedIndex <= furthestSeqIndex) {
+    // Re-running an earlier command (e.g. pwd, ls) — keep current hint
+    return;
+  }
+
+  // Normal forward progression
+  furthestSeqIndex = clickedIndex;
+  setHint(HINTS[buttonKey], "normal");
+}
+
+/** Writes text + tone class to the hint panel. */
+function setHint(text, tone) {
+  const panel = document.getElementById("hintPanel");
+  const textEl = document.getElementById("hintText");
+  const iconEl = document.getElementById("hintIcon");
+  if (!panel || !textEl) return;
+
+  textEl.textContent = text;
+  panel.classList.remove("hint-panel--muted", "hint-panel--normal", "hint-panel--warning");
+  panel.classList.add(`hint-panel--${tone}`);
+  if (iconEl) iconEl.textContent = tone === "warning" ? "⚠️" : "💡";
+
+  // Brief flash so the change is noticeable
+  panel.classList.remove("hint-panel--flash");
+  void panel.offsetWidth;                    // force reflow to restart animation
+  panel.classList.add("hint-panel--flash");
+}
+
+
 function afterCommand(buttonKey) {
   if (!buttonKey) return;
+
+  // Milestone 6: update the hint panel BEFORE other logic so out-of-sequence
+  // warnings show even though the command itself still executes normally.
+  updateHint(buttonKey);
 
   // Unlock buttons whose condition was just met
   let newlyUnlocked = [];
@@ -660,6 +748,10 @@ function buildCompletionHTML(newRank) {
 function beginMission() {
   if (missionStarted) return;
   missionStarted = true;
+  furthestSeqIndex = -1;
+
+  // First in-mission hint
+  setHint(HINTS.started, "normal");
 
   // Mark the "Mission Started" step as complete
   MISSION_STEPS.forEach((step) => {
@@ -708,10 +800,14 @@ function beginMission() {
  */
 function resetMission() {
   // 1. Reset state variables — back to the pre-briefing state
-  currentDir      = "~";
-  currentXP       = INITIAL_XP;
-  missionComplete = false;
-  missionStarted  = false;     // back to "Awaiting Mission Start"
+  currentDir       = "~";
+  currentXP        = INITIAL_XP;
+  missionComplete  = false;
+  missionStarted   = false;    // back to "Awaiting Mission Start"
+  furthestSeqIndex = -1;
+
+  // Reset hint back to the pre-briefing message
+  setHint(HINTS.awaiting, "muted");
 
   unlockedKeys.clear();
   completedSteps.clear();
@@ -834,6 +930,9 @@ function boot() {
   printBootMessages();
   renderButtons();
   renderMissionStatus();
+
+  // Milestone 6: show the awaiting hint on initial load
+  setHint(HINTS.awaiting, "muted");
 
   // Hide command buttons + hint until the student clicks Begin Mission
   if (btnContainer) btnContainer.style.display = "none";

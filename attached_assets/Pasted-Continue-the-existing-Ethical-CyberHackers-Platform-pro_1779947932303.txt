@@ -1,0 +1,62 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Command buttons work.
+* Mission progression works.
+* Quiz works.
+* XP reward works.
+* Mission completion screen works.
+* Restart Mission works.
+* Mission Briefing, Learning Objective, Skills Practiced, and Begin Mission button work.
+
+Now implement Milestone 6: Guided Hints and Error Prevention.
+
+Purpose:
+Beginner students should receive light guidance while completing the mission. The platform should teach them what to do next without requiring typing or guessing.
+
+Requirements:
+
+1. Add a “Hint Panel” near the command buttons or mission panel.
+
+2. Before the mission starts, show:
+   “Read the briefing, then click Begin Mission.”
+
+3. After Begin Mission is clicked, show:
+   “Start by checking your current location.”
+
+4. After the student clicks `pwd`, show:
+   “Now list the files and folders in your current location.”
+
+5. After the student clicks `ls`, show:
+   “You found several folders. Open the documents folder.”
+
+6. After the student clicks `cd documents`, show:
+   “Now list the files inside the documents folder.”
+
+7. After the student clicks `ls documents`, show:
+   “Read both files. One contains normal guidance. One contains suspicious behavior.”
+
+8. After the student clicks `cat employee_notes.txt`, show:
+   “This file looks normal. Continue checking the remaining file.”
+
+9. After the student clicks `cat suspicious_file.txt`, show:
+   “You found suspicious behavior. Answer the quiz to complete the mission.”
+
+10. If a student clicks a command out of sequence, do not break the mission. Show a helpful message:
+    “Follow the mission path. Use the highlighted command next.”
+
+11. Highlight the recommended next command button visually.
+
+12. Do not remove existing functionality.
+
+13. Do not redesign the full UI.
+
+14. Do not add backend, database, login, AI, or new pages.
+
+15. Keep all logic frontend-only.
+
+16. Keep the code simple and clearly commented.
+
+Goal:
+By the end of this step, the mission guides the student through the investigation without typing, confusion, or broken flow.
