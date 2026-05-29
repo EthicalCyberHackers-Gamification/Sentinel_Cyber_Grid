@@ -76,6 +76,39 @@ Suspicion / Helpful Supporting Evidence / Critical Threat Evidence).
   on `resetMission` / `resetMission2`. Terminal directory context is NOT persisted (resets
   to `~` on resume by design).
 
+### Mission Focus Mode + Expandable Panels (Milestone 25A)
+A UX/immersion layer (no flow/logic changes) that declutters the mission dashboards.
+The 25A module lives near the bottom of `script.js` (~6240+).
+- **Manager chat feed**: `#managerText` / `#m2ManagerText` are `.manager-feed` containers
+  of `.manager-bubble`. `pushManagerMessage(missionId, text)` appends a bubble (dedupes the
+  consecutive repeat, trims to last 5, slide-in + panel flash). ALL manager writes route
+  through it.
+- **Focus Mode**: `body.focus-mode` hides `.xp-panel` + `#taskBrief` and collapses
+  `.focus-collapse` cards; `body.mission-running` shows the floating `#focusControlBar`
+  (toggle `#focusToggleBtn`). Helpers: `enterFocusMode` / `exitFocusMode` /
+  `toggleFocusMode` / `setMissionRunning` / `updateFocusBar`. `setMissionRunning(true)` +
+  `enterFocusMode()` fire on `beginMission` / `beginMission2`; `setMissionRunning(false)`
+  on `resetMission` / `resetMission2` / `backToModuleOverview` / `backToMission2Overview` /
+  `hideMission2Overview` / `showMission2Overview`.
+  - RESUME-SAFE (25A architect fix): re-entering an in-progress mission re-asserts the bar.
+    `beginMission2()` calls `setMissionRunning(true)`+`enterFocusMode()` BEFORE its
+    `m2Started` early-return; `enterModule()` re-asserts them when
+    `missionStarted && !missionComplete` (since `beginMission()`'s early guard would skip).
+- **Collapsible cards**: generic `.collapsible` / `.is-collapsed` with `.collapsible-head`
+  + `.collapsible-body`, a delegated click+keydown handler (`initCollapsibleCards`, wired in
+  `boot()`), and a CSS `::after` chevron. Applied to briefing sections, briefing rooms,
+  mission progress/status, progress tracker, and tools panels (M1+M2). Begin/launch CTAs are
+  OUTSIDE `.focus-collapse` so collapsing never hides them.
+- **Current Objective card** (`#currentObjective` / `#m2CurrentObjective`) mirrors the hint
+  via `setCurrentObjective`, called from `setHint` / `setM2Hint`.
+- **Command grouping**: M1 `renderButtons` groups buttons via `ensureGroup()` +
+  `m1CommandCategory()` ("Inspect Files" for `cat-*`, else "Navigate"); M2 static buttons
+  are wrapped in labeled `.cmd-group` divs (data-m2cmd selectors + `syncM2Buttons` unchanged).
+- **Sound-free animations**: `fxFlash` / `fxToast` / `fxPulse*` helpers hooked into
+  `awardXP` (toast + badge flash), `handlePinClassification` (board/confidence pulse +
+  "Evidence Added" toast), `increaseTrustScore`, `setThreatLevel`, `unlockTool` (glow +
+  toast), `updateManagerReaction` (mission_completed → "Mission Complete!" toast).
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
