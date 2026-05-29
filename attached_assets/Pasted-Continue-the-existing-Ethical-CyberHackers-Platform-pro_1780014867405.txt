@@ -1,0 +1,169 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission 1 and Mission 2 are fully playable.
+* Phase A Mission Engine exists.
+* Phase B simulation mechanics exist.
+* Evidence, threat level, trust score, decisions, alerts, manager reactions, tools, and scorecards work.
+* Everything is frontend-only.
+
+Now implement Challenge Layer 1: Hidden Evidence + False Leads.
+
+Purpose:
+The current missions are too predictable because students mostly click the next obvious button. Add light challenge by giving students more investigation options, including false leads and optional bonus evidence. This should make the mission feel more like real cybersecurity work without making it confusing.
+
+Important:
+Do not change the overall project trajectory.
+Do not add Mission 3.
+Do not redesign the UI.
+Do not break Mission 1 or Mission 2.
+
+Requirements:
+
+1. Add more discoverable files to Mission 1.
+
+When the student lists the documents folder, show:
+
+employee_notes.txt
+meeting_schedule.txt
+finance_update.txt
+suspicious_file.txt
+security_policy.txt
+
+2. Add clickable/readable commands for each file:
+
+cat employee_notes.txt
+cat meeting_schedule.txt
+cat finance_update.txt
+cat security_policy.txt
+cat suspicious_file.txt
+
+3. File outputs:
+
+employee_notes.txt:
+Reminder: Always report suspicious files to your cybersecurity manager.
+
+meeting_schedule.txt:
+Team meeting moved to 3:00 PM. No security concerns found.
+
+finance_update.txt:
+Quarterly finance review notes. No suspicious password request found.
+
+security_policy.txt:
+Company policy: Never share passwords through email or external links.
+
+suspicious_file.txt:
+Urgent: Send your password to [external-support@unknownmail.com](mailto:external-support@unknownmail.com) to avoid account suspension.
+
+4. False Lead Behavior:
+
+* meeting_schedule.txt and finance_update.txt should be treated as harmless false leads.
+* Reading them should not add major evidence.
+* Manager should say:
+  “This file appears normal. Keep looking for stronger evidence.”
+
+5. Bonus Evidence:
+   When the student reads security_policy.txt, add bonus evidence:
+
+Company policy confirms passwords should never be shared through email.
+
+Award:
++25 bonus XP
+
+But only award this bonus once.
+
+Manager message:
+“Good extra work. The policy helps confirm why the suspicious file is dangerous.”
+
+6. Required Evidence:
+   When the student reads suspicious_file.txt, add required evidence:
+
+Suspicious password request found in suspicious_file.txt
+
+7. Evidence Confidence Meter:
+   Add a simple “Evidence Confidence” value.
+
+Start:
+0%
+
+Rules:
+
+* Harmless false lead reviewed: +5%
+* security_policy.txt reviewed: +25%
+* suspicious_file.txt reviewed: +50%
+* correct finding submitted: +20%
+
+Cap at 100%.
+
+8. Decision Gate:
+   Do not allow final escalation or finding submission until Evidence Confidence is at least 50%.
+
+If student tries too early, show:
+“You need stronger evidence before submitting your finding.”
+
+9. Hint System:
+   If student is stuck, show progressive hints:
+
+Hint 1:
+“Not every file is suspicious. Review files carefully.”
+
+Hint 2:
+“Company policy may help you judge whether a file is dangerous.”
+
+Hint 3:
+“Look for a file asking for sensitive information.”
+
+10. Update Mission 1 Scorecard:
+    Include:
+
+* Files reviewed
+* False leads checked
+* Bonus evidence found
+* Final evidence confidence
+
+11. Mission 2 Light Challenge:
+    Add one harmless network result before the important scan.
+
+After `ip addr`, allow:
+ping 10.0.0.8
+ping 10.0.0.5
+
+Outputs:
+
+ping 10.0.0.8:
+Request timed out. Host not reachable.
+
+ping 10.0.0.5:
+64 bytes from 10.0.0.5: host is reachable.
+
+Only 10.0.0.5 should unlock nmap.
+
+If student clicks 10.0.0.8, manager says:
+“That host is not reachable. Try another target from the alert.”
+
+12. Add Mission 2 Evidence Confidence:
+    Start:
+    0%
+
+Rules:
+
+* local IP identified: +20%
+* unreachable host checked: +5%
+* reachable host confirmed: +30%
+* nmap scan completed: +30%
+* services reviewed: +20%
+
+Cap at 100%.
+
+13. Do not punish students harshly.
+    False leads should teach, not frustrate.
+
+14. Keep everything frontend-only.
+
+15. Do not add backend, database, authentication, AI, or new pages.
+
+16. Preserve all existing completed functionality.
+
+Goal:
+By the end of this step, Mission 1 and Mission 2 should feel more exploratory and less predictable. Students should investigate, check false leads, collect stronger evidence, use hints, and build confidence before completing the mission.

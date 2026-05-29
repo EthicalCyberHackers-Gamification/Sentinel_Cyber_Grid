@@ -336,6 +336,22 @@
             <p class="evidence-empty">No evidence collected yet.</p>
           </div>
 
+          <!-- ===== EVIDENCE CONFIDENCE (Challenge Layer 1) =====
+               Populated by renderConfidenceMeter("mission-002"). Rises as
+               the student runs reconnaissance commands. -->
+          <div id="m2ConfidenceMeter" class="confidence-meter">
+            <h3 class="objectives-title">
+              Evidence Confidence
+              <span class="confidence-pill">0%</span>
+            </h3>
+            <div class="confidence-bar">
+              <div class="confidence-bar-fill" style="width: 0%;"></div>
+            </div>
+            <p class="confidence-caption">
+              Confidence rises as you gather network evidence.
+            </p>
+          </div>
+
           <!-- ===== THREAT LEVEL METER (Milestone 24B — Phase B) =====
                Mission 2's threat meter. Populated by
                renderThreatLevel("mission-002"). The threat level meter
@@ -430,6 +446,9 @@
             <div class="m2-cmd-grid m2-cmd-grid--stacked" id="m2CmdGrid">
               <button class="m2-cmd-btn" type="button" data-m2cmd="ip-addr" disabled>
                 <span class="m2-cmd-prompt">$</span> ip addr
+              </button>
+              <button class="m2-cmd-btn" type="button" data-m2cmd="ping-bad" disabled>
+                <span class="m2-cmd-prompt">$</span> ping 10.0.0.8
               </button>
               <button class="m2-cmd-btn" type="button" data-m2cmd="ping" disabled>
                 <span class="m2-cmd-prompt">$</span> ping 10.0.0.5
@@ -724,6 +743,23 @@
             <p class="evidence-empty">No evidence collected yet.</p>
           </div>
 
+          <!-- ===== EVIDENCE CONFIDENCE (Challenge Layer 1) =====
+               Populated by renderConfidenceMeter("mission-001"). Rises as
+               the student reviews files. Submitting a finding is gated
+               behind at least 50% confidence. -->
+          <div id="confidenceMeter" class="confidence-meter">
+            <h3 class="objectives-title">
+              Evidence Confidence
+              <span class="confidence-pill">0%</span>
+            </h3>
+            <div class="confidence-bar">
+              <div class="confidence-bar-fill" style="width: 0%;"></div>
+            </div>
+            <p class="confidence-caption">
+              Gather stronger evidence before submitting a finding.
+            </p>
+          </div>
+
           <!-- ===== THREAT LEVEL METER (Milestone 24B — Phase B) =====
                Populated by renderThreatLevel("mission-001") on boot
                and on every state transition. The threat level meter
@@ -831,6 +867,9 @@
             <p class="commands-hint">
               Click a button below to run that command in the terminal.
               More commands will unlock as you investigate.
+              <button id="m1HintBtn" type="button" class="hint-request-btn">
+                Need a hint?
+              </button>
             </p>
             <!-- JS dynamically renders buttons here from COMMAND_BUTTONS in missions.js -->
             <div id="commandButtonsContainer" class="command-buttons command-buttons--day2"></div>

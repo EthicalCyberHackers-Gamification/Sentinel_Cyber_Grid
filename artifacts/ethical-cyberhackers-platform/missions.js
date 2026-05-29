@@ -45,7 +45,13 @@ export const FILESYSTEM = {
   /* ---- Documents folder ---- */
   "~/documents": {
     pwd: "/home/student/documents",
-    ls: ["employee_notes.txt", "suspicious_file.txt"],
+    ls: [
+      "employee_notes.txt",
+      "meeting_schedule.txt",
+      "finance_update.txt",
+      "suspicious_file.txt",
+      "security_policy.txt",
+    ],
 
     files: {
       // A normal-looking internal note
@@ -57,6 +63,27 @@ export const FILESYSTEM = {
         "",
         "Do NOT open attachments from unknown senders.",
         "Do NOT share your password with anyone.",
+      ],
+
+      // False lead — a harmless schedule note
+      "meeting_schedule.txt": [
+        "=== meeting_schedule.txt ===",
+        "",
+        "Team meeting moved to 3:00 PM. No security concerns found.",
+      ],
+
+      // False lead — a harmless finance note
+      "finance_update.txt": [
+        "=== finance_update.txt ===",
+        "",
+        "Quarterly finance review notes. No suspicious password request found.",
+      ],
+
+      // Bonus evidence — supporting company policy
+      "security_policy.txt": [
+        "=== security_policy.txt ===",
+        "",
+        "Company policy: Never share passwords through email or external links.",
       ],
 
       // A social-engineering / phishing message — the evidence
@@ -154,8 +181,17 @@ export const COMMAND_BUTTONS = [
     desc:            "Navigate into the documents folder",
     style:           "basic",
     unlockedAtStart: false,
-    // Once inside documents, reveal the three investigation commands
-    unlocksAfterRun: ["ls-documents", "cat-employee-notes", "cat-suspicious"],
+    // Once inside documents, reveal every file the student can inspect —
+    // the normal note, two false leads, the bonus policy, and the
+    // suspicious file. The student must sort real evidence from noise.
+    unlocksAfterRun: [
+      "ls-documents",
+      "cat-employee-notes",
+      "cat-meeting-schedule",
+      "cat-finance-update",
+      "cat-security-policy",
+      "cat-suspicious",
+    ],
   },
 
   /* --- Unlocked after cd-documents is clicked --- */
@@ -175,6 +211,36 @@ export const COMMAND_BUTTONS = [
     command:         "cat employee_notes.txt",
     icon:            "📄",
     desc:            "Read employee_notes.txt",
+    style:           "basic",
+    unlockedAtStart: false,
+    unlocksAfterRun: [],
+  },
+  {
+    key:             "cat-meeting-schedule",
+    label:           "Read Meeting Schedule",
+    command:         "cat meeting_schedule.txt",
+    icon:            "🗓️",
+    desc:            "Read meeting_schedule.txt",
+    style:           "basic",
+    unlockedAtStart: false,
+    unlocksAfterRun: [],
+  },
+  {
+    key:             "cat-finance-update",
+    label:           "Read Finance Update",
+    command:         "cat finance_update.txt",
+    icon:            "💵",
+    desc:            "Read finance_update.txt",
+    style:           "basic",
+    unlockedAtStart: false,
+    unlocksAfterRun: [],
+  },
+  {
+    key:             "cat-security-policy",
+    label:           "Read Security Policy",
+    command:         "cat security_policy.txt",
+    icon:            "📘",
+    desc:            "Read security_policy.txt",
     style:           "basic",
     unlockedAtStart: false,
     unlocksAfterRun: [],

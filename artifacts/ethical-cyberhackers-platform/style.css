@@ -1516,6 +1516,77 @@ button {
 .trust-score--high .trust-score-bar-fill     { background: #4ade80; }
 
 /* ======================================================
+   Challenge Layer 1 — Evidence Confidence meter
+   ------------------------------------------------------
+   Reuses the trust-score chrome so it sits cleanly under
+   the Evidence panel on both mission dashboards.
+   ====================================================== */
+.confidence-meter {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(74, 222, 128, 0.18);
+}
+.confidence-meter .objectives-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.confidence-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--color-bg, #0b1220);
+  background: #a78bfa;
+  border-radius: 9px;
+}
+.confidence-bar {
+  height: 8px;
+  margin: 8px 0 6px;
+  background: rgba(148, 163, 184, 0.18);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.confidence-bar-fill {
+  height: 100%;
+  background: #a78bfa;
+  border-radius: 4px;
+  transition: width 600ms ease, background-color 400ms ease;
+}
+.confidence-caption {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(226, 232, 240, 0.55);
+  font-style: italic;
+}
+
+/* Progressive hint request button (Mission 1 commands panel). */
+.hint-request-btn {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+.hint-request-btn:hover {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.6);
+}
+
+/* ======================================================
    Milestone 24G — Available Tools panel (Phase B)
    ------------------------------------------------------
    Quiet panel under the Trust Score on both mission

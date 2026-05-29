@@ -108,6 +108,89 @@ const evidenceLog = {
   "mission-002": [],
 };
 
+/* ============================================================
+   Challenge Layer 1 — Evidence Confidence System
+   ------------------------------------------------------------
+   A simple 0–100% confidence value per mission. Reading files /
+   running commands raises it. Each contributor is counted once
+   (tracked via a Set of contributor keys) so re-reading the same
+   file cannot inflate the score. Frontend-only, no AI/DB.
+
+   Mission 1 weights:
+     false lead reviewed (each)   +5
+     security_policy.txt reviewed +25
+     suspicious_file.txt reviewed +50
+     correct finding submitted    +20
+   Mission 2 weights:
+     local IP identified          +20
+     unreachable host checked     +5
+     reachable host confirmed     +30
+     nmap scan completed          +30
+     services reviewed            +20
+   ============================================================ */
+const CONFIDENCE_CAP = 100;
+let m1Confidence = 0;
+let m2Confidence = 0;
+const m1ConfidenceContributors = new Set();
+const m2ConfidenceContributors = new Set();
+
+// Challenge Layer 1 — Mission 1 investigation tracking (for the scorecard).
+const m1FilesReviewed     = new Set();
+const m1FalseLeadsChecked = new Set();
+let   m1BonusFound        = false;
+let   m1BonusXpAwarded    = false;
+let   m1ProgressiveHintIx = 0;
+
+const M1_PROGRESSIVE_HINTS = [
+  "Not every file is suspicious. Review files carefully.",
+  "Company policy may help you judge whether a file is dangerous.",
+  "Look for a file asking for sensitive information.",
+];
+
+/** Returns the live confidence value for a mission. */
+function getConfidence(missionId) {
+  return missionId === "mission-002" ? m2Confidence : m1Confidence;
+}
+
+/** Add a one-time confidence contribution for a mission. */
+function addConfidence(missionId, contributorKey, amount) {
+  const set = missionId === "mission-002"
+    ? m2ConfidenceContributors
+    : m1ConfidenceContributors;
+  if (set.has(contributorKey)) return;
+  set.add(contributorKey);
+  if (missionId === "mission-002") {
+    m2Confidence = Math.min(CONFIDENCE_CAP, m2Confidence + amount);
+  } else {
+    m1Confidence = Math.min(CONFIDENCE_CAP, m1Confidence + amount);
+  }
+  renderConfidenceMeter(missionId);
+}
+
+/** Render the "Evidence Confidence" meter for the given mission id. */
+function renderConfidenceMeter(missionId) {
+  const mid    = missionId || getActiveMissionId();
+  const hostId = mid === "mission-002" ? "m2ConfidenceMeter" : "confidenceMeter";
+  const host   = document.getElementById(hostId);
+  if (!host) return;
+  const pct = Math.max(0, Math.min(CONFIDENCE_CAP, getConfidence(mid)));
+  const ready = pct >= 50;
+  host.innerHTML = `
+    <h3 class="objectives-title">
+      Evidence Confidence
+      <span class="confidence-pill">${pct}%</span>
+    </h3>
+    <div class="confidence-bar">
+      <div class="confidence-bar-fill" style="width: ${pct}%;"></div>
+    </div>
+    <p class="confidence-caption">
+      ${ready
+        ? "You have enough evidence to submit a finding."
+        : "Gather stronger evidence before submitting a finding."}
+    </p>
+  `;
+}
+
 /** Returns the active mission id by inspecting which dashboard is visible.
  *  Uses computed style rather than the inline `style.display` string:
  *  beginMission2 reveals the dashboard with `display = ""` (an empty
@@ -479,6 +562,35 @@ function buildOutcomeSummaryHTML(missionId) {
     (MANAGER_REACTIONS[missionId] && MANAGER_REACTIONS[missionId].mission_completed) ||
     "Mission complete.";
 
+  // --- Challenge Layer 1 — investigation quality rows ---
+  const confidencePct = Math.max(0, Math.min(CONFIDENCE_CAP, getConfidence(missionId)));
+  let challengeRows = "";
+  if (missionId === "mission-001") {
+    challengeRows = `
+        <li class="outcome-row">
+          <span class="outcome-key">Files Reviewed</span>
+          <span class="outcome-val">${m1FilesReviewed.size}</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">False Leads Checked</span>
+          <span class="outcome-val">${m1FalseLeadsChecked.size}</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">Bonus Evidence Found</span>
+          <span class="outcome-val">${m1BonusFound ? "Yes" : "No"}</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">Final Evidence Confidence</span>
+          <span class="outcome-val outcome-val--cyan">${confidencePct}%</span>
+        </li>`;
+  } else {
+    challengeRows = `
+        <li class="outcome-row">
+          <span class="outcome-key">Final Evidence Confidence</span>
+          <span class="outcome-val outcome-val--cyan">${confidencePct}%</span>
+        </li>`;
+  }
+
   return `
     <div class="scorecard-section scorecard-outcome">
       <span class="scorecard-section-label">MISSION OUTCOME SUMMARY</span>
@@ -529,6 +641,7 @@ function buildOutcomeSummaryHTML(missionId) {
           <span class="outcome-key">Manager Final Feedback</span>
           <span class="outcome-val outcome-val--manager">${escapeHtml(managerFinal)}</span>
         </li>
+${challengeRows}
 
       </ul>
     </div>
@@ -1405,6 +1518,16 @@ function saveProgress() {
       decisionAdvanced: (typeof decisionAdvanced === "object" && decisionAdvanced) ? decisionAdvanced : {},
       // Milestone 24E — persist alert state per mission so it survives reload.
       alertByMission: (typeof alertByMission === "object" && alertByMission) ? alertByMission : {},
+      // Challenge Layer 1 — persist Evidence Confidence + investigation state
+      // so it survives reload. Sets are serialized to arrays.
+      m1Confidence,
+      m2Confidence,
+      m1ConfidenceContributors: Array.from(m1ConfidenceContributors),
+      m2ConfidenceContributors: Array.from(m2ConfidenceContributors),
+      m1FilesReviewed:     Array.from(m1FilesReviewed),
+      m1FalseLeadsChecked: Array.from(m1FalseLeadsChecked),
+      m1BonusFound,
+      m1BonusXpAwarded,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -1565,6 +1688,43 @@ function restoreSavedProgress() {
     });
   }
 
+  // 11. Challenge Layer 1 — restore Evidence Confidence + investigation state.
+  //     Values are clamped/validated so corrupt storage cannot break the meters.
+  if (typeof data.m1Confidence === "number" && isFinite(data.m1Confidence)) {
+    m1Confidence = Math.max(0, Math.min(CONFIDENCE_CAP, data.m1Confidence));
+  }
+  if (typeof data.m2Confidence === "number" && isFinite(data.m2Confidence)) {
+    m2Confidence = Math.max(0, Math.min(CONFIDENCE_CAP, data.m2Confidence));
+  }
+  m1ConfidenceContributors.clear();
+  if (Array.isArray(data.m1ConfidenceContributors)) {
+    data.m1ConfidenceContributors.forEach((k) => {
+      if (typeof k === "string") m1ConfidenceContributors.add(k);
+    });
+  }
+  m2ConfidenceContributors.clear();
+  if (Array.isArray(data.m2ConfidenceContributors)) {
+    data.m2ConfidenceContributors.forEach((k) => {
+      if (typeof k === "string") m2ConfidenceContributors.add(k);
+    });
+  }
+  m1FilesReviewed.clear();
+  if (Array.isArray(data.m1FilesReviewed)) {
+    data.m1FilesReviewed.forEach((k) => {
+      if (typeof k === "string") m1FilesReviewed.add(k);
+    });
+  }
+  m1FalseLeadsChecked.clear();
+  if (Array.isArray(data.m1FalseLeadsChecked)) {
+    data.m1FalseLeadsChecked.forEach((k) => {
+      if (typeof k === "string") m1FalseLeadsChecked.add(k);
+    });
+  }
+  m1BonusFound     = data.m1BonusFound === true;
+  m1BonusXpAwarded = data.m1BonusXpAwarded === true;
+  renderConfidenceMeter("mission-001");
+  renderConfidenceMeter("mission-002");
+
   updateSaveIndicator(true);
 }
 
@@ -1667,7 +1827,11 @@ const MANAGER_MESSAGES = {
   "cd-documents":       "List the files inside this folder.",
   "ls-documents":       "Review the available files carefully.",
   "cat-employee-notes": "That file looks normal. Continue your investigation.",
+  "cat-meeting-schedule": "This file appears normal. Keep looking for stronger evidence.",
+  "cat-finance-update":   "This file appears normal. Keep looking for stronger evidence.",
+  "cat-security-policy":  "Good extra work. The policy helps confirm why the suspicious file is dangerous.",
   "cat-suspicious":     "That message is suspicious. Submit your finding before taking the quiz.",
+  needMoreEvidence:     "You need stronger evidence before submitting your finding.",
   findingCorrect:       "Good analyst work. Now confirm your understanding in the quiz.",
   missionComplete:      "Mission complete. You identified a phishing attempt and reported it properly.",
 };
@@ -1980,6 +2144,58 @@ function clearTerminal() {
    Reads FILESYSTEM data and produces the right output per command.
    ============================================================ */
 
+/**
+ * Challenge Layer 1 — central handler for a successful Mission 1 file read.
+ * Runs for both typed (`cat finance_update.txt`) and clicked commands, so
+ * confidence/bonus/false-lead reactions are consistent either way.
+ *
+ * - false leads (meeting_schedule / finance_update): no major evidence,
+ *   small confidence bump, "keep looking" supervisor nudge.
+ * - security_policy: bonus evidence + one-time bonus XP + confidence.
+ * - suspicious_file: the required evidence flow lives in afterCommand();
+ *   here we only credit confidence.
+ */
+function handleM1FileRead(filename) {
+  const name = (filename || "").toLowerCase();
+  m1FilesReviewed.add(name);
+
+  if (name === "meeting_schedule.txt" || name === "finance_update.txt") {
+    m1FalseLeadsChecked.add(name);
+    addConfidence("mission-001", `false-${name}`, 5);
+    const key = name === "meeting_schedule.txt"
+      ? "cat-meeting-schedule"
+      : "cat-finance-update";
+    setManagerMessage(key);
+    return;
+  }
+
+  if (name === "security_policy.txt") {
+    // addEvidence returns false if this evidence already exists (e.g. after a
+    // page reload that restored saved progress). Gate the one-time bonus XP on
+    // that durable, persisted result so it can never be re-farmed across reloads.
+    const isNewEvidence = addEvidence(
+      "m1-security-policy",
+      "Company policy confirms passwords should never be shared through email.",
+      "mission-001"
+    );
+    addConfidence("mission-001", "security-policy", 25);
+    m1BonusFound = true;
+    if (isNewEvidence && !m1BonusXpAwarded) {
+      m1BonusXpAwarded = true;
+      awardXP(25);
+    }
+    // Override the generic evidence_found reaction with the bonus message.
+    setManagerMessage("cat-security-policy");
+    return;
+  }
+
+  if (name === "suspicious_file.txt") {
+    addConfidence("mission-001", "suspicious", 50);
+    return;
+  }
+  // employee_notes.txt and any other normal file: no confidence change.
+}
+
 function processCommand(command, buttonKey) {
   const cmd     = command.trim().toLowerCase();
   const dirData = FILESYSTEM[currentDir];
@@ -2031,6 +2247,9 @@ function processCommand(command, buttonKey) {
           printOutput(line, line.startsWith("[!") ? "warn" : "default");
         }
       });
+      // Challenge Layer 1 — apply confidence / bonus / false-lead logic for
+      // EVERY successful file read, whether the command was typed or clicked.
+      handleM1FileRead(filename);
     } else {
       printOutput(
         `cat: ${filename}: Access denied: file not found in current location.`,
@@ -2191,6 +2410,16 @@ function afterCommand(buttonKey) {
     // session, showDecisionActions is a no-op and we go straight to
     // the finding panel.)
     setTimeout(() => {
+      // Challenge Layer 1 — Decision Gate: block escalation / finding
+      // submission until the student has built at least 50% confidence.
+      // Reading the suspicious file alone reaches 50%, so the normal
+      // path is never blocked; this guards out-of-order / low-evidence
+      // attempts.
+      if (m1Confidence < 50) {
+        setHint(MANAGER_MESSAGES.needMoreEvidence, "warning");
+        setManagerMessage("needMoreEvidence");
+        return;
+      }
       if (decisionAdvanced["mission-001"]) {
         showFindingPanel();
       } else {
@@ -2423,6 +2652,8 @@ function handleFindingAnswer(answerId) {
 
     // Milestone 13: supervisor acknowledges the finding
     setManagerMessage("findingCorrect");
+    // Challenge Layer 1 — correct finding raises evidence confidence.
+    addConfidence("mission-001", "correct-finding", 20);
     // Milestone 15: tracker — Submit Finding complete; Quiz is now current
     markProgressStep("submit-finding");
     // Milestone 24B — analyst submitted correct finding → threat eases.
@@ -3069,6 +3300,16 @@ function resetMission() {
   unlockedKeys.clear();
   completedSteps.clear();
 
+  // Challenge Layer 1 — reset Mission 1 confidence + investigation tracking.
+  m1Confidence = 0;
+  m1ConfidenceContributors.clear();
+  m1FilesReviewed.clear();
+  m1FalseLeadsChecked.clear();
+  m1BonusFound     = false;
+  m1BonusXpAwarded = false;
+  m1ProgressiveHintIx = 0;
+  renderConfidenceMeter("mission-001");
+
   // Milestone 24A — restarting Mission 1 clears only Mission 1's evidence.
   clearEvidenceForMission("mission-001");
   // Milestone 24B — restart resets Mission 1's threat level to baseline.
@@ -3637,6 +3878,15 @@ const M2_COMMANDS = {
     unlocks: [],
     managerMsg: "Good — you've identified your local IP. Now confirm whether the target host is reachable.",
   },
+  // Challenge Layer 1 (M2) — false lead: an unreachable host. Provides a
+  // little confidence for checking, but does NOT unlock the scan.
+  "ping-bad": {
+    cmd:    "ping 10.0.0.8",
+    output: ["Request timed out. Host not reachable."],
+    nextHint: "That host didn't respond. Try the other target from the alert.",
+    unlocks: [],
+    managerMsg: "That host is not reachable. Try another target from the alert.",
+  },
   "ping": {
     cmd:    "ping 10.0.0.5",
     output: ["64 bytes from 10.0.0.5: host is reachable"],
@@ -3729,10 +3979,13 @@ function beginMission2() {
   if (m2Started) return;
   m2Started = true;
 
-  // Unlock the two starting commands
+  // Unlock the starting commands (ip addr + both ping targets — the
+  // unreachable host is a Challenge Layer 1 false lead).
   m2UnlockedCmds.add("ip-addr");
+  m2UnlockedCmds.add("ping-bad");
   m2UnlockedCmds.add("ping");
   syncM2Buttons();
+  renderConfidenceMeter("mission-002");
 
   // Status + opening hint + supervisor briefing
   markM2Status("started");
@@ -3782,6 +4035,18 @@ function runM2Command(key) {
   syncM2Buttons();
   setM2Hint(def.nextHint);
   if (def.managerMsg) setM2ManagerMessage(def.managerMsg);
+
+  // Challenge Layer 1 (M2) — raise evidence confidence per command (once each).
+  const M2_CONFIDENCE = {
+    "ip-addr":  20,
+    "ping-bad":  5,
+    "ping":     30,
+    "nmap":     30,
+    "review":   20,
+  };
+  if (M2_CONFIDENCE[key]) {
+    addConfidence("mission-002", `m2-${key}`, M2_CONFIDENCE[key]);
+  }
 
   // Milestone 24A — Evidence Collection (Mission 2).
   // `nmap` reveals the open services; `review services` is the analyst
@@ -4307,6 +4572,10 @@ function resetMission2() {
   m2AnalystAnswered = false;
   m2QuizAnswered    = false;
   mission2Complete  = false;
+  // Challenge Layer 1 — reset Mission 2 confidence.
+  m2Confidence = 0;
+  m2ConfidenceContributors.clear();
+  renderConfidenceMeter("mission-002");
   // Milestone 24A — restarting Mission 2 clears only Mission 2's evidence.
   clearEvidenceForMission("mission-002");
   // Milestone 24B — restart resets Mission 2's threat level to baseline.
@@ -5088,6 +5357,19 @@ function boot() {
     btn.addEventListener("click", () => runM2Command(btn.getAttribute("data-m2cmd")));
   });
   renderM2Status();
+
+  // Challenge Layer 1 — progressive hint button for Mission 1. Each click
+  // reveals the next hint (capped at the final, most direct hint).
+  const m1HintBtn = document.getElementById("m1HintBtn");
+  if (m1HintBtn) {
+    m1HintBtn.addEventListener("click", () => {
+      const ix = Math.min(m1ProgressiveHintIx, M1_PROGRESSIVE_HINTS.length - 1);
+      setHint(M1_PROGRESSIVE_HINTS[ix], "normal");
+      if (m1ProgressiveHintIx < M1_PROGRESSIVE_HINTS.length - 1) {
+        m1ProgressiveHintIx++;
+      }
+    });
+  }
 
   // Milestone 18 — wire Clear Saved Progress button(s)
   document.querySelectorAll(".clear-progress-btn").forEach((btn) => {
