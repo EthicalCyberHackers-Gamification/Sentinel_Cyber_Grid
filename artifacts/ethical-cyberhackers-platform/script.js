@@ -7005,14 +7005,24 @@ function renderGuidedReady() {
       <p class="guided-ready-text">You reviewed the briefing materials.</p>
       <p class="guided-ready-task">${escapeHtml(task)}</p>
       <div class="guided-actions guided-actions--center">
+        ${guidedState.missionId === "mission-001"
+          ? `<button id="guidedDemoBtn" class="guided-next-btn guided-demo-btn" type="button">
+               👁 Watch Demo First
+             </button>`
+          : ``}
         <button id="guidedLaunchBtn" class="guided-next-btn guided-launch-btn" type="button">
           ▶ Launch Investigation
         </button>
       </div>
+      ${guidedState.missionId === "mission-001"
+        ? `<p class="guided-demo-note">New here? Watch a quick demo of how to use the app, then try it yourself.</p>`
+        : ``}
     </div>
   `;
   const launch = overlay.querySelector("#guidedLaunchBtn");
   if (launch) launch.addEventListener("click", runGuidedLaunch);
+  const demo = overlay.querySelector("#guidedDemoBtn");
+  if (demo) demo.addEventListener("click", () => startDemo("mission-001"));
 }
 
 /** Play the launch sequence in the overlay (terminal-styled), then start. */
@@ -7085,7 +7095,7 @@ const igPending = new Set();
 const IG_PHASES = {
   commands: {
     target: (m) => document.getElementById(m === "mission-002" ? "m2CurrentObjective" : "currentObjective"),
-    text: "This is your command center. Click a command to run it in the terminal — new commands unlock as you progress.",
+    text: "This is your command Center. Click or Type a command to run it in the terminal - new commands unlock as you progress.",
   },
   files: {
     target: () => document.querySelector('#commandButtonsContainer [data-cmd-group="Inspect Files"]'),
@@ -7132,6 +7142,9 @@ function igTeardown() {
 
 /** End the guided investigation tour (reset / back / leave a mission). */
 function endGuidedRun() {
+  // If an opt-in demo is mid-flight, tear it down on ANY navigation exit so
+  // its timers can't fire off-screen and `suppressSave` is never left stuck.
+  if (demoRunning) abortDemo();
   igEnabled = false;
   igPhasesShown.clear();
   igPending.clear();
@@ -7216,6 +7229,237 @@ function positionCoach(tip, el) {
   left = Math.max(margin, Math.min(left, window.innerWidth - tr.width - margin));
   tip.style.top  = top + "px";
   tip.style.left = left + "px";
+}
+
+/* ============================================================
+   OPT-IN GUIDED DEMO  (Mission 1 — "Watch how it works")
+   A self-contained, automated walkthrough the student can opt into
+   from the "Mission Ready" screen BEFORE starting for real. It
+   launches a CLEAN Mission 1, runs real example commands while a
+   pop-out MOVES near each location (command center → terminal →
+   files → Investigation Board → decision), then fully resets so the
+   student starts fresh.
+   Safety: persistence is suppressed during the demo (reuses
+   `suppressSave`) and `resetMission()` wipes every side effect at the
+   end; the real spotlight tour (`igEnabled`) is held off so the two
+   never overlap.
+   ============================================================ */
+let demoRunning = false;
+let demoTimers  = [];
+let demoStepIx  = 0;
+let demoTrustSnapshot = DEFAULT_TRUST_SCORE;
+
+function demoWait(fn, ms) {
+  const id = setTimeout(fn, ms);
+  demoTimers.push(id);
+  return id;
+}
+
+function clearDemoTimers() {
+  demoTimers.forEach((id) => clearTimeout(id));
+  demoTimers = [];
+}
+
+/* Each step: narration text + the element to point at + an optional
+   real action to run first. `action` runs, then after `actionDelay`
+   the pop-out moves to `target`, then we hold for `hold` and advance. */
+const DEMO_STEPS = [
+  {
+    text: "This is your command Center. You can CLICK a command button here, or TYPE a command in the terminal below. Let's run a few together.",
+    target: () => document.getElementById("commandButtonsContainer"),
+    hold: 4200,
+  },
+  {
+    text: "Start by listing the files in the current folder — running 'ls' shows what's here.",
+    action: () => runCommand("ls"),
+    target: () => document.getElementById("terminalInput"),
+    hold: 3900,
+  },
+  {
+    text: "Now open the documents folder with 'cd documents', then list it again to see the files inside.",
+    action: () => { runCommand("cd documents"); runCommand("ls"); },
+    target: () => document.getElementById("terminalInput"),
+    hold: 4300,
+  },
+  {
+    text: "Read a file to look for clues. This one is routine business activity — nothing alarming.",
+    action: () => runCommand("cat finance_update.txt"),
+    target: () => document.getElementById("terminalInput"),
+    hold: 4100,
+  },
+  {
+    text: "This file looks suspicious. Reading it flags it as a finding you can investigate further.",
+    action: () => runCommand("cat suspicious_file.txt"),
+    target: () => document.getElementById("terminalInput"),
+    hold: 4300,
+  },
+  {
+    text: "Important findings get PINNED to your Investigation Board and CLASSIFIED by how suspicious they are. Watch — we pin this one as Critical Threat Evidence.",
+    action: () => { try { handlePinClassification("mission-001", "suspicious_file.txt", "critical"); } catch (_) {} },
+    target: () => document.getElementById("investigationBoard"),
+    hold: 4800,
+  },
+  {
+    text: "With the threat confirmed, you choose a decision action — your choice affects your trust score and completes the mission.",
+    target: () => document.getElementById("decisionActions") || document.getElementById("investigationBoard"),
+    hold: 4600,
+  },
+  {
+    text: "That's the whole workflow! Close this demo and click ▶ Launch Investigation to try it yourself.",
+    target: null,
+    hold: 5200,
+    last: true,
+  },
+];
+
+/** Begin the opt-in demo from the Mission Ready screen (M1 only). */
+function startDemo() {
+  if (demoRunning) return;
+  if (missionStarted) return; // only run from a not-yet-started mission
+
+  // Tear down the briefing overlay + any spotlight FIRST, while demoRunning is
+  // still false — otherwise endGuidedRun()'s `if (demoRunning) abortDemo()`
+  // guard would immediately self-cancel the demo we are about to start.
+  igEnabled = false; // hold off the real spotlight so they never overlap
+  endGuidedRun();
+
+  // Now arm the demo.
+  demoRunning = true;
+  // Snapshot the trust score: resetMission() does NOT reset it, so we restore
+  // it on teardown to keep the demo fully side-effect-neutral for the real run.
+  demoTrustSnapshot = (typeof trustScore === "number") ? trustScore : DEFAULT_TRUST_SCORE;
+  suppressSave = true; // nothing the demo does is persisted
+
+  // Launch a clean Mission 1 dashboard so every real panel is on screen.
+  beginMission();
+
+  // Auto-acknowledge the "Incoming Alert" modal so the demo can drive on.
+  demoWait(() => {
+    if (!demoRunning) return;
+    const ack = document.getElementById("alertModalInvestigateBtn");
+    if (ack) ack.click();
+    demoStepIx = 0;
+    runDemoStep();
+  }, 950);
+}
+
+function runDemoStep() {
+  if (!demoRunning) return;
+  if (demoStepIx >= DEMO_STEPS.length) { endDemo(); return; }
+  const step = DEMO_STEPS[demoStepIx];
+
+  if (typeof step.action === "function") {
+    try { step.action(); } catch (_) { /* non-fatal in demo */ }
+  }
+
+  demoWait(() => {
+    if (!demoRunning) return;
+    const target = typeof step.target === "function" ? step.target() : null;
+    showDemoCoach(step.text, target, demoStepIx, DEMO_STEPS.length, step.last);
+    demoStepIx += 1;
+    if (!step.last) demoWait(runDemoStep, step.hold || 4000);
+    else demoWait(endDemo, step.hold || 5000);
+  }, step.actionDelay || 420);
+}
+
+/** Render / move the demo pop-out near `target` (smooth CSS transition). */
+function showDemoCoach(text, target, ix, total, isLast) {
+  let dim = document.getElementById("demoDim");
+  if (!dim) {
+    dim = document.createElement("div");
+    dim.id = "demoDim";
+    dim.className = "ig-dim";
+    document.body.appendChild(dim);
+  }
+
+  // Spotlight ring on the active, visible target only.
+  document.querySelectorAll(".ig-spotlight-target")
+    .forEach((el) => el.classList.remove("ig-spotlight-target"));
+  const visible = target && target.offsetParent !== null;
+  if (visible) {
+    target.classList.add("ig-spotlight-target");
+    try { target.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
+  }
+
+  let tip = document.getElementById("demoCoach");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "demoCoach";
+    tip.className = "ig-coach demo-coach";
+    document.body.appendChild(tip);
+  }
+  tip.innerHTML =
+    `<div class="demo-coach-head">` +
+      `<span class="demo-coach-tag">● DEMO</span>` +
+      `<span class="demo-coach-counter">Step ${ix + 1} of ${total}</span>` +
+    `</div>` +
+    `<p class="ig-coach-text demo-coach-text">${escapeHtml(text)}</p>` +
+    `<button class="ig-coach-dismiss demo-coach-skip" type="button">` +
+      `${isLast ? "Finish Demo" : "Skip Demo"}</button>`;
+  const skip = tip.querySelector(".demo-coach-skip");
+  if (skip) skip.addEventListener("click", endDemo);
+
+  positionDemoCoach(tip, visible ? target : null);
+}
+
+/** Place the pop-out near its target, or center it when there is none. */
+function positionDemoCoach(tip, target) {
+  if (target) { positionCoach(tip, target); return; }
+  const tr = tip.getBoundingClientRect();
+  const top  = Math.max(16, (window.innerHeight - tr.height) / 2);
+  const left = Math.max(16, (window.innerWidth - tr.width) / 2);
+  tip.style.top  = top + "px";
+  tip.style.left = left + "px";
+}
+
+function teardownDemoCoach() {
+  const dim = document.getElementById("demoDim");
+  if (dim && dim.parentNode) dim.parentNode.removeChild(dim);
+  const tip = document.getElementById("demoCoach");
+  if (tip && tip.parentNode) tip.parentNode.removeChild(tip);
+  document.querySelectorAll(".ig-spotlight-target")
+    .forEach((el) => el.classList.remove("ig-spotlight-target"));
+}
+
+/** Silent teardown of the demo: stop timers, remove the pop-out, wipe every
+ *  side effect, and restore suppressSave/trust. Safe to call from ANY exit
+ *  (navigation, reset, or endDemo) — re-entrant via the demoRunning guard.
+ *  NOTE: resetMission() calls endGuidedRun() which calls abortDemo() again,
+ *  but demoRunning is already false by then, so that nested call is a no-op. */
+function abortDemo() {
+  if (!demoRunning) return;
+  demoRunning = false;
+  clearDemoTimers();
+  teardownDemoCoach();
+
+  // Wipe every demo side effect (terminal, pins, XP, evidence, alert, etc.).
+  try { resetMission(); } catch (_) { /* non-fatal */ }
+  // resetMission() does NOT reset trust — restore the pre-demo snapshot so the
+  // demo's auto-classification never leaks into the real run.
+  trustScore = clampTrust(demoTrustSnapshot);
+  try { renderTrustScore(); } catch (_) {}
+
+  suppressSave = false; // fail-safe: persistence can never stay stuck off
+}
+
+/** End the demo gracefully (skip / finish): tear everything down, then return
+ *  the student to the Mission Ready screen so they can launch for real. */
+function endDemo() {
+  if (!demoRunning) return;
+  abortDemo();
+
+  // Re-open the guided "Mission Ready" screen so the student launches fresh.
+  guidedState = { missionId: "mission-001", startFn: beginMission, step: 0, total: 0 };
+  let overlay = document.getElementById("guidedOverlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "guidedOverlay";
+    overlay.className = "guided-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    document.body.appendChild(overlay);
+  }
+  renderGuidedReady();
 }
 
 document.addEventListener("DOMContentLoaded", boot);

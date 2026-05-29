@@ -6495,3 +6495,58 @@ body.mission-running .mini-node--active.mini-node--completed .mini-node-dot {
     animation: none;
   }
 }
+
+/* ============================================================
+   OPT-IN GUIDED DEMO POP-OUT  ("Watch how it works")
+   Reuses .ig-coach / .ig-dim / .ig-spotlight-target; adds a smooth
+   movement transition and a small header (DEMO tag + step counter).
+   ============================================================ */
+.guided-demo-btn {
+  padding: 12px 24px;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-green-dim);
+  color: var(--color-green);
+}
+.guided-demo-btn:hover {
+  background: var(--color-green-dark);
+}
+.guided-demo-note {
+  margin-top: var(--gap-sm);
+  font-size: 12px;
+  color: var(--color-text-dim);
+  text-align: center;
+}
+
+.demo-coach {
+  z-index: 903;
+  width: min(330px, 86vw);
+  transition: top 480ms cubic-bezier(0.4, 0, 0.2, 1),
+              left 480ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.demo-coach-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--gap-sm);
+}
+.demo-coach-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--color-green);
+  animation: ig-ring-pulse 1.6s ease-in-out infinite;
+}
+.demo-coach-counter {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--color-text-dim);
+}
+.demo-coach-skip {
+  margin-top: var(--gap-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-coach { transition: none; }
+  .demo-coach-tag { animation: none; }
+}
