@@ -109,6 +109,35 @@ The 25A module lives near the bottom of `script.js` (~6240+).
   "Evidence Added" toast), `increaseTrustScore`, `setThreatLevel`, `unlockTool` (glow +
   toast), `updateManagerReaction` (mission_completed → "Mission Complete!" toast).
 
+### Guided Spotlight Mission Flow (Milestone 25B)
+A guided onboarding layer on top of the briefing room (no flow/logic changes). The 25B
+module lives at the bottom of `script.js` (~6485+).
+- **Guided briefing overlay** (`#guidedOverlay` / `.guided-overlay`): `startGuidedBriefing(missionId, startFn)`
+  replaces the direct begin call on both Begin buttons (`#beginMissionBtn` M1, `#m2BeginBtn` M2).
+  It dims the page and presents ONE briefing card at a time (3 per mission) with a Sarah
+  Reyes lead-in (`GUIDED_BRIEFING_INTROS`), a "Briefing Step X of N" counter, and a
+  "Got it — Next"/"Got it — Finish" button (`#guidedNextBtn`). `advanceGuidedStep` reuses
+  `reviewBriefingCard` (marks reviewed + one-time XP + persist — never duplicates logic).
+  Then a "Mission Ready" screen → "Launch Investigation" (`#guidedLaunchBtn`) → terminal
+  launch lines ("Initializing analyst workstation...") via `runGuidedLaunch` → `finishGuidedLaunch`
+  enables the spotlight (`igEnabled = true`) and calls the original `beginMission`/`beginMission2`.
+- **Investigation spotlight tour** (non-blocking, dismissible): `IG_PHASES` walks
+  commands → files (M1) → board → decision. `igShow` renders a light dim (`#igDim`,
+  `pointer-events:none` so it NEVER blocks clicks), a glow ring on the target
+  (`.ig-spotlight-target`), and a coach tip (`#igCoach`) with a "Got it" dismiss. Hooks:
+  `ensureGroup` sets `group.dataset.cmdGroup`; `renderButtons` fires the files phase;
+  `showPinPrompt` fires board; `showDecisionActions` fires decision. `igShow` defers via
+  `igModalOpen` retry (bounded, max 40 / ~20s) while the alert modal or overlay is up.
+- **Resume safety / teardown**: `startGuidedBriefing` skips the overlay if
+  `missionStarted`/`m2Started` is already true. `igEnabled` is set ONLY at
+  `finishGuidedLaunch` (never during restore). `endGuidedRun()` fully tears down DOM +
+  state (cancels pending launch timers via `clearGuidedLaunchTimers`, unbinds the tracked
+  spotlight target listener, clears `igPhasesShown`/`igPending`, nulls `guidedState`); it
+  is called from `resetMission`, `resetMission2`, `backToModuleOverview`,
+  `hideMission2Overview`, `backToMission2Overview`, and the `enterModule` resume path.
+  `finishGuidedLaunch` is gated on a live `guidedState` so a stale launch timer can never
+  resurrect a torn-down run.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

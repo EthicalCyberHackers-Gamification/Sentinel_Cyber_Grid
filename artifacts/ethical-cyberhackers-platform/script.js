@@ -324,6 +324,10 @@ function showPinPrompt(missionId, key) {
   `;
   const btn = host.querySelector(".pin-btn");
   if (btn) btn.addEventListener("click", () => showClassificationPrompt(missionId, key));
+
+  // Milestone 25B — when a finding first becomes pinnable during a live
+  // guided run, spotlight the pin action (fires once per mission).
+  if (igEnabled) igShow(missionId, "board", host);
 }
 
 /** Surface the next reviewed-but-not-yet-correctly-pinned finding (if any). */
@@ -1695,6 +1699,9 @@ function showDecisionActions(missionId) {
   // Milestone 24E — alert moves into Decision Required when the
   // student is presented with the consequence choices.
   markAlertDecisionRequired(missionId);
+
+  // Milestone 25B — spotlight the Decision Actions during a live guided run.
+  if (igEnabled) igShow(missionId, "decision", host);
 }
 
 /** Hide and clear the decision panel for `missionId`. */
@@ -3212,6 +3219,7 @@ function renderButtons(newlyUnlocked = []) {
     if (groupHosts[label]) return groupHosts[label];
     const group = document.createElement("div");
     group.className = "cmd-group";
+    group.dataset.cmdGroup = label; // Milestone 25B — spotlight target hook
     const head = document.createElement("span");
     head.className = "cmd-group-label";
     head.textContent = label;
@@ -3259,6 +3267,13 @@ function renderButtons(newlyUnlocked = []) {
 
     ensureGroup(m1CommandCategory(btn.key)).appendChild(el);
   });
+
+  // Milestone 25B — when file-inspection commands first appear during a live
+  // guided run, spotlight them (fires once per mission).
+  if (igEnabled) {
+    const inspect = btnContainer.querySelector('[data-cmd-group="Inspect Files"]');
+    if (inspect) igShow("mission-001", "files", inspect);
+  }
 }
 
 /** Milestone 25A — map an M1 command key to its workflow category label. */
@@ -4029,6 +4044,8 @@ function resetMission() {
 
   // Milestone 25A — replaying returns to the briefing; leave Focus Mode.
   setMissionRunning(false);
+  // Milestone 25B — end any guided spotlight tour on restart.
+  endGuidedRun();
 
   // Reset hint back to the pre-briefing message
   setHint(HINTS.awaiting, "muted");
@@ -4318,6 +4335,7 @@ function runSimulationLoader(onDone) {
 
 function backToModuleOverview() {
   setMissionRunning(false); // Milestone 25A — leave Focus Mode / hide bar.
+  endGuidedRun(); // Milestone 25B — end any guided spotlight tour.
   if (dashboardEl)     dashboardEl.style.display     = "none";
   if (moduleLandingEl) moduleLandingEl.style.display = "";
   // Scroll the landing back to the top so the student sees the title
@@ -4568,6 +4586,7 @@ function showMission2Overview() {
 
 function hideMission2Overview() {
   setMissionRunning(false); // Milestone 25A — leave Focus Mode / hide bar.
+  endGuidedRun(); // Milestone 25B — end any guided spotlight tour.
   const overview = document.getElementById("mission2Overview");
   if (overview) overview.style.display = "none";
   if (moduleLandingEl) {
@@ -4791,6 +4810,7 @@ function beginMission2() {
  *  student can resume by clicking Begin Mission 2 again. */
 function backToMission2Overview() {
   setMissionRunning(false); // Milestone 25A — leave Focus Mode / hide bar.
+  endGuidedRun(); // Milestone 25B — end any guided spotlight tour.
   const overview  = document.getElementById("mission2Overview");
   const dashboard = document.getElementById("mission2Dashboard");
   if (dashboard) dashboard.style.display = "none";
@@ -5356,6 +5376,7 @@ function renderM2Status() {
 /** Resets Mission 2 in-memory state + dashboard UI back to a fresh state. */
 function resetMission2() {
   setMissionRunning(false); // Milestone 25A — leave Focus Mode on restart.
+  endGuidedRun(); // Milestone 25B — end any guided spotlight tour.
   m2Started = false;
   m2UnlockedCmds.clear();
   m2CompletedStatus.clear();
@@ -6074,8 +6095,9 @@ function boot() {
     if (mode === "continue") {
       showMission2Overview();
     } else {
-      // Milestone 24I — gate the fresh start behind the Briefing Room.
-      beginInvestigation("mission-001", beginMission);
+      // Milestone 25B — guided, center-stage briefing flow (reviews the
+      // briefing room one card at a time, then launches the mission).
+      startGuidedBriefing("mission-001", beginMission);
     }
   });
   const replayLink = document.getElementById("replayMission1Link");
@@ -6134,8 +6156,8 @@ function boot() {
   // Milestone 20 — Mission 2 gameplay wiring
   const m2BeginBtn = document.getElementById("m2BeginBtn");
   if (m2BeginBtn) m2BeginBtn.addEventListener("click", () => {
-    // Milestone 24I — gate Mission 2 behind its Briefing Room too.
-    beginInvestigation("mission-002", beginMission2);
+    // Milestone 25B — guided, center-stage briefing flow for Mission 2.
+    startGuidedBriefing("mission-002", beginMission2);
   });
   const m2DashBackBtn = document.getElementById("m2DashBackBtn");
   if (m2DashBackBtn) m2DashBackBtn.addEventListener("click", backToMission2Overview);
@@ -6439,6 +6461,363 @@ function fxPulseTrust() {
 
 function fxPulseXP() {
   document.querySelectorAll(".rank-badge").forEach((el) => fxFlash(el, "fx-pulse", 700));
+}
+
+/* ============================================================
+   Milestone 25B — Guided Spotlight Mission Flow
+   ------------------------------------------------------------
+   Turns the static left-panel Briefing Room into a guided,
+   center-stage onboarding: dim the UI and spotlight ONE briefing
+   card at a time with Sarah Reyes guidance, a "Briefing Step X of
+   N" counter, a "Mission Ready" screen, and an "Initializing
+   analyst workstation..." launch sequence. During the live
+   investigation a lightweight, dismissible, NON-BLOCKING spotlight
+   walks the student through commands → file inspection →
+   Investigation Board → Decision Actions.
+
+   This layer reuses ALL existing briefing state + logic
+   (MISSION_BRIEFINGS, briefingReviewed, the one-time XP guard,
+   reviewBriefingCard, save/restore). It never duplicates flow
+   logic. It is RESUME-SAFE: an already-started mission skips the
+   overlay entirely, and the investigation spotlight only runs
+   after a live guided launch (igEnabled) — never during restore.
+   ============================================================ */
+
+// Supervisor lead-in shown above each briefing card (before the card content).
+const GUIDED_BRIEFING_INTROS = {
+  "mission-001": {
+    phishing:  "First, review phishing indicators. These will help you identify suspicious files.",
+    evidence:  "Next, remember how analysts collect evidence before making conclusions.",
+    passwords: "Finally, review password safety. This will be important during the investigation.",
+  },
+  "mission-002": {
+    ip:           "First, understand IP addresses — you identify hosts before scanning.",
+    reachability: "Next, recall how reachability confirms which targets are worth investigating.",
+    services:     "Finally, review open services — exposed services are exactly what we hunt for.",
+  },
+};
+
+let guidedState = null;
+// Pending launch-sequence timers, tracked so endGuidedRun() can cancel them
+// (prevents a stale launch callback from re-opening the mission after teardown).
+let guidedLaunchTimers = [];
+function clearGuidedLaunchTimers() {
+  guidedLaunchTimers.forEach((t) => clearTimeout(t));
+  guidedLaunchTimers = [];
+}
+
+function guidedIntroFor(missionId, cardId) {
+  const m = GUIDED_BRIEFING_INTROS[missionId];
+  return (m && m[cardId]) || "Review this briefing material before you begin.";
+}
+
+/** Entry point — replaces the direct beginInvestigation() call on the
+ *  mission "Begin" buttons. Opens the guided briefing overlay for a fresh
+ *  start; resumes straight into an already-started mission (no overlay). */
+function startGuidedBriefing(missionId, startFn) {
+  const alreadyStarted = missionId === "mission-002" ? m2Started : missionStarted;
+  if (alreadyStarted) {
+    if (typeof startFn === "function") startFn();
+    return;
+  }
+  const briefing = MISSION_BRIEFINGS[missionId];
+  if (!briefing || !briefing.cards.length) {
+    if (typeof startFn === "function") startFn();
+    return;
+  }
+  guidedState = { missionId, startFn, step: 0, total: briefing.cards.length };
+  renderGuidedOverlay();
+}
+
+function closeGuidedOverlay() {
+  const o = document.getElementById("guidedOverlay");
+  if (o && o.parentNode) o.parentNode.removeChild(o);
+}
+
+function renderGuidedOverlay() {
+  if (!guidedState) return;
+  closeGuidedOverlay();
+  const overlay = document.createElement("div");
+  overlay.id = "guidedOverlay";
+  overlay.className = "guided-overlay";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  document.body.appendChild(overlay);
+  renderGuidedStep();
+}
+
+function renderGuidedStep() {
+  const overlay = document.getElementById("guidedOverlay");
+  if (!overlay || !guidedState) return;
+  const { missionId, step, total } = guidedState;
+  const briefing = MISSION_BRIEFINGS[missionId];
+  if (step >= total) { renderGuidedReady(); return; }
+
+  const card  = briefing.cards[step];
+  const intro = guidedIntroFor(missionId, card.id);
+  // Mirror Sarah's guidance into the persistent manager feed too.
+  pushManagerMessage(missionId, intro);
+
+  const points = card.points
+    .map((p) => `<li><span class="guided-point-bullet">▹</span>${escapeHtml(p)}</li>`)
+    .join("");
+
+  overlay.innerHTML = `
+    <div class="guided-card" role="document">
+      <div class="guided-progress">Briefing Step ${step + 1} of ${total}</div>
+      <div class="guided-sarah">
+        <span class="guided-sarah-avatar" aria-hidden="true">SR</span>
+        <div class="guided-sarah-body">
+          <span class="guided-sarah-name">Sarah Reyes · Supervisor</span>
+          <p class="guided-sarah-text">${escapeHtml(intro)}</p>
+        </div>
+      </div>
+      <h3 class="guided-title">${escapeHtml(card.title)}</h3>
+      <ul class="guided-points">${points}</ul>
+      <div class="guided-actions">
+        <button id="guidedNextBtn" class="guided-next-btn" type="button">
+          ${step + 1 < total ? "Got it — Next ›" : "Got it — Finish ›"}
+        </button>
+      </div>
+    </div>
+  `;
+  const next = overlay.querySelector("#guidedNextBtn");
+  if (next) next.addEventListener("click", advanceGuidedStep);
+}
+
+function advanceGuidedStep() {
+  if (!guidedState) return;
+  const { missionId, step } = guidedState;
+  const briefing = MISSION_BRIEFINGS[missionId];
+  const card = briefing.cards[step];
+  // Reuse the existing review logic: marks reviewed, supervisor reaction,
+  // one-time +10 XP on completion, re-renders the left panel, persists.
+  if (card) reviewBriefingCard(missionId, card.id);
+  guidedState.step += 1;
+  if (guidedState.step >= guidedState.total) renderGuidedReady();
+  else renderGuidedStep();
+}
+
+function renderGuidedReady() {
+  const overlay = document.getElementById("guidedOverlay");
+  if (!overlay || !guidedState) return;
+  const task = guidedState.missionId === "mission-002"
+    ? "Your task: map the network, find the exposed host, and identify its risky services."
+    : "Your task: investigate the workstation and identify the strongest threat evidence.";
+  overlay.innerHTML = `
+    <div class="guided-card guided-card--ready" role="document">
+      <div class="guided-ready-badge">✓ Briefing Complete</div>
+      <h3 class="guided-title guided-title--ready">Mission Ready</h3>
+      <p class="guided-ready-text">You reviewed the briefing materials.</p>
+      <p class="guided-ready-task">${escapeHtml(task)}</p>
+      <div class="guided-actions guided-actions--center">
+        <button id="guidedLaunchBtn" class="guided-next-btn guided-launch-btn" type="button">
+          ▶ Launch Investigation
+        </button>
+      </div>
+    </div>
+  `;
+  const launch = overlay.querySelector("#guidedLaunchBtn");
+  if (launch) launch.addEventListener("click", runGuidedLaunch);
+}
+
+/** Play the launch sequence in the overlay (terminal-styled), then start. */
+function runGuidedLaunch() {
+  const overlay = document.getElementById("guidedOverlay");
+  if (!overlay || !guidedState) return;
+  const { missionId, startFn } = guidedState;
+  const lines = [
+    "Preparing investigation environment...",
+    "Loading mission data...",
+    "Initializing analyst workstation...",
+    "Workstation online.",
+  ];
+  overlay.innerHTML = `
+    <div class="guided-card guided-card--launch" role="document">
+      <h3 class="guided-title">Launching Investigation</h3>
+      <ul class="guided-launch-lines" id="guidedLaunchLines"></ul>
+    </div>
+  `;
+  const list = overlay.querySelector("#guidedLaunchLines");
+  let i = 0;
+  clearGuidedLaunchTimers();
+  (function tick() {
+    if (!list) { finishGuidedLaunch(missionId, startFn); return; }
+    if (i < lines.length) {
+      const li = document.createElement("li");
+      li.className = "guided-launch-line";
+      const done = i === lines.length - 1;
+      li.innerHTML =
+        `<span class="guided-launch-mark">${done ? "✓" : "›"}</span> ` +
+        `<span>${escapeHtml(lines[i])}</span>`;
+      list.appendChild(li);
+      i += 1;
+      guidedLaunchTimers.push(setTimeout(tick, done ? 520 : 430));
+    } else {
+      guidedLaunchTimers.push(setTimeout(() => finishGuidedLaunch(missionId, startFn), 360));
+    }
+  })();
+}
+
+function finishGuidedLaunch(missionId, startFn) {
+  clearGuidedLaunchTimers();
+  // Guard against a stale launch callback firing after teardown (reset/back/
+  // leave nulls guidedState via endGuidedRun) — never resurrect a torn-down run.
+  if (!guidedState) return;
+  closeGuidedOverlay();
+  guidedState = null;
+  if (typeof startFn === "function") startFn();
+  // Enable the in-investigation spotlight tour for THIS live run only.
+  igEnabled = true;
+  igPhasesShown.clear();
+  igPending.clear();
+  // First stop: the command center (defers automatically if the mission's
+  // alert modal is still up — see igShow's modal-open guard).
+  setTimeout(() => igShow(missionId, "commands"), 480);
+}
+
+/* ---- Investigation spotlight (non-blocking, dismissible) -----------
+   A light dim layer (pointer-events:none, so it NEVER blocks clicks), a
+   glow ring on the current target, and a coach tip with a "Got it"
+   button. Each phase fires once per mission per live guided run. */
+let igEnabled = false;
+const igPhasesShown = new Set();
+const igPending = new Set();
+
+const IG_PHASES = {
+  commands: {
+    target: (m) => document.getElementById(m === "mission-002" ? "m2CurrentObjective" : "currentObjective"),
+    text: "This is your command center. Click a command to run it in the terminal — new commands unlock as you progress.",
+  },
+  files: {
+    target: () => document.querySelector('#commandButtonsContainer [data-cmd-group="Inspect Files"]'),
+    text: "New file-inspection commands unlocked. Open and read each file to gather evidence.",
+  },
+  board: {
+    target: (m) => document.getElementById(m === "mission-002" ? "m2InvestigationBoard" : "investigationBoard"),
+    text: "You found something worth keeping. Pin it to your Investigation Board, then classify how suspicious it is.",
+  },
+  decision: {
+    target: (m) => document.getElementById(m === "mission-002" ? "m2DecisionActions" : "decisionActions"),
+    text: "Evidence is in. Choose your decision action carefully — it affects your trust score.",
+  },
+};
+
+/** True while a blocking modal (the mission alert modal or the guided
+ *  briefing overlay) is on screen — the spotlight waits for it to close. */
+function igModalOpen() {
+  if (document.getElementById("guidedOverlay")) return true;
+  const a = document.getElementById("alertModalRoot");
+  if (a && getComputedStyle(a).display !== "none" && a.childElementCount > 0) return true;
+  return false;
+}
+
+// Active spotlight target + its click handler, so igTeardown can actively
+// unbind it (the {once:true} listener would otherwise linger if the student
+// dismissed via the coach button instead of clicking the target).
+let igTargetEl = null;
+let igTargetHandler = null;
+
+function igTeardown() {
+  const dim = document.getElementById("igDim");
+  if (dim && dim.parentNode) dim.parentNode.removeChild(dim);
+  const tip = document.getElementById("igCoach");
+  if (tip && tip.parentNode) tip.parentNode.removeChild(tip);
+  if (igTargetEl && igTargetHandler) {
+    igTargetEl.removeEventListener("click", igTargetHandler);
+  }
+  igTargetEl = null;
+  igTargetHandler = null;
+  document.querySelectorAll(".ig-spotlight-target")
+    .forEach((el) => el.classList.remove("ig-spotlight-target"));
+}
+
+/** End the guided investigation tour (reset / back / leave a mission). */
+function endGuidedRun() {
+  igEnabled = false;
+  igPhasesShown.clear();
+  igPending.clear();
+  clearGuidedLaunchTimers();
+  igTeardown();
+  guidedState = null;
+  closeGuidedOverlay();
+}
+
+function igShow(missionId, phase, targetEl) {
+  if (!igEnabled) return;
+  const def = IG_PHASES[phase];
+  if (!def) return;
+  const key = missionId + ":" + phase;
+  if (igPhasesShown.has(key)) return;
+
+  // Defer while a blocking modal is open (alert modal / guided overlay).
+  if (igModalOpen()) {
+    if (igPending.has(key)) return;
+    igPending.add(key);
+    let tries = 0;
+    const retry = () => {
+      igPending.delete(key);
+      if (!igEnabled || igPhasesShown.has(key)) return;
+      if (igModalOpen()) {
+        if (++tries > 40) return; // give up after ~20s
+        igPending.add(key);
+        setTimeout(retry, 500);
+        return;
+      }
+      igShow(missionId, phase);
+    };
+    setTimeout(retry, 500);
+    return;
+  }
+
+  const el = targetEl || def.target(missionId);
+  if (!el || el.offsetParent === null) return; // only spotlight visible targets
+
+  igPhasesShown.add(key);
+  igTeardown();
+
+  const dim = document.createElement("div");
+  dim.id = "igDim";
+  dim.className = "ig-dim";
+  document.body.appendChild(dim);
+
+  el.classList.add("ig-spotlight-target");
+  try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
+
+  const tip = document.createElement("div");
+  tip.id = "igCoach";
+  tip.className = "ig-coach";
+  tip.innerHTML =
+    `<p class="ig-coach-text">${escapeHtml(def.text)}</p>` +
+    `<button class="ig-coach-dismiss" type="button">Got it</button>`;
+  document.body.appendChild(tip);
+
+  const dismissBtn = tip.querySelector(".ig-coach-dismiss");
+  if (dismissBtn) dismissBtn.addEventListener("click", igTeardown);
+  // Dismiss as soon as the student actually interacts with the target.
+  // Track el + handler so igTeardown can unbind it even if the student
+  // dismisses via the coach button instead of clicking the target.
+  igTargetEl = el;
+  igTargetHandler = igTeardown;
+  el.addEventListener("click", igTargetHandler, { once: true });
+
+  positionCoach(tip, el);
+}
+
+/** Place the coach tip near its target, flipping above/below to stay in view. */
+function positionCoach(tip, el) {
+  const r  = el.getBoundingClientRect();
+  const tr = tip.getBoundingClientRect();
+  const margin = 12;
+  let top = r.bottom + margin;
+  if (top + tr.height > window.innerHeight - margin) {
+    top = r.top - tr.height - margin; // flip above
+  }
+  if (top < margin) top = margin;
+  let left = r.left + (r.width / 2) - (tr.width / 2);
+  left = Math.max(margin, Math.min(left, window.innerWidth - tr.width - margin));
+  tip.style.top  = top + "px";
+  tip.style.left = left + "px";
 }
 
 document.addEventListener("DOMContentLoaded", boot);
