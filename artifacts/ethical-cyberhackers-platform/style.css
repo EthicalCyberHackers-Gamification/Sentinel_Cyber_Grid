@@ -4912,3 +4912,177 @@ body.alert-modal-open { overflow: hidden; }
 
 .mission-panel:hover { border-color: rgba(0, 229, 255, 0.25); }
 .xp-panel:hover      { border-color: rgba(255, 215, 0, 0.2); }
+
+/* =====================================================================
+   INVESTIGATION BOARD (Evidence Prioritization enhancement layer)
+   Students manually pin findings and classify their suspicion level.
+   ===================================================================== */
+
+/* ----- Investigation Board panel + cards ----- */
+.board-panel {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--color-bg-panel-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.board-panel .objectives-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.board-empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-dim);
+  font-style: italic;
+}
+.board-count {
+  min-width: 1.4rem;
+  padding: 0.05rem 0.45rem;
+  font-size: 0.8rem;
+  text-align: center;
+  color: var(--color-bg);
+  background: var(--color-cyan);
+  border-radius: 999px;
+}
+.board-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.board-card {
+  padding: 0.6rem 0.7rem;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-text-muted);
+  border-radius: 6px;
+}
+.board-card--success  { border-left-color: var(--color-green); }
+.board-card--critical { border-left-color: var(--color-red); }
+.board-card--caution  { border-left-color: var(--color-yellow); }
+.board-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.board-card-title {
+  font-weight: 600;
+  color: var(--color-text-bright);
+  font-size: 0.9rem;
+}
+.board-card-level {
+  font-size: 0.75rem;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+.board-card-tags {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.board-tag {
+  padding: 0.1rem 0.45rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  background: var(--color-bg-panel-alt);
+}
+.board-tag--yes  { color: var(--color-green); border-color: var(--color-green-dim); }
+.board-tag--no   { color: var(--color-text-muted); }
+.board-tag--crit { color: var(--color-red); border-color: var(--color-red); }
+.board-tag--norm { color: var(--color-text-dim); }
+.board-tag--ok   { color: var(--color-green); border-color: var(--color-green-dim); }
+.board-tag--warn { color: var(--color-yellow); border-color: var(--color-yellow-dim); }
+
+/* ----- Pin prompt host ----- */
+.pin-panel-host { margin-top: 1rem; }
+.pin-prompt,
+.classify-panel {
+  padding: 0.9rem 1rem;
+  background: var(--color-bg-panel-alt);
+  border: 1px solid var(--color-cyan-dim);
+  border-radius: 8px;
+}
+.pin-prompt--reclassify { border-color: var(--color-yellow-dim); }
+.pin-prompt-title {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+  color: var(--color-text-bright);
+  font-size: 0.95rem;
+}
+.pin-prompt-text {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--color-text-dim);
+}
+.pin-btn {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-bg);
+  background: var(--color-cyan);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: filter 0.2s ease, transform 0.1s ease;
+}
+.pin-btn:hover   { filter: brightness(1.1); }
+.pin-btn:active  { transform: translateY(1px); }
+
+/* ----- Classification prompt ----- */
+.classify-title {
+  margin: 0 0 0.2rem;
+  font-weight: 600;
+  color: var(--color-text-bright);
+  font-size: 0.95rem;
+}
+.classify-subject {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--color-cyan);
+}
+.classify-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.classify-btn {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-text-bright);
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.1s ease;
+}
+.classify-btn:hover  { background: var(--color-bg-hover); }
+.classify-btn:active { transform: translateY(1px); }
+.classify-btn--normal   { border-left-color: var(--color-text-dim); }
+.classify-btn--low      { border-left-color: var(--color-yellow); }
+.classify-btn--helpful  { border-left-color: var(--color-cyan); }
+.classify-btn--critical { border-left-color: var(--color-red); }
+
+/* ----- Scorecard "Investigation Quality" section header ----- */
+.outcome-row--section { margin-top: 0.35rem; }
+.outcome-key--section {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+  font-weight: 700;
+}

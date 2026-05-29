@@ -336,6 +336,13 @@
             <p class="evidence-empty">No evidence collected yet.</p>
           </div>
 
+          <!-- ===== INVESTIGATION BOARD (Evidence Prioritization) =====
+               Populated by renderInvestigationBoard("mission-002"). -->
+          <div id="m2InvestigationBoard" class="board-panel">
+            <h3 class="objectives-title">Investigation Board</h3>
+            <p class="board-empty">No evidence pinned yet.</p>
+          </div>
+
           <!-- ===== EVIDENCE CONFIDENCE (Challenge Layer 1) =====
                Populated by renderConfidenceMeter("mission-002"). Rises as
                the student runs reconnaissance commands. -->
@@ -465,6 +472,10 @@
                  renderM2AnalystReview() after the student clicks
                  `review services`. Reuses the .quiz-panel chrome
                  from Mission 1 for visual consistency. -->
+            <!-- Investigation Board — pin/classify prompt host (Mission 2).
+                 Populated by showPinPrompt/showClassificationPrompt. -->
+            <div id="m2PinPanel" class="pin-panel-host" style="display:none;"></div>
+
             <!-- Milestone 24D — Decision Actions panel for Mission 2.
                  Populated by showDecisionActions("mission-002"). -->
             <div id="m2DecisionActions" class="decision-actions-host" style="display:none;"></div>
@@ -743,6 +754,14 @@
             <p class="evidence-empty">No evidence collected yet.</p>
           </div>
 
+          <!-- ===== INVESTIGATION BOARD (Evidence Prioritization) =====
+               Populated by renderInvestigationBoard("mission-001"). The
+               student manually pins + classifies findings here. -->
+          <div id="investigationBoard" class="board-panel">
+            <h3 class="objectives-title">Investigation Board</h3>
+            <p class="board-empty">No evidence pinned yet.</p>
+          </div>
+
           <!-- ===== EVIDENCE CONFIDENCE (Challenge Layer 1) =====
                Populated by renderConfidenceMeter("mission-001"). Rises as
                the student reviews files. Submitting a finding is gated
@@ -899,6 +918,10 @@
                  Appears after reading suspicious_file.txt, BEFORE the quiz.
                  Student must correctly identify the suspicious behavior
                  to unlock the knowledge-check quiz. -->
+            <!-- Investigation Board — pin/classify prompt host (Mission 1).
+                 Populated by showPinPrompt/showClassificationPrompt. -->
+            <div id="pinPanel" class="pin-panel-host" style="display:none;"></div>
+
             <!-- Milestone 24D — Decision Actions panel for Mission 1.
                  The decision system creates consequences and prepares
                  the platform for the addictive alert-investigate-decide-

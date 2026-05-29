@@ -30,7 +30,27 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Ethical CyberHackers Platform — a frontend-only browser cybersecurity training app
+(`artifacts/ethical-cyberhackers-platform/`, preview path `/`) with two missions
+(M1 = mission-001, M2 = mission-002).
+
+### Evidence Prioritization + Investigation Board
+Students do not auto-receive evidence. They must manually PIN reviewed findings to an
+Investigation Board and CLASSIFY each one's suspicion level (Normal Activity / Low
+Suspicion / Helpful Supporting Evidence / Critical Threat Evidence).
+- Core module lives near the top of `script.js` (after `renderConfidenceMeter`):
+  `EVIDENCE_RATINGS`, `SUSPICION_LEVELS`, `investigationPins`, `pinnableFindings`,
+  `pinXpAwarded`, plus `showPinPrompt` / `showClassificationPrompt` /
+  `handlePinClassification` / `renderInvestigationBoard` / `buildInvestigationQualityHTML`.
+- M1 Evidence Confidence is derived PURELY from pins (`recomputeConfidenceFromPins`);
+  the finding submission no longer adds confidence on top.
+- M1 gate: pinning `suspicious_file.txt` as Critical unlocks the decision/finding flow.
+  Re-reading the suspicious file after a reload re-opens the gate via `canCompleteM1()`
+  (resume-safe — no soft-lock).
+- M2 keeps its command-based confidence and adds the pin contribution one-time on top.
+- Pins, pinnable findings, and one-time XP guards are persisted (save/restore) and cleared
+  on `resetMission` / `resetMission2`. Terminal directory context is NOT persisted (resets
+  to `~` on resume by design).
 
 ## User preferences
 

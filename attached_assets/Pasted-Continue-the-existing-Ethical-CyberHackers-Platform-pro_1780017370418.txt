@@ -1,0 +1,325 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission 1 and Mission 2 are fully playable.
+* Mission Engine exists.
+* Evidence system exists.
+* Threat level, trust score, decisions, alerts, manager reactions, and tool unlock systems exist.
+* Hidden evidence and false leads exist.
+* Everything is frontend-only.
+
+Now implement a new gameplay layer:
+
+Milestone:
+Evidence Prioritization + Investigation Board
+
+Purpose:
+The simulation currently feels too predictable because students mostly click commands and automatically receive progress. This new system should make students think like cybersecurity analysts by judging which evidence actually matters.
+
+This is NOT a redesign.
+This is an enhancement layer on top of the current missions.
+
+Important:
+Do not break existing functionality.
+Do not remove existing command flow.
+Do not add backend, authentication, AI, or new pages.
+
+Core Idea:
+Students should manually decide:
+
+* which findings matter
+* how suspicious evidence is
+* what should be added to the investigation board
+
+This creates:
+
+* uncertainty
+* interpretation
+* analyst reasoning
+* stronger engagement
+* more addictive gameplay
+
+Requirements:
+
+---
+
+1. ADD INVESTIGATION BOARD PANEL
+
+---
+
+Add a new dashboard panel:
+
+Investigation Board
+
+Initial state:
+“No evidence pinned yet.”
+
+Purpose:
+Students manually add findings to the investigation board.
+
+The board should display:
+
+* evidence title
+* suspicion level
+* whether the evidence is useful
+* whether it is critical
+
+Keep styling consistent with existing dashboard.
+
+---
+
+2. ADD “PIN TO BOARD” ACTIONS
+
+---
+
+After reading files or network outputs, do NOT automatically treat findings as confirmed evidence.
+
+Instead, show a button:
+
+[ Pin to Investigation Board ]
+
+Student chooses whether to pin the finding.
+
+Only pinned evidence contributes fully toward:
+
+* Evidence Confidence
+* Trust Score improvements
+* Correct decisions
+
+---
+
+3. ADD EVIDENCE PRIORITIZATION
+
+---
+
+When pinning evidence, ask the student:
+
+“How suspicious is this evidence?”
+
+Options:
+
+* Normal Activity
+* Low Suspicion
+* Helpful Supporting Evidence
+* Critical Threat Evidence
+
+---
+
+4. MISSION 1 EVIDENCE RATINGS
+
+---
+
+meeting_schedule.txt
+Correct classification:
+Normal Activity
+
+finance_update.txt
+Correct classification:
+Normal Activity
+
+employee_notes.txt
+Correct classification:
+Helpful Supporting Evidence
+
+security_policy.txt
+Correct classification:
+Helpful Supporting Evidence
+
+suspicious_file.txt
+Correct classification:
+Critical Threat Evidence
+
+---
+
+5. MANAGER REACTIONS
+
+---
+
+If classification is correct:
+Manager responds positively.
+
+Examples:
+
+Correctly classifying suspicious_file.txt:
+“Excellent. Requests for passwords through unknown email channels are a major phishing indicator.”
+
+Correctly classifying harmless files:
+“Good judgment. Not every file is suspicious.”
+
+Correctly classifying security_policy.txt:
+“Good supporting evidence. Company policy helps validate your conclusion.”
+
+---
+
+6. INCORRECT CLASSIFICATIONS
+
+---
+
+If student incorrectly classifies evidence:
+
+Example:
+meeting_schedule.txt marked as Critical Threat Evidence
+
+Manager says:
+“This appears to be normal business activity. Focus on evidence involving credentials, external communication, or policy violations.”
+
+Do NOT punish heavily.
+This should guide learning.
+
+---
+
+7. INVESTIGATION BOARD EFFECTS
+
+---
+
+Correctly pinned evidence should:
+
+* increase Evidence Confidence
+* increase Trust Score slightly
+* update investigation progress
+
+Incorrect evidence:
+
+* small/no confidence increase
+* no major punishment
+
+---
+
+8. EVIDENCE CONFIDENCE IMPROVEMENT
+
+---
+
+Evidence Confidence should now depend mostly on:
+
+* correctly pinned evidence
+* correctly prioritized evidence
+
+NOT only command clicks.
+
+---
+
+9. MISSION 1 COMPLETION GATE
+
+---
+
+Student should NOT complete Mission 1 unless:
+
+* suspicious_file.txt is pinned
+* suspicious_file.txt is correctly classified as Critical Threat Evidence
+
+If student tries too early:
+Show:
+“You have not identified the primary threat evidence yet.”
+
+---
+
+10. MISSION 2 LIGHT VERSION
+
+---
+
+Add the same mechanic lightly to Mission 2.
+
+After reviewing services:
+Student can pin:
+
+* unreachable host
+* local IP
+* open services
+
+Correct classifications:
+
+unreachable host:
+Normal Activity
+
+local IP:
+Helpful Supporting Evidence
+
+open services:
+Critical Threat Evidence
+
+---
+
+11. ADD VISUAL FEEDBACK
+
+---
+
+Correctly pinned evidence:
+
+* green or cyan success highlight
+
+Incorrect prioritization:
+
+* amber caution highlight
+
+Critical threat evidence:
+
+* red accent highlight
+
+---
+
+12. ADD INVESTIGATION SUMMARY
+
+---
+
+At mission completion:
+Add section:
+
+Investigation Quality
+
+Show:
+
+* Correct Evidence Identified
+* Supporting Evidence Found
+* False Leads Reviewed
+* Investigation Accuracy %
+
+---
+
+13. GAMEPLAY GOAL
+
+---
+
+The student should now feel:
+
+“I am investigating and deciding what matters.”
+
+NOT:
+
+“I am clicking the next obvious button.”
+
+This is the key design shift.
+
+---
+
+14. KEEP EXISTING FLOW
+
+---
+
+Do NOT remove:
+
+* hints
+* XP
+* trust score
+* alerts
+* decisions
+* scorecards
+* manager messages
+* mission progression
+
+This system should enhance the current architecture, not replace it.
+
+---
+
+15. KEEP EVERYTHING FRONTEND-ONLY
+
+---
+
+No backend.
+No authentication.
+No AI.
+No database.
+No new pages.
+
+Goal:
+By the end of this step, students should manually evaluate and prioritize evidence instead of passively receiving investigation progress. The missions should feel more interactive, uncertain, and analyst-driven while remaining beginner-friendly.

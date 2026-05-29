@@ -138,7 +138,6 @@ const m2ConfidenceContributors = new Set();
 const m1FilesReviewed     = new Set();
 const m1FalseLeadsChecked = new Set();
 let   m1BonusFound        = false;
-let   m1BonusXpAwarded    = false;
 let   m1ProgressiveHintIx = 0;
 
 const M1_PROGRESSIVE_HINTS = [
@@ -189,6 +188,363 @@ function renderConfidenceMeter(missionId) {
         : "Gather stronger evidence before submitting a finding."}
     </p>
   `;
+}
+
+/* ============================================================
+   Investigation Board — Evidence Prioritization
+   ------------------------------------------------------------
+   Students manually PIN findings to the Investigation Board and
+   CLASSIFY how suspicious each one is. Correct prioritization —
+   not command clicks — drives Evidence Confidence, small Trust
+   gains, and (Mission 1) the gate to escalate. Frontend-only.
+   ============================================================ */
+const SUSPICION_LEVELS = {
+  normal:   { label: "Normal Activity",             useful: false, critical: false },
+  low:      { label: "Low Suspicion",               useful: false, critical: false },
+  helpful:  { label: "Helpful Supporting Evidence", useful: true,  critical: false },
+  critical: { label: "Critical Threat Evidence",    useful: true,  critical: true  },
+};
+
+const CLASSIFICATION_ORDER = ["normal", "low", "helpful", "critical"];
+
+// Correct classification per pinnable finding. Keyed by mission, then by
+// the finding key (M1 = lowercased filename; M2 = command key).
+const EVIDENCE_RATINGS = {
+  "mission-001": {
+    "meeting_schedule.txt": { title: "Meeting Schedule",   correct: "normal"   },
+    "finance_update.txt":   { title: "Finance Update",     correct: "normal"   },
+    "employee_notes.txt":   { title: "Employee Notes",     correct: "helpful"  },
+    "security_policy.txt":  { title: "Security Policy",     correct: "helpful"  },
+    "suspicious_file.txt":  { title: "Suspicious File",    correct: "critical" },
+  },
+  "mission-002": {
+    "ping-bad": { title: "Unreachable Host (10.0.0.8)",        correct: "normal"   },
+    "ip-addr":  { title: "Local IP Address (10.0.0.12)",      correct: "helpful"  },
+    "nmap":     { title: "Open Services (SSH / HTTP / HTTPS)", correct: "critical" },
+  },
+};
+
+// Pinned findings per mission: key -> { title, level, levelLabel, correct, useful, critical }
+const investigationPins = {
+  "mission-001": {},
+  "mission-002": {},
+};
+// Findings reviewed and therefore available to pin (key set per mission).
+const pinnableFindings = {
+  "mission-001": new Set(),
+  "mission-002": new Set(),
+};
+// One-time XP guard keyed by `${missionId}:${key}` so re-classifying can't farm XP.
+const pinXpAwarded = new Set();
+
+/** Confidence awarded for a pin given correctness + chosen level. */
+function pinConfidenceAmount(correct, level) {
+  if (!correct) return 3;
+  if (level === "critical") return 50;
+  if (level === "helpful")  return 20;
+  return 10; // correct normal / low
+}
+/** Trust awarded for a correct pin (none for incorrect — guide, don't punish). */
+function pinTrustAmount(correct, level) {
+  if (!correct) return 0;
+  return level === "critical" ? 5 : 3;
+}
+/** XP awarded the first time a finding is correctly classified. */
+function pinXpAmount(correct, level) {
+  if (!correct) return 0;
+  if (level === "critical") return 25;
+  if (level === "helpful")  return 15;
+  return 10;
+}
+
+/** Recompute a mission's Evidence Confidence purely from pinned findings. */
+function recomputeConfidenceFromPins(missionId) {
+  const pins = investigationPins[missionId] || {};
+  let total = 0;
+  Object.keys(pins).forEach((key) => {
+    total += pinConfidenceAmount(pins[key].correct, pins[key].level);
+  });
+  total = Math.max(0, Math.min(CONFIDENCE_CAP, total));
+  if (missionId === "mission-002") m2Confidence = total;
+  else m1Confidence = total;
+  renderConfidenceMeter(missionId);
+  return total;
+}
+
+/** True once suspicious_file.txt is pinned AND classified Critical (M1 gate). */
+function canCompleteM1() {
+  const p = investigationPins["mission-001"]["suspicious_file.txt"];
+  return !!(p && p.level === "critical" && p.correct);
+}
+
+/** DOM host id for a mission's pin-action area. */
+function pinHostId(missionId) {
+  return missionId === "mission-002" ? "m2PinPanel" : "pinPanel";
+}
+/** DOM host id for a mission's Investigation Board. */
+function boardHostId(missionId) {
+  return missionId === "mission-002" ? "m2InvestigationBoard" : "investigationBoard";
+}
+
+/** Set the supervisor message for the active mission using raw text. */
+function setManagerText(missionId, text) {
+  if (missionId === "mission-002") {
+    setM2ManagerMessage(text);
+    return;
+  }
+  const panel  = document.getElementById("managerPanel");
+  const textEl = document.getElementById("managerText");
+  if (!panel || !textEl) return;
+  textEl.textContent = text;
+  panel.classList.remove("manager-panel--flash");
+  void panel.offsetWidth;
+  panel.classList.add("manager-panel--flash");
+}
+
+/** Show the "Pin to Investigation Board" action for a reviewed finding. */
+function showPinPrompt(missionId, key) {
+  const rating = EVIDENCE_RATINGS[missionId] && EVIDENCE_RATINGS[missionId][key];
+  if (!rating) return;
+  pinnableFindings[missionId].add(key);
+  const host = document.getElementById(pinHostId(missionId));
+  if (!host) return;
+  const existing = investigationPins[missionId][key];
+  // Correctly pinned findings are locked — nothing more to do.
+  if (existing && existing.correct) {
+    host.style.display = "none";
+    host.innerHTML = "";
+    return;
+  }
+  const reclass = existing ? " pin-prompt--reclassify" : "";
+  const verb = existing ? "Re-classify on Board" : "Pin to Investigation Board";
+  host.style.display = "";
+  host.innerHTML = `
+    <div class="pin-prompt${reclass}">
+      <p class="pin-prompt-title">${escapeHtml(rating.title)}</p>
+      <p class="pin-prompt-text">
+        ${existing
+          ? "Your earlier call didn't fit. Re-judge this finding."
+          : "You reviewed this finding. Decide whether it belongs on your Investigation Board."}
+      </p>
+      <button class="pin-btn" type="button" data-pin-key="${escapeHtml(key)}">
+        📌 ${escapeHtml(verb)}
+      </button>
+    </div>
+  `;
+  const btn = host.querySelector(".pin-btn");
+  if (btn) btn.addEventListener("click", () => showClassificationPrompt(missionId, key));
+}
+
+/** Surface the next reviewed-but-not-yet-correctly-pinned finding (if any). */
+function showNextPinnable(missionId) {
+  const host = document.getElementById(pinHostId(missionId));
+  if (!host) return;
+  const pending = Array.from(pinnableFindings[missionId]).filter((key) => {
+    const p = investigationPins[missionId][key];
+    return !(p && p.correct);
+  });
+  if (pending.length === 0) {
+    host.innerHTML = "";
+    host.style.display = "none";
+    return;
+  }
+  showPinPrompt(missionId, pending[0]);
+}
+
+/** Render the "How suspicious is this evidence?" classification choices. */
+function showClassificationPrompt(missionId, key) {
+  const rating = EVIDENCE_RATINGS[missionId] && EVIDENCE_RATINGS[missionId][key];
+  if (!rating) return;
+  const host = document.getElementById(pinHostId(missionId));
+  if (!host) return;
+  host.style.display = "";
+  const opts = CLASSIFICATION_ORDER.map((lvl) => `
+    <button class="classify-btn classify-btn--${lvl}" type="button"
+            data-level="${lvl}" data-key="${escapeHtml(key)}">
+      ${escapeHtml(SUSPICION_LEVELS[lvl].label)}
+    </button>
+  `).join("");
+  host.innerHTML = `
+    <div class="classify-panel">
+      <p class="classify-title">How suspicious is this evidence?</p>
+      <p class="classify-subject">${escapeHtml(rating.title)}</p>
+      <div class="classify-options">${opts}</div>
+    </div>
+  `;
+  host.querySelectorAll(".classify-btn").forEach((btn) => {
+    btn.addEventListener("click", () =>
+      handlePinClassification(missionId, key, btn.getAttribute("data-level"))
+    );
+  });
+}
+
+/** Commit a pin + classification, apply effects, react, and re-render. */
+function handlePinClassification(missionId, key, level) {
+  const rating = EVIDENCE_RATINGS[missionId] && EVIDENCE_RATINGS[missionId][key];
+  const meta   = SUSPICION_LEVELS[level];
+  if (!rating || !meta) return;
+
+  const correct = level === rating.correct;
+  investigationPins[missionId][key] = {
+    title: rating.title,
+    level,
+    levelLabel: meta.label,
+    correct,
+    useful: meta.useful,
+    critical: meta.critical,
+  };
+
+  // Evidence Confidence:
+  //  - Mission 1 is driven entirely by pins (robust to re-classification).
+  //  - Mission 2 keeps its existing command-based confidence and adds the
+  //    pin contribution lightly on top (one-time per finding).
+  if (missionId === "mission-002") {
+    addConfidence("mission-002", `pin-${key}`, pinConfidenceAmount(correct, level));
+  } else {
+    recomputeConfidenceFromPins("mission-001");
+  }
+
+  // Trust: small reward for correct prioritization; no punishment for wrong.
+  const t = pinTrustAmount(correct, level);
+  if (t > 0) increaseTrustScore(t);
+
+  // XP: one-time per finding, only when correctly classified.
+  const xpKey = `${missionId}:${key}`;
+  if (correct && !pinXpAwarded.has(xpKey)) {
+    const xp = pinXpAmount(correct, level);
+    if (xp > 0) { pinXpAwarded.add(xpKey); awardXP(xp); }
+  }
+
+  // Pinned findings become collected evidence (only pinned items count).
+  addEvidence(`pin-${missionId}-${key}`, `${rating.title} — ${meta.label}`, missionId);
+
+  // Supervisor reaction (positive for correct; guiding for incorrect).
+  setManagerText(missionId, pinReactionText(missionId, key, level, correct));
+
+  // Visual board update.
+  renderInvestigationBoard(missionId);
+
+  // Mission 1 gate: correctly tagging the suspicious file as Critical
+  // is what unlocks the escalation / finding flow.
+  if (missionId === "mission-001" && key === "suspicious_file.txt") {
+    if (correct) {
+      setThreatLevel("High", "mission-001");
+      updateManagerReaction("threat_increased", { missionId: "mission-001" });
+      setTimeout(() => {
+        if (decisionAdvanced["mission-001"]) showFindingPanel();
+        else showDecisionActions("mission-001");
+      }, 800);
+    } else {
+      setHint("You have not identified the primary threat evidence yet.", "warning");
+    }
+  }
+
+  // Refresh the pin action area: clear when correct, otherwise offer a
+  // re-classification, then surface any remaining pending finding.
+  const host = document.getElementById(pinHostId(missionId));
+  if (host) {
+    if (correct) { host.innerHTML = ""; host.style.display = "none"; showNextPinnable(missionId); }
+    else { showPinPrompt(missionId, key); }
+  }
+
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+}
+
+/** Scripted supervisor reaction text for a pin. */
+function pinReactionText(missionId, key, level, correct) {
+  if (!correct) {
+    return "This appears to be normal business activity. Focus on evidence involving credentials, external communication, or policy violations.";
+  }
+  if (missionId === "mission-001") {
+    if (key === "suspicious_file.txt") return "Excellent. Requests for passwords through unknown email channels are a major phishing indicator.";
+    if (key === "security_policy.txt") return "Good supporting evidence. Company policy helps validate your conclusion.";
+    if (level === "helpful") return "Good supporting evidence. That strengthens your case.";
+    return "Good judgment. Not every file is suspicious.";
+  }
+  // mission-002
+  if (key === "nmap") return "Exactly. Multiple exposed services are the critical risk on this host.";
+  if (key === "ip-addr") return "Useful context. Knowing your local address helps you map the network.";
+  return "Good judgment. An unreachable host isn't itself a threat.";
+}
+
+/** Render the Investigation Board panel for a mission. */
+function renderInvestigationBoard(missionId) {
+  const host = document.getElementById(boardHostId(missionId));
+  if (!host) return;
+  const pins = investigationPins[missionId] || {};
+  const keys = Object.keys(pins);
+  if (keys.length === 0) {
+    host.innerHTML = `
+      <h3 class="objectives-title">Investigation Board</h3>
+      <p class="board-empty">No evidence pinned yet.</p>
+    `;
+    return;
+  }
+  const cards = keys.map((key) => {
+    const p = pins[key];
+    const tone = !p.correct ? "caution" : (p.critical ? "critical" : "success");
+    return `
+      <li class="board-card board-card--${tone}">
+        <div class="board-card-head">
+          <span class="board-card-title">${escapeHtml(p.title)}</span>
+          <span class="board-card-level">${escapeHtml(p.levelLabel)}</span>
+        </div>
+        <div class="board-card-tags">
+          <span class="board-tag ${p.useful ? "board-tag--yes" : "board-tag--no"}">
+            ${p.useful ? "Useful" : "Not useful"}
+          </span>
+          <span class="board-tag ${p.critical ? "board-tag--crit" : "board-tag--norm"}">
+            ${p.critical ? "Critical" : "Non-critical"}
+          </span>
+          <span class="board-tag ${p.correct ? "board-tag--ok" : "board-tag--warn"}">
+            ${p.correct ? "Good call" : "Re-check priority"}
+          </span>
+        </div>
+      </li>
+    `;
+  }).join("");
+  host.innerHTML = `
+    <h3 class="objectives-title">
+      Investigation Board
+      <span class="board-count">${keys.length}</span>
+    </h3>
+    <ul class="board-list">${cards}</ul>
+  `;
+}
+
+/** Build the "Investigation Quality" summary rows shown at completion. */
+function buildInvestigationQualityHTML(missionId) {
+  const ratings = EVIDENCE_RATINGS[missionId] || {};
+  const pins = investigationPins[missionId] || {};
+  let criticalCorrect = 0, supportingCorrect = 0, falseLeadsReviewed = 0;
+  let totalPins = 0, correctPins = 0;
+  Object.keys(pins).forEach((key) => {
+    const p = pins[key];
+    totalPins += 1;
+    if (p.correct) correctPins += 1;
+    if (p.correct && p.level === "critical") criticalCorrect += 1;
+    if (p.correct && p.level === "helpful") supportingCorrect += 1;
+    const r = ratings[key];
+    if (r && (r.correct === "normal" || r.correct === "low")) falseLeadsReviewed += 1;
+  });
+  const accuracy = totalPins ? Math.round((correctPins / totalPins) * 100) : 0;
+  return `
+        <li class="outcome-row">
+          <span class="outcome-key">Correct Evidence Identified</span>
+          <span class="outcome-val outcome-val--cyan">${criticalCorrect}</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">Supporting Evidence Found</span>
+          <span class="outcome-val">${supportingCorrect}</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">False Leads Reviewed</span>
+          <span class="outcome-val">${falseLeadsReviewed}</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">Investigation Accuracy</span>
+          <span class="outcome-val outcome-val--cyan">${accuracy}%</span>
+        </li>`;
 }
 
 /** Returns the active mission id by inspecting which dashboard is visible.
@@ -565,19 +921,16 @@ function buildOutcomeSummaryHTML(missionId) {
   // --- Challenge Layer 1 — investigation quality rows ---
   const confidencePct = Math.max(0, Math.min(CONFIDENCE_CAP, getConfidence(missionId)));
   let challengeRows = "";
+  const investigationQuality = buildInvestigationQualityHTML(missionId);
   if (missionId === "mission-001") {
     challengeRows = `
+        <li class="outcome-row outcome-row--section">
+          <span class="outcome-key outcome-key--section">Investigation Quality</span>
+        </li>
+${investigationQuality}
         <li class="outcome-row">
           <span class="outcome-key">Files Reviewed</span>
           <span class="outcome-val">${m1FilesReviewed.size}</span>
-        </li>
-        <li class="outcome-row">
-          <span class="outcome-key">False Leads Checked</span>
-          <span class="outcome-val">${m1FalseLeadsChecked.size}</span>
-        </li>
-        <li class="outcome-row">
-          <span class="outcome-key">Bonus Evidence Found</span>
-          <span class="outcome-val">${m1BonusFound ? "Yes" : "No"}</span>
         </li>
         <li class="outcome-row">
           <span class="outcome-key">Final Evidence Confidence</span>
@@ -585,6 +938,10 @@ function buildOutcomeSummaryHTML(missionId) {
         </li>`;
   } else {
     challengeRows = `
+        <li class="outcome-row outcome-row--section">
+          <span class="outcome-key outcome-key--section">Investigation Quality</span>
+        </li>
+${investigationQuality}
         <li class="outcome-row">
           <span class="outcome-key">Final Evidence Confidence</span>
           <span class="outcome-val outcome-val--cyan">${confidencePct}%</span>
@@ -1527,7 +1884,13 @@ function saveProgress() {
       m1FilesReviewed:     Array.from(m1FilesReviewed),
       m1FalseLeadsChecked: Array.from(m1FalseLeadsChecked),
       m1BonusFound,
-      m1BonusXpAwarded,
+      // Investigation Board — persist pins + pinnable findings + XP guards.
+      investigationPins: (typeof investigationPins === "object" && investigationPins) ? investigationPins : {},
+      pinnableFindings: {
+        "mission-001": Array.from(pinnableFindings["mission-001"]),
+        "mission-002": Array.from(pinnableFindings["mission-002"]),
+      },
+      pinXpAwarded: Array.from(pinXpAwarded),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -1721,9 +2084,41 @@ function restoreSavedProgress() {
     });
   }
   m1BonusFound     = data.m1BonusFound === true;
-  m1BonusXpAwarded = data.m1BonusXpAwarded === true;
-  renderConfidenceMeter("mission-001");
+
+  // Investigation Board — restore pins, pinnable findings, and XP guards.
+  investigationPins["mission-001"] = {};
+  investigationPins["mission-002"] = {};
+  if (data.investigationPins && typeof data.investigationPins === "object") {
+    ["mission-001", "mission-002"].forEach((mid) => {
+      const saved = data.investigationPins[mid];
+      if (saved && typeof saved === "object") {
+        Object.keys(saved).forEach((key) => {
+          const p = saved[key];
+          if (p && typeof p === "object") investigationPins[mid][key] = p;
+        });
+      }
+    });
+  }
+  pinnableFindings["mission-001"].clear();
+  pinnableFindings["mission-002"].clear();
+  if (data.pinnableFindings && typeof data.pinnableFindings === "object") {
+    ["mission-001", "mission-002"].forEach((mid) => {
+      if (Array.isArray(data.pinnableFindings[mid])) {
+        data.pinnableFindings[mid].forEach((k) => {
+          if (typeof k === "string") pinnableFindings[mid].add(k);
+        });
+      }
+    });
+  }
+  pinXpAwarded.clear();
+  if (Array.isArray(data.pinXpAwarded)) {
+    data.pinXpAwarded.forEach((k) => { if (typeof k === "string") pinXpAwarded.add(k); });
+  }
+  // Mission 1 confidence is pin-driven — recompute it as the source of truth.
+  recomputeConfidenceFromPins("mission-001");
   renderConfidenceMeter("mission-002");
+  renderInvestigationBoard("mission-001");
+  renderInvestigationBoard("mission-002");
 
   updateSaveIndicator(true);
 }
@@ -1826,11 +2221,11 @@ const MANAGER_MESSAGES = {
   "ls-home":            "You found several folders. Open the documents folder.",
   "cd-documents":       "List the files inside this folder.",
   "ls-documents":       "Review the available files carefully.",
-  "cat-employee-notes": "That file looks normal. Continue your investigation.",
-  "cat-meeting-schedule": "This file appears normal. Keep looking for stronger evidence.",
-  "cat-finance-update":   "This file appears normal. Keep looking for stronger evidence.",
-  "cat-security-policy":  "Good extra work. The policy helps confirm why the suspicious file is dangerous.",
-  "cat-suspicious":     "That message is suspicious. Submit your finding before taking the quiz.",
+  "cat-employee-notes": "You've reviewed the staff notes. Decide how they matter and pin them to your Investigation Board.",
+  "cat-meeting-schedule": "You've reviewed the schedule. Judge how suspicious it is and pin it to your Investigation Board.",
+  "cat-finance-update":   "You've reviewed the finance update. Judge how suspicious it is and pin it to your Investigation Board.",
+  "cat-security-policy":  "You've reviewed the company policy. Decide how it supports your case and pin it to your Investigation Board.",
+  "cat-suspicious":     "That message looks alarming. Pin it to your Investigation Board and classify how serious it is.",
   needMoreEvidence:     "You need stronger evidence before submitting your finding.",
   findingCorrect:       "Good analyst work. Now confirm your understanding in the quiz.",
   missionComplete:      "Mission complete. You identified a phishing attempt and reported it properly.",
@@ -2161,39 +2556,20 @@ function handleM1FileRead(filename) {
 
   if (name === "meeting_schedule.txt" || name === "finance_update.txt") {
     m1FalseLeadsChecked.add(name);
-    addConfidence("mission-001", `false-${name}`, 5);
-    const key = name === "meeting_schedule.txt"
-      ? "cat-meeting-schedule"
-      : "cat-finance-update";
-    setManagerMessage(key);
-    return;
   }
-
   if (name === "security_policy.txt") {
-    // addEvidence returns false if this evidence already exists (e.g. after a
-    // page reload that restored saved progress). Gate the one-time bonus XP on
-    // that durable, persisted result so it can never be re-farmed across reloads.
-    const isNewEvidence = addEvidence(
-      "m1-security-policy",
-      "Company policy confirms passwords should never be shared through email.",
-      "mission-001"
-    );
-    addConfidence("mission-001", "security-policy", 25);
+    // Reviewing the policy still counts as locating the bonus reference; the
+    // student is rewarded once they correctly pin it as supporting evidence.
     m1BonusFound = true;
-    if (isNewEvidence && !m1BonusXpAwarded) {
-      m1BonusXpAwarded = true;
-      awardXP(25);
-    }
-    // Override the generic evidence_found reaction with the bonus message.
-    setManagerMessage("cat-security-policy");
-    return;
   }
 
-  if (name === "suspicious_file.txt") {
-    addConfidence("mission-001", "suspicious", 50);
-    return;
+  // Evidence Prioritization — reading a file no longer auto-confirms a
+  // finding or auto-advances the mission. Instead, the student is offered
+  // the choice to PIN it to the Investigation Board and CLASSIFY how
+  // suspicious it is. Confidence/trust/decisions flow from that judgement.
+  if (EVIDENCE_RATINGS["mission-001"][name]) {
+    showPinPrompt("mission-001", name);
   }
-  // employee_notes.txt and any other normal file: no confidence change.
 }
 
 function processCommand(command, buttonKey) {
@@ -2386,54 +2762,32 @@ function afterCommand(buttonKey) {
   // suspicious file. The quiz is no longer triggered directly — it now
   // unlocks only after the student submits the correct finding.
   if (buttonKey === "cat-suspicious") {
-    // Milestone 24A — record the first evidence item for Mission 1.
-    // Will not duplicate if the student clicks `cat suspicious_file.txt` again.
-    addEvidence(
-      "m1-suspicious-file",
-      "Suspicious password request found in suspicious_file.txt",
-      "mission-001"
-    );
-    // Milestone 24B — fresh indicator-of-compromise → threat rises.
-    setThreatLevel("High", "mission-001");
-    // Milestone 24F — threat just rose to High → manager reacts.
-    updateManagerReaction("threat_increased", { missionId: "mission-001" });
-    // Milestone 24G — suspicious file inspected via the terminal →
-    // File Inspector + Terminal work done; Finding Report unlocks next.
+    // Evidence Prioritization — reading the file reveals it but no longer
+    // auto-confirms evidence or auto-advances. The student must PIN it and
+    // classify it as Critical Threat Evidence (handled in handleM1FileRead →
+    // showPinPrompt, with the decision flow triggered on a correct pin).
+    // Tool inspection state still advances since the file was inspected.
     markToolCompleted("m1-file-inspector");
     markToolCompleted("m1-terminal");
     unlockTool("m1-finding-report");
     setActiveTool("m1-finding-report");
-    // Milestone 24D — evidence collected → reach the decision point.
-    // The Decision Actions panel gates showFindingPanel: only a
-    // correct/acceptable action advances to the finding submission.
-    // (If the student already passed the decision earlier in this
-    // session, showDecisionActions is a no-op and we go straight to
-    // the finding panel.)
-    setTimeout(() => {
-      // Challenge Layer 1 — Decision Gate: block escalation / finding
-      // submission until the student has built at least 50% confidence.
-      // Reading the suspicious file alone reaches 50%, so the normal
-      // path is never blocked; this guards out-of-order / low-evidence
-      // attempts.
-      if (m1Confidence < 50) {
-        setHint(MANAGER_MESSAGES.needMoreEvidence, "warning");
-        setManagerMessage("needMoreEvidence");
-        return;
-      }
-      if (decisionAdvanced["mission-001"]) {
-        showFindingPanel();
-      } else {
-        showDecisionActions("mission-001");
-      }
-    }, 800);
+
+    // Resume-safe gate re-entry: if the suspicious file was ALREADY pinned
+    // correctly as Critical in a prior session (so showPinPrompt suppresses
+    // the prompt for completed pins), re-reading the file must still be able
+    // to re-open the decision/finding flow. Without this, a reload mid-mission
+    // could soft-lock the learner out of submitting their finding.
+    if (canCompleteM1()) {
+      setTimeout(() => {
+        if (decisionAdvanced["mission-001"]) showFindingPanel();
+        else showDecisionActions("mission-001");
+      }, 800);
+    }
   }
 
   // Milestone 13: supervisor message for this command (if any).
   // Uses the same key as HINTS so the mapping stays consistent.
-  // Milestone 24F — for `cat-suspicious` the dynamic evidence/threat
-  // reactions (fired above) own the Supervisor panel; don't let the
-  // legacy command message overwrite them.
-  if (MANAGER_MESSAGES[buttonKey] && buttonKey !== "cat-suspicious") {
+  if (MANAGER_MESSAGES[buttonKey]) {
     setManagerMessage(buttonKey);
   }
 
@@ -2652,8 +3006,10 @@ function handleFindingAnswer(answerId) {
 
     // Milestone 13: supervisor acknowledges the finding
     setManagerMessage("findingCorrect");
-    // Challenge Layer 1 — correct finding raises evidence confidence.
-    addConfidence("mission-001", "correct-finding", 20);
+    // Evidence Prioritization — Mission 1 confidence is now derived PURELY
+    // from pinned/classified findings (recomputeConfidenceFromPins). The
+    // finding submission no longer adds confidence on top, so the value stays
+    // consistent across reloads (restore recomputes confidence from pins).
     // Milestone 15: tracker — Submit Finding complete; Quiz is now current
     markProgressStep("submit-finding");
     // Milestone 24B — analyst submitted correct finding → threat eases.
@@ -3306,9 +3662,18 @@ function resetMission() {
   m1FilesReviewed.clear();
   m1FalseLeadsChecked.clear();
   m1BonusFound     = false;
-  m1BonusXpAwarded = false;
   m1ProgressiveHintIx = 0;
   renderConfidenceMeter("mission-001");
+
+  // Investigation Board — clear Mission 1 pins + pin UI on restart.
+  investigationPins["mission-001"] = {};
+  pinnableFindings["mission-001"].clear();
+  Array.from(pinXpAwarded).forEach((k) => {
+    if (k.startsWith("mission-001:")) pinXpAwarded.delete(k);
+  });
+  renderInvestigationBoard("mission-001");
+  const pinHostM1 = document.getElementById("pinPanel");
+  if (pinHostM1) { pinHostM1.innerHTML = ""; pinHostM1.style.display = "none"; }
 
   // Milestone 24A — restarting Mission 1 clears only Mission 1's evidence.
   clearEvidenceForMission("mission-001");
@@ -4090,6 +4455,13 @@ function runM2Command(key) {
     setActiveTool("m2-service-scanner");
   }
 
+  // Evidence Prioritization (M2 light version) — after revealing a
+  // pinnable finding, offer the student the choice to pin + classify it
+  // on the Investigation Board.
+  if (EVIDENCE_RATINGS["mission-002"][key]) {
+    showPinPrompt("mission-002", key);
+  }
+
   // Milestone 21/24D — after `review services`, gate the Analyst Review
   // behind the Decision Actions panel. Only a correct/acceptable
   // decision advances to renderM2AnalystReview(). If the student has
@@ -4576,6 +4948,17 @@ function resetMission2() {
   m2Confidence = 0;
   m2ConfidenceContributors.clear();
   renderConfidenceMeter("mission-002");
+
+  // Investigation Board — clear Mission 2 pins + pin UI on restart.
+  investigationPins["mission-002"] = {};
+  pinnableFindings["mission-002"].clear();
+  Array.from(pinXpAwarded).forEach((k) => {
+    if (k.startsWith("mission-002:")) pinXpAwarded.delete(k);
+  });
+  renderInvestigationBoard("mission-002");
+  const pinHostM2 = document.getElementById("m2PinPanel");
+  if (pinHostM2) { pinHostM2.innerHTML = ""; pinHostM2.style.display = "none"; }
+
   // Milestone 24A — restarting Mission 2 clears only Mission 2's evidence.
   clearEvidenceForMission("mission-002");
   // Milestone 24B — restart resets Mission 2's threat level to baseline.
