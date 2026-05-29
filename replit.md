@@ -34,6 +34,30 @@ Ethical CyberHackers Platform — a frontend-only browser cybersecurity training
 (`artifacts/ethical-cyberhackers-platform/`, preview path `/`) with two missions
 (M1 = mission-001, M2 = mission-002).
 
+### Mission Briefing Room (Milestone 24I)
+A reusable layer between mission selection and investigation. Each mission shows 3
+interactive briefing cards (Review Briefing → ✓ Reviewed), a Mission Readiness score
+(0/3 → "Ready For Investigation"), a launch gate, per-card manager reactions, a "Begin
+Investigation" launch sequence, +10 XP once per mission, and scorecard rows.
+- Data-driven via `MISSION_BRIEFINGS` in `script.js` (~564). Shared helpers:
+  `renderBriefingRoom`, `reviewBriefingCard`, `updateBriefingGate`, `showBriefingWarning`,
+  `runBriefingLaunch`, `beginInvestigation`, `buildBriefingSummaryHTML`,
+  `briefingReadinessPct` / `isBriefingComplete`.
+- Launch buttons (`#beginMissionBtn` M1, `#m2BeginBtn` M2) stay clickable but carry
+  `.begin-locked`; an early click fires the warning "Review all briefing materials before
+  starting the assignment." instead of being disabled. M1 "continue" mode
+  (`data-mode="continue"`) bypasses gating.
+- Both briefing rooms render UNCONDITIONALLY at boot (`renderBriefingRoom` x2 before
+  `restoreSavedProgress`), so the hosts are never empty on a clean session — restore
+  returns early when nothing is saved. They also re-render on restore, on
+  `showMission2Overview`, and on the M1 enter-module loader callback.
+- State `briefingReviewed` (per-mission Sets) + one-time `briefingXpAwarded` are
+  persisted; restore only accepts card IDs present in `MISSION_BRIEFINGS` (corrupt-state
+  hardening) and readiness is clamped 0–100. Cleared in `resetMission` / `resetMission2`.
+- NOTE: `script.js` is loaded as an ES module (`<script type="module">`), so its functions
+  are NOT global — console-based test navigation won't work; drive M2 via the real
+  "Continue to Mission 2" CTA (or prime `ech.progress.v1` with `mission1Complete:true`).
+
 ### Evidence Prioritization + Investigation Board
 Students do not auto-receive evidence. They must manually PIN reviewed findings to an
 Investigation Board and CLASSIFY each one's suspicion level (Normal Activity / Low

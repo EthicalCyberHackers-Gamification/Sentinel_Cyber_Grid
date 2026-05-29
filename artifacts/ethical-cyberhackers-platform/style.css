@@ -5086,3 +5086,186 @@ body.alert-modal-open { overflow: hidden; }
   color: var(--color-cyan);
   font-weight: 700;
 }
+
+/* =====================================================================
+   MILESTONE 24I — MISSION BRIEFING ROOM
+   ===================================================================== */
+.briefing-room {
+  margin: var(--gap-lg, 20px) 0;
+}
+.briefing-room-inner,
+.briefing-launch {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-panel-alt);
+  padding: 20px;
+}
+.briefing-room-title {
+  margin: 0 0 10px;
+  font-family: var(--font-hud);
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+}
+.briefing-assignment {
+  margin: 0 0 16px;
+  color: var(--color-text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  border-left: 3px solid var(--color-cyan);
+  padding-left: 12px;
+}
+.briefing-card-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.briefing-card {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-panel);
+  padding: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.briefing-card--reviewed {
+  border-color: var(--color-green);
+  box-shadow: 0 0 0 1px var(--color-green-dark);
+}
+.briefing-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.briefing-card-title {
+  font-family: var(--font-hud);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-bright);
+}
+.briefing-card-check {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-green);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.briefing-card-points {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.briefing-card-points li {
+  font-size: 0.85rem;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+.briefing-card-bullet {
+  color: var(--color-cyan);
+  margin-right: 8px;
+}
+.briefing-review-btn {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--color-bg);
+  background: var(--color-cyan);
+  border: none;
+  border-radius: 6px;
+  padding: 7px 16px;
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+.briefing-review-btn:hover:not(:disabled) {
+  background: var(--color-cyan-dim);
+}
+.briefing-review-btn:disabled {
+  background: var(--color-bg-hover);
+  color: var(--color-green);
+  cursor: default;
+  border: 1px solid var(--color-green);
+}
+.briefing-readiness {
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.briefing-readiness--ready {
+  border-style: solid;
+  border-color: var(--color-green);
+}
+.briefing-readiness-label {
+  display: block;
+  font-family: var(--font-hud);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  margin-bottom: 4px;
+}
+.briefing-readiness-value {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-bright);
+  margin-bottom: 8px;
+}
+.briefing-readiness--ready .briefing-readiness-value {
+  color: var(--color-green);
+}
+.briefing-readiness-bar {
+  height: 6px;
+  border-radius: 4px;
+  background: var(--color-bg-hover);
+  overflow: hidden;
+}
+.briefing-readiness-fill {
+  height: 100%;
+  background: var(--color-cyan);
+  transition: width 0.3s ease;
+}
+.briefing-readiness--ready .briefing-readiness-fill {
+  background: var(--color-green);
+}
+.briefing-warning {
+  margin: 8px 0 0;
+  color: var(--color-yellow);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+/* Locked launch button styling — communicates the gate while staying
+   clickable so the early-attempt warning can fire. */
+.begin-locked {
+  opacity: 0.55;
+  filter: grayscale(0.4);
+}
+/* Launch sequence */
+.briefing-launch-lines {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.briefing-launch-line {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  color: var(--color-text);
+  animation: briefingLaunchIn 0.25s ease;
+}
+.briefing-launch-mark {
+  color: var(--color-cyan);
+  margin-right: 8px;
+}
+@keyframes briefingLaunchIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

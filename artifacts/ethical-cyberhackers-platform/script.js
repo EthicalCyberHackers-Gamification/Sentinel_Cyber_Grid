@@ -547,6 +547,324 @@ function buildInvestigationQualityHTML(missionId) {
         </li>`;
 }
 
+/* =====================================================================
+   MILESTONE 24I — MISSION BRIEFING ROOM SYSTEM
+   A reusable preparation layer shown after mission selection and before
+   the investigation begins. Students review briefing cards (gated launch)
+   so they feel like an employee preparing for a real assignment.
+
+   Reusable: each mission defines its assignment + cards in
+   MISSION_BRIEFINGS, and the same render/gate/launch code drives both.
+   ===================================================================== */
+
+// Source of truth — per-mission manager assignment + briefing cards.
+const MISSION_BRIEFINGS = {
+  "mission-001": {
+    assignment:
+      "Finance has reported a suspicious file on an employee workstation. " +
+      "Before investigating, review the briefing materials and prepare your approach.",
+    cards: [
+      {
+        id: "phishing",
+        title: "Phishing Indicators",
+        points: [
+          "Requests for passwords",
+          "Urgent language",
+          "Unknown senders",
+          "External email domains",
+        ],
+        reaction: "Good. Understanding phishing indicators will help identify suspicious activity.",
+      },
+      {
+        id: "evidence",
+        title: "Evidence Collection",
+        points: [
+          "Gather facts first",
+          "Do not assume",
+          "Document findings",
+          "Verify suspicious activity",
+        ],
+        reaction: "Good. Evidence should be collected before conclusions are made.",
+      },
+      {
+        id: "passwords",
+        title: "Password Safety",
+        points: [
+          "Passwords should never be shared",
+          "External requests are suspicious",
+          "Company policy should be reviewed",
+        ],
+        reaction: "Good. Analysts must understand why a policy exists before applying it.",
+      },
+    ],
+  },
+  "mission-002": {
+    assignment:
+      "A network alert has identified a potentially exposed host. " +
+      "Review the briefing materials before beginning your investigation.",
+    cards: [
+      {
+        id: "ip",
+        title: "IP Addresses",
+        points: [
+          "Devices use IP addresses",
+          "Analysts identify hosts before scanning",
+        ],
+        reaction: "Good. Identifying hosts is the first step of any network investigation.",
+      },
+      {
+        id: "reachability",
+        title: "Network Reachability",
+        points: [
+          "Reachability helps confirm targets",
+          "Unreachable systems cannot be investigated directly",
+        ],
+        reaction: "Good. Confirming reachability tells you which targets are worth your time.",
+      },
+      {
+        id: "services",
+        title: "Open Services",
+        points: [
+          "Services provide functionality",
+          "Exposed services increase attack surface",
+        ],
+        reaction: "Good. Exposed services are exactly what an analyst looks for.",
+      },
+    ],
+  },
+};
+
+// Reviewed-card ids per mission, and a one-time XP guard per mission.
+const briefingReviewed = {
+  "mission-001": new Set(),
+  "mission-002": new Set(),
+};
+const briefingXpAwarded = new Set();
+
+/** DOM host id for a mission's Briefing Room. */
+function briefingHostId(missionId) {
+  return missionId === "mission-002" ? "m2BriefingRoom" : "briefingRoom";
+}
+/** Total briefing cards defined for a mission. */
+function briefingCardCount(missionId) {
+  const b = MISSION_BRIEFINGS[missionId];
+  return b ? b.cards.length : 0;
+}
+/** How many briefing cards the student has reviewed for a mission. */
+function briefingReviewedCount(missionId) {
+  return briefingReviewed[missionId] ? briefingReviewed[missionId].size : 0;
+}
+/** True once every briefing card for a mission has been reviewed. */
+function isBriefingComplete(missionId) {
+  const total = briefingCardCount(missionId);
+  return total > 0 && briefingReviewedCount(missionId) >= total;
+}
+/** Mission Readiness as a 0–100 percentage (clamped defensively). */
+function briefingReadinessPct(missionId) {
+  const total = briefingCardCount(missionId);
+  if (!total) return 0;
+  const pct = Math.round((briefingReviewedCount(missionId) / total) * 100);
+  return Math.max(0, Math.min(100, pct));
+}
+
+/** Set the supervisor message for whichever mission is being briefed. */
+function setBriefingManagerText(missionId, text) {
+  // Reuse the per-mission manager panels used elsewhere in the app.
+  setManagerText(missionId, text);
+}
+
+/** Render (or refresh) a mission's Briefing Room panel. */
+function renderBriefingRoom(missionId) {
+  const host = document.getElementById(briefingHostId(missionId));
+  if (!host) return;
+  const briefing = MISSION_BRIEFINGS[missionId];
+  if (!briefing) { host.innerHTML = ""; return; }
+
+  const reviewedCount = briefingReviewedCount(missionId);
+  const total = briefingCardCount(missionId);
+  const complete = isBriefingComplete(missionId);
+  const readinessLabel = complete
+    ? "Ready For Investigation"
+    : `${reviewedCount} / ${total} Briefings Reviewed`;
+
+  const cards = briefing.cards.map((card) => {
+    const reviewed = briefingReviewed[missionId].has(card.id);
+    const points = card.points
+      .map((p) => `<li><span class="briefing-card-bullet">▹</span>${escapeHtml(p)}</li>`)
+      .join("");
+    return `
+      <li class="briefing-card ${reviewed ? "briefing-card--reviewed" : ""}">
+        <div class="briefing-card-head">
+          <span class="briefing-card-title">${escapeHtml(card.title)}</span>
+          ${reviewed ? `<span class="briefing-card-check">✓ Reviewed</span>` : ""}
+        </div>
+        <ul class="briefing-card-points">${points}</ul>
+        <button class="briefing-review-btn" type="button"
+                data-briefing-card="${escapeHtml(card.id)}" ${reviewed ? "disabled" : ""}>
+          ${reviewed ? "Reviewed" : "Review Briefing"}
+        </button>
+      </li>
+    `;
+  }).join("");
+
+  host.innerHTML = `
+    <div class="briefing-room-inner">
+      <h3 class="briefing-room-title">Mission Briefing Room</h3>
+      <p class="briefing-assignment">${escapeHtml(briefing.assignment)}</p>
+      <ul class="briefing-card-list">${cards}</ul>
+      <div class="briefing-readiness ${complete ? "briefing-readiness--ready" : ""}">
+        <span class="briefing-readiness-label">Mission Readiness</span>
+        <span class="briefing-readiness-value">${escapeHtml(readinessLabel)}</span>
+        <div class="briefing-readiness-bar">
+          <div class="briefing-readiness-fill" style="width:${briefingReadinessPct(missionId)}%"></div>
+        </div>
+      </div>
+      <p class="briefing-warning" style="display:none;">
+        Review all briefing materials before starting the assignment.
+      </p>
+    </div>
+  `;
+
+  host.querySelectorAll(".briefing-review-btn").forEach((btn) => {
+    btn.addEventListener("click", () =>
+      reviewBriefingCard(missionId, btn.getAttribute("data-briefing-card"))
+    );
+  });
+
+  updateBriefingGate(missionId);
+}
+
+/** Mark a briefing card reviewed, react, award XP once when complete. */
+function reviewBriefingCard(missionId, cardId) {
+  const briefing = MISSION_BRIEFINGS[missionId];
+  if (!briefing) return;
+  const card = briefing.cards.find((c) => c.id === cardId);
+  if (!card) return;
+  if (briefingReviewed[missionId].has(cardId)) return;
+
+  briefingReviewed[missionId].add(cardId);
+
+  // Supervisor acknowledges the reviewed card.
+  setBriefingManagerText(missionId, card.reaction);
+
+  // Completing the whole briefing room awards XP exactly once per mission.
+  if (isBriefingComplete(missionId) && !briefingXpAwarded.has(missionId)) {
+    briefingXpAwarded.add(missionId);
+    awardXP(10);
+    setBriefingManagerText(
+      missionId,
+      "Preparation complete. You're ready to begin the investigation."
+    );
+  }
+
+  renderBriefingRoom(missionId);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+}
+
+/** Reflect briefing completion onto the mission's launch button. */
+function updateBriefingGate(missionId) {
+  const complete = isBriefingComplete(missionId);
+  const host = document.getElementById(briefingHostId(missionId));
+  if (host) {
+    const warn = host.querySelector(".briefing-warning");
+    if (warn && complete) warn.style.display = "none";
+  }
+  if (missionId === "mission-002") {
+    const btn = document.getElementById("m2BeginBtn");
+    if (btn) {
+      btn.classList.toggle("begin-locked", !complete);
+      btn.innerHTML = complete
+        ? "\u25B6&nbsp; Begin Investigation"
+        : "\u25B6&nbsp; Begin Investigation \uD83D\uDD12";
+    }
+  } else {
+    const btn = document.getElementById("beginMissionBtn");
+    // Only gate the fresh-start ("begin") CTA — returning students on the
+    // "continue" path bypass the briefing room entirely.
+    if (btn && btn.getAttribute("data-mode") !== "continue") {
+      btn.classList.toggle("begin-locked", !complete);
+      btn.innerHTML = complete
+        ? "\u25B6&nbsp; Begin Investigation"
+        : "\u25B6&nbsp; Begin Investigation \uD83D\uDD12";
+    }
+  }
+}
+
+/** Show the "review everything first" warning for an early launch attempt. */
+function showBriefingWarning(missionId) {
+  const host = document.getElementById(briefingHostId(missionId));
+  if (!host) return;
+  const warn = host.querySelector(".briefing-warning");
+  if (warn) warn.style.display = "";
+  setBriefingManagerText(
+    missionId,
+    "Review all briefing materials before starting the assignment."
+  );
+}
+
+/** Play a short launch sequence in the briefing host, then run onDone. */
+function runBriefingLaunch(missionId, onDone) {
+  const host = document.getElementById(briefingHostId(missionId));
+  const lines = [
+    "Preparing Investigation Environment...",
+    "Loading Mission Data...",
+    "Initializing Analyst Workstation...",
+    "Mission Ready.",
+  ];
+  if (!host) { if (onDone) onDone(); return; }
+
+  host.innerHTML = `
+    <div class="briefing-launch">
+      <h3 class="briefing-room-title">Launching Investigation</h3>
+      <ul class="briefing-launch-lines"></ul>
+    </div>
+  `;
+  const list = host.querySelector(".briefing-launch-lines");
+  let i = 0;
+  function tick() {
+    if (!list) { if (onDone) onDone(); return; }
+    if (i < lines.length) {
+      const li = document.createElement("li");
+      li.className = "briefing-launch-line";
+      const done = i === lines.length - 1;
+      li.innerHTML =
+        `<span class="briefing-launch-mark">${done ? "✓" : "›"}</span> ` +
+        `<span>${escapeHtml(lines[i])}</span>`;
+      list.appendChild(li);
+      i += 1;
+      setTimeout(tick, done ? 500 : 420);
+    } else if (onDone) {
+      onDone();
+    }
+  }
+  tick();
+}
+
+/** Gate + launch entry point for a mission's "Begin Investigation" button. */
+function beginInvestigation(missionId, startFn) {
+  if (!isBriefingComplete(missionId)) {
+    showBriefingWarning(missionId);
+    return;
+  }
+  runBriefingLaunch(missionId, () => {
+    if (typeof startFn === "function") startFn();
+  });
+}
+
+/** Build the Briefing Room scorecard rows for a mission. */
+function buildBriefingSummaryHTML(missionId) {
+  const complete = isBriefingComplete(missionId);
+  return `
+        <li class="outcome-row">
+          <span class="outcome-key">Briefing Completion</span>
+          <span class="outcome-val ${complete ? "outcome-val--cyan" : ""}">${complete ? "Complete" : "Incomplete"}</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">Mission Readiness</span>
+          <span class="outcome-val outcome-val--cyan">${briefingReadinessPct(missionId)}%</span>
+        </li>`;
+}
+
 /** Returns the active mission id by inspecting which dashboard is visible.
  *  Uses computed style rather than the inline `style.display` string:
  *  beginMission2 reveals the dashboard with `display = ""` (an empty
@@ -999,6 +1317,11 @@ ${investigationQuality}
           <span class="outcome-val outcome-val--manager">${escapeHtml(managerFinal)}</span>
         </li>
 ${challengeRows}
+
+        <li class="outcome-row outcome-row--section">
+          <span class="outcome-key outcome-key--section">Mission Preparation</span>
+        </li>
+${buildBriefingSummaryHTML(missionId)}
 
       </ul>
     </div>
@@ -1891,6 +2214,12 @@ function saveProgress() {
         "mission-002": Array.from(pinnableFindings["mission-002"]),
       },
       pinXpAwarded: Array.from(pinXpAwarded),
+      // Milestone 24I — persist Briefing Room state + one-time XP guard.
+      briefingReviewed: {
+        "mission-001": Array.from(briefingReviewed["mission-001"]),
+        "mission-002": Array.from(briefingReviewed["mission-002"]),
+      },
+      briefingXpAwarded: Array.from(briefingXpAwarded),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -2114,6 +2443,30 @@ function restoreSavedProgress() {
   if (Array.isArray(data.pinXpAwarded)) {
     data.pinXpAwarded.forEach((k) => { if (typeof k === "string") pinXpAwarded.add(k); });
   }
+  // Milestone 24I — restore Briefing Room state + one-time XP guard.
+  briefingReviewed["mission-001"].clear();
+  briefingReviewed["mission-002"].clear();
+  if (data.briefingReviewed && typeof data.briefingReviewed === "object") {
+    ["mission-001", "mission-002"].forEach((mid) => {
+      if (Array.isArray(data.briefingReviewed[mid])) {
+        // Only accept card IDs that actually exist in this mission's briefing,
+        // so corrupt/tampered save state can't inflate readiness past 100%
+        // or falsely satisfy the launch gate.
+        const validIds = new Set(
+          (MISSION_BRIEFINGS[mid] ? MISSION_BRIEFINGS[mid].cards : []).map((c) => c.id)
+        );
+        data.briefingReviewed[mid].forEach((k) => {
+          if (typeof k === "string" && validIds.has(k)) briefingReviewed[mid].add(k);
+        });
+      }
+    });
+  }
+  briefingXpAwarded.clear();
+  if (Array.isArray(data.briefingXpAwarded)) {
+    data.briefingXpAwarded.forEach((k) => { if (typeof k === "string") briefingXpAwarded.add(k); });
+  }
+  renderBriefingRoom("mission-001");
+  renderBriefingRoom("mission-002");
   // Mission 1 confidence is pin-driven — recompute it as the source of truth.
   recomputeConfidenceFromPins("mission-001");
   renderConfidenceMeter("mission-002");
@@ -3558,6 +3911,8 @@ function updateMission1CTA() {
     btn.setAttribute("data-mode", "begin");
     btn.innerHTML = "\u25B6&nbsp; Begin Mission";
     if (link) link.style.display = "none";
+    // Milestone 24I — relabel + gate behind the Briefing Room.
+    updateBriefingGate("mission-001");
   }
 }
 
@@ -3674,6 +4029,11 @@ function resetMission() {
   renderInvestigationBoard("mission-001");
   const pinHostM1 = document.getElementById("pinPanel");
   if (pinHostM1) { pinHostM1.innerHTML = ""; pinHostM1.style.display = "none"; }
+
+  // Milestone 24I — replaying clears Mission 1's Briefing Room state.
+  briefingReviewed["mission-001"].clear();
+  briefingXpAwarded.delete("mission-001");
+  renderBriefingRoom("mission-001");
 
   // Milestone 24A — restarting Mission 1 clears only Mission 1's evidence.
   clearEvidenceForMission("mission-001");
@@ -3838,6 +4198,9 @@ function enterModule() {
   if (moduleLandingEl) moduleLandingEl.style.display = "none";
   runSimulationLoader(() => {
     if (dashboardEl)   dashboardEl.style.display = "";
+    // Milestone 24I — render the Mission 1 Briefing Room on entry.
+    renderBriefingRoom("mission-001");
+    updateMission1CTA();
     if (terminalInput) terminalInput.focus();
   });
 }
@@ -4160,6 +4523,8 @@ function showMission2Overview() {
   if (moduleLandingEl) moduleLandingEl.style.display = "none";
   overview.style.display = "";
   overview.scrollTop = 0;
+  // Milestone 24I — render the Mission 2 Briefing Room on entry.
+  renderBriefingRoom("mission-002");
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
@@ -4959,6 +5324,11 @@ function resetMission2() {
   const pinHostM2 = document.getElementById("m2PinPanel");
   if (pinHostM2) { pinHostM2.innerHTML = ""; pinHostM2.style.display = "none"; }
 
+  // Milestone 24I — replaying clears Mission 2's Briefing Room state.
+  briefingReviewed["mission-002"].clear();
+  briefingXpAwarded.delete("mission-002");
+  renderBriefingRoom("mission-002");
+
   // Milestone 24A — restarting Mission 2 clears only Mission 2's evidence.
   clearEvidenceForMission("mission-002");
   // Milestone 24B — restart resets Mission 2's threat level to baseline.
@@ -5675,7 +6045,8 @@ function boot() {
     if (mode === "continue") {
       showMission2Overview();
     } else {
-      beginMission();
+      // Milestone 24I — gate the fresh start behind the Briefing Room.
+      beginInvestigation("mission-001", beginMission);
     }
   });
   const replayLink = document.getElementById("replayMission1Link");
@@ -5733,7 +6104,10 @@ function boot() {
 
   // Milestone 20 — Mission 2 gameplay wiring
   const m2BeginBtn = document.getElementById("m2BeginBtn");
-  if (m2BeginBtn) m2BeginBtn.addEventListener("click", beginMission2);
+  if (m2BeginBtn) m2BeginBtn.addEventListener("click", () => {
+    // Milestone 24I — gate Mission 2 behind its Briefing Room too.
+    beginInvestigation("mission-002", beginMission2);
+  });
   const m2DashBackBtn = document.getElementById("m2DashBackBtn");
   if (m2DashBackBtn) m2DashBackBtn.addEventListener("click", backToMission2Overview);
   document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
@@ -5762,6 +6136,13 @@ function boot() {
       }
     });
   });
+
+  // Milestone 24I — populate both Briefing Rooms up front so the hosts are
+  // never empty, even on a clean session with no saved progress (restore
+  // returns early when there's nothing saved). Restore re-renders these
+  // with any saved review state afterwards.
+  renderBriefingRoom("mission-001");
+  renderBriefingRoom("mission-002");
 
   // Milestone 18 — restore saved progress (runs AFTER renderers + listeners
   // are in place, so any UI updates inside restore work correctly)

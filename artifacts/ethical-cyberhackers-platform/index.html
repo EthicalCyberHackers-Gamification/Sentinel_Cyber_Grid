@@ -225,6 +225,11 @@
           </ul>
         </section>
 
+        <!-- Milestone 24I — Mission Briefing Room (Mission 2).
+             Populated by renderBriefingRoom("mission-002"). Gates the
+             Begin Investigation button below until all cards are reviewed. -->
+        <div id="m2BriefingRoom" class="briefing-room"></div>
+
         <button id="m2BeginBtn" class="enter-module-btn m2-begin-btn" type="button">
           ▶&nbsp; Begin Mission 2
         </button>
@@ -707,6 +712,12 @@
                 <li><span class="skill-bullet">▹</span>Identifying phishing behavior</li>
               </ul>
             </section>
+
+            <!-- Milestone 24I — Mission Briefing Room (Mission 1).
+                 Populated by renderBriefingRoom("mission-001"). The student
+                 must review all briefing cards before "Begin Investigation"
+                 will proceed. -->
+            <div id="briefingRoom" class="briefing-room"></div>
 
             <!-- Milestone 22 — Primary CTA. Label + handler swap based on
                  Mission 1 completion state. See updateMission1CTA(). -->

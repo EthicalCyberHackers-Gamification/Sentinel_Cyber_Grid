@@ -1,0 +1,279 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission Engine exists.
+* Evidence Collection works.
+* Threat Level Meter works.
+* Trust Score System works.
+* Decision Consequence System works.
+* Alert Loop System works.
+* Dynamic Manager Reactions work.
+* Investigation Board works.
+* Mission 1 and Mission 2 work.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 24I — Mission Briefing Room System
+
+Purpose:
+
+Before beginning a mission, students should enter a Mission Briefing Room where they prepare for the assignment.
+
+The goal is to make students feel like cybersecurity employees preparing for a real investigation rather than simply starting a lesson.
+
+Important:
+
+Do NOT redesign the platform.
+
+Do NOT remove existing mission flow.
+
+Do NOT break Mission 1 or Mission 2.
+
+This should be an additional layer before the investigation begins.
+
+---
+
+## MISSION FLOW UPDATE
+
+Current:
+
+Mission Selected
+↓
+Begin Mission
+↓
+Investigation
+
+New:
+
+Mission Selected
+↓
+Mission Briefing Room
+↓
+Begin Investigation
+↓
+Investigation
+
+---
+
+## MISSION BRIEFING ROOM PANEL
+
+Add a new panel:
+
+Mission Briefing Room
+
+The panel should appear after mission selection but before the investigation starts.
+
+Manager introduces the assignment.
+
+---
+
+## MISSION 1 BRIEFING ROOM
+
+Manager Assignment:
+
+"Finance has reported a suspicious file on an employee workstation. Before investigating, review the briefing materials and prepare your approach."
+
+Show 3 Briefing Cards:
+
+Card 1:
+Phishing Indicators
+
+Content:
+
+* Requests for passwords
+* Urgent language
+* Unknown senders
+* External email domains
+
+Card 2:
+Evidence Collection
+
+Content:
+
+* Gather facts first
+* Do not assume
+* Document findings
+* Verify suspicious activity
+
+Card 3:
+Password Safety
+
+Content:
+
+* Passwords should never be shared
+* External requests are suspicious
+* Company policy should be reviewed
+
+Student must review all 3 cards.
+
+---
+
+## MISSION 2 BRIEFING ROOM
+
+Manager Assignment:
+
+"A network alert has identified a potentially exposed host. Review the briefing materials before beginning your investigation."
+
+Show 3 Briefing Cards:
+
+Card 1:
+IP Addresses
+
+Content:
+
+* Devices use IP addresses
+* Analysts identify hosts before scanning
+
+Card 2:
+Network Reachability
+
+Content:
+
+* Reachability helps confirm targets
+* Unreachable systems cannot be investigated directly
+
+Card 3:
+Open Services
+
+Content:
+
+* Services provide functionality
+* Exposed services increase attack surface
+
+Student must review all 3 cards.
+
+---
+
+## BRIEFING CARD INTERACTION
+
+Each card should have:
+
+[ Review Briefing ]
+
+When reviewed:
+
+* Card changes to Reviewed
+* Small completion indicator appears
+
+---
+
+## MISSION LAUNCH GATE
+
+Student cannot begin investigation until:
+
+All briefing cards are reviewed.
+
+If student tries early:
+
+Show:
+
+"Review all briefing materials before starting the assignment."
+
+---
+
+## MISSION READINESS SCORE
+
+Add a small readiness indicator.
+
+Example:
+
+Mission Readiness
+
+0 / 3 Briefings Reviewed
+
+1 / 3 Briefings Reviewed
+
+2 / 3 Briefings Reviewed
+
+Ready For Investigation
+
+---
+
+## MANAGER REACTIONS
+
+As cards are reviewed:
+
+Manager responds.
+
+Examples:
+
+"Good. Understanding phishing indicators will help identify suspicious activity."
+
+"Good. Evidence should be collected before conclusions are made."
+
+"Good. Analysts must understand why a policy exists before applying it."
+
+---
+
+## MISSION LAUNCH
+
+After all cards reviewed:
+
+Enable:
+
+[ Begin Investigation ]
+
+When clicked:
+
+Show a short launch sequence:
+
+Preparing Investigation Environment...
+Loading Mission Data...
+Initializing Analyst Workstation...
+Mission Ready.
+
+Then proceed into the normal mission.
+
+---
+
+## XP REWARD
+
+Award:
+
++10 XP
+
+for completing the Briefing Room.
+
+Only once per mission.
+
+---
+
+## MISSION SCORECARD
+
+Add:
+
+Briefing Completion:
+Complete
+
+Mission Readiness:
+100%
+
+---
+
+## FUTURE ARCHITECTURE
+
+Design this as a reusable system.
+
+Future missions should be able to define:
+
+* manager assignment
+* briefing cards
+* readiness requirements
+
+through mission data.
+
+---
+
+## GOAL
+
+Students should feel:
+
+"I prepared for this assignment."
+
+instead of:
+
+"I clicked Start."
+
+This should create the first step toward a Project Ares-style career simulation while preserving the existing architecture.
