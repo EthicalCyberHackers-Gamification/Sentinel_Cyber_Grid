@@ -403,7 +403,7 @@ function buildToolsScorecardHTML(missionId) {
     `<li><span class="scorecard-bullet">▹</span>${escapeHtml(n)}</li>`
   ).join("");
   return `
-    <div class="scorecard-section scorecard-tools">
+    <div class="scorecard-section scorecard-tools scorecard-section--collapsed">
       <span class="scorecard-section-label">TOOLS USED</span>
       <ul class="scorecard-skills">${items}</ul>
     </div>
@@ -1345,14 +1345,14 @@ function buildEvidenceScorecardHTML(missionId) {
   const items = getEvidenceList(missionId);
   if (!items.length) {
     return `
-      <div class="scorecard-section scorecard-evidence">
+      <div class="scorecard-section scorecard-evidence scorecard-section--collapsed">
         <span class="scorecard-section-label">EVIDENCE COLLECTED</span>
         <p class="scorecard-evidence-empty">No evidence was recorded during this mission.</p>
       </div>
     `;
   }
   return `
-    <div class="scorecard-section scorecard-evidence">
+    <div class="scorecard-section scorecard-evidence scorecard-section--collapsed">
       <span class="scorecard-section-label">EVIDENCE COLLECTED</span>
       <ul class="scorecard-skills">
         ${items.map((t) =>
@@ -2802,7 +2802,7 @@ function buildCompletionHTML(newRank) {
            they stay in sync if those change later. -->
       <div class="scorecard">
 
-        <div class="scorecard-section">
+        <div class="scorecard-section scorecard-section--collapsed">
           <span class="scorecard-section-label">MISSION SCORECARD</span>
 
         <!-- Key/value rows -->
@@ -2848,7 +2848,7 @@ function buildCompletionHTML(newRank) {
         ${buildOutcomeSummaryHTML("mission-001")}
 
         <!-- Skills Practiced -->
-        <div class="scorecard-section">
+        <div class="scorecard-section scorecard-section--collapsed">
           <span class="scorecard-section-label">SKILLS PRACTICED</span>
           <ul class="scorecard-skills">
             <li><span class="scorecard-bullet">▹</span>Basic Linux navigation</li>
@@ -2866,7 +2866,7 @@ function buildCompletionHTML(newRank) {
         ${buildEvidenceScorecardHTML("mission-001")}
 
         <!-- What You Learned -->
-        <div class="scorecard-section scorecard-learned">
+        <div class="scorecard-section scorecard-learned scorecard-section--collapsed">
           <span class="scorecard-section-label">WHAT YOU LEARNED</span>
           <p class="scorecard-learned-text">
             You learned how cybersecurity analysts use simple command-line
@@ -2876,7 +2876,7 @@ function buildCompletionHTML(newRank) {
         </div>
 
         <!-- Next Mission Preview -->
-        <div class="scorecard-section scorecard-next">
+        <div class="scorecard-section scorecard-next scorecard-section--collapsed">
           <span class="scorecard-section-label">NEXT MISSION PREVIEW</span>
           <p class="scorecard-next-text">
             <strong class="scorecard-next-title">Network Basics</strong>
@@ -4110,7 +4110,7 @@ function renderM2Scorecard() {
       <!-- ===== MISSION SCORECARD ===== -->
       <div class="scorecard">
 
-        <div class="scorecard-section">
+        <div class="scorecard-section scorecard-section--collapsed">
           <span class="scorecard-section-label">MISSION SCORECARD</span>
 
         <ul class="scorecard-rows">
@@ -4155,7 +4155,7 @@ function renderM2Scorecard() {
         ${buildOutcomeSummaryHTML("mission-002")}
 
         <!-- Skills Practiced -->
-        <div class="scorecard-section">
+        <div class="scorecard-section scorecard-section--collapsed">
           <span class="scorecard-section-label">SKILLS PRACTICED</span>
           <ul class="scorecard-skills">
             ${M2_SCORECARD.skills.map((s) =>
@@ -4170,7 +4170,7 @@ function renderM2Scorecard() {
         ${buildEvidenceScorecardHTML("mission-002")}
 
         <!-- What You Learned -->
-        <div class="scorecard-section scorecard-learned">
+        <div class="scorecard-section scorecard-learned scorecard-section--collapsed">
           <span class="scorecard-section-label">WHAT YOU LEARNED</span>
           <p class="scorecard-learned-text">
             ${escapeHtml(M2_SCORECARD.whatYouLearned)}
@@ -4178,7 +4178,7 @@ function renderM2Scorecard() {
         </div>
 
         <!-- Next Mission Preview -->
-        <div class="scorecard-section scorecard-next">
+        <div class="scorecard-section scorecard-next scorecard-section--collapsed">
           <span class="scorecard-section-label">NEXT MISSION PREVIEW</span>
           <p class="scorecard-next-text">
             <strong class="scorecard-next-title">${escapeHtml(M2_SCORECARD.nextMissionTitle)}</strong>
@@ -5158,7 +5158,11 @@ function initCollapsibleSections() {
       label.dataset.collapsible = "1";
       label.setAttribute("role", "button");
       label.setAttribute("tabindex", "0");
-      label.setAttribute("aria-expanded", "true");
+      const section = label.closest(".scorecard-section");
+      const collapsed = section
+        ? section.classList.contains("scorecard-section--collapsed")
+        : false;
+      label.setAttribute("aria-expanded", String(!collapsed));
     });
   };
   tagLabels(document);
