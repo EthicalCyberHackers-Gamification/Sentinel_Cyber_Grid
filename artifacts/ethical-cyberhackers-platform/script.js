@@ -2224,6 +2224,9 @@ function saveProgress() {
         "mission-002": Array.from(briefingReviewed["mission-002"]),
       },
       briefingXpAwarded: Array.from(briefingXpAwarded),
+      // Milestone 25B (resume-safe) — persist per-mission "investigation launched"
+      // so a mid-mission reload resumes directly instead of re-onboarding.
+      missionLaunched: (typeof missionLaunched === "object" && missionLaunched) ? missionLaunched : {},
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -2468,6 +2471,12 @@ function restoreSavedProgress() {
   briefingXpAwarded.clear();
   if (Array.isArray(data.briefingXpAwarded)) {
     data.briefingXpAwarded.forEach((k) => { if (typeof k === "string") briefingXpAwarded.add(k); });
+  }
+  // Milestone 25B (resume-safe) — restore the durable "investigation launched"
+  // flags so a mid-mission reload resumes directly (no onboarding overlay).
+  if (data.missionLaunched && typeof data.missionLaunched === "object") {
+    missionLaunched["mission-001"] = !!data.missionLaunched["mission-001"];
+    missionLaunched["mission-002"] = !!data.missionLaunched["mission-002"];
   }
   renderBriefingRoom("mission-001");
   renderBriefingRoom("mission-002");
@@ -2778,6 +2787,10 @@ let currentDir       = "~";     // which folder the student is in
 let currentXP        = INITIAL_XP;
 let missionComplete  = false;
 let missionStarted   = false;   // false until student clicks "Begin Mission"
+// Milestone 25B (resume-safe) — DURABLE per-mission "investigation launched"
+// flag. Unlike session-only missionStarted/m2Started, this is persisted so a
+// mid-mission reload can skip the guided onboarding overlay and resume directly.
+let missionLaunched  = { "mission-001": false, "mission-002": false };
 let furthestSeqIndex = -1;      // tracks how far along HINT_SEQUENCE the student is
 
 // Which button keys are currently visible to the student
@@ -4015,6 +4028,11 @@ function beginMission() {
   setMissionRunning(true);
   enterFocusMode();
 
+  // Milestone 25B (resume-safe) — persist that M1's investigation has launched
+  // so a reload resumes here instead of re-showing the onboarding overlay.
+  missionLaunched["mission-001"] = true;
+  saveProgress();
+
   if (terminalInput) terminalInput.focus();
 }
 
@@ -4040,6 +4058,7 @@ function resetMission() {
   currentXP        = INITIAL_XP;
   missionComplete  = false;
   missionStarted   = false;    // back to "Awaiting Mission Start"
+  missionLaunched["mission-001"] = false; // Milestone 25B — clear durable launch flag
   furthestSeqIndex = -1;
 
   // Milestone 25A — replaying returns to the briefing; leave Focus Mode.
@@ -4814,6 +4833,10 @@ function beginMission2() {
   // Milestone 25A — entering the investigation activates Focus Mode.
   setMissionRunning(true);
   enterFocusMode();
+
+  // Milestone 25B (resume-safe) — persist that M2's investigation has launched.
+  missionLaunched["mission-002"] = true;
+  saveProgress();
 }
 
 /** Return from the Mission 2 Dashboard back to the Mission 2 Overview.
@@ -5389,6 +5412,7 @@ function resetMission2() {
   setMissionRunning(false); // Milestone 25A — leave Focus Mode on restart.
   endGuidedRun(); // Milestone 25B — end any guided spotlight tour.
   m2Started = false;
+  missionLaunched["mission-002"] = false; // Milestone 25B — clear durable launch flag
   m2UnlockedCmds.clear();
   m2CompletedStatus.clear();
   m2AnalystAnswered = false;
@@ -6522,12 +6546,38 @@ function guidedIntroFor(missionId, cardId) {
   return (m && m[cardId]) || "Review this briefing material before you begin.";
 }
 
-/** Entry point — replaces the direct beginInvestigation() call on the
- *  mission "Begin" buttons. Opens the guided briefing overlay for a fresh
- *  start; resumes straight into an already-started mission (no overlay). */
+/**
+ * Milestone 25B (resume-safe) — detect whether an investigation is ALREADY
+ * underway for a mission, derived purely from PERSISTED/restored state (not the
+ * session-only `missionStarted`/`m2Started` flags). Used to skip the guided
+ * onboarding overlay on a mid-mission reload so the student is never re-trapped
+ * in the briefing; instead we resume straight into the live investigation.
+ */
+function hasMissionProgress(missionId) {
+  // Durable "launched" flag covers the case where the investigation started but
+  // no evidence/pins were collected yet before the reload.
+  if (missionLaunched && missionLaunched[missionId]) return true;
+  const complete = missionId === "mission-002" ? mission2Complete : missionComplete;
+  if (complete) return true;
+  const ev = (evidenceLog && evidenceLog[missionId]) || [];
+  if (ev.length) return true;
+  const pins = (investigationPins && investigationPins[missionId]) || {};
+  if (Object.keys(pins).length) return true;
+  if (decisionTaken && decisionTaken[missionId]) return true;
+  if (missionId === "mission-001") {
+    if (m1FilesReviewed && m1FilesReviewed.size) return true;
+    if (typeof m1Confidence === "number" && m1Confidence > 0) return true;
+  } else {
+    if (typeof m2Confidence === "number" && m2Confidence > 0) return true;
+  }
+  return false;
+}
+
 function startGuidedBriefing(missionId, startFn) {
   const alreadyStarted = missionId === "mission-002" ? m2Started : missionStarted;
-  if (alreadyStarted) {
+  // Resume-safe: skip onboarding if the mission is already running this session
+  // OR persisted progress shows an investigation is underway — resume directly.
+  if (alreadyStarted || hasMissionProgress(missionId)) {
     if (typeof startFn === "function") startFn();
     return;
   }

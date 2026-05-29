@@ -149,15 +149,24 @@ module lives at the bottom of `script.js` (~6485+).
   "Open the documents folder and inspect the files." Console logs:
   `"Guided briefing overlay opened"` (on open) and
   `"Guided briefing complete. Investigation launched."` (on Launch click).
-- **KNOWN LIMITATION (pre-existing, not a 25B regression)**: `missionStarted`/`m2Started`
-  are session-only — they are NOT in `saveProgress`/`restoreSavedProgress`. So a reload
-  *mid-mission* (started but not complete) returns to the briefing screen and re-shows the
-  guided overlay (re-onboarding). This mirrors the app's prior behavior (a mid-mission
-  reload always required re-clicking Begin). XP/pins are XP-once guarded, so re-onboarding
-  never double-awards. Do NOT "fix" this by persisting `missionStarted=true` without also
-  restoring the active mission view — `beginMission`/`beginMission2` early-return when
-  already started, which would leave command buttons hidden (soft-lock). Proper mid-mission
-  view restoration is a separate, larger task.
+- **Resume-safe mid-mission reload (25B fix)**: `missionStarted`/`m2Started` are
+  session-only (NOT persisted), so they can't gate "already started" across a reload. The
+  fix adds a DURABLE per-mission flag `missionLaunched` (`{"mission-001","mission-002"}`),
+  set true + `saveProgress()` at the end of `beginMission`/`beginMission2`, persisted in
+  `saveProgress`, restored in `restoreSavedProgress`, and cleared in
+  `resetMission`/`resetMission2`. `hasMissionProgress(missionId)` returns true when
+  `missionLaunched[missionId]` is set OR any persisted investigation activity exists
+  (completion flags, `evidenceLog`, `investigationPins`, `decisionTaken`, `m1FilesReviewed`,
+  `m1Confidence`/`m2Confidence`) — the launched flag specifically covers a reload right
+  after launch with zero activity yet. `startGuidedBriefing` skips the overlay and calls
+  `startFn` directly (`beginMission`/`beginMission2`) when
+  `alreadyStarted || hasMissionProgress(...)`. Since `missionStarted`/`m2Started` are false
+  after reload, those begin functions run fully and RE-RENDER the live investigation view
+  (hide briefing, show command buttons, re-enter Focus Mode) instead of soft-locking — so a
+  mid-mission reload resumes straight into the investigation with NO re-onboarding overlay.
+  XP/pins remain XP-once guarded. (Note: `m2UnlockedCmds`/`furthestSeqIndex` are still not
+  persisted — a pre-existing limitation; resume restores the base command set plus persisted
+  evidence/board, sufficient to continue.)
 
 ## User preferences
 
