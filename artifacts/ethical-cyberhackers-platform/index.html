@@ -397,7 +397,7 @@
           <!-- ===== MISSION CONTROL: COMPACT ROUTE MAP (Milestone 25D) ===== -->
           <div class="mini-map-panel">
             <div class="mini-map-head">
-              <span class="mini-map-label">Mission Route</span>
+              <span class="mini-map-label">Mission Control</span>
               <button id="m2OpenFullMapBtn" class="mini-map-open-btn" type="button">
                 Open Full Map
               </button>
@@ -429,14 +429,6 @@
             </div>
           </div>
 
-          <!-- Milestone 25D — Current Objective relocated into Mission Control. -->
-          <div id="m2CurrentObjective" class="current-objective current-objective--control">
-            <span class="current-objective-label">Current Objective</span>
-            <span id="m2CurrentObjectiveText" class="current-objective-text">
-              Start by identifying your local IP address.
-            </span>
-          </div>
-
           <!-- Supervisor — Sarah Reyes (Mission 2 instance) -->
           <div id="m2ManagerPanel" class="manager-panel" aria-live="polite">
             <div class="manager-header">
@@ -455,11 +447,6 @@
               <div class="manager-bubble" data-msg="Welcome back. Mission 2 is a network reconnaissance exercise. Click any unlocked command to begin.">Welcome back. Mission 2 is a network reconnaissance exercise. Click any unlocked command to begin.</div>
             </div>
           </div>
-
-          <!-- Milestone 24E — Alert Center (Mission 2). Same component as
-               Mission 1, separate DOM host so each mission has its own
-               independent alert state. -->
-          <div id="m2AlertCenter" class="alert-center-host" style="display:none;"></div>
 
           <!-- Briefing sections — added M20.3 for visual parity with M1.
                Same .briefing-section / .briefing-heading / .briefing-text
@@ -507,85 +494,6 @@
             <ul class="objectives-list collapsible-body" id="m2StatusList"></ul>
           </div>
 
-          <!-- ===== EVIDENCE COLLECTED (Milestone 24A — Phase B) =====
-               Mission 2's evidence panel. Populated by
-               renderEvidencePanel("mission-002"). The evidence system
-               supports future decision consequences and threat scoring. -->
-          <div id="m2EvidencePanel" class="evidence-panel">
-            <h3 class="objectives-title">Evidence Collected</h3>
-            <p class="evidence-empty">No evidence collected yet.</p>
-          </div>
-
-          <!-- ===== INVESTIGATION BOARD (Evidence Prioritization) =====
-               Populated by renderInvestigationBoard("mission-002"). -->
-          <div id="m2InvestigationBoard" class="board-panel">
-            <h3 class="objectives-title">Investigation Board</h3>
-            <p class="board-empty">No evidence pinned yet.</p>
-          </div>
-
-          <!-- ===== EVIDENCE CONFIDENCE (Challenge Layer 1) =====
-               Populated by renderConfidenceMeter("mission-002"). Rises as
-               the student runs reconnaissance commands. -->
-          <div id="m2ConfidenceMeter" class="confidence-meter">
-            <h3 class="objectives-title">
-              Evidence Confidence
-              <span class="confidence-pill">0%</span>
-            </h3>
-            <div class="confidence-bar">
-              <div class="confidence-bar-fill" style="width: 0%;"></div>
-            </div>
-            <p class="confidence-caption">
-              Confidence rises as you gather network evidence.
-            </p>
-          </div>
-
-          <!-- ===== THREAT LEVEL METER (Milestone 24B — Phase B) =====
-               Mission 2's threat meter. Populated by
-               renderThreatLevel("mission-002"). The threat level meter
-               prepares the platform for future decision consequences. -->
-          <div id="m2ThreatMeter" class="threat-meter threat-meter--medium">
-            <h3 class="objectives-title">
-              Threat Level
-              <span class="threat-meter-pill">Medium</span>
-            </h3>
-            <div class="threat-meter-bar">
-              <span class="threat-meter-segment threat-meter-segment--on"></span>
-              <span class="threat-meter-segment threat-meter-segment--on"></span>
-              <span class="threat-meter-segment"></span>
-              <span class="threat-meter-segment"></span>
-            </div>
-            <p class="threat-meter-caption">
-              Threat level changes as the investigation develops.
-            </p>
-          </div>
-
-          <!-- ===== TRUST SCORE (Milestone 24C — Phase B) =====
-               Mission 2's trust score panel — mirrors #trustScore
-               since trust is a global, course-wide score. -->
-          <div id="m2TrustScore" class="trust-score trust-score--medium">
-            <h3 class="objectives-title">
-              Trust Score
-              <span class="trust-score-pill">50 / 100</span>
-            </h3>
-            <div class="trust-score-bar">
-              <div class="trust-score-bar-fill" style="width: 50%;"></div>
-            </div>
-            <p class="trust-score-caption">
-              Manager confidence in your investigation work.
-            </p>
-          </div>
-
-          <!-- ===== AVAILABLE TOOLS (Milestone 24G — Phase B) =====
-               Mission 2's tool panel. Populated by
-               renderAvailableTools("mission-002"). The tool unlock
-               system prepares the platform for larger SOC-style
-               investigations with multiple interactive tools. -->
-          <div class="collapsible focus-collapse">
-            <button type="button" class="collapsible-head">Available Tools</button>
-            <div id="m2ToolsPanel" class="tools-panel collapsible-body">
-              <p class="tools-caption">Tools unlock as your investigation progresses.</p>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -621,8 +529,14 @@
             <span class="unified-panel-meta">New commands unlock as you progress</span>
           </div>
           <div class="panel-body">
-            <!-- Milestone 25D — Current Objective relocated to the right-side
-                 Mission Control panel (see #m2CurrentObjective in .mission-panel). -->
+            <!-- Milestone 25E — Current Objective sits directly above the
+                 command buttons in the center column (one short sentence). -->
+            <div id="m2CurrentObjective" class="current-objective current-objective--center">
+              <span class="current-objective-label">Current Objective</span>
+              <span id="m2CurrentObjectiveText" class="current-objective-text">
+                Start by identifying your local IP address.
+              </span>
+            </div>
 
             <div class="hint-panel hint-panel--muted">
               <span class="hint-icon">💡</span>
@@ -685,16 +599,98 @@
         </section>
       </div>
 
-      <!-- ===== RIGHT: AGENT PROFILE (XP/Rank) =====
+      <!-- ===== RIGHT: AGENT PROFILE (XP/Rank) + LIVE STATUS (25E) =====
            Duplicate of M1's xp-panel with m2- IDs. Kept in sync by
            syncM2XPPanel() which copies current XP, rank, and stats
-           from the single source of truth (M1 elements / state vars). -->
-      <aside class="panel xp-panel" aria-label="XP and Rank Panel (Mission 2)">
+           from the single source of truth (M1 elements / state vars).
+           Milestone 25E: on body.mission-running the profile is hidden and
+           the .live-status block is revealed as the right Live Status column. -->
+      <aside class="panel xp-panel" aria-label="Agent Profile and Live Status Panel (Mission 2)">
         <div class="panel-header panel-header--unified">
-          <span class="unified-panel-title">AGENT PROFILE</span>
+          <span class="unified-panel-title xp-title-profile">AGENT PROFILE</span>
+          <span class="unified-panel-title xp-title-status">LIVE STATUS</span>
         </div>
 
         <div class="panel-body">
+
+          <!-- ===== LIVE STATUS (Milestone 25E) — Mission 2 telemetry. ===== -->
+          <div class="live-status">
+            <!-- Alert Center (Milestone 24E) -->
+            <div id="m2AlertCenter" class="alert-center-host" style="display:none;"></div>
+
+            <!-- Threat Level (Milestone 24B) -->
+            <div id="m2ThreatMeter" class="threat-meter threat-meter--medium">
+              <h3 class="objectives-title">
+                Threat Level
+                <span class="threat-meter-pill">Medium</span>
+              </h3>
+              <div class="threat-meter-bar">
+                <span class="threat-meter-segment threat-meter-segment--on"></span>
+                <span class="threat-meter-segment threat-meter-segment--on"></span>
+                <span class="threat-meter-segment"></span>
+                <span class="threat-meter-segment"></span>
+              </div>
+              <p class="threat-meter-caption">
+                Threat level changes as the investigation develops.
+              </p>
+            </div>
+
+            <!-- Trust Score (Milestone 24C) -->
+            <div id="m2TrustScore" class="trust-score trust-score--medium">
+              <h3 class="objectives-title">
+                Trust Score
+                <span class="trust-score-pill">50 / 100</span>
+              </h3>
+              <div class="trust-score-bar">
+                <div class="trust-score-bar-fill" style="width: 50%;"></div>
+              </div>
+              <p class="trust-score-caption">
+                Manager confidence in your investigation work.
+              </p>
+            </div>
+
+            <!-- Evidence Confidence (Challenge Layer 1) -->
+            <div id="m2ConfidenceMeter" class="confidence-meter">
+              <h3 class="objectives-title">
+                Evidence Confidence
+                <span class="confidence-pill">0%</span>
+              </h3>
+              <div class="confidence-bar">
+                <div class="confidence-bar-fill" style="width: 0%;"></div>
+              </div>
+              <p class="confidence-caption">
+                Confidence rises as you gather network evidence.
+              </p>
+            </div>
+
+            <!-- Investigation Board summary -->
+            <div id="m2InvestigationBoard" class="board-panel">
+              <h3 class="objectives-title">Investigation Board</h3>
+              <p class="board-empty">No evidence pinned yet.</p>
+            </div>
+
+            <!-- Evidence Details drawer, collapsed by default -->
+            <div class="collapsible focus-collapse">
+              <button type="button" class="collapsible-head">Evidence Details</button>
+              <div class="collapsible-body">
+                <div id="m2EvidencePanel" class="evidence-panel">
+                  <h3 class="objectives-title">Evidence Collected</h3>
+                  <p class="evidence-empty">No evidence collected yet.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Available Tools (Milestone 24G) -->
+            <div class="collapsible focus-collapse">
+              <button type="button" class="collapsible-head">Available Tools</button>
+              <div id="m2ToolsPanel" class="tools-panel collapsible-body">
+                <p class="tools-caption">Tools unlock as your investigation progresses.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== AGENT PROFILE (pre-mission view) ===== -->
+          <div class="agent-profile">
           <div class="rank-badge-container">
             <div class="rank-badge">
               <span class="rank-icon">🛡️</span>
@@ -775,6 +771,7 @@
               </li>
             </ul>
           </div>
+          </div><!-- /.agent-profile -->
         </div>
       </aside>
     </main>
@@ -857,7 +854,7 @@
                investigation. States mirror the full map via renderMiniMap. -->
           <div class="mini-map-panel">
             <div class="mini-map-head">
-              <span class="mini-map-label">Mission Route</span>
+              <span class="mini-map-label">Mission Control</span>
               <button id="m1OpenFullMapBtn" class="mini-map-open-btn" type="button">
                 Open Full Map
               </button>
@@ -889,16 +886,6 @@
             </div>
           </div>
 
-          <!-- Milestone 25A/25D — Current Objective card. Relocated into the
-               right-side Mission Control panel as a high-visibility card.
-               Mirrors the active hint text via setCurrentObjective(). -->
-          <div id="currentObjective" class="current-objective current-objective--control">
-            <span class="current-objective-label">Current Objective</span>
-            <span id="currentObjectiveText" class="current-objective-text">
-              Read the briefing, then click Begin Mission.
-            </span>
-          </div>
-
           <!-- ===== SUPERVISOR MESSAGE (Milestone 13) =====
                Scripted manager-style guidance. script.js calls
                setManagerMessage(key) at each lifecycle moment.
@@ -921,13 +908,6 @@
               <div class="manager-bubble" data-msg="Welcome, intern. Your first task is to inspect this workstation and report anything suspicious.">Welcome, intern. Your first task is to inspect this workstation and report anything suspicious.</div>
             </div>
           </div>
-
-          <!-- Milestone 24E — Alert Center (Mission 1).
-               The alert loop system creates the foundation for a real
-               SOC-style mission cycle. Populated by createMissionAlert
-               and updated via markAlertInvestigating / EvidenceFound /
-               DecisionRequired / Contained / markAlertResolved. -->
-          <div id="alertCenter" class="alert-center-host" style="display:none;"></div>
 
           <!-- ===== MISSION BRIEFING (Milestone 5) =====
                Shown until the student clicks "Begin Mission".
@@ -1010,94 +990,15 @@
             <div id="progressTracker" class="progress-tracker-wrap collapsible-body"></div>
           </div>
 
-          <!-- ===== COURSE PROGRESS (Milestone 9) =====
-               Shows the student that this is part of a larger course.
+          <!-- ===== COURSE PROGRESS (Milestone 9) — Milestone 25E: collapsible
+               "Progress" drawer (collapsed during active investigation).
                script.js re-renders the cards on init, completeMission(),
                and resetMission(). Mission 2 is locked until Mission 1
                is completed. -->
-          <div id="courseProgress" class="course-progress"></div>
-
-          <!-- ===== EVIDENCE COLLECTED (Milestone 24A — Phase B) =====
-               Populated by renderEvidencePanel() in script.js as the
-               student runs investigative commands. Starts empty.
-               The evidence system supports future decision consequences
-               and threat scoring. -->
-          <div id="evidencePanel" class="evidence-panel">
-            <h3 class="objectives-title">Evidence Collected</h3>
-            <p class="evidence-empty">No evidence collected yet.</p>
-          </div>
-
-          <!-- ===== INVESTIGATION BOARD (Evidence Prioritization) =====
-               Populated by renderInvestigationBoard("mission-001"). The
-               student manually pins + classifies findings here. -->
-          <div id="investigationBoard" class="board-panel">
-            <h3 class="objectives-title">Investigation Board</h3>
-            <p class="board-empty">No evidence pinned yet.</p>
-          </div>
-
-          <!-- ===== EVIDENCE CONFIDENCE (Challenge Layer 1) =====
-               Populated by renderConfidenceMeter("mission-001"). Rises as
-               the student reviews files. Submitting a finding is gated
-               behind at least 50% confidence. -->
-          <div id="confidenceMeter" class="confidence-meter">
-            <h3 class="objectives-title">
-              Evidence Confidence
-              <span class="confidence-pill">0%</span>
-            </h3>
-            <div class="confidence-bar">
-              <div class="confidence-bar-fill" style="width: 0%;"></div>
-            </div>
-            <p class="confidence-caption">
-              Gather stronger evidence before submitting a finding.
-            </p>
-          </div>
-
-          <!-- ===== THREAT LEVEL METER (Milestone 24B — Phase B) =====
-               Populated by renderThreatLevel("mission-001") on boot
-               and on every state transition. The threat level meter
-               prepares the platform for future decision consequences. -->
-          <div id="threatMeter" class="threat-meter threat-meter--medium">
-            <h3 class="objectives-title">
-              Threat Level
-              <span class="threat-meter-pill">Medium</span>
-            </h3>
-            <div class="threat-meter-bar">
-              <span class="threat-meter-segment threat-meter-segment--on"></span>
-              <span class="threat-meter-segment threat-meter-segment--on"></span>
-              <span class="threat-meter-segment"></span>
-              <span class="threat-meter-segment"></span>
-            </div>
-            <p class="threat-meter-caption">
-              Threat level changes as the investigation develops.
-            </p>
-          </div>
-
-          <!-- ===== TRUST SCORE (Milestone 24C — Phase B) =====
-               Populated by renderTrustScore(). Trust Score prepares
-               the platform for future decision consequences and
-               manager reactions. Range 0–100, starts at 50. -->
-          <div id="trustScore" class="trust-score trust-score--medium">
-            <h3 class="objectives-title">
-              Trust Score
-              <span class="trust-score-pill">50 / 100</span>
-            </h3>
-            <div class="trust-score-bar">
-              <div class="trust-score-bar-fill" style="width: 50%;"></div>
-            </div>
-            <p class="trust-score-caption">
-              Manager confidence in your investigation work.
-            </p>
-          </div>
-
-          <!-- ===== AVAILABLE TOOLS (Milestone 24G — Phase B) =====
-               Mission 1's tool panel. Populated by
-               renderAvailableTools("mission-001"). The tool unlock
-               system prepares the platform for larger SOC-style
-               investigations with multiple interactive tools. -->
           <div class="collapsible focus-collapse">
-            <button type="button" class="collapsible-head">Available Tools</button>
-            <div id="toolsPanel" class="tools-panel collapsible-body">
-              <p class="tools-caption">Tools unlock as your investigation progresses.</p>
+            <button type="button" class="collapsible-head">Course Progress</button>
+            <div class="collapsible-body">
+              <div id="courseProgress" class="course-progress"></div>
             </div>
           </div>
         </div>
@@ -1147,8 +1048,15 @@
           </div>
 
           <div class="panel-body">
-            <!-- Milestone 25D — Current Objective relocated to the right-side
-                 Mission Control panel (see #currentObjective in .mission-panel). -->
+            <!-- Milestone 25E — Current Objective sits directly above the
+                 command buttons in the center column (one short sentence).
+                 Mirrors the active hint via setCurrentObjective(). -->
+            <div id="currentObjective" class="current-objective current-objective--center">
+              <span class="current-objective-label">Current Objective</span>
+              <span id="currentObjectiveText" class="current-objective-text">
+                Read the briefing, then click Begin Mission.
+              </span>
+            </div>
 
             <!-- ===== YOUR TASK (explicit objective) =====
                  Always visible during the investigation so the student
@@ -1168,7 +1076,7 @@
                 <li>Read each file and decide if it looks normal or suspicious.</li>
                 <li>When you are confident, escalate and submit your finding.</li>
               </ol>
-              <p class="task-brief-tip">Stuck? Use the <strong>Need a hint?</strong> button below.</p>
+              <p class="task-brief-tip">Stuck? Use the <strong>Need a hint?</strong> button in the Live Status panel.</p>
             </div>
 
             <!-- ===== HINT PANEL (Milestone 6) =====
@@ -1185,9 +1093,6 @@
             <p class="commands-hint">
               Click a button below to run that command in the terminal.
               More commands will unlock as you investigate.
-              <button id="m1HintBtn" type="button" class="hint-request-btn">
-                Need a hint?
-              </button>
             </p>
             <!-- JS dynamically renders buttons here from COMMAND_BUTTONS in missions.js -->
             <div id="commandButtonsContainer" class="command-buttons command-buttons--day2"></div>
@@ -1217,13 +1122,105 @@
 
       </div>
 
-      <!-- ===== XP / RANK PANEL ===== -->
-      <aside class="panel xp-panel" aria-label="XP and Rank Panel">
+      <!-- ===== XP / RANK PANEL — Milestone 25E: doubles as the right-side
+           "Live Status" column during an active investigation. The agent
+           profile shows pre-mission; on body.mission-running the profile is
+           hidden and the .live-status block is revealed instead. ===== -->
+      <aside class="panel xp-panel" aria-label="Agent Profile and Live Status Panel">
         <div class="panel-header panel-header--unified">
-          <span class="unified-panel-title">AGENT PROFILE</span>
+          <span class="unified-panel-title xp-title-profile">AGENT PROFILE</span>
+          <span class="unified-panel-title xp-title-status">LIVE STATUS</span>
         </div>
 
         <div class="panel-body">
+
+          <!-- ===== LIVE STATUS (Milestone 25E) — compact mission telemetry,
+               shown only during an active investigation. Hosts relocated from
+               the mission panel; IDs preserved so all render fns keep working. -->
+          <div class="live-status">
+            <!-- Alert Center (Milestone 24E) -->
+            <div id="alertCenter" class="alert-center-host" style="display:none;"></div>
+
+            <!-- Threat Level (Milestone 24B) -->
+            <div id="threatMeter" class="threat-meter threat-meter--medium">
+              <h3 class="objectives-title">
+                Threat Level
+                <span class="threat-meter-pill">Medium</span>
+              </h3>
+              <div class="threat-meter-bar">
+                <span class="threat-meter-segment threat-meter-segment--on"></span>
+                <span class="threat-meter-segment threat-meter-segment--on"></span>
+                <span class="threat-meter-segment"></span>
+                <span class="threat-meter-segment"></span>
+              </div>
+              <p class="threat-meter-caption">
+                Threat level changes as the investigation develops.
+              </p>
+            </div>
+
+            <!-- Trust Score (Milestone 24C) -->
+            <div id="trustScore" class="trust-score trust-score--medium">
+              <h3 class="objectives-title">
+                Trust Score
+                <span class="trust-score-pill">50 / 100</span>
+              </h3>
+              <div class="trust-score-bar">
+                <div class="trust-score-bar-fill" style="width: 50%;"></div>
+              </div>
+              <p class="trust-score-caption">
+                Manager confidence in your investigation work.
+              </p>
+            </div>
+
+            <!-- Evidence Confidence (Challenge Layer 1) -->
+            <div id="confidenceMeter" class="confidence-meter">
+              <h3 class="objectives-title">
+                Evidence Confidence
+                <span class="confidence-pill">0%</span>
+              </h3>
+              <div class="confidence-bar">
+                <div class="confidence-bar-fill" style="width: 0%;"></div>
+              </div>
+              <p class="confidence-caption">
+                Gather stronger evidence before submitting a finding.
+              </p>
+            </div>
+
+            <!-- Investigation Board summary (pin/classify) -->
+            <div id="investigationBoard" class="board-panel">
+              <h3 class="objectives-title">Investigation Board</h3>
+              <p class="board-empty">No evidence pinned yet.</p>
+            </div>
+
+            <!-- Evidence Details drawer (full evidence log), collapsed by default -->
+            <div class="collapsible focus-collapse">
+              <button type="button" class="collapsible-head">Evidence Details</button>
+              <div class="collapsible-body">
+                <div id="evidencePanel" class="evidence-panel">
+                  <h3 class="objectives-title">Evidence Collected</h3>
+                  <p class="evidence-empty">No evidence collected yet.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hint button (relocated from the commands panel) -->
+            <div class="live-status-hint">
+              <button id="m1HintBtn" type="button" class="hint-request-btn hint-request-btn--block">
+                💡 Need a hint?
+              </button>
+            </div>
+
+            <!-- Available Tools (Milestone 24G) -->
+            <div class="collapsible focus-collapse">
+              <button type="button" class="collapsible-head">Available Tools</button>
+              <div id="toolsPanel" class="tools-panel collapsible-body">
+                <p class="tools-caption">Tools unlock as your investigation progresses.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== AGENT PROFILE (pre-mission view) ===== -->
+          <div class="agent-profile">
 
           <!-- Rank badge -->
           <div class="rank-badge-container">
@@ -1308,6 +1305,7 @@
             </ul>
           </div>
 
+          </div><!-- /.agent-profile -->
         </div>
       </aside>
 

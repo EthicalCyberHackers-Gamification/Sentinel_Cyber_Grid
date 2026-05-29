@@ -6675,7 +6675,7 @@ function pushManagerMessage(missionId, text) {
   bubble.setAttribute("data-msg", msg);
   bubble.textContent = msg;
   feed.appendChild(bubble);
-  while (feed.children.length > 5) feed.removeChild(feed.firstElementChild);
+  while (feed.children.length > 3) feed.removeChild(feed.firstElementChild);
   if (panel) {
     panel.classList.remove("manager-panel--flash");
     void panel.offsetWidth;

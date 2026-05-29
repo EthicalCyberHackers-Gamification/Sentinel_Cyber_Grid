@@ -229,6 +229,49 @@ mission dashboard into a 70%/30% split DURING an active mission. Reuses the exis
 - "Open Full Map" returns to the full `#missionsMap` via `showMissionsMap()` with NO progress
   loss (same handler as the existing "Back to Missions Map" buttons).
 
+### Three-Column Active Investigation Layout (Milestone 25E)
+A UX/immersion layer (no flow/logic changes, no new progress system) that reflows each
+mission dashboard into a 3-column "mission-control workstation" DURING an active mission.
+Reuses the SAME three existing grid children (M1 `#dashboard`, M2 `#mission2Dashboard`):
+`.mission-panel` (LEFT), `.center-column` (CENTER), `.xp-panel` (RIGHT, repurposed). All
+element IDs are preserved so every render fn + handler is unchanged. The 25E CSS block is
+appended at the END of `style.css` (replaced the 25D block, ~6224+).
+- **3-col split gated on `body.mission-running`**: `grid-template-columns:3fr 5fr 2fr` with
+  `.mission-panel` `order:1` (LEFT "Mission Control"), `.center-column` `order:2` (CENTER
+  terminal), `.xp-panel` `order:3` (RIGHT "Live Status"). The legacy 25A Focus-Mode rule
+  `body.focus-mode .xp-panel{display:none}` is OVERRIDDEN during play
+  (`body.mission-running.focus-mode .xp-panel{display:flex}`) — without this the right column
+  vanishes because `beginMission`/`beginMission2` call `enterFocusMode()`.
+- **RIGHT column dual-purpose**: the `.xp-panel` holds BOTH a `.agent-profile` wrapper (shown
+  pre-mission) and a `.live-status` block (shown during active), toggled by
+  `body.mission-running .xp-panel .agent-profile{display:none}` / `.live-status{display:block}`.
+  The panel header has two titles `.xp-title-profile` ("AGENT PROFILE") + `.xp-title-status`
+  ("LIVE STATUS"), toggled the same way. `.live-status` (default `display:none`) contains
+  `#alertCenter`/`#threatMeter`/`#trustScore`/`#confidenceMeter`/`#investigationBoard`, an
+  "Evidence Details" drawer wrapping `#evidencePanel`, the relocated `#m1HintBtn`
+  (`.hint-request-btn--block`, M1 only — M2 has no hint button), and an "Available Tools"
+  drawer wrapping `#toolsPanel`. M2 mirrors with `m2*` IDs.
+- **CENTER column**: `#currentObjective`/`#m2CurrentObjective` (now `.current-objective--center`)
+  relocated to the TOP of the commands `.panel-body`, above the command buttons. During play
+  the inline `.hint-panel`, `.task-brief`, and `.commands-hint` in the commands panel are
+  hidden (the Current Objective supersedes them), keeping the terminal dominant.
+- **LEFT column**: the compact `.mini-map` (relabeled "Mission Control") becomes a LARGE
+  VERTICAL route during active (`body.mission-running .mission-panel .mini-map` → column;
+  nodes are full-width rows with bigger 40px dots, vertical `.mini-path` connectors). The
+  active node pulses (`@keyframes miniNodePulse` cyan / `miniNodePulseGreen` for
+  active+completed); honored by a `prefers-reduced-motion` override. `#courseProgress` was
+  wrapped in a "Course Progress" `.collapsible focus-collapse` drawer; briefing/progress/
+  tracker drawers already carry `.focus-collapse`, so Focus Mode auto-collapses all dense
+  content during play.
+- **Responsive**: desktop 3-col; tablet (≤1100px) the LEFT Mission Control spans full width
+  on TOP (`grid-column:1/-1`) with terminal+Live-Status as 2 cols below, and the left map
+  reverts to horizontal; mobile (≤700px) single column ordered terminal → mission control →
+  live status.
+- **JS touch**: only `pushManagerMessage` feed trim changed 5→3 (`script.js` ~6681); no
+  render/flow logic changed. Verified e2e on M1 + M2 (3-col layout, big left map, center
+  terminal, right Live Status visible under Focus Mode, pin→board/confidence update, Open
+  Full Map back-nav).
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

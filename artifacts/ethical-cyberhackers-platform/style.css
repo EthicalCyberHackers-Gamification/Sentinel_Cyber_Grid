@@ -6219,24 +6219,114 @@ body.focus-mode .center-column { flex: 1 1 100%; }
 }
 
 /* ======================================================
-   MILESTONE 25D — SPLIT-SCREEN MISSION CONTROL LAYOUT
-   During an ACTIVE mission (body.mission-running) each dashboard reflows
-   to a 70% LEFT terminal/commands column / 30% RIGHT mission-control split.
+   MILESTONE 25E — THREE-COLUMN ACTIVE INVESTIGATION LAYOUT
+   During an ACTIVE mission (body.mission-running) each dashboard reflows to
+   a game-like mission-control workstation:
+     LEFT  Mission Control (~30%) = big mission map + manager transmission + drawers
+     CENTER Terminal (~50%)       = terminal + Current Objective + commands
+     RIGHT Live Status (~20%)     = alert / threat / trust / confidence / board /
+                                    hint / tools (compact)
+   Dense educational content lives in collapsed-by-default drawers.
    ====================================================== */
 
-/* 70/30 split: terminal column first, mission control second, XP hidden. */
+/* Three-column split: mission control | terminal | live status. */
 body.mission-running .dashboard {
-  grid-template-columns: 7fr 3fr;
+  grid-template-columns: 3fr 5fr 2fr;
 }
-body.mission-running .center-column { order: 1; }
-body.mission-running .mission-panel { order: 2; }
-body.mission-running .xp-panel { display: none; }
+body.mission-running .mission-panel { order: 1; }
+body.mission-running .center-column { order: 2; }
+body.mission-running .xp-panel      { order: 3; }
 
-/* Declutter the terminal column during an active mission — the relocated
-   Current Objective in the control panel supersedes the inline hint pill. */
+/* The right column is the Live Status workstation during an active mission.
+   Focus Mode (legacy 25A) hides .xp-panel; re-assert it here so the Live
+   Status column is always present while a mission is running. */
+body.mission-running .xp-panel,
+body.mission-running.focus-mode .xp-panel { display: flex; }
+
+/* The right column doubles as Agent Profile (pre-mission) and Live Status
+   (during an active investigation). Toggle the two blocks + the panel title. */
+.live-status { display: none; }
+.xp-title-status { display: none; }
+body.mission-running .xp-panel .agent-profile     { display: none; }
+body.mission-running .xp-panel .live-status       { display: block; }
+body.mission-running .xp-panel .xp-title-profile  { display: none; }
+body.mission-running .xp-panel .xp-title-status   { display: inline; }
+
+/* Space the live-status cards evenly and keep the board summary compact. */
+.live-status > * { margin-bottom: var(--gap-md); }
+.live-status > *:last-child { margin-bottom: 0; }
+.live-status .board-panel { max-height: 220px; overflow-y: auto; }
+.live-status-hint { margin-bottom: var(--gap-md); }
+.hint-request-btn--block {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+/* Declutter the terminal column during an active mission — the Current
+   Objective card above the commands supersedes the inline hint + task brief. */
 body.mission-running .commands-panel .hint-panel { display: none; }
+body.mission-running .commands-panel .task-brief { display: none; }
+body.mission-running .commands-panel .commands-hint { display: none; }
 
-/* ----- Compact "Mission Route" map (right control panel) ----- */
+/* Current Objective sits in the center column directly above the commands. */
+.current-objective--center { margin-bottom: var(--gap-md); }
+
+/* ----- LEFT column: large vertical "Mission Control" route map ----- */
+body.mission-running .mission-panel .mini-map-panel {
+  padding: var(--gap-md);
+}
+body.mission-running .mission-panel .mini-map {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+}
+body.mission-running .mission-panel .mini-node {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--gap-sm);
+  width: 100%;
+  text-align: left;
+  padding: 7px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.22);
+}
+body.mission-running .mission-panel .mini-node-dot {
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
+}
+body.mission-running .mission-panel .mini-node-name {
+  max-width: none;
+  font-size: 12px;
+}
+body.mission-running .mission-panel .mini-path {
+  flex: 0 0 auto;
+  width: 2px;
+  height: 18px;
+  margin: 2px 0 2px 28px;
+}
+
+/* Active node pulse during the investigation. */
+@keyframes miniNodePulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.30); }
+  50%      { box-shadow: 0 0 0 7px rgba(0, 229, 255, 0.08); }
+}
+@keyframes miniNodePulseGreen {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.30); }
+  50%      { box-shadow: 0 0 0 7px rgba(0, 255, 136, 0.08); }
+}
+body.mission-running .mini-node--active .mini-node-dot {
+  animation: miniNodePulse 2.2s ease-in-out infinite;
+}
+body.mission-running .mini-node--active.mini-node--completed .mini-node-dot {
+  animation: miniNodePulseGreen 2.2s ease-in-out infinite;
+}
+
+/* ----- Compact "Mission Route" map (base — shared with both states) ----- */
 .mini-map-panel {
   background: rgba(0, 229, 255, 0.04);
   border: 1px solid var(--color-border);
@@ -6348,18 +6438,60 @@ body.mission-running .commands-panel .hint-panel { display: none; }
   box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.25);
 }
 
-/* ----- Relocated Current Objective inside the control panel ----- */
-.current-objective--control {
-  margin-bottom: var(--gap-md);
+/* ----- Tablet (≤1100px): Mission Control collapses full-width above the
+   terminal; terminal + live status sit side-by-side below it. ----- */
+@media (max-width: 1100px) {
+  body.mission-running .dashboard {
+    grid-template-columns: 3fr 2fr;
+    grid-template-rows: auto;
+    overflow: visible;
+  }
+  body.mission-running .mission-panel {
+    order: 1;
+    grid-column: 1 / -1;
+  }
+  body.mission-running .center-column { order: 2; }
+  body.mission-running .xp-panel      { order: 3; }
+  /* Restore the horizontal route map when it spans full width. */
+  body.mission-running .mission-panel .mini-map {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+  }
+  body.mission-running .mission-panel .mini-node {
+    flex-direction: column;
+    width: auto;
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+  body.mission-running .mission-panel .mini-path {
+    flex: 1 1 auto;
+    width: auto;
+    height: 2px;
+    margin: 0 0 0 0;
+    margin-top: -16px;
+  }
 }
 
-/* ----- Responsive: stack the split on narrow screens, terminal first ----- */
-@media (max-width: 900px) {
+/* ----- Mobile (≤700px): single column — terminal first, then mission
+   control, then live status. ----- */
+@media (max-width: 700px) {
   body.mission-running .dashboard {
     grid-template-columns: 1fr;
     grid-template-rows: auto;
     overflow: visible;
   }
-  body.mission-running .center-column { order: -1; }
-  body.mission-running .mission-panel { order: 0; }
+  body.mission-running .center-column { order: 1; }
+  body.mission-running .mission-panel { order: 2; grid-column: auto; }
+  body.mission-running .xp-panel      { order: 3; }
+}
+
+/* ----- Respect reduced-motion for the active mini-node pulse. ----- */
+@media (prefers-reduced-motion: reduce) {
+  body.mission-running .mini-node--active .mini-node-dot,
+  body.mission-running .mini-node--active.mini-node--completed .mini-node-dot {
+    animation: none;
+  }
 }

@@ -1,0 +1,233 @@
+Fix the active mission layout for Ethical CyberHackers Platform.
+
+Problem:
+The previous split-screen layout created too much vertical clutter. The mission map became a thin horizontal strip, and the student still sees too many stacked panels before reaching the terminal.
+
+Goal:
+Create a cleaner, more engaging active investigation layout inspired by a cyber mission-control map.
+
+Do not remove existing functionality.
+Do not break Mission 1 or Mission 2.
+Do not add backend, AI, authentication, or new pages.
+
+Required Layout During Active Investigation:
+
+LEFT COLUMN — Mission Map / Mission Control
+Width: 28–32%
+
+CENTER COLUMN — Terminal Workspace
+Width: 50–55%
+
+RIGHT COLUMN — Live Status
+Width: 18–22%
+
+---
+
+1. LEFT COLUMN: LARGE COMPACT MISSION MAP
+
+---
+
+Create a persistent left-side Mission Control Map during active investigation.
+
+It should show:
+
+* Mission route nodes
+* current mission highlighted
+* completed missions checked
+* locked missions dimmed
+* glowing path lines
+* mission title
+* manager avatar/transmission
+* current assignment summary
+
+This map should look like the full Cyber Missions Map, but scaled to fit the left column.
+
+Do NOT make it a thin horizontal strip.
+
+Label:
+Mission Control
+
+The map should visually remain part of the game while the student works in the terminal.
+
+---
+
+2. CENTER COLUMN: TERMINAL FIRST
+
+---
+
+The center column should prioritize:
+
+* Terminal
+* Current Objective
+* Command/action buttons
+* active interaction panels only when needed
+
+The terminal should be visible immediately without scrolling.
+
+Remove from center:
+
+* long briefing text
+* learning objective
+* skills practiced
+* course progress list
+* large evidence summaries
+* repeated dashboard panels
+
+The student should feel:
+“I am working at the analyst terminal.”
+
+---
+
+3. RIGHT COLUMN: LIVE STATUS ONLY
+
+---
+
+The right column should be compact and show only:
+
+* Alert State
+* Threat Level
+* Trust Score
+* Evidence Confidence
+* Investigation Board summary
+* Hint button
+* Available Tools compact list
+
+Keep each section short.
+
+No long paragraphs.
+
+---
+
+4. MOVE DENSE CONTENT TO COLLAPSIBLE DRAWERS
+
+---
+
+Move these into collapsible drawers, not always-visible panels:
+
+* Mission Briefing
+* Learning Objective
+* Skills Practiced
+* Full Progress Tracker
+* Full Course Progress
+* Full Evidence Details
+* Briefing Room Completed Cards
+
+Drawer labels:
+
+* Training Notes
+* Progress
+* Evidence Details
+
+Default state during active mission:
+collapsed.
+
+---
+
+5. MANAGER TRANSMISSION
+
+---
+
+Put manager transmission inside the left Mission Control column.
+
+Show only latest 2–3 messages.
+
+Use compact chat bubbles.
+
+Do not show long manager history by default.
+
+---
+
+6. CURRENT OBJECTIVE
+
+---
+
+Place Current Objective directly above the terminal or command buttons.
+
+It should be one short sentence.
+
+Examples:
+
+* Inspect the documents folder.
+* Identify the strongest evidence.
+* Pin the critical threat evidence.
+* Submit your finding.
+
+---
+
+7. VISUAL HIERARCHY
+
+---
+
+The most visually dominant element should be:
+Terminal Workspace
+
+Second:
+Mission Control Map
+
+Third:
+Live Status
+
+Do not allow status panels to dominate the screen.
+
+---
+
+8. INTERACTION MOMENTS
+
+---
+
+Add subtle animations:
+
+* current mission node pulses during active investigation
+* evidence confidence bar animates when evidence is pinned
+* threat level pulses when it increases
+* manager message slides in
+* command output appears with a typing/fade effect
+
+No sound.
+
+---
+
+9. RESPONSIVE BEHAVIOR
+
+---
+
+Desktop:
+three-column layout.
+
+Tablet:
+left Mission Control collapses above terminal.
+
+Mobile:
+terminal first, then Mission Control, then Live Status.
+
+---
+
+10. PRESERVE EXISTING SYSTEMS
+
+---
+
+Verify these still work:
+
+* Mission launch
+* briefing room
+* terminal commands
+* command unlocks
+* evidence pinning
+* evidence classification
+* investigation board
+* hints
+* manager reactions
+* threat level
+* trust score
+* XP
+* scorecards
+* mission completion
+* local progress save
+* restart mission
+
+---
+
+Expected Result:
+During investigation, the student should see a game-like mission map on the left, a clean terminal workspace in the center, and compact live status on the right.
+
+The interface should feel like an active cyber mission-control workstation, not a long stacked dashboard.
