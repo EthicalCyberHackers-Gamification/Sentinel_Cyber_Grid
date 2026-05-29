@@ -1,0 +1,256 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Cyber Missions Map screen looks good.
+* Mission 1 and Mission 2 still work.
+* Terminal investigation screen works.
+* Mission engine and simulation systems exist.
+
+Now implement:
+
+Milestone 25D — Split-Screen Mission Control Layout
+
+Purpose:
+Keep the Cyber Missions Map visible during active investigations so the student always feels inside a mission-control environment. Reduce terminal-screen clutter by moving instructions, progress, manager messages, and mission context into a right-side Mission Control panel.
+
+Do not remove terminal access.
+Do not break Mission 1 or Mission 2.
+Do not remove existing mission logic.
+Do not add backend, AI, authentication, or new pages.
+
+Layout Goal During Active Mission:
+
+LEFT SIDE:
+
+* Terminal
+* Command/action buttons
+* Investigation interactions
+
+RIGHT SIDE:
+
+* Compact Mission Map
+* Current Objective
+* Manager Transmission
+* Alert Status
+* Evidence Board
+* Threat Level / Trust Score
+* Mission Progress
+
+---
+
+1. ACTIVE MISSION SPLIT LAYOUT
+
+---
+
+When a mission is launched, use a two-column layout:
+
+Left column:
+70% width
+
+Right column:
+30% width
+
+Left column contains:
+
+* terminal
+* command buttons
+* investigation board interactions if needed
+
+Right column contains:
+
+* compact mission map
+* current objective
+* manager chat/transmission
+* alert/threat status
+* evidence summary
+* progress checklist
+
+On smaller screens:
+stack vertically with terminal first.
+
+---
+
+2. COMPACT MISSION MAP
+
+---
+
+Create a compact version of the Cyber Missions Map for the right side.
+
+It should show:
+
+* Mission 1 node
+* Mission 2 node
+* Mission 3 locked node
+* path lines
+* current mission highlighted
+* completed mission checkmarks
+* locked mission dim state
+
+This should be smaller than the full map but visually consistent.
+
+Label:
+Mission Route
+
+---
+
+3. MOVE INSTRUCTIONS OUT OF TERMINAL AREA
+
+---
+
+Remove or minimize repeated instruction blocks near the command area.
+
+Keep only:
+
+* Current Objective
+* Hint button
+* Command/action buttons
+
+Detailed instructions should appear in the right-side Mission Control panel.
+
+---
+
+4. CURRENT OBJECTIVE IN RIGHT PANEL
+
+---
+
+Add a high-visibility card:
+
+Current Objective
+
+This should update dynamically using existing task instruction logic.
+
+Examples:
+
+* Open the documents folder.
+* Review each file.
+* Pin the strongest evidence.
+* Submit your finding.
+* Complete the quiz.
+
+---
+
+5. MANAGER TRANSMISSION IN RIGHT PANEL
+
+---
+
+Move manager guidance into the right panel.
+
+Use chat/transmission style:
+
+* manager avatar initials
+* manager name
+* latest 3 messages
+* transmission active indicator
+
+Do not use AI.
+Preserve scripted manager reactions.
+
+---
+
+6. ALERT + THREAT STATUS
+
+---
+
+Add compact cards:
+
+* Alert State
+* Threat Level
+* Trust Score
+* Evidence Confidence
+
+These should be visible but not dominant.
+
+---
+
+7. EVIDENCE BOARD SUMMARY
+
+---
+
+Right panel should show compact evidence summary:
+
+* Evidence pinned count
+* Most important pinned evidence
+* Investigation accuracy if available
+
+If full evidence board exists elsewhere, keep it accessible through:
+View Evidence Board
+
+Do not clutter the main terminal area.
+
+---
+
+8. TERMINAL AREA CLEANUP
+
+---
+
+Terminal side should feel clean and focused.
+
+Keep:
+
+* terminal output
+* grouped command buttons
+* active investigation interaction
+* quiz/finding panels only when needed
+
+Remove duplicated:
+
+* long mission briefing
+* learning objectives
+* skills practiced
+* briefing room cards
+* repeated task paragraphs
+
+Those belong in collapsible right-side sections or module overview.
+
+---
+
+9. BACK TO FULL MAP
+
+---
+
+Add button in right panel:
+
+Open Full Mission Map
+
+This returns to the large Cyber Missions Map screen without clearing progress.
+
+---
+
+10. PRESERVE EXISTING SYSTEMS
+
+---
+
+Verify all still work:
+
+* mission launch
+* briefing room
+* terminal commands
+* evidence pinning
+* evidence classification
+* hints
+* manager reactions
+* threat level
+* trust score
+* XP
+* mission completion
+* scorecards
+* local progress save
+* restart mission
+
+---
+
+11. VISUAL STYLE
+
+---
+
+Keep the futuristic cyber mission-control theme:
+
+* dark background
+* cyan/green highlights
+* glowing mission route
+* compact panels
+* clean spacing
+
+Goal:
+During active investigation, the student should feel like they are operating a cybersecurity workstation with mission control always visible, rather than jumping from a map into a separate static terminal screen.

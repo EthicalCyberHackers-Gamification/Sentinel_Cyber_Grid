@@ -394,6 +394,49 @@
 
         <div class="panel-body">
 
+          <!-- ===== MISSION CONTROL: COMPACT ROUTE MAP (Milestone 25D) ===== -->
+          <div class="mini-map-panel">
+            <div class="mini-map-head">
+              <span class="mini-map-label">Mission Route</span>
+              <button id="m2OpenFullMapBtn" class="mini-map-open-btn" type="button">
+                Open Full Map
+              </button>
+            </div>
+            <div class="mini-map" id="m2MiniMap">
+              <div class="mini-node mini-node--completed" data-mission="mission-001">
+                <span class="mini-node-dot">
+                  <span class="mini-node-num">01</span>
+                  <span class="mini-node-check" aria-hidden="true">✓</span>
+                </span>
+                <span class="mini-node-name">Workstation</span>
+              </div>
+              <span class="mini-path" data-path="12" aria-hidden="true"></span>
+              <div class="mini-node mini-node--available" data-mission="mission-002">
+                <span class="mini-node-dot">
+                  <span class="mini-node-num">02</span>
+                  <span class="mini-node-check" aria-hidden="true">✓</span>
+                </span>
+                <span class="mini-node-name">Network</span>
+              </div>
+              <span class="mini-path" data-path="23" aria-hidden="true"></span>
+              <div class="mini-node mini-node--locked" data-mission="mission-003">
+                <span class="mini-node-dot">
+                  <span class="mini-node-num">03</span>
+                  <span class="mini-node-check" aria-hidden="true">✓</span>
+                </span>
+                <span class="mini-node-name">Recon</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Milestone 25D — Current Objective relocated into Mission Control. -->
+          <div id="m2CurrentObjective" class="current-objective current-objective--control">
+            <span class="current-objective-label">Current Objective</span>
+            <span id="m2CurrentObjectiveText" class="current-objective-text">
+              Start by identifying your local IP address.
+            </span>
+          </div>
+
           <!-- Supervisor — Sarah Reyes (Mission 2 instance) -->
           <div id="m2ManagerPanel" class="manager-panel" aria-live="polite">
             <div class="manager-header">
@@ -578,15 +621,8 @@
             <span class="unified-panel-meta">New commands unlock as you progress</span>
           </div>
           <div class="panel-body">
-            <!-- Milestone 25A — Current Objective card. High-priority,
-                 always-visible single instruction; mirrors the hint via
-                 setCurrentObjective("mission-002", ...). -->
-            <div id="m2CurrentObjective" class="current-objective">
-              <span class="current-objective-label">Current Objective</span>
-              <span id="m2CurrentObjectiveText" class="current-objective-text">
-                Start by identifying your local IP address.
-              </span>
-            </div>
+            <!-- Milestone 25D — Current Objective relocated to the right-side
+                 Mission Control panel (see #m2CurrentObjective in .mission-panel). -->
 
             <div class="hint-panel hint-panel--muted">
               <span class="hint-icon">💡</span>
@@ -814,6 +850,54 @@
         </header>
 
         <div class="panel-body">
+
+          <!-- ===== MISSION CONTROL: COMPACT ROUTE MAP (Milestone 25D) =====
+               A compact, always-visible version of the Cyber Missions Map so
+               the student stays in a mission-control environment during the
+               investigation. States mirror the full map via renderMiniMap. -->
+          <div class="mini-map-panel">
+            <div class="mini-map-head">
+              <span class="mini-map-label">Mission Route</span>
+              <button id="m1OpenFullMapBtn" class="mini-map-open-btn" type="button">
+                Open Full Map
+              </button>
+            </div>
+            <div class="mini-map" id="m1MiniMap">
+              <div class="mini-node mini-node--available" data-mission="mission-001">
+                <span class="mini-node-dot">
+                  <span class="mini-node-num">01</span>
+                  <span class="mini-node-check" aria-hidden="true">✓</span>
+                </span>
+                <span class="mini-node-name">Workstation</span>
+              </div>
+              <span class="mini-path" data-path="12" aria-hidden="true"></span>
+              <div class="mini-node mini-node--locked" data-mission="mission-002">
+                <span class="mini-node-dot">
+                  <span class="mini-node-num">02</span>
+                  <span class="mini-node-check" aria-hidden="true">✓</span>
+                </span>
+                <span class="mini-node-name">Network</span>
+              </div>
+              <span class="mini-path" data-path="23" aria-hidden="true"></span>
+              <div class="mini-node mini-node--locked" data-mission="mission-003">
+                <span class="mini-node-dot">
+                  <span class="mini-node-num">03</span>
+                  <span class="mini-node-check" aria-hidden="true">✓</span>
+                </span>
+                <span class="mini-node-name">Recon</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Milestone 25A/25D — Current Objective card. Relocated into the
+               right-side Mission Control panel as a high-visibility card.
+               Mirrors the active hint text via setCurrentObjective(). -->
+          <div id="currentObjective" class="current-objective current-objective--control">
+            <span class="current-objective-label">Current Objective</span>
+            <span id="currentObjectiveText" class="current-objective-text">
+              Read the briefing, then click Begin Mission.
+            </span>
+          </div>
 
           <!-- ===== SUPERVISOR MESSAGE (Milestone 13) =====
                Scripted manager-style guidance. script.js calls
@@ -1063,15 +1147,8 @@
           </div>
 
           <div class="panel-body">
-            <!-- Milestone 25A — Current Objective card. High-priority,
-                 always-visible single instruction near the command area;
-                 mirrors the active hint text via setCurrentObjective(). -->
-            <div id="currentObjective" class="current-objective">
-              <span class="current-objective-label">Current Objective</span>
-              <span id="currentObjectiveText" class="current-objective-text">
-                Read the briefing, then click Begin Mission.
-              </span>
-            </div>
+            <!-- Milestone 25D — Current Objective relocated to the right-side
+                 Mission Control panel (see #currentObjective in .mission-panel). -->
 
             <!-- ===== YOUR TASK (explicit objective) =====
                  Always visible during the investigation so the student

@@ -6217,3 +6217,149 @@ body.focus-mode .center-column { flex: 1 1 100%; }
   .mission-node--available .mission-node-ring,
   .transmission-dot { animation: none; }
 }
+
+/* ======================================================
+   MILESTONE 25D — SPLIT-SCREEN MISSION CONTROL LAYOUT
+   During an ACTIVE mission (body.mission-running) each dashboard reflows
+   to a 70% LEFT terminal/commands column / 30% RIGHT mission-control split.
+   ====================================================== */
+
+/* 70/30 split: terminal column first, mission control second, XP hidden. */
+body.mission-running .dashboard {
+  grid-template-columns: 7fr 3fr;
+}
+body.mission-running .center-column { order: 1; }
+body.mission-running .mission-panel { order: 2; }
+body.mission-running .xp-panel { display: none; }
+
+/* Declutter the terminal column during an active mission — the relocated
+   Current Objective in the control panel supersedes the inline hint pill. */
+body.mission-running .commands-panel .hint-panel { display: none; }
+
+/* ----- Compact "Mission Route" map (right control panel) ----- */
+.mini-map-panel {
+  background: rgba(0, 229, 255, 0.04);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--gap-sm) var(--gap-md);
+  margin-bottom: var(--gap-md);
+}
+.mini-map-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--gap-sm);
+}
+.mini-map-label {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+}
+.mini-map-open-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.mini-map-open-btn:hover {
+  color: var(--color-cyan);
+  border-color: var(--color-cyan);
+  background: rgba(0, 229, 255, 0.08);
+}
+
+.mini-map {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.mini-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  text-align: center;
+}
+.mini-node-dot {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg-panel);
+  font-family: var(--font-hud);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-dim);
+}
+.mini-node-check { display: none; }
+.mini-node-name {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--color-text-dim);
+  max-width: 56px;
+}
+.mini-path {
+  flex: 1 1 auto;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-border);
+  margin-top: -16px;
+}
+.mini-path--lit { background: var(--color-cyan); }
+
+/* Node states */
+.mini-node--available .mini-node-dot {
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+}
+.mini-node--available .mini-node-name { color: var(--color-text); }
+.mini-node--completed .mini-node-dot {
+  border-color: var(--color-green);
+  background: rgba(0, 255, 136, 0.12);
+  color: var(--color-green);
+}
+.mini-node--completed .mini-node-num { display: none; }
+.mini-node--completed .mini-node-check {
+  display: block;
+  color: var(--color-green);
+  font-size: 14px;
+}
+.mini-node--completed .mini-node-name { color: var(--color-green); }
+.mini-node--locked .mini-node-dot { opacity: 0.5; }
+.mini-node--active .mini-node-dot {
+  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.25);
+}
+.mini-node--active.mini-node--completed .mini-node-dot {
+  box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.25);
+}
+
+/* ----- Relocated Current Objective inside the control panel ----- */
+.current-objective--control {
+  margin-bottom: var(--gap-md);
+}
+
+/* ----- Responsive: stack the split on narrow screens, terminal first ----- */
+@media (max-width: 900px) {
+  body.mission-running .dashboard {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    overflow: visible;
+  }
+  body.mission-running .center-column { order: -1; }
+  body.mission-running .mission-panel { order: 0; }
+}

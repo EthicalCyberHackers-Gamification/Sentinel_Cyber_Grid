@@ -200,6 +200,35 @@ BEFORE the investigation. Pure selection layer — it reuses the existing progre
   statically in `index.html` (`#missionsMap`, hidden by default); states recompute on every
   `showMissionsMap()`. Responsive: side-by-side desktop, stacked on ≤900px (SVG paths hidden).
 
+### Split-Screen Mission Control Layout (Milestone 25D)
+A UX/immersion layer (no flow/logic changes, no new progress system) that reflows each
+mission dashboard into a 70%/30% split DURING an active mission. Reuses the existing
+`.dashboard` grid markup (M1 `#dashboard`, M2 `#mission2Dashboard`) and the same
+`missionMapStatus` progress flags as the full map.
+- **70/30 split gated on `body.mission-running`** (CSS block appended at END of `style.css`):
+  `body.mission-running .dashboard{grid-template-columns:7fr 3fr}` with `.center-column`
+  `order:1` (LEFT = terminal + commands), `.mission-panel` `order:2` (RIGHT = mission
+  control), and `.xp-panel{display:none}` (the agent profile is folded away during play).
+  Declutter: `body.mission-running .commands-panel .hint-panel{display:none}` (the relocated
+  Current Objective supersedes the inline hint pill). Responsive `@media(max-width:900px)`
+  stacks to one column with the terminal first (`.center-column{order:-1}`); placed AFTER the
+  desktop rules so source order wins ties.
+- **Compact "Mission Route" map** lives at the TOP of each `.mission-panel` `.panel-body`
+  (`.mini-map-panel` with label "Mission Route" + an "Open Full Map" button —
+  `#m1OpenFullMapBtn` / `#m2OpenFullMapBtn` — wired to `showMissionsMap()` in `boot()`). The
+  map host `#m1MiniMap` / `#m2MiniMap` holds 3 `.mini-node[data-mission]` + 2
+  `.mini-path[data-path="12"/"23"]`. `renderMiniMap(rootId, activeMissionId)` (after
+  `renderMissionMapStates`, ~4410) toggles `.mini-node--available|completed|locked|active`
+  (active = the panel's own mission) and `.mini-path--lit` from `missionMapStatus`;
+  `renderAllMiniMaps()` refreshes both. Hooked into `showMissionsMap`, `openMission1Dashboard`,
+  `showMission2Overview`, `completeMission`, the M2 quiz completion + `completeMissionEngine`,
+  `resetMission`, `resetMission2`, and `boot()` (resetMissionEngine delegates to the resets).
+- **Current Objective relocated** into the right control panel (`#currentObjective` M1,
+  `#m2CurrentObjective` M2, both gain `.current-objective--control`); the originals were
+  removed from the commands panels. IDs preserved so `setCurrentObjective` is unchanged.
+- "Open Full Map" returns to the full `#missionsMap` via `showMissionsMap()` with NO progress
+  loss (same handler as the existing "Back to Missions Map" buttons).
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

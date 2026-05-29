@@ -3713,6 +3713,7 @@ function completeMission(newRank) {
   // "cat-employee-notes" path); the final "complete" step is always set here.
   PROGRESS_STEPS.forEach((s) => completedProgressSteps.add(s.id));
   renderProgressTracker();
+  renderAllMiniMaps(); // Milestone 25D — M1 node flips to completed.
 
   // Update rank in the XP sidebar
   if (rankNameEl) {
@@ -4065,6 +4066,7 @@ function resetMission() {
   setMissionRunning(false);
   // Milestone 25B — end any guided spotlight tour on restart.
   endGuidedRun();
+  renderAllMiniMaps(); // Milestone 25D — refresh compact route maps.
 
   // Reset hint back to the pre-briefing message
   setHint(HINTS.awaiting, "muted");
@@ -4398,6 +4400,40 @@ function renderMissionMapStates() {
   if (p23) p23.classList.toggle("map-path-line--lit", missionMapStatus("mission-003") !== "locked");
 }
 
+/**
+ * Milestone 25D — render a compact "Mission Route" map inside a mission's
+ * Mission Control panel. Derives node states from the SAME progress flags as
+ * the full map (missionMapStatus) and highlights the panel's own mission.
+ * @param {string} rootId          id of the .mini-map container (e.g. "m1MiniMap")
+ * @param {string} activeMissionId the mission this panel belongs to
+ */
+function renderMiniMap(rootId, activeMissionId) {
+  const root = document.getElementById(rootId);
+  if (!root) return;
+  root.querySelectorAll(".mini-node").forEach((node) => {
+    const mid = node.getAttribute("data-mission");
+    const status = missionMapStatus(mid);
+    node.classList.remove(
+      "mini-node--available",
+      "mini-node--completed",
+      "mini-node--locked",
+      "mini-node--active"
+    );
+    node.classList.add(`mini-node--${status}`);
+    if (mid === activeMissionId) node.classList.add("mini-node--active");
+  });
+  const p12 = root.querySelector('.mini-path[data-path="12"]');
+  if (p12) p12.classList.toggle("mini-path--lit", missionMapStatus("mission-002") !== "locked");
+  const p23 = root.querySelector('.mini-path[data-path="23"]');
+  if (p23) p23.classList.toggle("mini-path--lit", missionMapStatus("mission-003") !== "locked");
+}
+
+/** Refresh both dashboards' compact route maps from current progress. */
+function renderAllMiniMaps() {
+  renderMiniMap("m1MiniMap", "mission-001");
+  renderMiniMap("m2MiniMap", "mission-002");
+}
+
 /** Select a node: highlight it + render its details + transmission. */
 function selectMissionNode(missionId) {
   if (!MISSION_MAP[missionId]) missionId = "mission-001";
@@ -4516,6 +4552,7 @@ function showMissionsMap() {
   }
 
   renderMissionMapStates();
+  renderAllMiniMaps();
   selectMissionNode(currentMapSelection);
 }
 
@@ -4537,6 +4574,7 @@ function openMission1Dashboard() {
   // Milestone 24I — render the Mission 1 Briefing Room on entry.
   renderBriefingRoom("mission-001");
   updateMission1CTA();
+  renderAllMiniMaps();
   // Milestone 25A — if Mission 1 was already in progress, re-assert the
   // mission-running control bar on dashboard re-entry.
   if (missionStarted && !missionComplete) {
@@ -4878,6 +4916,7 @@ function showMission2Overview() {
   overview.scrollTop = 0;
   // Milestone 24I — render the Mission 2 Briefing Room on entry.
   renderBriefingRoom("mission-002");
+  renderAllMiniMaps();
   window.scrollTo({ top: 0, behavior: "instant" });
   // Milestone 25B fix — auto-open the guided briefing overlay for a FRESH M2
   // start (parity with Mission 1). Skipped once M2 has started OR is complete
@@ -5421,6 +5460,7 @@ function handleM2QuizAnswer(letter) {
   // Correct path — complete Mission 2
   m2QuizAnswered   = true;
   mission2Complete = true;
+  renderAllMiniMaps(); // Milestone 25D — M2 node flips to completed.
 
   // Milestone 24C — correct M2 quiz (+10) AND M2 completion (+10) → +20 trust.
   increaseTrustScore(10);
@@ -5689,6 +5729,7 @@ function resetMission2() {
   m2AnalystAnswered = false;
   m2QuizAnswered    = false;
   mission2Complete  = false;
+  renderAllMiniMaps(); // Milestone 25D — refresh AFTER mission2Complete cleared.
   // Challenge Layer 1 — reset Mission 2 confidence.
   m2Confidence = 0;
   m2ConfidenceContributors.clear();
@@ -5984,6 +6025,7 @@ function completeMissionEngine(newRank) {
 
     mission2Complete = true;
     m2QuizAnswered   = true;
+    renderAllMiniMaps(); // Milestone 25D — M2 node flips to completed.
 
     // XP award — was missing in 23A; fixed in 23B per architect review.
     awardXP(M2_QUIZ.xpReward);
@@ -6431,6 +6473,12 @@ function boot() {
   if (m2MapBack) m2MapBack.addEventListener("click", showMissionsMap);
   const m2OvMapBack = document.getElementById("m2OverviewMapBackBtn");
   if (m2OvMapBack) m2OvMapBack.addEventListener("click", showMissionsMap);
+  // Milestone 25D — "Open Full Map" buttons in the right control panels.
+  const m1OpenFullMap = document.getElementById("m1OpenFullMapBtn");
+  if (m1OpenFullMap) m1OpenFullMap.addEventListener("click", showMissionsMap);
+  const m2OpenFullMap = document.getElementById("m2OpenFullMapBtn");
+  if (m2OpenFullMap) m2OpenFullMap.addEventListener("click", showMissionsMap);
+  renderAllMiniMaps(); // Milestone 25D — initial compact route map render.
 
   // Milestone 17 — Student Name input gating.
   // The button starts disabled (set in index.html) and becomes enabled
