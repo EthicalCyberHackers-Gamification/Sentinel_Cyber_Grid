@@ -1,0 +1,95 @@
+Fix the existing Guided Spotlight Mission Flow implementation.
+
+Problem:
+The previous request was supposed to create a guided spotlight briefing experience, but the visible UI still shows briefing cards only in the left sidebar. The student still has to click static “Review Briefing” buttons. No centered guided overlay appears.
+
+Goal:
+Make the Guided Spotlight Briefing visible and active before the mission starts.
+
+Do not add new features.
+Do not redesign the whole app.
+Do not break existing mission functionality.
+
+Requirements:
+
+1. When Mission 1 loads before investigation starts, show a centered overlay/modal called:
+
+Mission Briefing Room
+
+2. Dim the background dashboard behind the overlay.
+
+3. The overlay should show only ONE briefing card at a time.
+
+Mission 1 sequence:
+
+* Step 1 of 3: Phishing Indicators
+* Step 2 of 3: Evidence Collection
+* Step 3 of 3: Password Safety
+
+4. Each card should have:
+
+* title
+* short bullet list
+* button: “Got it — Next”
+
+5. Remove the need to click the old left-sidebar “Review Briefing” buttons during the active briefing sequence.
+
+6. The left sidebar may still show briefing information later, but it should NOT be the main briefing interaction.
+
+7. After all 3 briefing cards are reviewed, show a centered “Mission Ready” screen:
+
+Mission Ready
+You reviewed the briefing materials.
+Your task: investigate the workstation and identify the strongest threat evidence.
+
+Button:
+Launch Investigation
+
+8. When “Launch Investigation” is clicked:
+
+* close the overlay
+* enter Focus Mode
+* enable the normal command/investigation flow
+* update Current Objective to:
+  “Open the documents folder and inspect the files.”
+
+9. Add a short startup animation or simulated terminal message:
+
+Initializing analyst workstation...
+Loading file investigation tools...
+Mission ready.
+
+10. Add CSS for:
+
+* overlay backdrop
+* centered briefing card
+* fade/slide animation
+* highlighted active card
+* mission ready state
+
+11. Confirm this works visually on the actual page:
+    The student should immediately see the centered guided briefing overlay before interacting with the left panel.
+
+12. Keep everything frontend-only.
+
+13. Preserve all existing mission systems:
+
+* terminal
+* commands
+* evidence board
+* hints
+* manager chat
+* XP
+* trust score
+* threat level
+* scorecards
+* local save
+
+14. Add a console log when the spotlight briefing opens:
+    “Guided briefing overlay opened”
+
+15. Add a console log when Launch Investigation is clicked:
+    “Guided briefing complete. Investigation launched.”
+
+Expected result:
+The student no longer starts by reading static cards in the left sidebar. The experience should begin with a focused, animated, centered briefing sequence.
