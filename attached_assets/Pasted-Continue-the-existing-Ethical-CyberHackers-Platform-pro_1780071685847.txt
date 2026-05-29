@@ -1,0 +1,102 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Problem:
+The Mission Briefing Room is still too static. Students are still reading cards and clicking “Reviewed” buttons on the left panel. This does not feel like an active simulation.
+
+Now implement:
+
+Milestone 25B — Guided Spotlight Mission Flow
+
+Purpose:
+Create a guided, animated onboarding experience where the platform visually leads the student through the mission preparation and investigation steps.
+
+Do not redesign the entire app.
+Do not remove existing functionality.
+Do not add backend, AI, authentication, or new pages.
+
+Core Goal:
+The student should feel guided through the simulation by visual focus, motion, and staged interaction.
+
+Requirements:
+
+1. Add a Guided Spotlight System.
+
+When the briefing room starts, dim the rest of the interface and visually highlight only the current briefing card.
+
+2. Show one briefing card at a time in the center/main workspace, not buried in the left panel.
+
+Flow:
+
+* Card 1: Phishing Indicators
+* Card 2: Evidence Collection
+* Card 3: Password Safety
+* Ready screen
+* Begin Investigation
+
+3. Each card should appear with a short animation:
+
+* fade in
+* slide up
+* subtle glow
+
+4. Replace “Review Briefing” buttons with:
+   [ Got it — Next ]
+
+5. Add progress text:
+   Briefing Step 1 of 3
+   Briefing Step 2 of 3
+   Briefing Step 3 of 3
+
+6. Add manager chat message before each card:
+   Sarah Reyes:
+   “First, review phishing indicators. These will help you identify suspicious files.”
+
+Sarah Reyes:
+“Next, remember how analysts collect evidence before making conclusions.”
+
+Sarah Reyes:
+“Finally, review password safety. This will be important during the investigation.”
+
+7. After all cards are reviewed, show a centered “Mission Ready” screen:
+
+Mission Ready
+You reviewed the briefing materials.
+Your task: investigate the workstation and identify the strongest threat evidence.
+
+Button:
+[ Launch Investigation ]
+
+8. When Launch Investigation is clicked:
+
+* briefly animate the terminal panel
+* show “Initializing analyst workstation...”
+* then enter normal mission mode
+
+9. During investigation, add a spotlight effect for the next important area:
+
+* first spotlight terminal/commands
+* after files are listed, spotlight file inspection commands
+* after evidence appears, spotlight Investigation Board
+* before decision, spotlight Decision Actions
+
+10. Keep the left panel available, but it should not be the main interaction area during briefing.
+
+11. The briefing cards may still be summarized in the left panel after review, but active interaction should happen in the center workspace.
+
+12. Preserve all existing mission logic:
+
+* command buttons
+* investigation board
+* evidence classification
+* hints
+* manager reactions
+* XP
+* trust score
+* threat level
+* scorecards
+* local progress save
+
+13. Keep everything frontend-only.
+
+Goal:
+The experience should feel like a guided simulation sequence, not a static list of review cards.
