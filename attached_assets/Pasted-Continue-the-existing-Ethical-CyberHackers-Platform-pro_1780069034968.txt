@@ -1,0 +1,285 @@
+Continue the existing “Ethical CyberHackers Platform” project.
+
+Current status:
+
+* Mission 1 and Mission 2 are working.
+* Mission Engine exists.
+* Evidence, XP, trust score, threat level, alerts, decisions, manager reactions, briefing room, and investigation board exist.
+* The platform is functional, but the interface is becoming visually crowded.
+* The left panel contains too much information at once and feels overwhelming for middle/high school students.
+
+Now implement:
+
+Milestone 25A — Mission Focus Mode + Expandable Panels
+
+Purpose:
+Improve engagement by reducing visual overload and making the mission feel more like an active cybersecurity investigation instead of a static dashboard.
+
+This is a UX/immersion refinement only.
+
+Do NOT:
+
+* Add Mission 3
+* Remove existing systems
+* Break Mission 1 or Mission 2
+* Add backend
+* Add AI
+* Add authentication
+* Redesign the entire app from scratch
+
+Core Design Goal:
+During active investigation, students should mainly focus on:
+
+* current task
+* terminal
+* manager reaction
+* investigation board
+* evidence/threat status
+
+Everything else should be minimized, collapsed, or revealed only when needed.
+
+---
+
+1. ADD MISSION FOCUS MODE
+
+---
+
+When the student clicks “Begin Investigation” or “Begin Mission,” switch the interface into Mission Focus Mode.
+
+Mission Focus Mode should:
+
+* reduce clutter
+* enlarge the terminal/work area
+* minimize long briefing text
+* collapse learning objective and skills sections
+* keep the current task visible
+* keep manager guidance visible
+* keep investigation board visible
+* keep alert/threat status visible
+
+Add a visible label:
+MISSION ACTIVE
+
+Add a button:
+Exit Focus Mode
+
+Exit Focus Mode should return to the full dashboard view without resetting progress.
+
+---
+
+2. COLLAPSE LEFT PANEL CONTENT
+
+---
+
+Convert dense left-side sections into collapsible cards.
+
+Cards:
+
+* Mission Briefing
+* Learning Objective
+* Skills Practiced
+* Mission Briefing Room
+* Alert Details
+* Tools
+* Progress Tracker
+
+Default behavior during Focus Mode:
+
+* Mission Briefing: collapsed
+* Learning Objective: collapsed
+* Skills Practiced: collapsed
+* Mission Briefing Room: collapsed after completed
+* Alert Details: partially visible
+* Manager: visible
+* Current Task: visible
+
+Students should not see long paragraphs unless they choose to expand them.
+
+---
+
+3. CREATE CURRENT OBJECTIVE CARD
+
+---
+
+Add a high-priority “Current Objective” card near the terminal or command area.
+
+This card should always show one short instruction.
+
+Examples:
+
+* “Find the suspicious file.”
+* “Pin the strongest evidence.”
+* “Classify the evidence correctly.”
+* “Submit your finding.”
+* “Complete the reflection.”
+
+This replaces the feeling of being lost in many panels.
+
+---
+
+4. ADD MANAGER CHAT FEED
+
+---
+
+Upgrade the manager panel into a lightweight chat-style feed.
+
+Instead of only one static message, show recent manager messages as a short conversation.
+
+Example:
+Sarah Reyes:
+“Finance flagged suspicious workstation activity.”
+
+Sarah Reyes:
+“Review the files carefully. Do not assume every file is dangerous.”
+
+Sarah Reyes:
+“Good catch. That password request is suspicious.”
+
+Requirements:
+
+* Keep only the latest 3–5 messages visible.
+* New manager messages should visually appear as new chat bubbles.
+* Preserve existing manager reaction logic.
+* Do not use AI. Keep scripted messages.
+
+---
+
+5. ADD ANIMATION MOMENTS
+
+---
+
+Add subtle visual feedback when important events happen.
+
+Events:
+
+* evidence pinned
+* evidence classified correctly
+* threat level increases
+* trust score increases
+* XP awarded
+* mission completed
+* new tool unlocked
+
+Effects:
+
+* brief pulse
+* glow
+* slide-in
+* badge flash
+
+Keep animations lightweight and professional.
+
+Do not add sound.
+
+---
+
+6. MAKE EVIDENCE PINNING FEEL MORE INTERACTIVE
+
+---
+
+When evidence is pinned:
+
+* animate it into the Investigation Board
+* briefly highlight the board
+* show “Evidence Added”
+* update Evidence Confidence visibly
+
+When incorrect evidence classification happens:
+
+* show amber caution feedback
+* manager chat responds with guidance
+
+---
+
+7. SIMPLIFY COMMAND AREA PRESENTATION
+
+---
+
+Command buttons should feel like action choices, not a long list.
+
+Group commands by category where possible:
+
+Mission 1:
+
+* Navigate
+* Inspect Files
+* Report
+
+Mission 2:
+
+* Identify Network
+* Test Reachability
+* Scan Services
+* Review
+
+Use visual grouping or labels.
+
+Do not change command functionality.
+
+---
+
+8. PRESERVE LEARNING QUALITY
+
+---
+
+Do not hide learning permanently.
+
+Learning material should still be accessible through expandable cards.
+
+The student experience should be:
+
+* less reading upfront
+* more action
+* learning revealed at the right time
+
+---
+
+9. MOBILE/TABLET FRIENDLY
+
+---
+
+Make sure Focus Mode works on smaller screens.
+
+On narrow screens:
+
+* terminal should appear first
+* current objective should appear above commands
+* collapsible cards should stack below
+
+---
+
+10. DO NOT BREAK EXISTING FUNCTIONALITY
+
+---
+
+Verify all of the following still work:
+
+* Mission 1 full flow
+* Mission 2 full flow
+* briefing room
+* command buttons
+* terminal output
+* investigation board
+* evidence classification
+* hints
+* manager reactions
+* threat level
+* trust score
+* XP
+* scorecards
+* restart mission
+* local progress save
+
+---
+
+## GOAL
+
+The student should feel:
+
+“I am inside an active cybersecurity investigation.”
+
+Not:
+
+“I am reading a crowded dashboard.”
+
+This should make the simulation more engaging, more focused, and more suitable for middle/high school students with short attention spans.

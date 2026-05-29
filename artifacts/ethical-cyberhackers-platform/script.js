@@ -288,17 +288,8 @@ function boardHostId(missionId) {
 
 /** Set the supervisor message for the active mission using raw text. */
 function setManagerText(missionId, text) {
-  if (missionId === "mission-002") {
-    setM2ManagerMessage(text);
-    return;
-  }
-  const panel  = document.getElementById("managerPanel");
-  const textEl = document.getElementById("managerText");
-  if (!panel || !textEl) return;
-  textEl.textContent = text;
-  panel.classList.remove("manager-panel--flash");
-  void panel.offsetWidth;
-  panel.classList.add("manager-panel--flash");
+  // Milestone 25A — route through the supervisor chat feed.
+  pushManagerMessage(missionId === "mission-002" ? "mission-002" : "mission-001", text);
 }
 
 /** Show the "Pin to Investigation Board" action for a reviewed finding. */
@@ -423,6 +414,12 @@ function handlePinClassification(missionId, key, level) {
 
   // Visual board update.
   renderInvestigationBoard(missionId);
+
+  // Milestone 25A — interactive feedback for pinning evidence.
+  fxPulseBoard(missionId);
+  fxPulseConfidence(missionId);
+  if (correct) fxToast("Evidence Added", "success");
+  else fxToast("Re-check priority", "caution");
 
   // Mission 1 gate: correctly tagging the suspicious file as Critical
   // is what unlocks the escalation / finding flow.
@@ -1100,6 +1097,9 @@ function unlockTool(toolId) {
   if (state[toolId] === "locked") {
     state[toolId] = "available";
     renderAvailableTools(mid);
+    // Milestone 25A — glow the tool panel + toast when a tool unlocks.
+    fxFlash(document.getElementById(mid === "mission-002" ? "m2ToolsPanel" : "toolsPanel"), "fx-glow", 1100);
+    fxToast("Tool Unlocked", "info");
   }
 }
 
@@ -1402,6 +1402,7 @@ function setThreatLevel(level, missionId) {
   if (!isValidThreatLevel(level)) return getThreatLevel(mid);
   threatLevelByMission[mid] = level;
   renderThreatLevel(mid);
+  fxPulseThreat(mid); // Milestone 25A — pulse the threat meter on change.
   try { saveProgress(); } catch (_) { /* save errors are non-fatal */ }
   return level;
 }
@@ -1487,7 +1488,9 @@ function setTrustScore(value) {
 /** Increase trust by `amount` (default 10). Caps at 100. */
 function increaseTrustScore(amount) {
   const delta = typeof amount === "number" && isFinite(amount) ? amount : 10;
-  return setTrustScore(trustScore + delta);
+  const result = setTrustScore(trustScore + delta);
+  fxPulseTrust(); // Milestone 25A — pulse the trust meter on a gain.
+  return result;
 }
 
 /** Decrease trust by `amount` (default 10). Floors at 0. */
@@ -1721,14 +1724,8 @@ function applyDecisionConsequence(actionId) {
   // 3. Manager message — M1 writes directly to #managerText (the
   //    legacy setManagerMessage only accepts MANAGER_MESSAGES keys);
   //    M2 has a raw-text helper.
-  if (def.missionId === "mission-002") {
-    if (typeof setM2ManagerMessage === "function") {
-      setM2ManagerMessage(def.managerMsg);
-    }
-  } else {
-    const el = document.getElementById("managerText");
-    if (el) el.textContent = def.managerMsg;
-  }
+  // Milestone 25A — route through the supervisor chat feed.
+  pushManagerMessage(def.missionId === "mission-002" ? "mission-002" : "mission-001", def.managerMsg);
 
   return def;
 }
@@ -3057,14 +3054,9 @@ function updateHint(buttonKey) {
 function setManagerMessage(key) {
   const msg = MANAGER_MESSAGES[key];
   if (!msg) return;
-  const panel  = document.getElementById("managerPanel");
-  const textEl = document.getElementById("managerText");
-  if (!panel || !textEl) return;
-  if (textEl.textContent.trim() === msg) return; // no-op if unchanged
-  textEl.textContent = msg;
-  panel.classList.remove("manager-panel--flash");
-  void panel.offsetWidth;                        // force reflow to restart anim
-  panel.classList.add("manager-panel--flash");
+  // Milestone 25A — route through the supervisor chat feed (dedupe is
+  // handled inside pushManagerMessage).
+  pushManagerMessage("mission-001", msg);
 }
 
 /** Writes text + tone class to the hint panel. */
@@ -3083,6 +3075,9 @@ function setHint(text, tone) {
   panel.classList.remove("hint-panel--flash");
   void panel.offsetWidth;                    // force reflow to restart animation
   panel.classList.add("hint-panel--flash");
+
+  // Milestone 25A — keep the Current Objective card in sync with the hint.
+  setCurrentObjective("mission-001", text);
 }
 
 
@@ -3209,6 +3204,23 @@ function renderButtons(newlyUnlocked = []) {
     }
   });
 
+  // Milestone 25A — group commands by category with labels so the panel
+  // reads like an investigation workflow (Navigate → Inspect Files).
+  // Groups are created lazily and only when they have a visible button.
+  const groupHosts = {};
+  const ensureGroup = (label) => {
+    if (groupHosts[label]) return groupHosts[label];
+    const group = document.createElement("div");
+    group.className = "cmd-group";
+    const head = document.createElement("span");
+    head.className = "cmd-group-label";
+    head.textContent = label;
+    group.appendChild(head);
+    btnContainer.appendChild(group);
+    groupHosts[label] = group;
+    return group;
+  };
+
   COMMAND_BUTTONS.forEach((btn) => {
     if (!unlockedKeys.has(btn.key)) return;
 
@@ -3245,8 +3257,14 @@ function renderButtons(newlyUnlocked = []) {
       }
     });
 
-    btnContainer.appendChild(el);
+    ensureGroup(m1CommandCategory(btn.key)).appendChild(el);
   });
+}
+
+/** Milestone 25A — map an M1 command key to its workflow category label. */
+function m1CommandCategory(key) {
+  if (typeof key === "string" && key.startsWith("cat-")) return "Inspect Files";
+  return "Navigate";
 }
 
 
@@ -3621,6 +3639,10 @@ function awardXP(amount) {
 
   printOutput(`[+${amount} XP awarded]`, "info");
   printBlankLine();
+
+  // Milestone 25A — visible reward feedback (toast + rank-badge pulse).
+  fxToast(`+${amount} XP`, "success");
+  fxPulseXP();
 }
 
 
@@ -3974,6 +3996,10 @@ function beginMission() {
   printBlankLine();
   scrollTerminal();
 
+  // Milestone 25A — entering the investigation activates Focus Mode.
+  setMissionRunning(true);
+  enterFocusMode();
+
   if (terminalInput) terminalInput.focus();
 }
 
@@ -4000,6 +4026,9 @@ function resetMission() {
   missionComplete  = false;
   missionStarted   = false;    // back to "Awaiting Mission Start"
   furthestSeqIndex = -1;
+
+  // Milestone 25A — replaying returns to the briefing; leave Focus Mode.
+  setMissionRunning(false);
 
   // Reset hint back to the pre-briefing message
   setHint(HINTS.awaiting, "muted");
@@ -4201,6 +4230,13 @@ function enterModule() {
     // Milestone 24I — render the Mission 1 Briefing Room on entry.
     renderBriefingRoom("mission-001");
     updateMission1CTA();
+    // Milestone 25A — if Mission 1 was already in progress, re-assert the
+    // mission-running control bar on dashboard re-entry (beginMission()'s
+    // early guard would otherwise skip this on resume).
+    if (missionStarted && !missionComplete) {
+      setMissionRunning(true);
+      enterFocusMode();
+    }
     if (terminalInput) terminalInput.focus();
   });
 }
@@ -4281,6 +4317,7 @@ function runSimulationLoader(onDone) {
 }
 
 function backToModuleOverview() {
+  setMissionRunning(false); // Milestone 25A — leave Focus Mode / hide bar.
   if (dashboardEl)     dashboardEl.style.display     = "none";
   if (moduleLandingEl) moduleLandingEl.style.display = "";
   // Scroll the landing back to the top so the student sees the title
@@ -4519,6 +4556,7 @@ function renderCourseProgress() {
 function showMission2Overview() {
   const overview = document.getElementById("mission2Overview");
   if (!overview) return;
+  setMissionRunning(false); // Milestone 25A — overview is not an active dashboard.
   if (dashboardEl)     dashboardEl.style.display     = "none";
   if (moduleLandingEl) moduleLandingEl.style.display = "none";
   overview.style.display = "";
@@ -4529,6 +4567,7 @@ function showMission2Overview() {
 }
 
 function hideMission2Overview() {
+  setMissionRunning(false); // Milestone 25A — leave Focus Mode / hide bar.
   const overview = document.getElementById("mission2Overview");
   if (overview) overview.style.display = "none";
   if (moduleLandingEl) {
@@ -4664,8 +4703,8 @@ const M2_ANALYST_REVIEW = {
 let m2AnalystAnswered = false;
 
 function setM2ManagerMessage(text) {
-  const el = document.getElementById("m2ManagerText");
-  if (el) el.textContent = text;
+  // Milestone 25A — route through the supervisor chat feed.
+  pushManagerMessage("mission-002", text);
 }
 
 /** Mirror current XP/Rank/stats from M1 elements into the M2 dashboard's
@@ -4706,6 +4745,12 @@ function beginMission2() {
   syncM2XPPanel();
   window.scrollTo({ top: 0, behavior: "instant" });
 
+  // Milestone 25A — the M2 dashboard is active; show the control bar and
+  // (re)enter Focus Mode. Done BEFORE the resume early-return so resuming an
+  // in-progress Mission 2 never leaves a stale/missing control bar.
+  setMissionRunning(true);
+  enterFocusMode();
+
   if (m2Started) return;
   m2Started = true;
 
@@ -4735,12 +4780,17 @@ function beginMission2() {
   // Milestone 24E / 24E-2 — same forced-acknowledgement modal for M2.
   if (!alertByMission["mission-002"]) createMissionAlert("mission-002");
   showAlertModal("mission-002");
+
+  // Milestone 25A — entering the investigation activates Focus Mode.
+  setMissionRunning(true);
+  enterFocusMode();
 }
 
 /** Return from the Mission 2 Dashboard back to the Mission 2 Overview.
  *  Mission 2 progress (m2Started, unlocks, status) is preserved so the
  *  student can resume by clicking Begin Mission 2 again. */
 function backToMission2Overview() {
+  setMissionRunning(false); // Milestone 25A — leave Focus Mode / hide bar.
   const overview  = document.getElementById("mission2Overview");
   const dashboard = document.getElementById("mission2Dashboard");
   if (dashboard) dashboard.style.display = "none";
@@ -5279,6 +5329,8 @@ function printM2Line(html, cls = "") {
 function setM2Hint(text) {
   const el = document.getElementById("m2Hint");
   if (el) el.textContent = text;
+  // Milestone 25A — keep the Current Objective card in sync with the hint.
+  setCurrentObjective("mission-002", text);
 }
 
 function markM2Status(id) {
@@ -5303,6 +5355,7 @@ function renderM2Status() {
 
 /** Resets Mission 2 in-memory state + dashboard UI back to a fresh state. */
 function resetMission2() {
+  setMissionRunning(false); // Milestone 25A — leave Focus Mode on restart.
   m2Started = false;
   m2UnlockedCmds.clear();
   m2CompletedStatus.clear();
@@ -5494,15 +5547,8 @@ function updateHintPanel(hintText) {
  * directly so callers can stay mission-agnostic.
  */
 function updateManagerMessage(messageText) {
-  if (currentMissionId === "mission-002") {
-    setM2ManagerMessage(messageText);
-    return;
-  }
-  // Mission 1's supervisor panel uses <p id="managerText"> (see index.html).
-  // Write the text directly — legacy setManagerMessage(key) only accepts
-  // a key into MANAGER_MESSAGES and would reject arbitrary text.
-  const el = document.getElementById("managerText");
-  if (el) el.textContent = messageText;
+  // Milestone 25A — route through the supervisor chat feed.
+  pushManagerMessage(currentMissionId === "mission-002" ? "mission-002" : "mission-001", messageText);
 }
 
 /* ------------------------------------------------------------
@@ -5538,33 +5584,16 @@ function getManagerReaction(eventType, context) {
 function renderManagerReaction(messageText) {
   const text = String(messageText || "");
   if (!text) return;
-
-  if (getActiveMissionId() === "mission-002") {
-    setM2ManagerMessage(text);
-    // Match M1's flash treatment on the M2 panel if it supports it.
-    const m2Panel = document.getElementById("m2ManagerPanel");
-    if (m2Panel) {
-      m2Panel.classList.remove("manager-panel--flash");
-      void m2Panel.offsetWidth;
-      m2Panel.classList.add("manager-panel--flash");
-    }
-    return;
-  }
-
-  const el = document.getElementById("managerText");
-  if (el) el.textContent = text;
-  const panel = document.getElementById("managerPanel");
-  if (panel) {
-    panel.classList.remove("manager-panel--flash");
-    void panel.offsetWidth;                  // force reflow to restart anim
-    panel.classList.add("manager-panel--flash");
-  }
+  // Milestone 25A — route through the supervisor chat feed.
+  pushManagerMessage(getActiveMissionId(), text);
 }
 
 /** Resolve a reaction for the event and render it. Returns the text used. */
 function updateManagerReaction(eventType, context) {
   const text = getManagerReaction(eventType, context);
   if (text) renderManagerReaction(text);
+  // Milestone 25A — celebratory toast on mission completion (M1 + M2).
+  if (eventType === "mission_completed") fxToast("Mission Complete!", "success");
   return text;
 }
 
@@ -6153,6 +6182,12 @@ function boot() {
   // minimized/maximized for easier scrolling.
   initCollapsibleSections();
 
+  // Milestone 25A — generic collapsible cards + Focus Mode control bar.
+  initCollapsibleCards();
+  const focusToggleBtn = document.getElementById("focusToggleBtn");
+  if (focusToggleBtn) focusToggleBtn.addEventListener("click", toggleFocusMode);
+  updateFocusBar();
+
   initTerminalInput();
   if (terminalInput) terminalInput.focus();
 }
@@ -6220,6 +6255,190 @@ function initCollapsibleSections() {
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
+}
+
+/* =====================================================================
+   MILESTONE 25A — MISSION FOCUS MODE + IMMERSION REFINEMENTS
+   ---------------------------------------------------------------------
+   A frontend-only UX/immersion layer. Nothing here changes the mission
+   state model or persistence: Focus Mode and card collapse states are
+   ephemeral view preferences, not saved progress. All systems degrade
+   gracefully (every DOM lookup is guarded) so they never break M1/M2.
+   ===================================================================== */
+
+/* ---- Manager chat feed ---------------------------------------------
+   Both supervisor panels render a short scrolling feed of the last few
+   scripted messages (NO AI — every line is still a fixed string chosen
+   by the existing mission logic). Every legacy manager write routes
+   through pushManagerMessage(): it appends a bubble, de-dupes a repeat
+   of the most recent line, trims to the last 5, slides the bubble in,
+   and flashes the panel so the change is noticed. */
+function pushManagerMessage(missionId, text) {
+  const isM2  = missionId === "mission-002";
+  const feed  = document.getElementById(isM2 ? "m2ManagerText" : "managerText");
+  const panel = document.getElementById(isM2 ? "m2ManagerPanel" : "managerPanel");
+  if (!feed) return;
+  const msg = String(text == null ? "" : text).trim();
+  if (!msg) return;
+  const last = feed.lastElementChild;
+  if (last && last.getAttribute("data-msg") === msg) return;
+  const bubble = document.createElement("div");
+  bubble.className = "manager-bubble manager-bubble--in";
+  bubble.setAttribute("data-msg", msg);
+  bubble.textContent = msg;
+  feed.appendChild(bubble);
+  while (feed.children.length > 5) feed.removeChild(feed.firstElementChild);
+  if (panel) {
+    panel.classList.remove("manager-panel--flash");
+    void panel.offsetWidth;
+    panel.classList.add("manager-panel--flash");
+  }
+  feed.scrollTop = feed.scrollHeight;
+}
+
+/* ---- Current Objective card ----------------------------------------
+   A single, high-visibility instruction shown right above the command
+   area so the student never loses sight of the immediate next action.
+   Mirrors the active hint text (kept in sync via setHint / setM2Hint). */
+function setCurrentObjective(missionId, text) {
+  const isM2 = missionId === "mission-002";
+  const el = document.getElementById(isM2 ? "m2CurrentObjective" : "currentObjective");
+  if (!el) return;
+  const t = String(text == null ? "" : text).trim();
+  if (!t) return;
+  const valEl = el.querySelector(".current-objective-text");
+  if (valEl) valEl.textContent = t;
+  else el.textContent = t;
+  el.classList.remove("current-objective--flash");
+  void el.offsetWidth;
+  el.classList.add("current-objective--flash");
+}
+
+/* ---- Focus Mode ----------------------------------------------------
+   Focus Mode declutters the dashboard (collapses learning/context cards,
+   hides the profile column, enlarges the terminal) so the student can
+   concentrate on the investigation. It NEVER resets progress — it only
+   toggles view classes. The floating control bar shows "MISSION ACTIVE"
+   and a toggle button while a mission dashboard is on screen. */
+let focusModeActive = false;
+
+function isMissionRunning() {
+  return document.body.classList.contains("mission-running");
+}
+
+function setMissionRunning(on) {
+  document.body.classList.toggle("mission-running", !!on);
+  if (!on) exitFocusMode();
+  updateFocusBar();
+}
+
+function enterFocusMode() {
+  focusModeActive = true;
+  document.body.classList.add("focus-mode");
+  document.querySelectorAll(".focus-collapse").forEach((el) => el.classList.add("is-collapsed"));
+  updateFocusBar();
+}
+
+function exitFocusMode() {
+  focusModeActive = false;
+  document.body.classList.remove("focus-mode");
+  document.querySelectorAll(".focus-collapse").forEach((el) => el.classList.remove("is-collapsed"));
+  updateFocusBar();
+}
+
+function toggleFocusMode() {
+  if (focusModeActive) exitFocusMode();
+  else enterFocusMode();
+}
+
+function updateFocusBar() {
+  const bar = document.getElementById("focusControlBar");
+  if (!bar) return;
+  bar.style.display = isMissionRunning() ? "" : "none";
+  bar.classList.toggle("focus-control-bar--focus", focusModeActive);
+  const toggle = document.getElementById("focusToggleBtn");
+  if (toggle) toggle.textContent = focusModeActive ? "Exit Focus Mode" : "Enter Focus Mode";
+}
+
+/* ---- Collapsible cards ---------------------------------------------
+   Generic, render-safe collapse system. Each collapsible card has a
+   stable .collapsible-head OUTSIDE any re-rendered region; toggling
+   .is-collapsed on the .collapsible wrapper hides the .collapsible-body
+   via CSS. A single delegated handler survives innerHTML re-renders. */
+function initCollapsibleCards() {
+  const toggle = (head) => {
+    const card = head.closest(".collapsible");
+    if (!card) return;
+    const collapsed = card.classList.toggle("is-collapsed");
+    head.setAttribute("aria-expanded", String(!collapsed));
+  };
+  document.addEventListener("click", (e) => {
+    const head = e.target.closest(".collapsible-head");
+    if (head) toggle(head);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const head = e.target.closest(".collapsible-head");
+    if (!head) return;
+    e.preventDefault();
+    toggle(head);
+  });
+  document.querySelectorAll(".collapsible-head").forEach((head) => {
+    head.setAttribute("role", "button");
+    if (!head.hasAttribute("tabindex")) head.setAttribute("tabindex", "0");
+    const card = head.closest(".collapsible");
+    head.setAttribute("aria-expanded", String(!(card && card.classList.contains("is-collapsed"))));
+  });
+}
+
+/* ---- Animation / feedback helpers ----------------------------------
+   Lightweight, sound-free visual feedback. fxFlash re-triggers a CSS
+   animation class; fxToast shows a transient corner toast; the pulse
+   helpers target the relevant meter/board for the active mission. */
+function fxFlash(el, cls, dur) {
+  if (!el) return;
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+  window.setTimeout(() => el.classList.remove(cls), dur || 900);
+}
+
+function fxToast(text, tone) {
+  if (!text) return;
+  const t = document.createElement("div");
+  t.className = "fx-toast fx-toast--" + (tone || "success");
+  t.textContent = text;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add("fx-toast--show"));
+  window.setTimeout(() => {
+    t.classList.remove("fx-toast--show");
+    window.setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, 400);
+  }, 1800);
+}
+
+function fxPulse(id) {
+  fxFlash(document.getElementById(id), "fx-pulse", 700);
+}
+
+function fxPulseConfidence(missionId) {
+  fxPulse(missionId === "mission-002" ? "m2ConfidenceMeter" : "confidenceMeter");
+}
+
+function fxPulseThreat(missionId) {
+  fxPulse(missionId === "mission-002" ? "m2ThreatMeter" : "threatMeter");
+}
+
+function fxPulseBoard(missionId) {
+  fxFlash(document.getElementById(boardHostId(missionId)), "fx-board-highlight", 1100);
+}
+
+function fxPulseTrust() {
+  fxPulse("trustScore");
+  fxPulse("m2TrustScore");
+}
+
+function fxPulseXP() {
+  document.querySelectorAll(".rank-badge").forEach((el) => fxFlash(el, "fx-pulse", 700));
 }
 
 document.addEventListener("DOMContentLoaded", boot);
