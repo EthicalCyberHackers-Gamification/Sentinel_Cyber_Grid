@@ -4255,6 +4255,13 @@ function enterModule() {
       enterFocusMode();
     }
     if (terminalInput) terminalInput.focus();
+    // Milestone 25B fix — auto-open the guided, center-stage briefing overlay on
+    // a FRESH start so the student begins in the focused guided flow instead of
+    // hunting for cards in the left sidebar. Resume-safe: skipped once the
+    // mission is started or complete (startGuidedBriefing also guards this).
+    if (!missionStarted && !missionComplete) {
+      startGuidedBriefing("mission-001", beginMission);
+    }
   });
 }
 
@@ -4582,6 +4589,10 @@ function showMission2Overview() {
   // Milestone 24I — render the Mission 2 Briefing Room on entry.
   renderBriefingRoom("mission-002");
   window.scrollTo({ top: 0, behavior: "instant" });
+  // Milestone 25B fix — auto-open the guided briefing overlay for a FRESH M2
+  // start (parity with Mission 1). Skipped once M2 has started OR is complete
+  // (m2Started is session-only, so the completion guard covers reload-after-finish).
+  if (!m2Started && !mission2Complete) startGuidedBriefing("mission-002", beginMission2);
 }
 
 function hideMission2Overview() {
@@ -6543,6 +6554,7 @@ function renderGuidedOverlay() {
   overlay.setAttribute("role", "dialog");
   overlay.setAttribute("aria-modal", "true");
   document.body.appendChild(overlay);
+  console.log("Guided briefing overlay opened");
   renderGuidedStep();
 }
 
@@ -6564,6 +6576,7 @@ function renderGuidedStep() {
 
   overlay.innerHTML = `
     <div class="guided-card" role="document">
+      <div class="guided-room-title">Mission Briefing Room</div>
       <div class="guided-progress">Briefing Step ${step + 1} of ${total}</div>
       <div class="guided-sarah">
         <span class="guided-sarah-avatar" aria-hidden="true">SR</span>
@@ -6626,11 +6639,11 @@ function runGuidedLaunch() {
   const overlay = document.getElementById("guidedOverlay");
   if (!overlay || !guidedState) return;
   const { missionId, startFn } = guidedState;
+  console.log("Guided briefing complete. Investigation launched.");
   const lines = [
-    "Preparing investigation environment...",
-    "Loading mission data...",
     "Initializing analyst workstation...",
-    "Workstation online.",
+    "Loading file investigation tools...",
+    "Mission ready.",
   ];
   overlay.innerHTML = `
     <div class="guided-card guided-card--launch" role="document">
@@ -6667,6 +6680,10 @@ function finishGuidedLaunch(missionId, startFn) {
   closeGuidedOverlay();
   guidedState = null;
   if (typeof startFn === "function") startFn();
+  // Milestone 25B fix — set the explicit first objective after launch (M1).
+  if (missionId === "mission-001") {
+    setCurrentObjective("mission-001", "Open the documents folder and inspect the files.");
+  }
   // Enable the in-investigation spotlight tour for THIS live run only.
   igEnabled = true;
   igPhasesShown.clear();

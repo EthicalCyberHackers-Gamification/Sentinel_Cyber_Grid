@@ -5538,6 +5538,16 @@ body.focus-mode .center-column { flex: 1 1 100%; }
   to   { opacity: 1; transform: none; }
 }
 
+.guided-room-title {
+  font-family: var(--font-hud);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--color-green);
+  text-shadow: 0 0 14px rgba(0, 255, 136, 0.4);
+  margin-bottom: var(--gap-sm);
+}
+
 .guided-progress {
   font-family: var(--font-mono);
   font-size: 11px;

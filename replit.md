@@ -137,6 +137,27 @@ module lives at the bottom of `script.js` (~6485+).
   `hideMission2Overview`, `backToMission2Overview`, and the `enterModule` resume path.
   `finishGuidedLaunch` is gated on a live `guidedState` so a stale launch timer can never
   resurrect a torn-down run.
+- **Auto-open on mission load (25B fix)**: the overlay now opens AUTOMATICALLY when a
+  fresh mission dashboard/overview loads — not just on a Begin click — so the student
+  starts in the centered guided flow instead of the left sidebar. `enterModule`'s loader
+  callback calls `startGuidedBriefing("mission-001", beginMission)` when
+  `!missionStarted && !missionComplete`; `showMission2Overview` calls
+  `startGuidedBriefing("mission-002", beginMission2)` when `!m2Started && !mission2Complete`.
+  Each overlay step card shows a "Mission Briefing Room" heading (`.guided-room-title`).
+  Launch lines are exactly "Initializing analyst workstation..." / "Loading file
+  investigation tools..." / "Mission ready."; on launch the M1 Current Objective is set to
+  "Open the documents folder and inspect the files." Console logs:
+  `"Guided briefing overlay opened"` (on open) and
+  `"Guided briefing complete. Investigation launched."` (on Launch click).
+- **KNOWN LIMITATION (pre-existing, not a 25B regression)**: `missionStarted`/`m2Started`
+  are session-only — they are NOT in `saveProgress`/`restoreSavedProgress`. So a reload
+  *mid-mission* (started but not complete) returns to the briefing screen and re-shows the
+  guided overlay (re-onboarding). This mirrors the app's prior behavior (a mid-mission
+  reload always required re-clicking Begin). XP/pins are XP-once guarded, so re-onboarding
+  never double-awards. Do NOT "fix" this by persisting `missionStarted=true` without also
+  restoring the active mission view — `beginMission`/`beginMission2` early-return when
+  already started, which would leave command buttons hidden (soft-lock). Proper mid-mission
+  view restoration is a separate, larger task.
 
 ## User preferences
 
