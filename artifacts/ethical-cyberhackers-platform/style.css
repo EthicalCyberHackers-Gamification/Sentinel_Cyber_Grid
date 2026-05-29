@@ -5760,3 +5760,460 @@ body.focus-mode .center-column { flex: 1 1 100%; }
   .guided-overlay, .guided-card, .guided-launch-line,
   .ig-dim, .ig-spotlight-target, .ig-coach { animation: none; }
 }
+
+/* ============================================================
+   CYBER MISSIONS MAP  (Milestone 25C)
+   2D dark/cyber mission-selection screen. Selection only; the
+   real mission flow is unchanged. Reuses theme tokens.
+   ============================================================ */
+.missions-map-screen {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #0d2230 0%, var(--color-bg) 60%);
+  padding: var(--gap-xl) var(--gap-lg);
+}
+
+/* Glowing grid backdrop */
+.missions-map-gridbg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--color-cyan) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-cyan) 1px, transparent 1px);
+  background-size: 44px 44px;
+  opacity: 0.06;
+  pointer-events: none;
+  mask-image: radial-gradient(120% 100% at 50% 0%, #000 30%, transparent 90%);
+  -webkit-mask-image: radial-gradient(120% 100% at 50% 0%, #000 30%, transparent 90%);
+}
+
+/* Sweeping scanline */
+.missions-map-scanline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 140px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, var(--color-cyan), transparent);
+  opacity: 0.07;
+  animation: mapScan 7s linear infinite;
+}
+@keyframes mapScan {
+  0%   { top: -160px; }
+  100% { top: 100%; }
+}
+
+.missions-map-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.missions-map-header { margin-bottom: var(--gap-xl); }
+.missions-map-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  color: var(--color-cyan);
+  text-transform: uppercase;
+}
+.missions-map-eyebrow-sep { color: var(--color-text-muted); }
+.missions-map-eyebrow-value { color: var(--color-text-dim); }
+.missions-map-title {
+  font-family: var(--font-hud);
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  margin: var(--gap-sm) 0 var(--gap-xs);
+  color: var(--color-text-bright);
+  text-shadow: 0 0 18px var(--color-cyan-dim);
+  letter-spacing: 0.04em;
+}
+.missions-map-subtitle {
+  font-family: var(--font-mono);
+  color: var(--color-text-dim);
+  font-size: 0.95rem;
+}
+
+/* Two-column layout: board + side panel */
+.missions-map-layout {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: var(--gap-xl);
+  align-items: start;
+}
+
+/* ----- Board with nodes + path lines ----- */
+.missions-map-board {
+  position: relative;
+  min-height: 460px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(80% 60% at 50% 40%, #0c1a24 0%, var(--color-bg-panel) 70%);
+  box-shadow: inset 0 0 60px #00e5ff10;
+  padding: var(--gap-md);
+}
+.missions-map-paths {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.map-path-line {
+  stroke: var(--color-border);
+  stroke-width: 0.6;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+  transition: stroke var(--transition);
+}
+.map-path-line--lit {
+  stroke: var(--color-cyan);
+  filter: drop-shadow(0 0 4px var(--color-cyan));
+  animation: mapDash 1.2s linear infinite;
+}
+@keyframes mapDash {
+  to { stroke-dashoffset: -8; }
+}
+
+/* ----- Mission nodes ----- */
+.mission-node {
+  position: absolute;
+  left: var(--node-x);
+  top: var(--node-y);
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gap-sm);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  padding: 6px;
+  z-index: 2;
+}
+.mission-node-ring {
+  position: absolute;
+  top: 0;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  transform: translateY(-4px);
+  pointer-events: none;
+}
+.mission-node-core {
+  position: relative;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-hud);
+  font-size: 1.3rem;
+  font-weight: 700;
+  border: 2px solid var(--color-border);
+  background: var(--color-bg-panel-alt);
+  color: var(--color-text);
+  transition: all var(--transition);
+}
+.mission-node-check { display: none; }
+.mission-node-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+.mission-node-label {
+  font-size: 0.82rem;
+  color: var(--color-text);
+  max-width: 150px;
+}
+.mission-node-status {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Available — glowing cyan, gentle pulse */
+.mission-node--available .mission-node-core {
+  border-color: var(--color-cyan);
+  color: var(--color-cyan);
+  box-shadow: 0 0 18px var(--color-cyan-dim);
+}
+.mission-node--available .mission-node-ring {
+  border: 2px solid var(--color-cyan);
+  opacity: 0.5;
+  animation: nodePulse 2.4s ease-in-out infinite;
+}
+.mission-node--available .mission-node-status { color: var(--color-cyan); }
+@keyframes nodePulse {
+  0%, 100% { transform: translateY(-4px) scale(1);   opacity: 0.5; }
+  50%      { transform: translateY(-4px) scale(1.18); opacity: 0; }
+}
+
+/* Completed — green with checkmark */
+.mission-node--completed .mission-node-core {
+  border-color: var(--color-green);
+  color: var(--color-green);
+  box-shadow: 0 0 16px var(--color-green-dark);
+}
+.mission-node--completed .mission-node-num { display: none; }
+.mission-node--completed .mission-node-check {
+  display: block;
+  color: var(--color-green);
+  font-size: 1.6rem;
+}
+.mission-node--completed .mission-node-status { color: var(--color-green); }
+
+/* Locked — dimmed (still clickable to view its locked details) */
+.mission-node--locked { cursor: pointer; }
+.mission-node--locked .mission-node-core {
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+  background: var(--color-bg-panel);
+  opacity: 0.7;
+}
+.mission-node--locked .mission-node-label,
+.mission-node--locked .mission-node-num { color: var(--color-text-muted); }
+
+/* Hover pulse (non-locked) */
+.mission-node:not(.mission-node--locked):hover .mission-node-core {
+  transform: scale(1.08);
+  box-shadow: 0 0 26px var(--color-cyan);
+}
+
+/* Selected ring */
+.mission-node--selected .mission-node-core {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: 4px;
+}
+
+/* ----- Side: details panel ----- */
+.missions-map-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-lg);
+}
+.mission-details-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+  padding: var(--gap-lg);
+  box-shadow: 0 0 30px #00000040;
+}
+.mission-details-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--gap-sm);
+}
+.mission-details-num {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  color: var(--color-cyan);
+}
+.mission-details-statuspill {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+}
+.mission-details-statuspill--available {
+  color: var(--color-cyan);
+  border-color: var(--color-cyan);
+}
+.mission-details-statuspill--completed {
+  color: var(--color-green);
+  border-color: var(--color-green);
+}
+.mission-details-statuspill--locked {
+  color: var(--color-text-muted);
+}
+.mission-details-title {
+  font-family: var(--font-hud);
+  font-size: 1.4rem;
+  color: var(--color-text-bright);
+  margin-bottom: var(--gap-md);
+}
+.mission-details-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-sm);
+  margin-bottom: var(--gap-md);
+}
+.mission-details-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--gap-md);
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--gap-xs);
+}
+.mission-details-row-label { color: var(--color-text-muted); letter-spacing: 0.1em; }
+.mission-details-row-value { color: var(--color-text); text-align: right; }
+.mission-details-block { margin-bottom: var(--gap-md); }
+.mission-details-block-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--gap-xs);
+}
+.mission-details-briefing {
+  color: var(--color-text);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+.mission-details-skills {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mission-details-skills li {
+  font-size: 0.88rem;
+  color: var(--color-text);
+}
+.mission-details-skill-bullet { color: var(--color-cyan); margin-right: 6px; }
+.mission-details-empty {
+  color: var(--color-text-muted);
+  font-style: italic;
+  font-size: 0.86rem;
+}
+.mission-launch-btn {
+  width: 100%;
+  margin-top: var(--gap-sm);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-cyan);
+  background: var(--color-cyan);
+  color: #04181c;
+  font-family: var(--font-hud);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.mission-launch-btn:hover:not(:disabled) {
+  box-shadow: 0 0 22px var(--color-cyan);
+  transform: translateY(-1px);
+}
+.mission-launch-btn:disabled {
+  background: var(--color-bg-panel-alt);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+/* ----- Side: manager transmission ----- */
+.manager-transmission-panel {
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-cyan);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel-alt);
+  padding: var(--gap-md);
+}
+.transmission-header {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  margin-bottom: var(--gap-sm);
+}
+.transmission-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-hud);
+  font-weight: 700;
+  background: var(--color-cyan);
+  color: #04181c;
+  box-shadow: 0 0 14px var(--color-cyan-dim);
+}
+.transmission-meta { display: flex; flex-direction: column; line-height: 1.2; }
+.transmission-name {
+  font-family: var(--font-mono);
+  color: var(--color-text-bright);
+  font-size: 0.92rem;
+}
+.transmission-role {
+  font-family: var(--font-mono);
+  color: var(--color-text-dim);
+  font-size: 0.74rem;
+}
+.transmission-status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  color: var(--color-cyan);
+}
+.transmission-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-cyan);
+  box-shadow: 0 0 8px var(--color-cyan);
+  animation: txPulse 1.4s ease-in-out infinite;
+}
+@keyframes txPulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.3; transform: scale(0.7); }
+}
+.transmission-text {
+  font-family: var(--font-mono);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+/* ----- Responsive: stack on narrow screens ----- */
+@media (max-width: 900px) {
+  .missions-map-layout { grid-template-columns: 1fr; }
+  .missions-map-paths { display: none; }
+  .missions-map-board {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-lg);
+    padding: var(--gap-lg);
+  }
+  .mission-node {
+    position: static;
+    transform: none;
+    flex-direction: row;
+    gap: var(--gap-md);
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .mission-node-ring { display: none; }
+  .mission-node-meta { align-items: flex-start; text-align: left; }
+  .mission-node-label { max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .missions-map-scanline,
+  .map-path-line--lit,
+  .mission-node--available .mission-node-ring,
+  .transmission-dot { animation: none; }
+}

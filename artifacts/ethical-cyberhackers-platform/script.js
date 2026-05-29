@@ -4261,27 +4261,294 @@ function enterModule() {
 
   // Milestone 11 — show the simulation loader first, then the dashboard.
   if (moduleLandingEl) moduleLandingEl.style.display = "none";
+  // Milestone 25C — after the loader, the student lands on the Cyber Missions
+  // Map (selection screen) instead of dropping straight into Mission 1. The
+  // map hands off to the existing M1 / M2 flow via launchMissionFromMap().
   runSimulationLoader(() => {
-    if (dashboardEl)   dashboardEl.style.display = "";
-    // Milestone 24I — render the Mission 1 Briefing Room on entry.
-    renderBriefingRoom("mission-001");
-    updateMission1CTA();
-    // Milestone 25A — if Mission 1 was already in progress, re-assert the
-    // mission-running control bar on dashboard re-entry (beginMission()'s
-    // early guard would otherwise skip this on resume).
-    if (missionStarted && !missionComplete) {
-      setMissionRunning(true);
-      enterFocusMode();
-    }
-    if (terminalInput) terminalInput.focus();
-    // Milestone 25B fix — auto-open the guided, center-stage briefing overlay on
-    // a FRESH start so the student begins in the focused guided flow instead of
-    // hunting for cards in the left sidebar. Resume-safe: skipped once the
-    // mission is started or complete (startGuidedBriefing also guards this).
-    if (!missionStarted && !missionComplete) {
-      startGuidedBriefing("mission-001", beginMission);
-    }
+    showMissionsMap();
   });
+}
+
+/* ============================================================
+   CYBER MISSIONS MAP  (Milestone 25C)
+   ------------------------------------------------------------
+   A 2D dark/cyber mission-selection screen shown AFTER name
+   entry + the simulation loader, and BEFORE the investigation.
+   Pure selection layer: it reuses the existing localStorage /
+   registry progress (missionComplete / mission2Complete) — it
+   does NOT introduce a second progress system. Launching a
+   mission hands off to the existing flow:
+     M1 -> openMission1Dashboard()  (the old enterModule reveal)
+     M2 -> showMission2Overview()
+     M3 -> locked / coming soon (no launch)
+   ============================================================ */
+
+// Per-mission map content. Mission 3 is a not-yet-built placeholder.
+const MISSION_MAP = {
+  "mission-001": {
+    num: "01",
+    nodeId: "mapNode1",
+    statusId: "mapNode1Status",
+    title: "Suspicious Workstation",
+    role: "Cybersecurity Intern",
+    threat: "Phishing / Credential Theft",
+    briefing:
+      "A finance workstation contains a suspicious file asking an employee to " +
+      "share their password with an unknown external address. Inspect the files, " +
+      "weigh the evidence, and report what you find.",
+    skills: [
+      "Inspecting files safely",
+      "Classifying evidence",
+      "Recognizing phishing",
+      "Reporting findings",
+    ],
+    transmission:
+      "Finance reported suspicious workstation activity. Review the mission brief, " +
+      "then launch the investigation.",
+  },
+  "mission-002": {
+    num: "02",
+    nodeId: "mapNode2",
+    statusId: "mapNode2Status",
+    title: "Network Basics",
+    role: "Cybersecurity Intern",
+    threat: "Network Exposure",
+    briefing:
+      "A target host is exposing network services that need review. Map the " +
+      "local network, confirm which host is reachable, and assess the open " +
+      "services for risk.",
+    skills: [
+      "Identifying IP addresses",
+      "Testing host reachability",
+      "Scanning open services",
+      "Reasoning about attack surface",
+    ],
+    transmission:
+      "Network monitoring detected exposed services. Your task is to investigate " +
+      "safely and report findings.",
+  },
+  "mission-003": {
+    num: "03",
+    nodeId: "mapNode3",
+    statusId: "mapNode3Status",
+    title: "Reconnaissance & Discovery",
+    role: "Cybersecurity Intern",
+    threat: "—",
+    briefing:
+      "Advanced reconnaissance and discovery training. This assignment is still " +
+      "in development and will unlock in a future update.",
+    skills: [],
+    locked: true,
+    comingSoon: true,
+    transmission:
+      "Complete earlier assignments before accessing reconnaissance training.",
+  },
+};
+
+// Remembers which node the student last selected so re-opening the map keeps
+// the same details panel in view. Defaults to Mission 1.
+let currentMapSelection = "mission-001";
+
+/**
+ * Derive a mission's map status from the EXISTING progress state.
+ *   M1: "completed" once missionComplete, else "available".
+ *   M2: "completed" once mission2Complete; "available" once M1 is complete
+ *       (the existing unlock rule); otherwise "locked".
+ *   M3: always "locked" (coming soon).
+ */
+function missionMapStatus(missionId) {
+  if (missionId === "mission-001") return missionComplete ? "completed" : "available";
+  if (missionId === "mission-002") {
+    if (mission2Complete) return "completed";
+    return missionComplete ? "available" : "locked";
+  }
+  return "locked";
+}
+
+function mapStatusLabel(missionId, status) {
+  if (MISSION_MAP[missionId] && MISSION_MAP[missionId].comingSoon) return "Coming Soon";
+  if (status === "completed") return "Completed";
+  if (status === "available") return "Available";
+  return "Locked";
+}
+
+/** Refresh node visual states + path lines from current progress. */
+function renderMissionMapStates() {
+  Object.keys(MISSION_MAP).forEach((mid) => {
+    const def = MISSION_MAP[mid];
+    const node = document.getElementById(def.nodeId);
+    if (!node) return;
+    const status = missionMapStatus(mid);
+    node.classList.remove(
+      "mission-node--available",
+      "mission-node--completed",
+      "mission-node--locked"
+    );
+    node.classList.add(`mission-node--${status}`);
+    // Locked nodes stay CLICKABLE so the student can still read their locked
+    // details panel; only the Launch button is disabled (in renderMissionDetails).
+    const badge = document.getElementById(def.statusId);
+    if (badge) badge.textContent = mapStatusLabel(mid, status);
+  });
+
+  // Path lines light up when the mission they lead to is reachable.
+  const p12 = document.getElementById("mapPath12");
+  if (p12) p12.classList.toggle("map-path-line--lit", missionMapStatus("mission-002") !== "locked");
+  const p23 = document.getElementById("mapPath23");
+  if (p23) p23.classList.toggle("map-path-line--lit", missionMapStatus("mission-003") !== "locked");
+}
+
+/** Select a node: highlight it + render its details + transmission. */
+function selectMissionNode(missionId) {
+  if (!MISSION_MAP[missionId]) missionId = "mission-001";
+  currentMapSelection = missionId;
+  Object.keys(MISSION_MAP).forEach((mid) => {
+    const node = document.getElementById(MISSION_MAP[mid].nodeId);
+    if (node) node.classList.toggle("mission-node--selected", mid === missionId);
+  });
+  renderMissionDetails(missionId);
+  renderMapTransmission(missionId);
+}
+
+/** Render the right-side mission details panel + Launch button. */
+function renderMissionDetails(missionId) {
+  const panel = document.getElementById("missionDetailsPanel");
+  const def = MISSION_MAP[missionId];
+  if (!panel || !def) return;
+  const status = missionMapStatus(missionId);
+  const locked = status === "locked";
+  const statusLabel = mapStatusLabel(missionId, status);
+
+  const skillsHtml = def.skills.length
+    ? `<ul class="mission-details-skills">${def.skills
+        .map((s) => `<li><span class="mission-details-skill-bullet">▹</span>${escapeHtml(s)}</li>`)
+        .join("")}</ul>`
+    : `<p class="mission-details-empty">Skills will be revealed when this mission unlocks.</p>`;
+
+  let btnHtml;
+  if (def.comingSoon) {
+    btnHtml = `<button class="mission-launch-btn" id="missionLaunchBtn" type="button" disabled>Coming Soon</button>`;
+  } else if (locked) {
+    btnHtml = `<button class="mission-launch-btn" id="missionLaunchBtn" type="button" disabled>🔒 Locked</button>`;
+  } else {
+    const label = status === "completed" ? "▶ Launch Again" : "▶ Launch Mission";
+    btnHtml = `<button class="mission-launch-btn" id="missionLaunchBtn" type="button" data-mission="${missionId}">${label}</button>`;
+  }
+
+  panel.innerHTML = `
+    <div class="mission-details-head">
+      <span class="mission-details-num">MISSION ${escapeHtml(def.num)}</span>
+      <span class="mission-details-statuspill mission-details-statuspill--${status}">${escapeHtml(statusLabel)}</span>
+    </div>
+    <h2 class="mission-details-title">${escapeHtml(def.title)}</h2>
+    <div class="mission-details-rows">
+      <div class="mission-details-row">
+        <span class="mission-details-row-label">ROLE</span>
+        <span class="mission-details-row-value">${escapeHtml(def.role)}</span>
+      </div>
+      <div class="mission-details-row">
+        <span class="mission-details-row-label">THREAT</span>
+        <span class="mission-details-row-value">${escapeHtml(def.threat)}</span>
+      </div>
+    </div>
+    <div class="mission-details-block">
+      <span class="mission-details-block-label">BRIEFING</span>
+      <p class="mission-details-briefing">${escapeHtml(def.briefing)}</p>
+    </div>
+    <div class="mission-details-block">
+      <span class="mission-details-block-label">SKILLS</span>
+      ${skillsHtml}
+    </div>
+    ${btnHtml}
+  `;
+
+  const launchBtn = document.getElementById("missionLaunchBtn");
+  if (launchBtn && !locked && !def.comingSoon) {
+    launchBtn.addEventListener("click", () => launchMissionFromMap(missionId));
+  }
+}
+
+/** Update the Sarah Reyes transmission text for the selected mission. */
+function renderMapTransmission(missionId) {
+  const el = document.getElementById("mapTransmissionText");
+  const def = MISSION_MAP[missionId];
+  if (el && def) el.textContent = def.transmission;
+}
+
+/**
+ * Launch a mission from the map. Locked/coming-soon missions do nothing
+ * (their buttons are disabled, but guard defensively). Otherwise hand off
+ * to the existing flow.
+ */
+function launchMissionFromMap(missionId) {
+  if (missionMapStatus(missionId) === "locked") return;
+  if (missionId === "mission-001") {
+    openMission1Dashboard();
+  } else if (missionId === "mission-002") {
+    showMission2Overview();
+  }
+}
+
+/** Hide every other screen and show the Missions Map. Resume-safe. */
+function showMissionsMap() {
+  // Leave any active mission UI cleanly (parity with backToModuleOverview).
+  setMissionRunning(false);
+  endGuidedRun();
+  if (moduleLandingEl) moduleLandingEl.style.display = "none";
+  if (dashboardEl)     dashboardEl.style.display     = "none";
+  if (simLoaderEl)     simLoaderEl.style.display     = "none";
+  const m2o = document.getElementById("mission2Overview");
+  if (m2o) m2o.style.display = "none";
+  const m2d = document.getElementById("mission2Dashboard");
+  if (m2d) m2d.style.display = "none";
+  const map = document.getElementById("missionsMap");
+  if (map) {
+    map.style.display = "";
+    map.scrollTop = 0;
+  }
+  window.scrollTo({ top: 0, behavior: "instant" });
+
+  const welcome = document.getElementById("missionsMapWelcome");
+  if (welcome) {
+    welcome.textContent = studentName
+      ? `Welcome, ${studentName}. Select an assignment to view its briefing.`
+      : "Select an assignment to view its briefing.";
+  }
+
+  renderMissionMapStates();
+  selectMissionNode(currentMapSelection);
+}
+
+/**
+ * Reveal the Mission 1 dashboard. This is the body of the old enterModule()
+ * loader callback, extracted so the Missions Map can launch M1. Resume-safe:
+ * startGuidedBriefing() resumes an in-progress mission instead of re-onboarding.
+ */
+function openMission1Dashboard() {
+  if (moduleLandingEl) moduleLandingEl.style.display = "none";
+  const map = document.getElementById("missionsMap");
+  if (map) map.style.display = "none";
+  const m2o = document.getElementById("mission2Overview");
+  if (m2o) m2o.style.display = "none";
+  const m2d = document.getElementById("mission2Dashboard");
+  if (m2d) m2d.style.display = "none";
+
+  if (dashboardEl) dashboardEl.style.display = "";
+  // Milestone 24I — render the Mission 1 Briefing Room on entry.
+  renderBriefingRoom("mission-001");
+  updateMission1CTA();
+  // Milestone 25A — if Mission 1 was already in progress, re-assert the
+  // mission-running control bar on dashboard re-entry.
+  if (missionStarted && !missionComplete) {
+    setMissionRunning(true);
+    enterFocusMode();
+  }
+  if (terminalInput) terminalInput.focus();
+  // Milestone 25B — auto-open the guided briefing overlay on a FRESH start.
+  // Resume-safe: skipped once the mission is started or complete.
+  if (!missionStarted && !missionComplete) {
+    startGuidedBriefing("mission-001", beginMission);
+  }
 }
 
 /** Milestone 17 — escape user-supplied text before injecting into HTML. */
@@ -4603,6 +4870,10 @@ function showMission2Overview() {
   setMissionRunning(false); // Milestone 25A — overview is not an active dashboard.
   if (dashboardEl)     dashboardEl.style.display     = "none";
   if (moduleLandingEl) moduleLandingEl.style.display = "none";
+  // Milestone 25C — also hide the Missions Map when launching M2 from it, so
+  // screens never stack (parity with openMission1Dashboard()).
+  const mapEl = document.getElementById("missionsMap");
+  if (mapEl) mapEl.style.display = "none";
   overview.style.display = "";
   overview.scrollTop = 0;
   // Milestone 24I — render the Mission 2 Briefing Room on entry.
@@ -6148,6 +6419,18 @@ function boot() {
   if (enterBtn) enterBtn.addEventListener("click", enterModule);
   const backBtn = document.getElementById("backToModuleBtn");
   if (backBtn) backBtn.addEventListener("click", backToModuleOverview);
+
+  // Milestone 25C — Cyber Missions Map wiring.
+  document.querySelectorAll(".mission-node[data-mission]").forEach((node) => {
+    node.addEventListener("click", () => selectMissionNode(node.getAttribute("data-mission")));
+  });
+  // "Back to Missions Map" buttons across the mission screens (no progress loss).
+  const m1MapBack = document.getElementById("m1MapBackBtn");
+  if (m1MapBack) m1MapBack.addEventListener("click", showMissionsMap);
+  const m2MapBack = document.getElementById("m2MapBackBtn");
+  if (m2MapBack) m2MapBack.addEventListener("click", showMissionsMap);
+  const m2OvMapBack = document.getElementById("m2OverviewMapBackBtn");
+  if (m2OvMapBack) m2OvMapBack.addEventListener("click", showMissionsMap);
 
   // Milestone 17 — Student Name input gating.
   // The button starts disabled (set in index.html) and becomes enabled

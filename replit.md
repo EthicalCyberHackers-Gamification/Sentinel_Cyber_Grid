@@ -168,6 +168,38 @@ module lives at the bottom of `script.js` (~6485+).
   persisted — a pre-existing limitation; resume restores the base command set plus persisted
   evidence/board, sufficient to continue.)
 
+### Cyber Missions Map (Milestone 25C)
+A 2D dark/cyber mission-SELECTION screen shown AFTER name entry + the simulation loader,
+BEFORE the investigation. Pure selection layer — it reuses the existing progress state
+(`missionComplete` / `mission2Complete`) and does NOT add a second progress system. The
+25C module lives in `script.js` after `enterModule` (~4275+), with boot() wiring (~6421).
+- **Flow**: `#moduleLanding` → Enter Module → `runSimulationLoader` → `showMissionsMap()`
+  (NEW — `enterModule`'s loader callback now calls this instead of revealing M1 directly).
+  Click a node → details panel + transmission update → "Launch Mission" → existing flow:
+  M1 → `openMission1Dashboard()` (the OLD `enterModule` reveal body, extracted), M2 →
+  `showMission2Overview()`, M3 → locked (no launch).
+- **Node states** (`renderMissionMapStates` from `missionMapStatus`): M1 available|completed;
+  M2 locked until M1 complete, then available|completed; M3 always locked/"Coming Soon".
+  Path lines (`#mapPath12`/`#mapPath23`) light (`.map-path-line--lit`) when their target
+  is reachable. Locked nodes stay CLICKABLE (to view their locked details) — only the
+  Launch button is disabled. Data is `MISSION_MAP` in `script.js` (titles/role/threat/
+  briefing/skills/transmission per mission).
+- **Details + transmission**: `renderMissionDetails` rebuilds `#missionDetailsPanel` via
+  innerHTML (Launch listener re-added each render — safe, old node is discarded);
+  `renderMapTransmission` sets `#mapTransmissionText` (Sarah Reyes per-mission message,
+  animated "TRANSMISSION ACTIVE" dot).
+- **Back to Missions Map** buttons: `#m1MapBackBtn` (M1 dashboard header), `#m2MapBackBtn`
+  (M2 dashboard header), `#m2OverviewMapBackBtn` (M2 overview) — all call `showMissionsMap()`
+  with NO progress loss.
+- **Single-active-screen invariant**: `showMissionsMap()` and `openMission1Dashboard()` hide
+  all sibling screens before showing theirs; `showMission2Overview()` was updated (25C) to
+  ALSO hide `#missionsMap` so launching M2 from the map never stacks screens.
+- **Resume-safe**: `showMissionsMap()` calls `setMissionRunning(false)` + `endGuidedRun()`;
+  `openMission1Dashboard()` defers to `startGuidedBriefing()` (which resumes via
+  `hasMissionProgress`/`missionLaunched` rather than re-onboarding). Map markup is rendered
+  statically in `index.html` (`#missionsMap`, hidden by default); states recompute on every
+  `showMissionsMap()`. Responsive: side-by-side desktop, stacked on ≤900px (SVG paths hidden).
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

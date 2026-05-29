@@ -173,6 +173,108 @@
       </div>
     </section>
 
+    <!-- ===== CYBER MISSIONS MAP (Milestone 25C) =====
+         Shown AFTER Enter Module + the simulation loader, BEFORE the
+         investigation. A 2D dark cyber mission-selection screen: glowing
+         mission nodes connected by path lines, a mission details panel,
+         and a Sarah Reyes transmission panel. Selection only — launching a
+         mission hands off to the existing M1 / M2 flow. Hidden by default;
+         toggled by showMissionsMap() in script.js. -->
+    <section id="missionsMap" class="missions-map-screen" aria-label="Cyber Missions Map" style="display:none;">
+      <div class="missions-map-gridbg" aria-hidden="true"></div>
+      <div class="missions-map-scanline" aria-hidden="true"></div>
+
+      <div class="missions-map-inner">
+        <header class="missions-map-header">
+          <div class="missions-map-eyebrow">
+            <span class="missions-map-eyebrow-label">CYBER RANGE</span>
+            <span class="missions-map-eyebrow-sep">—</span>
+            <span class="missions-map-eyebrow-value">Mission Control</span>
+          </div>
+          <h1 class="missions-map-title">Cyber Missions Map</h1>
+          <p class="missions-map-subtitle" id="missionsMapWelcome">
+            Select an assignment to view its briefing.
+          </p>
+        </header>
+
+        <div class="missions-map-layout">
+          <!-- LEFT: mission board with glowing nodes + path lines -->
+          <div class="missions-map-board" aria-label="Mission nodes">
+            <svg class="missions-map-paths" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <line class="map-path-line" id="mapPath12" x1="22" y1="20" x2="50" y2="50" />
+              <line class="map-path-line" id="mapPath23" x1="50" y1="50" x2="78" y2="80" />
+            </svg>
+
+            <button class="mission-node mission-node--available" id="mapNode1"
+                    data-mission="mission-001" type="button"
+                    style="--node-x:22%; --node-y:20%;"
+                    aria-label="Mission 1 — Suspicious Workstation">
+              <span class="mission-node-ring" aria-hidden="true"></span>
+              <span class="mission-node-core">
+                <span class="mission-node-num">01</span>
+                <span class="mission-node-check" aria-hidden="true">✓</span>
+              </span>
+              <span class="mission-node-meta">
+                <span class="mission-node-label">Suspicious Workstation</span>
+                <span class="mission-node-status" id="mapNode1Status">Available</span>
+              </span>
+            </button>
+
+            <button class="mission-node mission-node--locked" id="mapNode2"
+                    data-mission="mission-002" type="button"
+                    style="--node-x:50%; --node-y:50%;"
+                    aria-label="Mission 2 — Network Basics">
+              <span class="mission-node-ring" aria-hidden="true"></span>
+              <span class="mission-node-core">
+                <span class="mission-node-num">02</span>
+                <span class="mission-node-check" aria-hidden="true">✓</span>
+              </span>
+              <span class="mission-node-meta">
+                <span class="mission-node-label">Network Basics</span>
+                <span class="mission-node-status" id="mapNode2Status">Locked</span>
+              </span>
+            </button>
+
+            <button class="mission-node mission-node--locked" id="mapNode3"
+                    data-mission="mission-003" type="button"
+                    style="--node-x:78%; --node-y:80%;"
+                    aria-label="Mission 3 — Reconnaissance &amp; Discovery">
+              <span class="mission-node-ring" aria-hidden="true"></span>
+              <span class="mission-node-core">
+                <span class="mission-node-num">03</span>
+                <span class="mission-node-check" aria-hidden="true">✓</span>
+              </span>
+              <span class="mission-node-meta">
+                <span class="mission-node-label">Reconnaissance &amp; Discovery</span>
+                <span class="mission-node-status" id="mapNode3Status">Coming Soon</span>
+              </span>
+            </button>
+          </div>
+
+          <!-- RIGHT: mission details + manager transmission -->
+          <aside class="missions-map-side">
+            <div class="mission-details-panel" id="missionDetailsPanel" aria-live="polite">
+              <!-- Populated by renderMissionDetails() -->
+            </div>
+
+            <div class="manager-transmission-panel">
+              <div class="transmission-header">
+                <div class="transmission-avatar" aria-hidden="true">SR</div>
+                <div class="transmission-meta">
+                  <span class="transmission-name">Sarah Reyes</span>
+                  <span class="transmission-role">Lead Analyst</span>
+                </div>
+                <span class="transmission-status">
+                  <span class="transmission-dot" aria-hidden="true"></span>TRANSMISSION ACTIVE
+                </span>
+              </div>
+              <p class="transmission-text" id="mapTransmissionText" aria-live="polite"></p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
     <!-- ===== MISSION 2 OVERVIEW SCREEN (Milestone 19) =====
          Shown when the student clicks "Start Mission 2" from the
          Course Progress panel. Hides the dashboard, shows this
@@ -245,6 +347,10 @@
           ▶&nbsp; Begin Mission 2
         </button>
 
+        <button id="m2OverviewMapBackBtn" class="enter-module-btn enter-module-btn--secondary" type="button">
+          ←&nbsp; Back to Missions Map
+        </button>
+
         <button id="mission2BackBtn" class="enter-module-btn enter-module-btn--secondary" type="button">
           ←&nbsp; Back to Module Overview
         </button>
@@ -269,9 +375,14 @@
               <span class="unified-eyebrow-sep">·</span>
               <span class="unified-eyebrow-value">Network Basics</span>
             </div>
-            <button id="m2DashBackBtn" class="unified-back-link" type="button">
-              ← Mission 2 Overview
-            </button>
+            <span class="unified-back-group">
+              <button id="m2MapBackBtn" class="unified-back-link" type="button">
+                ← Missions Map
+              </button>
+              <button id="m2DashBackBtn" class="unified-back-link" type="button">
+                ← Mission 2 Overview
+              </button>
+            </span>
           </div>
           <h2 class="unified-title">
             Identify devices &amp; services on the network
@@ -685,9 +796,14 @@
               <span class="unified-eyebrow-sep">·</span>
               <span class="unified-eyebrow-value">New Cybersecurity Intern</span>
             </div>
-            <button id="backToModuleBtn" class="unified-back-link" type="button">
-              ← Module Overview
-            </button>
+            <span class="unified-back-group">
+              <button id="m1MapBackBtn" class="unified-back-link" type="button">
+                ← Missions Map
+              </button>
+              <button id="backToModuleBtn" class="unified-back-link" type="button">
+                ← Module Overview
+              </button>
+            </span>
           </div>
           <h2 class="unified-title" id="missionTitle">
             Investigate a suspicious workstation

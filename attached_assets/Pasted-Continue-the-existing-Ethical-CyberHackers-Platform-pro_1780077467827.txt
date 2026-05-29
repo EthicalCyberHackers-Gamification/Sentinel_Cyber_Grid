@@ -1,0 +1,288 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Mission 1 and Mission 2 work.
+* Terminal investigation screen works.
+* Mission Engine exists.
+* Mission registry exists.
+* Course progress exists.
+* Evidence, XP, trust score, threat level, alerts, manager reactions, briefing room, investigation board, and scorecards work.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 25C — Cyber Missions Map Screen
+
+Purpose:
+Create a visually engaging mission selection screen inspired by cyber range mission maps, without disrupting the existing course content or terminal investigation flow.
+
+This should make the platform feel more like an interactive cybersecurity game while keeping all current missions intact.
+
+Important:
+Do not build 3D.
+Do not add backend.
+Do not add AI.
+Do not remove terminal access.
+Do not break Mission 1 or Mission 2.
+Do not rewrite the course content.
+
+Core idea:
+Add a 2D “Cyber Missions Map” screen before the mission investigation screen.
+
+The student should:
+
+1. Enter the platform.
+2. See a dark cyber mission map.
+3. Click a mission node.
+4. Read mission details in a side panel.
+5. Click Launch Mission.
+6. Continue into the existing mission/terminal flow.
+
+---
+
+1. ADD CYBER MISSIONS MAP SCREEN
+
+---
+
+Create a new screen or section called:
+
+Cyber Missions Map
+
+Visual style:
+
+* dark futuristic cyber interface
+* glowing blue/cyan grid or map background
+* mission nodes connected by glowing path lines
+* locked/unlocked status badges
+* right-side mission details panel
+* manager transmission panel
+
+This can be pure HTML/CSS/JS.
+
+No canvas required unless simple.
+
+---
+
+2. MAP LAYOUT
+
+---
+
+Show 3 mission nodes:
+
+Mission 1:
+Suspicious Workstation
+Status: Available or Completed
+
+Mission 2:
+Network Basics
+Status: Locked, Available, or Completed depending on progress
+
+Mission 3:
+Reconnaissance & Discovery
+Status: Locked / Coming Soon
+
+Node behavior:
+
+* Available mission nodes glow.
+* Completed mission nodes show checkmark.
+* Locked mission nodes appear dimmed.
+* Hovering over a node gives a small pulse/glow effect.
+
+---
+
+3. MISSION PATH LINES
+
+---
+
+Add simple glowing lines between:
+Mission 1 → Mission 2 → Mission 3
+
+Use CSS borders, SVG, or absolutely positioned divs.
+
+Purpose:
+Make it feel like career progression, not disconnected lessons.
+
+---
+
+4. RIGHT-SIDE MISSION DETAILS PANEL
+
+---
+
+When a mission node is clicked, show details:
+
+Mission 1:
+Title:
+Suspicious Workstation
+
+Role:
+Cybersecurity Intern
+
+Threat Type:
+Phishing / Credential Theft
+
+Briefing:
+A workstation contains a suspicious file requesting password sharing with an unknown external email.
+
+Skills:
+
+* File inspection
+* Evidence classification
+* Phishing recognition
+* Analyst reporting
+
+Button:
+Launch Mission
+
+Mission 2:
+Title:
+Network Basics
+
+Role:
+Cybersecurity Intern
+
+Threat Type:
+Network Exposure
+
+Briefing:
+A target host is exposing network services that require review.
+
+Skills:
+
+* IP identification
+* Reachability testing
+* Service scanning
+* Attack surface reasoning
+
+Button:
+Launch Mission
+
+Mission 3:
+Title:
+Reconnaissance & Discovery
+
+Status:
+Coming Soon
+
+Button disabled:
+Locked
+
+---
+
+5. MANAGER TRANSMISSION PANEL
+
+---
+
+Add a small manager/video-call style panel on the right side.
+
+Do not use real video.
+
+Use:
+
+* avatar circle
+* manager name: Sarah Reyes
+* title: Lead Analyst
+* animated “TRANSMISSION ACTIVE” label
+
+When Mission 1 is selected, show:
+“Finance reported suspicious workstation activity. Review the mission brief, then launch the investigation.”
+
+When Mission 2 is selected, show:
+“Network monitoring detected exposed services. Your task is to investigate safely and report findings.”
+
+When locked Mission 3 is selected, show:
+“Complete earlier assignments before accessing reconnaissance training.”
+
+---
+
+6. INTEGRATE WITH EXISTING FLOW
+
+---
+
+When student clicks Launch Mission:
+
+* Hide Cyber Missions Map.
+* Load the selected mission using the existing mission engine.
+* Preserve existing briefing room, focus mode, terminal, commands, evidence board, and scorecard.
+
+Do not replace the terminal.
+Do not remove existing mission screens.
+
+The map is only the mission selection layer.
+
+---
+
+7. NAVIGATION
+
+---
+
+Add a button somewhere in the existing mission screen:
+
+Back to Missions Map
+
+This should:
+
+* return to the Cyber Missions Map
+* not clear saved progress
+* not break the current mission engine
+
+---
+
+8. PROGRESS CONNECTION
+
+---
+
+Use existing mission completion/localStorage/mission registry status.
+
+Map node states should reflect:
+
+* Mission 1 completed
+* Mission 2 locked/unlocked/completed
+* Mission 3 locked
+
+Do not create a second separate progress system.
+
+---
+
+9. RESPONSIVE DESIGN
+
+---
+
+On desktop:
+
+* map on the left/center
+* mission details on the right
+
+On smaller screens:
+
+* mission nodes stack vertically
+* details panel appears below
+
+---
+
+10. KEEP IT LIGHTWEIGHT
+
+---
+
+Use:
+
+* HTML
+* CSS
+* JavaScript
+
+No external libraries required.
+
+Keep animations simple:
+
+* pulse glow
+* hover effect
+* scanline background
+* mission node highlight
+
+---
+
+## GOAL
+
+The student should feel like they are selecting a cybersecurity assignment from a mission control map.
+
+The experience should become more game-like while preserving the existing terminal-based investigation and all current course content.
