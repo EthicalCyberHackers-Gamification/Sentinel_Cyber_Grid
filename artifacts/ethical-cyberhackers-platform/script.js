@@ -526,6 +526,8 @@ function handlePinClassification(missionId, key, level) {
       // Stage 2 — Blue Team: critical evidence logged → containment up.
       updateContainmentProgress("mission-001", 25, { stepId: "classify-critical", caption: "Critical evidence logged." });
       showBlueTeamUpdate("mission-001", "Evidence logged.");
+      // Stage 4 — critical evidence unlocks the strong containment responses.
+      renderContainmentActions("mission-001");
       setTimeout(() => {
         if (decisionAdvanced["mission-001"]) showFindingPanel();
         else showDecisionActions("mission-001");
@@ -2405,6 +2407,11 @@ function saveProgress() {
       // Stage 3 — Adversary Escalation: incident pressure + idle-escalation cap.
       incidentPressure: { ...incidentPressure },
       escalationIdleCount: { ...escalationIdleCount },
+      escalationPeak: { ...escalationPeak },
+      // Stage 4 — Containment Actions: which defensive actions were performed.
+      containmentActionsUsed: {
+        "mission-001": Array.from(containmentActionsUsed["mission-001"]),
+      },
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -2557,8 +2564,26 @@ function restoreSavedProgress() {
   if (missionComplete)  incidentPressure["mission-001"] = 0;
   if (mission2Complete) incidentPressure["mission-002"] = 0;
 
+  // Stage 3 — restore escalation peak (clamped); used by the M1 end summary.
+  ["mission-001", "mission-002"].forEach((mid) => {
+    const pk = data.escalationPeak && data.escalationPeak[mid];
+    if (typeof pk === "number" && isFinite(pk)) {
+      escalationPeak[mid] = Math.max(0, Math.min(ESCALATION_MAX, Math.round(pk)));
+    }
+  });
+
+  // Stage 4 — restore containment actions used (validated against known ids).
+  containmentActionsUsed["mission-001"].clear();
+  const savedActions = data.containmentActionsUsed && data.containmentActionsUsed["mission-001"];
+  if (Array.isArray(savedActions)) {
+    savedActions.forEach((id) => {
+      if (CONTAINMENT_ACTIONS["mission-001"][id]) containmentActionsUsed["mission-001"].add(id);
+    });
+  }
+
   renderBlueTeamPanel("mission-001");
   renderBlueTeamPanel("mission-002");
+  renderContainmentActions("mission-001"); // Stage 4 — restore action panel.
 
   // 9. Milestone 24D — restore decision system state. Only known
   //    action ids are accepted; unknown keys are ignored.
@@ -4015,6 +4040,9 @@ function completeMission(newRank) {
     caption: "Threat fully contained. Workstation secured.",
   });
   showBlueTeamUpdate("mission-001", "Threat fully contained. Excellent work, Intern.");
+  // Stage 4 — celebrate the win + lock the containment-action panel.
+  showEventToast("THREAT CONTAINED", "Mission 1 secured. The workstation is safe.", "blueteam", { duration: BLUE_TEAM_TOAST_MS });
+  renderContainmentActions("mission-001");
 
   // Milestone 24G — mission complete → every M1 tool is marked completed.
   markAllToolsCompleted("mission-001");
@@ -4173,6 +4201,12 @@ function buildCompletionHTML(newRank) {
         </div>
       </div>
 
+      <!-- Stage 4 — THREAT CONTAINED banner on mission success. -->
+      <div class="threat-contained-banner" role="status">
+        <span class="threat-contained-dot" aria-hidden="true"></span>
+        <span class="threat-contained-text">THREAT CONTAINED</span>
+      </div>
+
       <!-- FIX 3 — clear Next Step guidance at the top of the screen. -->
       ${buildNextStepHTML("mission-001")}
 
@@ -4244,6 +4278,9 @@ function buildCompletionHTML(newRank) {
 
         <!-- Milestone 24A — Evidence Collected (Mission 1 scorecard) -->
         ${buildEvidenceScorecardHTML("mission-001")}
+
+        <!-- Stage 4 — Blue Team Defense Summary (Mission 1 scorecard) -->
+        ${buildContainmentSummaryHTML("mission-001")}
 
         <!-- What You Learned -->
         <div class="scorecard-section scorecard-learned scorecard-section--collapsed">
@@ -4406,6 +4443,9 @@ function beginMission() {
   // available, rest locked) and make the Terminal the active focus.
   initializeMissionTools("mission-001");
   setActiveTool("m1-terminal");
+  // Stage 4 — render the containment-action panel (strong responses locked
+  // until critical evidence is collected).
+  renderContainmentActions("mission-001");
   // Milestone 15: advance tracker — Begin Mission done, Inspect Location is now current
   markProgressStep("begin-mission");
   // Milestone 24E / 24E-2 — ensure the M1 alert exists in the "New"
@@ -4505,6 +4545,8 @@ function resetMission() {
   resetBlueTeam("mission-001");
   // Stage 3 — reset Mission 1 Adversary Escalation state.
   resetEscalation("mission-001");
+  // Stage 4 — reset Mission 1 Containment Actions.
+  resetContainmentActions("mission-001");
 
   // Challenge Layer 1 — reset Mission 1 confidence + investigation tracking.
   m1Confidence = 0;
@@ -7145,6 +7187,10 @@ function boot() {
   renderBriefingRoom("mission-001");
   renderBriefingRoom("mission-002");
 
+  // Stage 4 — populate the M1 Containment Actions panel up front so the host
+  // is never empty on a clean session (restore re-renders it afterwards).
+  renderContainmentActions("mission-001");
+
   // Milestone 18 — restore saved progress (runs AFTER renderers + listeners
   // are in place, so any UI updates inside restore work correctly)
   restoreSavedProgress();
@@ -7812,6 +7858,9 @@ const ESCALATION_EVENTS = [
 // engine so Mission 1 and Mission 2 each run the SAME escalation logic.
 const incidentPressure = { "mission-001": 0, "mission-002": 0 };
 const escalationIdleCount = { "mission-001": 0, "mission-002": 0 };
+// Stage 4 — highest pressure ever reached this run (the live value is zeroed on
+// completion, so the mission-end "Threat Spread Prevented" summary reads the peak).
+const escalationPeak = { "mission-001": 0, "mission-002": 0 };
 let escalationEventIndex = 0;       // rotates ESCALATION_EVENTS
 let escalationIdleTimer = null;     // single active idle timer
 let escalationIdleMission = null;   // the mission the idle timer watches
@@ -7878,6 +7927,7 @@ function triggerEscalationEvent(missionId, opts) {
   // Raise pressure (capped at the moderate ceiling).
   const amount = typeof opts.amount === "number" ? opts.amount : ESCALATION_STEP;
   incidentPressure[missionId] = Math.min(ESCALATION_MAX, incidentPressure[missionId] + amount);
+  escalationPeak[missionId] = Math.max(escalationPeak[missionId], incidentPressure[missionId]);
   renderIncidentPressure(missionId);
 
   // Visually nudge the Threat Level up one notch (never to Critical).
@@ -7974,7 +8024,272 @@ function resetEscalation(missionId) {
   if (escalationIdleMission === missionId) clearEscalationWatch();
   incidentPressure[missionId] = 0;
   escalationIdleCount[missionId] = 0;
+  escalationPeak[missionId] = 0;
   renderIncidentPressure(missionId);
+}
+
+/* ============================================================
+   Stage 4 — Containment Actions (Mission 1)
+   A "Blue Team response" layer on top of the Stage 2 containment
+   engine + Stage 3 escalation. The student picks defensive ACTIONS
+   to neutralize the threat. No backend / AI — scripted, gated on the
+   evidence the student has already collected.
+   - Three CORRECT actions (Isolate Workstation / Block External
+     Sender / Escalate to Security Manager) unlock only AFTER critical
+     evidence is collected; each raises Trust, lowers Threat one step,
+     and advances Containment Progress (one-time credit).
+   - One POOR action (Monitor Activity) is always available but only
+     gives manager guidance — no punishment, on-theme nudge to act.
+   - "[BLUE TEAM ACTION]" toasts confirm each action.
+   - On mission success a "THREAT CONTAINED" banner + a Blue Team
+     defense summary are shown on the completion screen.
+   ============================================================ */
+const CONTAINMENT_ACTION_TOAST_TITLE = "BLUE TEAM ACTION";
+const CONTAINMENT_ACTIONS = {
+  "mission-001": {
+    "isolate-workstation": {
+      label: "Isolate Workstation",
+      kind: "correct",
+      requiresEvidence: true,
+      trust: 8,
+      contain: 15,
+      toast: "Workstation isolated successfully.",
+      manager: "Smart move. Isolating the workstation stops the threat from spreading.",
+      feed: "Workstation isolated from the network.",
+    },
+    "block-sender": {
+      label: "Block External Sender",
+      kind: "correct",
+      requiresEvidence: true,
+      trust: 8,
+      contain: 15,
+      toast: "External sender blocked.",
+      manager: "Good. Blocking the sender cuts off the phishing channel.",
+      feed: "Malicious external sender blocked.",
+    },
+    "escalate-manager": {
+      label: "Escalate to Security Manager",
+      kind: "correct",
+      requiresEvidence: true,
+      trust: 8,
+      contain: 15,
+      toast: "Incident escalated to the Security Manager.",
+      manager: "Escalation logged. Leadership is now aware of the incident.",
+      feed: "Incident escalated to the Security Manager.",
+    },
+    "monitor-activity": {
+      label: "Monitor Activity",
+      kind: "poor",
+      requiresEvidence: false,
+      trust: 0,
+      contain: 0,
+      toast: "Monitoring network activity.",
+      manager: "Monitoring alone won't stop an active threat. Collect evidence, then isolate the workstation or block the sender.",
+      feed: "Monitoring network activity (no containment yet).",
+    },
+  },
+};
+// Display order — strong responses first, the passive option last.
+const CONTAINMENT_ACTION_ORDER = [
+  "isolate-workstation",
+  "block-sender",
+  "escalate-manager",
+  "monitor-activity",
+];
+// One-time guard: which containment actions have already been performed.
+const containmentActionsUsed = { "mission-001": new Set() };
+
+/** True once enough evidence is collected to unlock the strong responses
+ *  (the suspicious file pinned Critical — the same M1 evidence gate). */
+function containmentEvidenceReady() {
+  return canCompleteM1();
+}
+
+/** Is a given containment action currently unlocked? */
+function containmentActionUnlocked(missionId, id) {
+  const def = CONTAINMENT_ACTIONS[missionId] && CONTAINMENT_ACTIONS[missionId][id];
+  if (!def) return false;
+  return !def.requiresEvidence || containmentEvidenceReady();
+}
+
+/** Lower a mission's Threat Level by one step (monotonic; never raises). */
+function lowerThreatOneStep(missionId, floor) {
+  missionId = btMissionId(missionId);
+  const cur = threatLevelByMission[missionId];
+  const i = THREAT_LEVELS.indexOf(cur);
+  if (i < 0) return;
+  let floorI = THREAT_LEVELS.indexOf(floor || "Low");
+  if (floorI < 0) floorI = 0;
+  if (i <= floorI) return; // already at/below the floor — never raise
+  const next = THREAT_LEVELS[i - 1];
+  if (next && next !== cur) setThreatLevel(next, missionId);
+}
+
+/** Render the Containment Actions list for a mission (M1). Buttons reflect
+ *  locked / available / used state; safe to call repeatedly. */
+function renderContainmentActions(missionId) {
+  missionId = btMissionId(missionId);
+  const defs = CONTAINMENT_ACTIONS[missionId];
+  const host = document.getElementById(
+    missionId === "mission-002" ? "m2ContainmentActionsList" : "containmentActionsList"
+  );
+  if (!defs || !host) return;
+
+  const ready = containmentEvidenceReady();
+  const used = containmentActionsUsed[missionId];
+  // Once the mission is contained, the panel is read-only — no further
+  // trust/threat/containment mutation is possible (post-completion lock).
+  const missionDone = missionId === "mission-002" ? mission2Complete : missionComplete;
+
+  host.innerHTML = CONTAINMENT_ACTION_ORDER
+    .filter((id) => defs[id])
+    .map((id) => {
+      const def = defs[id];
+      const isUsed = used.has(id);
+      const locked = def.requiresEvidence && !ready;
+      const disabled = isUsed || locked || missionDone;
+      const cls = [
+        "containment-action-btn",
+        `containment-action-btn--${def.kind}`,
+        isUsed ? "containment-action-btn--used" : "",
+        (locked && !missionDone) ? "containment-action-btn--locked" : "",
+      ].filter(Boolean).join(" ");
+      const note = isUsed
+        ? "Completed"
+        : missionDone
+          ? "Threat contained"
+          : locked
+            ? "Unlocks after evidence is collected"
+            : (def.kind === "correct" ? "Recommended response" : "Passive — limited effect");
+      return `
+        <button type="button" class="${cls}" data-containment-action="${id}"
+                ${disabled ? "disabled" : ""}>
+          <span class="containment-action-label">${escapeHtml(def.label)}${isUsed ? " ✓" : ""}</span>
+          <span class="containment-action-note">${escapeHtml(note)}</span>
+        </button>`;
+    })
+    .join("");
+
+  host.querySelectorAll("[data-containment-action]").forEach((btn) => {
+    btn.addEventListener("click", () =>
+      handleContainmentAction(missionId, btn.getAttribute("data-containment-action"))
+    );
+  });
+
+  // Status line summarizing how many responses are still available.
+  const statusEl = document.getElementById(
+    missionId === "mission-002" ? "m2ContainmentActionsStatus" : "containmentActionsStatus"
+  );
+  if (statusEl) {
+    statusEl.textContent = missionDone
+      ? "Threat contained — actions closed."
+      : ready
+        ? "Evidence confirmed — choose a containment response."
+        : "Collect critical evidence to unlock containment responses.";
+  }
+}
+
+/** Perform a containment action: apply effects (correct) or guide (poor). */
+function handleContainmentAction(missionId, id) {
+  missionId = btMissionId(missionId);
+  if (demoRunning) return; // never intrude on the teaching demo
+  const missionDone = missionId === "mission-002" ? mission2Complete : missionComplete;
+  if (missionDone) return; // post-completion lock — panel is read-only
+  const def = CONTAINMENT_ACTIONS[missionId] && CONTAINMENT_ACTIONS[missionId][id];
+  if (!def) return;
+  if (containmentActionsUsed[missionId].has(id)) return; // one-time
+  if (!containmentActionUnlocked(missionId, id)) return; // still locked
+
+  containmentActionsUsed[missionId].add(id);
+
+  if (def.kind === "correct") {
+    if (def.trust > 0) increaseTrustScore(def.trust);
+    lowerThreatOneStep(missionId, "Low");
+    updateContainmentProgress(missionId, def.contain, {
+      stepId: `action-${id}`,
+      caption: def.feed,
+    });
+    // A decisive defensive move also relieves adversary pressure.
+    containThreatActivity(missionId);
+    showBlueTeamUpdate(missionId, def.feed); // feed bubble (no own toast)
+    pushManagerMessage("mission-001", def.manager);
+    showEventToast(CONTAINMENT_ACTION_TOAST_TITLE, def.toast, "blueteam", {
+      duration: BLUE_TEAM_TOAST_MS,
+    });
+    fxPulseThreat(missionId);
+  } else {
+    // Poor / passive action — guidance only, no punishment.
+    pushManagerMessage("mission-001", def.manager);
+    showBlueTeamUpdate(missionId, def.feed);
+    showEventToast(CONTAINMENT_ACTION_TOAST_TITLE, def.toast, "blueteam", {
+      duration: BLUE_TEAM_TOAST_MS,
+    });
+  }
+
+  renderContainmentActions(missionId);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+}
+
+/** Reset a mission's containment-action state (called from resetMission). */
+function resetContainmentActions(missionId) {
+  missionId = btMissionId(missionId);
+  if (containmentActionsUsed[missionId]) containmentActionsUsed[missionId].clear();
+  renderContainmentActions(missionId);
+}
+
+/** Count of correctly classified findings collected this run (for the summary). */
+function collectedEvidenceCount(missionId) {
+  const pins = investigationPins[missionId] || {};
+  return Object.keys(pins).filter((k) => pins[k] && pins[k].correct).length;
+}
+
+/** Build the Blue Team defense summary shown on the M1 completion screen. */
+function buildContainmentSummaryHTML(missionId) {
+  missionId = btMissionId(missionId);
+  const correctActions = CONTAINMENT_ACTION_ORDER.filter((id) => {
+    const def = CONTAINMENT_ACTIONS[missionId] && CONTAINMENT_ACTIONS[missionId][id];
+    return def && def.kind === "correct" && containmentActionsUsed[missionId].has(id);
+  });
+  const actionsUsedCount = containmentActionsUsed[missionId].size;
+  const evidenceCount = collectedEvidenceCount(missionId);
+  const peak = escalationPeak[missionId] || 0;
+
+  let spread, spreadCls;
+  if (peak <= 0) { spread = "Yes — no spread detected"; spreadCls = "scorecard-val--green"; }
+  else if (peak < ESCALATION_MAX) { spread = "Yes — contained before it spread"; spreadCls = "scorecard-val--green"; }
+  else { spread = "Mostly — pressure peaked before containment"; spreadCls = "scorecard-val--yellow"; }
+
+  let perf, perfCls;
+  if (correctActions.length >= 2 && peak < ESCALATION_MAX) { perf = "Excellent"; perfCls = "scorecard-val--green"; }
+  else if (correctActions.length >= 1) { perf = "Strong"; perfCls = "scorecard-val--cyan"; }
+  else { perf = "Good"; perfCls = "scorecard-val--yellow"; }
+
+  const actionLabels = correctActions
+    .map((id) => CONTAINMENT_ACTIONS[missionId][id].label)
+    .join(", ") || "Containment handled automatically";
+
+  return `
+    <div class="scorecard-section scorecard-section--collapsed containment-summary">
+      <span class="scorecard-section-label">BLUE TEAM DEFENSE SUMMARY</span>
+      <ul class="scorecard-rows">
+        <li class="scorecard-row">
+          <span class="scorecard-key">Threat Spread Prevented</span>
+          <span class="scorecard-val ${spreadCls}">${escapeHtml(spread)}</span>
+        </li>
+        <li class="scorecard-row">
+          <span class="scorecard-key">Evidence Collected</span>
+          <span class="scorecard-val scorecard-val--cyan">${evidenceCount} finding${evidenceCount === 1 ? "" : "s"}</span>
+        </li>
+        <li class="scorecard-row">
+          <span class="scorecard-key">Containment Actions Used</span>
+          <span class="scorecard-val">${actionsUsedCount} (${escapeHtml(actionLabels)})</span>
+        </li>
+        <li class="scorecard-row">
+          <span class="scorecard-key">Blue Team Performance</span>
+          <span class="scorecard-val ${perfCls}">${escapeHtml(perf)}</span>
+        </li>
+      </ul>
+    </div>`;
 }
 
 function fxPulse(id) {

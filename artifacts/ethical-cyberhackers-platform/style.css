@@ -7158,3 +7158,115 @@ body.mission-running .center-column { min-width: 0; }
 @media (prefers-reduced-motion: reduce) {
   .incident-pressure-fill { transition: none; }
 }
+
+/* ============================================================
+   Stage 4 — Containment Actions + THREAT CONTAINED banner
+   Builds on the Blue Team panel visual language (dark cyber,
+   cyan / green accents). No layout changes elsewhere.
+   ============================================================ */
+.containment-actions {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(56, 189, 248, 0.22);
+}
+.containment-actions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.containment-actions-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7dd3fc;
+}
+.containment-actions-status {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  color: #94a3b8;
+}
+.containment-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.containment-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  font-family: var(--font-mono);
+  color: #e2e8f0;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, transform 80ms ease;
+}
+.containment-action-btn:hover:not(:disabled)  { background: rgba(51, 65, 85, 0.95); }
+.containment-action-btn:active:not(:disabled) { transform: translateY(1px); }
+.containment-action-btn:disabled              { cursor: not-allowed; }
+.containment-action-btn--correct { border-color: rgba(74, 222, 128, 0.4); }
+.containment-action-btn--poor    { border-color: rgba(250, 204, 21, 0.4); }
+.containment-action-btn--locked  { opacity: 0.55; }
+.containment-action-btn--used {
+  opacity: 0.8;
+  border-color: rgba(74, 222, 128, 0.55);
+  background: rgba(22, 78, 51, 0.45);
+}
+.containment-action-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.containment-action-note {
+  font-size: 10px;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+}
+.containment-action-btn--correct .containment-action-note { color: #86efac; }
+.containment-action-btn--locked .containment-action-note  { color: #cbd5e1; }
+
+/* THREAT CONTAINED banner on the M1 completion screen. */
+.threat-contained-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 14px 0 6px;
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #bbf7d0;
+  background: linear-gradient(90deg, rgba(22, 101, 52, 0.35), rgba(16, 185, 129, 0.18));
+  border: 1px solid rgba(74, 222, 128, 0.5);
+  border-radius: 8px;
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.25);
+}
+.threat-contained-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.9);
+  animation: threatContainedPulse 1.8s ease-in-out infinite;
+}
+@keyframes threatContainedPulse {
+  0%, 100% { transform: scale(1);   opacity: 1; }
+  50%      { transform: scale(1.4); opacity: 0.6; }
+}
+.containment-summary .scorecard-section-label { color: #7dd3fc; }
+
+@media (prefers-reduced-motion: reduce) {
+  .threat-contained-dot { animation: none; }
+  .containment-action-btn { transition: none; }
+}

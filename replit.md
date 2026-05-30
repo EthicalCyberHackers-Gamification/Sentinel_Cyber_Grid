@@ -545,6 +545,43 @@ The attacker REACTS to investigation progress. Built ON TOP of the Stage 2 Blue 
   decision → Elevated + red toast + threat up → correct escalate → "Threat spread interrupted." +
   pressure drops + flow advances; M1/M2 intact, no console errors.
 
+### Containment Actions (Stage 4 — Mission 1)
+A "Blue Team response" layer letting the M1 student pick defensive ACTIONS to neutralize the
+threat. Frontend-only, scripted, gated on collected evidence. The module lives in `script.js`
+after `resetEscalation` (~8031+). It reuses the Stage 2 containment engine
+(`updateContainmentProgress`/`showBlueTeamUpdate`) + threat meter — it does NOT add a new
+progress system.
+- **Panel**: `#containmentActions` (inside `#blueTeamPanel`, after `#blueTeamFeed`) with status
+  `#containmentActionsStatus` + list `#containmentActionsList`. Rendered by
+  `renderContainmentActions("mission-001")`. Data-driven via `CONTAINMENT_ACTIONS` +
+  `CONTAINMENT_ACTION_ORDER`; buttons carry `data-containment-action`.
+- **Four actions**: three CORRECT (`isolate-workstation`, `block-sender`, `escalate-manager`,
+  `requiresEvidence:true`) and one POOR (`monitor-activity`, always available). Correct →
+  +Trust (`increaseTrustScore`), −Threat one step (`lowerThreatOneStep`, monotonic floor "Low"),
+  +Containment (`updateContainmentProgress`, one-time `stepId:action-<id>`), +
+  `containThreatActivity` (relieves adversary pressure). Poor → manager guidance only, NO penalty.
+- **Evidence gate**: `containmentEvidenceReady() === canCompleteM1()` (suspicious_file.txt pinned
+  Critical). Strong actions stay disabled (`.containment-action-btn--locked`, note "Unlocks after
+  evidence is collected") until then; enforced in BOTH render and `handleContainmentAction`.
+- **Toasts**: every action fires a `showEventToast("BLUE TEAM ACTION", …, "blueteam", {duration:
+  BLUE_TEAM_TOAST_MS})`.
+- **Post-completion lock** (architect fix): once `missionComplete` (M2: `mission2Complete`), ALL
+  four buttons are disabled (note "Threat contained"), status reads "Threat contained — actions
+  closed.", and `handleContainmentAction` early-returns — no post-win Trust/Threat/Containment
+  mutation. `completeMission` re-renders the panel.
+- **Completion screen**: a "THREAT CONTAINED" banner (`.threat-contained-banner`) +
+  `buildContainmentSummaryHTML` rows (Threat Spread Prevented [from `escalationPeak`], Evidence
+  Collected [`collectedEvidenceCount`], Containment Actions Used, Blue Team Performance). Plus a
+  "THREAT CONTAINED" toast.
+- **Demo isolation**: `handleContainmentAction` early-returns when `demoRunning`.
+- **Persistence**: `escalationPeak` + `containmentActionsUsed` saved/restored (validated against
+  `CONTAINMENT_ACTIONS`) and cleared via `resetContainmentActions` in `resetMission`. Boot
+  pre-renders the locked panel (after the briefing-room renders, before `restoreSavedProgress`).
+- Stage 4 CSS appended at the END of `style.css`. Verified e2e on M1: locked → pin Critical →
+  unlock → correct actions raise Containment/lower Threat with BLUE TEAM ACTION toasts → full
+  completion shows THREAT CONTAINED banner + 4 summary rows → post-completion panel fully locked
+  (all 4 disabled, no mutation on click); M2 intact, no console errors.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

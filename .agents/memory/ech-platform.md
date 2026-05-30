@@ -59,3 +59,13 @@ its `m2Started` early-return.
 only the fresh-start `beginMission*` path armed it. **How to apply:** any per-mission timer (idle
 watch, polling) needs an arm call on EVERY active re-entry path; make the start fn idempotent (clear
 then schedule) so double-calls are safe.
+
+## Action/response panels must lock on mission COMPLETION too, not just on the evidence gate
+An interactive panel that mutates persistent state (trust/threat/containment) must become read-only
+once the mission is complete — enforced in BOTH the render path (disable every button + a "closed"
+status) AND a runtime early-return in the click handler. An evidence-unlock gate alone is NOT enough.
+**Why:** Stage 4 Containment Actions only checked `isUsed || locked-by-evidence`, so after a win the
+still-unused actions stayed clickable and kept granting Trust/lowering Threat — a post-completion
+state regression caught in code review. **How to apply:** gate on `missionComplete`/`mission2Complete`
+in the renderer's `disabled` calc AND at the top of the handler; have `completeMission` re-render the
+panel so the locked state shows immediately.
