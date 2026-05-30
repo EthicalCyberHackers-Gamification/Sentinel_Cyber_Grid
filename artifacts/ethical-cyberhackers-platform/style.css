@@ -6518,10 +6518,17 @@ body.mission-running .mini-node--active.mini-node--completed .mini-node-dot {
 }
 
 .demo-coach {
-  z-index: 903;
+  z-index: 10000;
   width: min(330px, 86vw);
   transition: top 480ms cubic-bezier(0.4, 0, 0.2, 1),
               left 480ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* During the opt-in demo, hide the floating focus bar and music toggle so
+   they can never overlap / intercept the demo coach's nav buttons. */
+body.demo-active .focus-control-bar,
+body.demo-active .soundtrack-toggle {
+  display: none !important;
 }
 .demo-coach-head {
   display: flex;
@@ -6664,3 +6671,46 @@ body.mission-running .commands-panel .cmd-group { margin-bottom: var(--gap-sm); 
 body.mission-running .manager-bubble,
 body.mission-running .ig-coach-text,
 body.mission-running .current-objective-text { line-height: 1.45; }
+
+/* ============================================================
+   DEMO — "pressed" feedback when the walkthrough clicks a button
+   ============================================================ */
+.cmd-btn.demo-press {
+  transform: scale(0.96);
+  box-shadow: 0 0 0 2px var(--color-green), 0 0 18px rgba(0, 255, 136, 0.5);
+  filter: brightness(1.15);
+}
+
+/* ============================================================
+   ZOOM / SHORT-VIEWPORT RESILIENCE
+   Browser zoom shrinks the effective viewport; keep the terminal
+   visible and never let pop-outs grow past the screen and bury it.
+   ============================================================ */
+
+/* Grid children must be allowed to shrink without overflowing or
+   collapsing the terminal column to zero width. */
+.dashboard > * { min-width: 0; }
+body.mission-running .center-column { min-width: 0; }
+
+/* Always keep a workable terminal panel height. */
+.terminal-panel { min-height: 200px; }
+
+/* Coach / demo pop-outs must never exceed the viewport — at high zoom an
+   oversized pop-out could cover the entire terminal. Cap their size and let
+   them scroll internally instead. */
+.ig-coach,
+.demo-coach {
+  max-height: calc(100vh - 24px);
+  max-width: calc(100vw - 24px);
+  overflow-y: auto;
+}
+
+/* On short viewports (common at high browser zoom) the tall focus-mode
+   terminal would be squeezed or pushed off-screen. Relax its forced height
+   and drop the output cap so the page scrolls and the terminal stays
+   reachable rather than being hidden behind other panels. */
+@media (max-height: 640px) {
+  body.focus-mode .terminal-body,
+  body.focus-mode .m2-terminal { min-height: 200px; }
+  .terminal-body { max-height: none; }
+}

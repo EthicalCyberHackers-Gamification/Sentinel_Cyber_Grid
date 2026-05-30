@@ -272,17 +272,42 @@ appended at the END of `style.css` (replaced the 25D block, ~6224+).
   terminal, right Live Status visible under Focus Mode, pin→board/confidence update, Open
   Full Map back-nav).
 
+### Command-on-click typing
+When a player CLICKS an M1 command button, the command is first TYPED into the terminal
+entry (`#terminalInput`, ~38ms/char) so it's visible before being sent, then executed.
+`typeCommandIntoTerminal(command, onDone)` (after `runCommand`, ~`script.js` 4306) drives it,
+with `cancelTerminalTyping` (no-op-safe) and `flushTerminalTyping` (a rapid second click flushes
+the current command so none is dropped). The M1 click handler types then runs. `cancelTerminalTyping`
+is called centrally in `endGuidedRun()` (covers every mission-exit: map/overview/back/reset) and in
+`abortDemo` so a deferred `runCommand` can never fire off-screen after the student navigates away.
+
 ### Opt-in Guided Demo (Mission 1)
 An OPT-IN walkthrough offered on the M1 guided "Mission Ready" screen (a "Watch
-Demo First" button `#guidedDemoBtn`, M1 only — M2 unaffected). It launches a clean Mission 1,
-runs REAL example commands (`ls` → `cd documents`/`ls` → `cat finance_update.txt` →
-`cat suspicious_file.txt`), classifies the suspicious file as Critical, while a pop-out
-(`#demoCoach`, reuses `.ig-coach`/`.ig-dim`/`.ig-spotlight-target`) MOVES near each location
-(command center → terminal → board → decision), then fully resets and returns the student to
-the Mission Ready screen so they do it themselves. The demo module lives at the bottom of
-`script.js` (~7330+): `DEMO_STEPS` (8 steps), `startDemo`, `demoGo`/`demoNext`/`demoBack`,
-`renderDemoStep`, `showDemoCoach`, `positionDemoCoach`, `teardownDemoCoach`, `abortDemo`,
-`endDemo`, `demoWait`/`clearDemoTimers`.
+Demo First" button `#guidedDemoBtn`, M1 only — M2 unaffected). It launches a clean Mission 1
+and TEACHES newbies the whole workstation: it both CLICKS command buttons (`demoClickCommand`
+— a real `.click()` + a `.demo-press` flash, so the click-to-type animation plays) AND shows
+MANUAL typing (`demoTypeCommand`, e.g. read-only `pwd`), runs REAL example commands (`ls` →
+`pwd` → `cd documents`/`ls` → `cat finance_update.txt` → `cat suspicious_file.txt`), classifies
+the suspicious file as Critical, and a pop-out (`#demoCoach`, reuses
+`.ig-coach`/`.ig-dim`/`.ig-spotlight-target`) MOVES to and DESCRIBES each area (command center →
+terminal → Current Objective → Live Status threat meter → Investigation Board → hint button →
+decision actions), then fully resets and returns the student to the Mission Ready screen so they
+do it themselves. The demo module lives at the bottom of `script.js` (~7390+): `DEMO_STEPS`
+(15 steps), `m1KeyForCommand`, `demoClickCommand`, `demoTypeCommand`, `startDemo`,
+`demoGo`/`demoNext`/`demoBack`, `renderDemoStep`, `showDemoCoach`, `positionDemoCoach`,
+`teardownDemoCoach`, `abortDemo`, `endDemo`, `demoWait`/`clearDemoTimers`.
+- **Progression commands use real clicks, not no-key `runCommand`**: `afterCommand(key)`
+  early-returns on an empty key, so typed/no-key commands DON'T unlock/advance. The demo runs
+  progression steps via `demoClickCommand` (real button click → `runCommand(cmd, key)` →
+  `afterCommand` fires); only read-only commands (`pwd`) use `demoTypeCommand`.
+- **No floating-control overlap (stuck-step fix)**: `startDemo` adds `body.demo-active` (removed
+  in `abortDemo`) which CSS-hides the floating `.focus-control-bar` and `.soundtrack-toggle` —
+  they previously overlapped and intercepted the coach's Next button (the demo got stuck at
+  "Step 13 of 15"). The demo coach is also raised to `z-index:10000` (above the music toggle's
+  9999) as a safety net.
+- **Coach stays on-screen**: `positionCoach` (shared by the demo AND the live spotlight tour)
+  clamps the tip's `top` within the viewport so its nav buttons never render off-screen when the
+  target (e.g. decision actions) is scrolled near the viewport edge.
 - **MANUAL step-through (not auto-advancing)**: the pop-out renders three controls —
   `.demo-coach-back` ("← Back", disabled on step 1), `.demo-coach-cancel` ("Cancel"), and
   `.demo-coach-next` ("Next →", or "Finish ✓" on the last step). The student drives the pace.

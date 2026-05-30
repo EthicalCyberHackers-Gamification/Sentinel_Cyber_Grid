@@ -3355,11 +3355,15 @@ function renderButtons(newlyUnlocked = []) {
       `<span class="cmd-desc">${btn.desc}</span>`;
 
     el.addEventListener("click", () => {
-      runCommand(btn.command, btn.key);
-      if (terminalInput) {
-        terminalInput.value = "";
-        terminalInput.focus();
-      }
+      // Type the command into the terminal entry first so the player can SEE
+      // exactly what is being sent to the command line, THEN run it.
+      typeCommandIntoTerminal(btn.command, () => {
+        runCommand(btn.command, btn.key);
+        if (terminalInput) {
+          terminalInput.value = "";
+          terminalInput.focus();
+        }
+      });
     });
 
     ensureGroup(m1CommandCategory(btn.key)).appendChild(el);
@@ -4138,6 +4142,9 @@ function beginMission() {
  *  - Timer restarted
  */
 function resetMission() {
+  // Stop any in-progress command typing so a pending command can't fire
+  // into the terminal after we've reset.
+  cancelTerminalTyping();
   // 1. Reset state variables — back to the pre-briefing state
   currentDir       = "~";
   currentXP        = INITIAL_XP;
@@ -4293,6 +4300,61 @@ function runCommand(command, buttonKey = "") {
   if (!trimmed) return;
   printCommand(trimmed);
   processCommand(trimmed, buttonKey);
+}
+
+
+/* ============================================================
+   COMMAND TYPING ANIMATION
+   When a command BUTTON is clicked we first "type" the command,
+   character by character, into the terminal entry so the player
+   can SEE what is being sent to the command line, then it runs.
+   Reused by the opt-in demo to mimic real, manual usage.
+   ============================================================ */
+const TERMINAL_TYPE_MS = 38;   // per-character typing speed
+let terminalTypeState = null;  // { command, onDone, timer } | null
+
+/** Stop any in-progress typing WITHOUT running its command. */
+function cancelTerminalTyping() {
+  if (terminalTypeState && terminalTypeState.timer) {
+    clearTimeout(terminalTypeState.timer);
+  }
+  terminalTypeState = null;
+}
+
+/** Immediately finish an in-progress typing run: show the full command and
+ *  fire its onDone, so a rapid second click can never drop a command. */
+function flushTerminalTyping() {
+  const s = terminalTypeState;
+  if (!s) return;
+  if (s.timer) clearTimeout(s.timer);
+  terminalTypeState = null;
+  if (terminalInput) terminalInput.value = s.command;
+  if (typeof s.onDone === "function") s.onDone();
+}
+
+/** Animate-type `command` into the terminal entry, then call `onDone`.
+ *  Any in-progress typing is flushed first so commands never overlap. */
+function typeCommandIntoTerminal(command, onDone) {
+  if (!terminalInput) { if (typeof onDone === "function") onDone(); return; }
+  flushTerminalTyping();
+  const text = String(command);
+  terminalInput.value = "";
+  try { terminalInput.focus(); } catch (_) {}
+  const state = { command: text, onDone, timer: null };
+  terminalTypeState = state;
+  let i = 0;
+  const step = () => {
+    if (terminalTypeState !== state) return; // superseded / cancelled
+    if (i < text.length) {
+      terminalInput.value += text.charAt(i++);
+      state.timer = setTimeout(step, TERMINAL_TYPE_MS);
+    } else {
+      terminalTypeState = null;
+      state.timer = null;
+      if (typeof onDone === "function") onDone();
+    }
+  };
+  step();
 }
 
 
@@ -7230,6 +7292,11 @@ function igTeardown() {
 
 /** End the guided investigation tour (reset / back / leave a mission). */
 function endGuidedRun() {
+  // Stop any in-progress command typing so a deferred runCommand can't fire
+  // off-screen and mutate state after the student has navigated away. This
+  // path is shared by every mission-exit (map/overview/back/reset), so one
+  // call here covers them all.
+  cancelTerminalTyping();
   // If an opt-in demo is mid-flight, tear it down on ANY navigation exit so
   // its timers can't fire off-screen and `suppressSave` is never left stuck.
   if (demoRunning) abortDemo();
@@ -7313,6 +7380,9 @@ function positionCoach(tip, el) {
     top = r.top - tr.height - margin; // flip above
   }
   if (top < margin) top = margin;
+  // Final clamp: if the target is scrolled near/below the viewport edge, keep
+  // the whole tip (and its nav buttons) on screen so it stays clickable.
+  top = Math.max(margin, Math.min(top, window.innerHeight - tr.height - margin));
   let left = r.left + (r.width / 2) - (tr.width / 2);
   left = Math.max(margin, Math.min(left, window.innerWidth - tr.width - margin));
   tip.style.top  = top + "px";
@@ -7355,52 +7425,105 @@ function clearDemoTimers() {
    the pop-out moves to `target`, then we hold for `hold` and advance. */
 const DEMO_STEPS = [
   {
-    text: "This is your command Center. You can CLICK a command button here, or TYPE a command in the terminal below. Let's run a few together.",
+    text: "👋 Welcome, analyst! This is your workstation. I'll give you a quick tour and run a few commands the SAME way you will. Use Next and Back to go at your own pace.",
+    target: null,
+  },
+  {
+    text: "These are your COMMAND BUTTONS. Each one runs a real Linux command for you — just click and it does the typing. No experience needed!",
     target: () => document.getElementById("commandButtonsContainer"),
-    hold: 4200,
   },
   {
-    text: "Start by listing the files in the current folder — running 'ls' shows what's here.",
-    action: () => runCommand("ls"),
+    text: "Watch closely: I'll CLICK the 'ls' button. See how the command first appears in the terminal entry below, then runs. 'ls' lists the files in the current folder.",
+    action: () => demoClickCommand("ls"),
     target: () => document.getElementById("terminalInput"),
-    hold: 3900,
   },
   {
-    text: "Now open the documents folder with 'cd documents', then list it again to see the files inside.",
-    action: () => { runCommand("cd documents"); runCommand("ls"); },
+    text: "This is the TERMINAL — the computer's text screen. Every command you send and its result show up here. You can scroll it any time to re-read.",
+    target: () => document.getElementById("terminalOutput"),
+  },
+  {
+    text: "You don't have to use buttons — you can TYPE commands yourself too. Watch me type 'pwd' (print working directory) to show exactly where we are right now.",
+    action: () => demoTypeCommand("pwd"),
     target: () => document.getElementById("terminalInput"),
-    hold: 4300,
   },
   {
-    text: "Read a file to look for clues. This one is routine business activity — nothing alarming.",
-    action: () => runCommand("cat finance_update.txt"),
+    text: "Now I'll click 'cd documents' to OPEN the documents folder. 'cd' means change directory — it's how you move between folders.",
+    action: () => demoClickCommand("cd documents"),
     target: () => document.getElementById("terminalInput"),
-    hold: 4100,
   },
   {
-    text: "This file looks suspicious. Reading it flags it as a finding you can investigate further.",
-    action: () => runCommand("cat suspicious_file.txt"),
-    target: () => document.getElementById("terminalInput"),
-    hold: 4300,
+    text: "Let's see what's inside by listing the files again with 'ls'.",
+    action: () => demoClickCommand("ls"),
+    target: () => document.getElementById("terminalOutput"),
   },
   {
-    text: "Important findings get PINNED to your Investigation Board and CLASSIFIED by how suspicious they are. Watch — we pin this one as Critical Threat Evidence.",
+    text: "To read a file, use 'cat'. This one — finance_update.txt — is normal business activity. Nothing alarming here.",
+    action: () => demoClickCommand("cat finance_update.txt"),
+    target: () => document.getElementById("terminalOutput"),
+  },
+  {
+    text: "⚠️ This file looks SUSPICIOUS. Reading it flags it as a finding you can investigate further. Reading files carefully is how you catch the bad guys!",
+    action: () => demoClickCommand("cat suspicious_file.txt"),
+    target: () => document.getElementById("terminalOutput"),
+  },
+  {
+    text: "See this CURRENT OBJECTIVE card? It always tells you your next step — check here any time you're not sure what to do.",
+    target: () => document.getElementById("currentObjective"),
+  },
+  {
+    text: "Over here is your LIVE STATUS: Threat Level, Trust Score and Evidence Confidence. These update automatically as you investigate.",
+    target: () => document.getElementById("threatMeter"),
+  },
+  {
+    text: "Important clues get PINNED to your INVESTIGATION BOARD and rated by how suspicious they are. Watch — we pin this one as Critical Threat Evidence.",
     action: () => { try { handlePinClassification("mission-001", "suspicious_file.txt", "critical"); } catch (_) {} },
     target: () => document.getElementById("investigationBoard"),
-    hold: 4800,
   },
   {
-    text: "With the threat confirmed, you choose a decision action — your choice affects your trust score and completes the mission.",
+    text: "Ever feel stuck? Click 'Request Hint' for a nudge in the right direction. There's no penalty for asking.",
+    target: () => document.getElementById("m1HintBtn"),
+  },
+  {
+    text: "Finally, you pick a DECISION ACTION to close the case. Your choice affects your Trust Score, so think it through.",
     target: () => document.getElementById("decisionActions") || document.getElementById("investigationBoard"),
-    hold: 4600,
   },
   {
-    text: "That's the whole workflow! Close this demo and click ▶ Launch Investigation to try it yourself.",
+    text: "🎉 That's the whole workflow! Close this demo and click ▶ Launch Investigation to solve it yourself. You've got this!",
     target: null,
-    hold: 5200,
     last: true,
   },
 ];
+
+/** Look up the COMMAND_BUTTONS key for a raw command string, so demo
+ *  commands fire the SAME unlock/progression logic a real click would. */
+function m1KeyForCommand(command) {
+  const def = COMMAND_BUTTONS.find((b) => b.command === command);
+  return def ? def.key : "";
+}
+
+/** Demo: simulate a real button CLICK — flash the button as "pressed", let
+ *  it type the command into the entry, then run it (with its key so unlocks
+ *  fire exactly as in real play). Falls back to a keyed run + typing if the
+ *  button isn't rendered yet (keeps the progression chain intact). */
+function demoClickCommand(command) {
+  const btn = btnContainer
+    ? btnContainer.querySelector(`[data-command="${command}"]`)
+    : null;
+  if (btn) {
+    btn.classList.add("demo-press");
+    demoWait(() => btn.classList.remove("demo-press"), 520);
+    btn.click(); // routed through typeCommandIntoTerminal → runCommand(key)
+  } else {
+    typeCommandIntoTerminal(command, () => runCommand(command, m1KeyForCommand(command)));
+  }
+}
+
+/** Demo: simulate MANUAL typing — type into the entry with NO button, then
+ *  run as a typed command (empty key, like a real keyboard entry). Use only
+ *  for read-only commands that don't gate progression (e.g. pwd). */
+function demoTypeCommand(command) {
+  typeCommandIntoTerminal(command, () => runCommand(command, ""));
+}
 
 /** Begin the opt-in demo from the Mission Ready screen (M1 only). */
 function startDemo() {
@@ -7422,6 +7545,10 @@ function startDemo() {
 
   // Launch a clean Mission 1 dashboard so every real panel is on screen.
   beginMission();
+
+  // Declutter the floating controls (focus bar + music toggle) that otherwise
+  // overlap the demo coach's nav buttons in the bottom-right corner.
+  document.body.classList.add("demo-active");
 
   // Auto-acknowledge the "Incoming Alert" modal, then show the FIRST step.
   // The demo is now MANUAL — the student drives it with Next / Back / Cancel.
@@ -7561,8 +7688,10 @@ function abortDemo() {
   if (!demoRunning) return;
   demoRunning = false;
   demoMaxRun = -1;
+  cancelTerminalTyping(); // drop any pending demo command typing
   clearDemoTimers();
   teardownDemoCoach();
+  document.body.classList.remove("demo-active");
 
   // Wipe every demo side effect (terminal, pins, XP, evidence, alert, etc.).
   try { resetMission(); } catch (_) { /* non-fatal */ }
