@@ -1,0 +1,308 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Mission 1 and Mission 2 work.
+* Guided investigative pacing exists.
+* Files are revealed one at a time.
+* Evidence classification exists.
+* Analyst Confidence exists.
+* Mission Map exists.
+* Threat level, trust score, XP, manager reactions, and investigation board work.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 28A — Emotional Gameplay Decision Layer
+
+Purpose:
+Transform Mission 1 from a simple evidence-classification activity into an emotionally engaging cybersecurity response scenario where student decisions influence how the incident evolves.
+
+Important:
+Do NOT redesign the full app.
+Do NOT add backend.
+Do NOT add AI.
+Do NOT add multiplayer.
+Do NOT add complex networking.
+Do NOT overwhelm students with too many choices.
+
+Core Design Goal:
+Students should feel:
+“My decisions changed the investigation.”
+
+NOT:
+“I clicked through a lesson.”
+
+---
+
+1. ADD BLUE TEAM DECISION MOMENTS
+
+---
+
+At important investigation moments, pause the normal flow briefly and require a Blue Team operational decision.
+
+Only ONE decision panel should appear at a time.
+
+The decision panel should temporarily become the main focus of the screen.
+
+Background UI should dim slightly.
+
+---
+
+2. FIRST DECISION MOMENT
+
+---
+
+Trigger:
+After student correctly identifies suspicious_file.txt as Critical Threat Evidence.
+
+Show panel:
+
+BLUE TEAM RESPONSE REQUIRED
+
+Text:
+“A workstation appears to be involved in a credential harvesting attempt. What should Blue Team do next?”
+
+Options:
+A. Escalate immediately to lead analyst
+B. Continue gathering evidence silently
+C. Isolate the workstation
+D. Ignore for now
+
+---
+
+3. DECISION CONSEQUENCES
+
+---
+
+Each decision should create believable operational consequences.
+
+A. Escalate immediately
+Result:
+
+* Manager Trust increases
+* Threat Level stabilizes
+* Blue Team response logged
+
+Manager:
+“Good judgment. Early escalation helps contain credential attacks.”
+
+B. Continue gathering evidence silently
+Result:
+
+* Analyst Confidence increases slightly
+* Small risk escalation occurs later
+
+Later event:
+[RED TEAM ACTIVITY]
+Additional suspicious outbound activity detected.
+
+Manager:
+“More evidence helps, but delayed containment can increase operational risk.”
+
+C. Isolate workstation
+Result:
+
+* Threat Level decreases
+* Containment Progress increases
+* Some evidence collection opportunities reduce slightly
+
+Manager:
+“Workstation isolated. Threat spread reduced.”
+
+D. Ignore for now
+Result:
+
+* Threat Level increases
+* Incident Pressure rises
+* Additional adversary event triggered
+
+Manager:
+“We cannot ignore possible credential theft activity.”
+
+Do NOT harshly punish the player.
+This is about tension and learning.
+
+---
+
+4. ADD CONTAINMENT PROGRESS
+
+---
+
+Add compact meter:
+
+Containment Progress
+
+Range:
+0–100%
+
+Correct operational decisions increase progress.
+
+Threat escalation events may slow or reduce progress slightly.
+
+Mission success should feel like:
+“Threat contained.”
+
+---
+
+5. ADD DECISION DELAY TENSION
+
+---
+
+After a student selects an option:
+
+Show:
+“Submitting Blue Team recommendation...”
+
+Wait:
+700–1400 ms
+
+Then:
+
+* manager response appears
+* threat/containment updates occur
+* optional adversary activity appears
+
+Purpose:
+Create anticipation and emotional tension.
+
+---
+
+6. ADD OPERATIONAL CONSEQUENCE EVENTS
+
+---
+
+Examples:
+
+Correct containment:
+[BLUE TEAM ACTION]
+Workstation isolation successful.
+
+Delayed response:
+[RED TEAM ACTIVITY]
+Additional phishing attempt detected.
+
+Strong escalation:
+[INCIDENT UPDATE]
+Lead analyst reviewing containment request.
+
+These should use the existing toast/event system.
+
+---
+
+7. ADD MINI INCIDENT TIMELINE
+
+---
+
+Add a compact Investigation Timeline section.
+
+Example:
+09:12 Incident detected
+09:14 Analyst assigned
+09:16 Suspicious file identified
+09:18 Containment action initiated
+
+Keep compact.
+Only latest major events visible.
+
+---
+
+8. ADD MANAGER TRUST FEEDBACK
+
+---
+
+Do not only update numbers silently.
+
+Add emotional framing.
+
+Examples:
+“Manager confidence increasing.”
+“Lead analyst requesting stronger evidence.”
+“Blue Team coordination improving.”
+
+This should appear as:
+
+* toast
+* manager message
+* subtle status update
+
+---
+
+9. KEEP UI SIMPLE
+
+---
+
+Do NOT:
+
+* show multiple decisions simultaneously
+* add giant panels
+* add timers everywhere
+* add large dashboards
+* create complicated strategy systems
+
+Only ONE important decision should demand attention at a time.
+
+---
+
+10. MISSION OUTCOME VARIATIONS
+
+---
+
+Mission 1 should now end with slightly different summaries depending on operational decisions.
+
+Possible outcomes:
+
+Excellent Containment
+“Threat contained before additional spread.”
+
+Delayed Containment
+“Threat contained after additional suspicious activity was detected.”
+
+Weak Investigation
+“Incident escalated with incomplete evidence.”
+
+Do NOT fail the mission completely.
+
+---
+
+11. PRESERVE EXISTING SYSTEMS
+
+---
+
+Do not break:
+
+* terminal commands
+* guided file reveal
+* reasoning prompts
+* investigation board
+* evidence classification
+* hints
+* threat level
+* trust score
+* XP
+* mission completion
+* scorecards
+* mission map
+* local progress save
+* Mission 2
+
+---
+
+## GOAL
+
+Mission 1 should now feel like:
+
+investigate
+→ interpret
+→ decide
+→ consequence
+→ containment
+→ mission outcome
+
+instead of:
+
+open file
+→ classify
+→ continue
+
+The experience should become emotionally engaging without becoming visually cluttered or mechanically overwhelming.

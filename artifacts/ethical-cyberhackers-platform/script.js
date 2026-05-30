@@ -234,6 +234,15 @@ const m1ReasoningCorrect     = new Set();  // file names whose reasoning prompt 
 let   m1ReasoningBonusAwarded = false;     // one-time +25 XP (both supporting files correct)
 let   m1AnalysisTimer        = null;       // pending "Submitting analysis..." delay (cancel-safe)
 
+// Milestone 28A — Emotional Gameplay Decision Layer (Mission 1 only) state.
+let   m1DecisionTimer        = null;       // pending "Submitting Blue Team recommendation..." (cancel-safe)
+let   m1RedTeamTimer         = null;       // delayed [RED TEAM ACTIVITY] from "continue silently" (cancel-safe)
+let   m1DecisionPending      = false;      // true while a Blue Team submit is in flight
+const INCIDENT_TIMELINE_BASE_MIN = 9 * 60 + 12; // 09:12 synthetic incident clock start
+const INCIDENT_TIMELINE_MAX  = 6;          // keep the timeline compact (latest events)
+const incidentTimeline       = { "mission-001": [] }; // [{ t:"09:12", label:"..." }]
+const incidentTimelineSeq    = { "mission-001": 0 };  // monotonic clock index
+
 const M1_PROGRESSIVE_HINTS = [
   "Not every file is suspicious. Review files carefully.",
   "Company policy may help you judge whether a file is dangerous.",
@@ -490,6 +499,135 @@ function clearM1AnalysisTimer() {
     clearTimeout(m1AnalysisTimer);
     m1AnalysisTimer = null;
   }
+}
+
+/* ============================================================
+   Milestone 28A — Emotional Gameplay Decision Layer (Mission 1)
+   Cancel-safe timers for the Blue Team decision submit-delay and the
+   delayed "continue silently" red-team event, plus the compact Incident
+   Timeline and the mission outcome variation. All Mission 1 only — Mission
+   2 is untouched. No backend / AI.
+   ============================================================ */
+
+/** Cancel the pending "Submitting Blue Team recommendation..." delay. */
+function clearM1DecisionTimer() {
+  if (m1DecisionTimer !== null) {
+    clearTimeout(m1DecisionTimer);
+    m1DecisionTimer = null;
+  }
+}
+
+/** Cancel the delayed [RED TEAM ACTIVITY] event from "continue silently". */
+function clearM1RedTeamTimer() {
+  if (m1RedTeamTimer !== null) {
+    clearTimeout(m1RedTeamTimer);
+    m1RedTeamTimer = null;
+  }
+}
+
+/** Tear down every Milestone 28A timer + the in-flight submit flag. Called on
+ *  every mission-exit (via endGuidedRun) so a stale callback can never fire
+ *  off-screen after a reset / navigation / demo. */
+function clearM1DecisionTimers() {
+  clearM1DecisionTimer();
+  clearM1RedTeamTimer();
+  m1DecisionPending = false;
+}
+
+/** Schedule the delayed adversary reaction to "Continue gathering evidence
+ *  silently" — a believable consequence of delayed containment. Cancel-safe
+ *  and strongly gated so it never fires off-screen / during the demo. */
+function scheduleM1DelayedRedTeam() {
+  clearM1RedTeamTimer();
+  m1RedTeamTimer = window.setTimeout(() => {
+    m1RedTeamTimer = null;
+    const m1Visible = dashboardEl && dashboardEl.style.display !== "none";
+    if (
+      m1Visible &&
+      document.body.classList.contains("mission-running") &&
+      missionStarted &&
+      !missionComplete &&
+      !demoRunning
+    ) {
+      triggerEscalationEvent("mission-001", {
+        event: { label: "RED TEAM ACTIVITY", text: "Additional suspicious outbound activity detected." },
+      });
+    }
+  }, 3500);
+}
+
+/** Synthetic incident clock — 09:12, +2 min per event (HH:MM, 24h). */
+function incidentTimelineClock(ix) {
+  const total = INCIDENT_TIMELINE_BASE_MIN + (ix * 2);
+  const h = Math.floor(total / 60) % 24;
+  const m = total % 60;
+  return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+}
+
+/** Append an event to the Mission 1 Incident Timeline (de-duped, trimmed,
+ *  rendered, persisted). No-op for any other mission. */
+function addTimelineEvent(missionId, label) {
+  if (missionId !== "mission-001") return;
+  if (!Array.isArray(incidentTimeline["mission-001"])) incidentTimeline["mission-001"] = [];
+  const list = incidentTimeline["mission-001"];
+  if (list.length && list[list.length - 1].label === label) return; // de-dupe repeat
+  list.push({ t: incidentTimelineClock(incidentTimelineSeq["mission-001"]++), label });
+  if (list.length > INCIDENT_TIMELINE_MAX) list.shift();
+  renderIncidentTimeline("mission-001");
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+}
+
+/** Paint the compact Incident Timeline (latest events). Hidden when empty. */
+function renderIncidentTimeline(missionId) {
+  if (missionId !== "mission-001") return;
+  const host = document.getElementById("incidentTimeline");
+  if (!host) return;
+  const body = host.querySelector(".incident-timeline-list");
+  if (!body) return;
+  const list = Array.isArray(incidentTimeline["mission-001"]) ? incidentTimeline["mission-001"] : [];
+  if (!list.length) {
+    host.style.display = "none";
+    body.innerHTML = "";
+    return;
+  }
+  host.style.display = "";
+  body.innerHTML = list
+    .map((e) => `
+      <li class="incident-timeline-row">
+        <span class="incident-timeline-time">${escapeHtml(e.t)}</span>
+        <span class="incident-timeline-label">${escapeHtml(e.label)}</span>
+      </li>`)
+    .join("");
+}
+
+/** Determine the Mission 1 outcome variation from how the incident unfolded.
+ *  Based on the adversary's peak movement + the decisiveness of the response.
+ *  NEVER a hard fail — always returns a completed-mission outcome. */
+function m1OutcomeVariation() {
+  const peak = (typeof escalationPeak === "object" && escalationPeak)
+    ? (escalationPeak["mission-001"] || 0) : 0;
+  const taken = decisionTaken["mission-001"];
+  const kind = (taken && DECISION_ACTIONS[taken]) ? DECISION_ACTIONS[taken].kind : null;
+  if (kind === "correct" && peak === 0) {
+    return { key: "excellent", title: "Excellent Containment",
+             text: "Threat contained before additional spread." };
+  }
+  if (peak > 0) {
+    return { key: "delayed", title: "Delayed Containment",
+             text: "Threat contained after additional suspicious activity was detected." };
+  }
+  return { key: "weak", title: "Weak Investigation",
+           text: "Incident escalated with incomplete evidence." };
+}
+
+/** Completion-screen markup for the Mission 1 outcome variation. */
+function buildM1OutcomeVariationHTML() {
+  const o = m1OutcomeVariation();
+  return `
+      <div class="mission-outcome mission-outcome--${o.key}" role="status">
+        <span class="mission-outcome-title">${escapeHtml(o.title)}</span>
+        <span class="mission-outcome-text">${escapeHtml(o.text)}</span>
+      </div>`;
 }
 
 /** True once suspicious_file.txt is correctly classified Critical (the primary threat). */
@@ -951,6 +1089,8 @@ function handlePinClassification(missionId, key, level) {
       // Stage 2 — Blue Team: critical evidence logged → containment up.
       updateContainmentProgress("mission-001", 25, { stepId: "classify-critical", caption: "Critical evidence logged." });
       showBlueTeamUpdate("mission-001", "Evidence logged.");
+      // Milestone 28A — mark the find on the Incident Timeline.
+      addTimelineEvent("mission-001", "Suspicious file identified");
       // Stage 4 — critical evidence unlocks the strong containment responses.
       renderContainmentActions("mission-001");
       setTimeout(() => {
@@ -2125,36 +2265,46 @@ function renderTrustScore() {
 
 /** Action catalog. `advance: true` means correct/acceptable → unlock next step. */
 const DECISION_ACTIONS = {
-  /* ---------- Mission 1 ---------- */
+  /* ---------- Mission 1 (Milestone 28A — Blue Team response options) ---------- */
   "m1-escalate": {
     missionId: "mission-001",
-    label:     "Escalate to Manager",
+    label:     "Escalate immediately to lead analyst",
     kind:      "correct",
     trustDelta: +10,
     threatLevel: "Medium",
-    managerMsg: "Good decision. You escalated the suspicious password request with evidence.",
-    consequence: "Manager briefed; investigation continues with leadership aware of the phishing attempt.",
+    managerMsg: "Good judgment. Early escalation helps contain credential attacks.",
+    consequence: "Lead analyst briefed early; containment was coordinated before the threat could spread.",
+    advance: true,
+  },
+  "m1-continue": {
+    missionId: "mission-001",
+    label:     "Continue gathering evidence silently",
+    kind:      "acceptable",
+    trustDelta: +2,
+    threatLevel: "High",
+    managerMsg: "More evidence helps, but delayed containment can increase operational risk.",
+    consequence: "Investigation continued quietly; additional suspicious activity surfaced before containment.",
+    advance: true,
+  },
+  "m1-isolate": {
+    missionId: "mission-001",
+    label:     "Isolate the workstation",
+    kind:      "correct",
+    trustDelta: +6,
+    threatLevel: "Low",
+    managerMsg: "Workstation isolated. Threat spread reduced.",
+    consequence: "Workstation isolated from the network; threat spread reduced, though some evidence sources went offline.",
     advance: true,
   },
   "m1-ignore": {
     missionId: "mission-001",
-    label:     "Ignore Alert",
+    label:     "Ignore for now",
     kind:      "poor",
     trustDelta: -10,
     threatLevel: "Critical",
-    managerMsg: "Ignoring a suspicious password request can allow account compromise. Review the evidence.",
-    consequence: "Manager flagged the dismissal as risky. Try a safer action before continuing.",
+    managerMsg: "We cannot ignore possible credential theft activity.",
+    consequence: "Manager flagged the dismissal as risky. Choose a safer action before continuing.",
     advance: false,
-  },
-  "m1-continue": {
-    missionId: "mission-001",
-    label:     "Continue Investigation",
-    kind:      "acceptable",
-    trustDelta: 0,
-    threatLevel: "High",
-    managerMsg: "Continue investigating, but prepare to report the suspicious finding.",
-    consequence: "Investigation continues; the suspicious finding will be reported soon.",
-    advance: true,
   },
 
   /* ---------- Mission 2 ---------- */
@@ -2212,6 +2362,9 @@ function showDecisionActions(missionId) {
   const host = document.getElementById(decisionHostId(missionId));
   if (!host) return;
 
+  // Milestone 28A — Mission 1 decision becomes the screen focus (dim behind).
+  if (missionId === "mission-001") document.body.classList.add("m1-blueteam-decision");
+
   // Idempotency — if the panel is already rendered and waiting on the
   // student (e.g. they made a poor choice and then re-clicked the
   // trigger command like `cat suspicious_file.txt` or `review services`),
@@ -2225,15 +2378,25 @@ function showDecisionActions(missionId) {
   const actions = Object.entries(DECISION_ACTIONS)
     .filter(([, def]) => def.missionId === missionId);
 
+  // Milestone 28A — Mission 1 uses the Blue Team operational framing; Mission 2
+  // keeps the original generic decision wording.
+  const isM1 = missionId === "mission-001";
+  const panelClass    = isM1 ? "decision-panel decision-panel--blueteam" : "decision-panel";
+  const decisionLabel = isM1 ? "BLUE TEAM RESPONSE REQUIRED" : "Decision Actions";
+  const decisionBadge = isM1 ? "Act now" : "Choose carefully";
+  const decisionQ     = isM1
+    ? "A workstation appears to be involved in a credential harvesting attempt. What should Blue Team do next?"
+    : "Evidence is in. What's your next move?";
+
   host.style.display = "";
   host.innerHTML = `
-    <div class="decision-panel" data-mission="${missionId}">
+    <div class="${panelClass}" data-mission="${missionId}">
       <div class="decision-header">
-        <span class="decision-label">Decision Actions</span>
-        <span class="decision-badge">Choose carefully</span>
+        <span class="decision-label">${escapeHtml(decisionLabel)}</span>
+        <span class="decision-badge">${escapeHtml(decisionBadge)}</span>
       </div>
       <p class="decision-question">
-        Evidence is in. What's your next move?
+        ${escapeHtml(decisionQ)}
       </p>
       <div class="decision-buttons">
         ${actions.map(([id, def]) => `
@@ -2264,6 +2427,8 @@ function showDecisionActions(missionId) {
 
 /** Hide and clear the decision panel for `missionId`. */
 function hideDecisionActions(missionId) {
+  // Milestone 28A — clear the Mission 1 "decision focus" dim.
+  if (missionId === "mission-001") document.body.classList.remove("m1-blueteam-decision");
   const host = document.getElementById(decisionHostId(missionId));
   if (!host) return;
   host.style.display = "none";
@@ -2315,6 +2480,49 @@ function handleDecisionAction(actionId) {
   const btn = host.querySelector(`.decision-btn[data-decision="${actionId}"]`);
   if (btn && btn.disabled) return;
 
+  // Milestone 28A — Mission 1 Blue Team submit-delay tension. Disable the
+  // panel, show "Submitting Blue Team recommendation..." for 700–1400ms, then
+  // resolve. Mission 2 resolves immediately (unchanged). The delay timer is
+  // cancel-safe (cleared on every mission-exit via endGuidedRun).
+  if (def.missionId === "mission-001") {
+    if (m1DecisionPending) return; // a submit is already in flight
+    m1DecisionPending = true;
+    host.querySelectorAll(".decision-btn").forEach((b) => { b.disabled = true; });
+    if (btn) btn.classList.add("decision-btn--chosen");
+    const fb = host.querySelector("[data-feedback]");
+    if (fb) {
+      fb.style.display = "";
+      fb.className   = "decision-feedback decision-feedback--pending";
+      fb.textContent = "Submitting Blue Team recommendation...";
+    }
+    const delay = 700 + Math.floor(Math.random() * 700); // 700–1400ms
+    clearM1DecisionTimer();
+    m1DecisionTimer = window.setTimeout(() => {
+      m1DecisionTimer = null;
+      m1DecisionPending = false;
+      resolveDecisionAction(actionId);
+    }, delay);
+    return;
+  }
+
+  // Mission 2 — resolve immediately (preserve existing behavior).
+  resolveDecisionAction(actionId);
+}
+
+/**
+ * Apply a decision's consequences, feedback, and flow advance. Split out
+ * from handleDecisionAction (Milestone 28A) so Mission 1 can interpose a
+ * "Submitting Blue Team recommendation..." delay before this runs.
+ */
+function resolveDecisionAction(actionId) {
+  const def = DECISION_ACTIONS[actionId];
+  if (!def) return;
+  if (decisionAdvanced[def.missionId]) return; // already resolved
+
+  const host = document.getElementById(decisionHostId(def.missionId));
+  if (!host) return;
+  const btn = host.querySelector(`.decision-btn[data-decision="${actionId}"]`);
+
   applyDecisionConsequence(actionId);
 
   // Milestone 24F — dynamic manager reaction keyed to decision quality.
@@ -2356,17 +2564,30 @@ function handleDecisionAction(actionId) {
       markAlertContained(def.missionId);
       // Stage 1 — blue-team response to a correct escalation (Mission 1).
       if (def.missionId === "mission-001") {
-        triggerBlueTeamResponse("Suspicious credential activity contained.");
-        // Stage 2 — escalation is the decisive containment step.
-        updateContainmentProgress("mission-001", 30, {
-          stepId: "escalate",
-          incident: "Escalating",
-          assignment: "Escalate to lead analyst",
-          caption: "Incident escalated to the lead analyst.",
-        });
-        showBlueTeamUpdate("mission-001", "Incident escalated to lead analyst.");
-        // Stage 3 — a correct, decisive call interrupts the adversary's spread.
-        containThreatActivity("mission-001");
+        // Milestone 28A — the consequence differs by the action chosen.
+        if (actionId === "m1-isolate") {
+          triggerBlueTeamResponse("Workstation isolated — threat spread reduced.");
+          updateContainmentProgress("mission-001", 20, {
+            stepId: "isolate",
+            incident: "Containing",
+            assignment: "Isolate the workstation",
+            caption: "Workstation isolated from the network.",
+          });
+          showBlueTeamUpdate("mission-001", "Workstation isolated. Threat spread reduced.");
+          containThreatActivity("mission-001");
+        } else {
+          triggerBlueTeamResponse("Suspicious credential activity contained.");
+          // Stage 2 — escalation is the decisive containment step.
+          updateContainmentProgress("mission-001", 30, {
+            stepId: "escalate",
+            incident: "Escalating",
+            assignment: "Escalate to lead analyst",
+            caption: "Incident escalated to the lead analyst.",
+          });
+          showBlueTeamUpdate("mission-001", "Incident escalated to lead analyst.");
+          // Stage 3 — a correct, decisive call interrupts the adversary's spread.
+          containThreatActivity("mission-001");
+        }
       } else if (def.missionId === "mission-002") {
         // Stage 2 (Mission 2) — escalation is the decisive containment step.
         updateContainmentProgress("mission-002", 30, {
@@ -2379,6 +2600,18 @@ function handleDecisionAction(actionId) {
         // Stage 3 — a correct, decisive call interrupts the adversary's spread.
         containThreatActivity("mission-002");
       }
+    }
+
+    // Milestone 28A — "Continue gathering evidence silently" (acceptable) is
+    // believable but risky: schedule a delayed [RED TEAM ACTIVITY] escalation
+    // so delayed containment carries an operational consequence (cancel-safe).
+    if (def.missionId === "mission-001" && def.kind === "acceptable") {
+      scheduleM1DelayedRedTeam();
+    }
+
+    // Milestone 28A — record the response on the Incident Timeline (M1).
+    if (def.missionId === "mission-001") {
+      addTimelineEvent("mission-001", "Containment action initiated");
     }
 
     try { saveProgress(); } catch (_) { /* non-fatal */ }
@@ -2395,6 +2628,13 @@ function handleDecisionAction(actionId) {
   } else {
     // Poor action — persist trust/threat changes; do NOT advance.
     try { saveProgress(); } catch (_) { /* non-fatal */ }
+    // Milestone 28A — the M1 submit-delay disabled ALL buttons; a poor choice
+    // does not advance, so re-enable the other options for a better call.
+    if (def.missionId === "mission-001") {
+      host.querySelectorAll(".decision-btn").forEach((b) => {
+        if (!b.classList.contains("decision-btn--chosen")) b.disabled = false;
+      });
+    }
     // Stage 1 — a poor decision lets the adversary gain ground (Mission 1).
     if (def.missionId === "mission-001") {
       triggerAdversaryEvent("Potential phishing spread risk increasing.", "high", { force: true });
@@ -2850,6 +3090,12 @@ function saveProgress() {
       incidentPressure: { ...incidentPressure },
       escalationIdleCount: { ...escalationIdleCount },
       escalationPeak: { ...escalationPeak },
+      // Milestone 28A — Incident Timeline (Mission 1) + synthetic clock seq.
+      incidentTimeline: {
+        "mission-001": Array.isArray(incidentTimeline["mission-001"])
+          ? incidentTimeline["mission-001"].slice(-INCIDENT_TIMELINE_MAX) : [],
+      },
+      incidentTimelineSeq: { "mission-001": incidentTimelineSeq["mission-001"] || 0 },
       // Stage 4 — Containment Actions: which defensive actions were performed.
       containmentActionsUsed: {
         "mission-001": Array.from(containmentActionsUsed["mission-001"]),
@@ -3013,6 +3259,22 @@ function restoreSavedProgress() {
       escalationPeak[mid] = Math.max(0, Math.min(ESCALATION_MAX, Math.round(pk)));
     }
   });
+
+  // Milestone 28A — restore the Incident Timeline (Mission 1), validated.
+  incidentTimeline["mission-001"] = [];
+  const savedTimeline = data.incidentTimeline && data.incidentTimeline["mission-001"];
+  if (Array.isArray(savedTimeline)) {
+    savedTimeline
+      .filter((e) => e && typeof e.t === "string" && typeof e.label === "string")
+      .slice(-INCIDENT_TIMELINE_MAX)
+      .forEach((e) => incidentTimeline["mission-001"].push({ t: e.t, label: e.label }));
+  }
+  const savedSeq = data.incidentTimelineSeq && data.incidentTimelineSeq["mission-001"];
+  incidentTimelineSeq["mission-001"] =
+    (typeof savedSeq === "number" && isFinite(savedSeq) && savedSeq >= 0)
+      ? Math.round(savedSeq)
+      : incidentTimeline["mission-001"].length;
+  renderIncidentTimeline("mission-001");
 
   // Stage 4 — restore containment actions used (validated against known ids).
   containmentActionsUsed["mission-001"].clear();
@@ -4572,6 +4834,8 @@ function completeMission(newRank) {
   // Stage 4 — celebrate the win + lock the containment-action panel.
   showEventToast("THREAT CONTAINED", "Mission 1 secured. The workstation is safe.", "blueteam", { duration: BLUE_TEAM_TOAST_MS });
   renderContainmentActions("mission-001");
+  // Milestone 28A — final Incident Timeline entry.
+  addTimelineEvent("mission-001", "Threat contained");
 
   // Milestone 24G — mission complete → every M1 tool is marked completed.
   markAllToolsCompleted("mission-001");
@@ -4736,6 +5000,9 @@ function buildCompletionHTML(newRank) {
         <span class="threat-contained-text">THREAT CONTAINED</span>
       </div>
 
+      <!-- Milestone 28A — mission outcome variation (Excellent / Delayed / Weak). -->
+      ${buildM1OutcomeVariationHTML()}
+
       <!-- FIX 3 — clear Next Step guidance at the top of the screen. -->
       ${buildNextStepHTML("mission-001")}
 
@@ -4779,6 +5046,10 @@ function buildCompletionHTML(newRank) {
           <li class="scorecard-row">
             <span class="scorecard-key">Trust Score</span>
             <span class="scorecard-val scorecard-val--cyan">${getTrustScore()} / 100</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">Mission Outcome</span>
+            <span class="scorecard-val scorecard-val--cyan">${escapeHtml(m1OutcomeVariation().title)}</span>
           </li>
           ${renderDecisionScorecardRows("mission-001")}
           ${renderAlertScorecardRows("mission-001")}
@@ -4968,6 +5239,11 @@ function beginMission() {
       }
     }, 2200);
   }
+  // Milestone 28A — seed the Incident Timeline on a genuinely fresh launch.
+  if (freshStart && incidentTimeline["mission-001"].length === 0) {
+    addTimelineEvent("mission-001", "Incident detected");
+    addTimelineEvent("mission-001", "Analyst assigned");
+  }
   // Milestone 24G — initialize the M1 tool set (File Inspector + Terminal
   // available, rest locked) and make the Terminal the active focus.
   initializeMissionTools("mission-001");
@@ -5093,6 +5369,11 @@ function resetMission() {
   m1ReasoningCorrect.clear();
   m1ReasoningBonusAwarded = false;
   renderAnalystConfidence();
+
+  // Milestone 28A — clear the Incident Timeline on restart.
+  incidentTimeline["mission-001"] = [];
+  incidentTimelineSeq["mission-001"] = 0;
+  renderIncidentTimeline("mission-001");
 
   // Investigation Board — clear Mission 1 pins + pin UI on restart.
   investigationPins["mission-001"] = {};
@@ -9181,6 +9462,10 @@ function endGuidedRun() {
   // Milestone 27A — cancel a pending "Submitting analysis..." delay so a stale
   // reasoning/classification callback can't mutate pins/XP/UI after the exit.
   clearM1AnalysisTimer();
+  // Milestone 28A — cancel a pending Blue Team decision submit / delayed red-team
+  // event, and clear the decision-focus dim, on every mission-exit.
+  clearM1DecisionTimers();
+  document.body.classList.remove("m1-blueteam-decision");
   // Stage 3 — stop the idle-escalation watch on every mission-exit so a pending
   // timer can never fire off-screen after the student navigates away.
   clearEscalationWatch();
