@@ -7812,3 +7812,146 @@ body.m1-blueteam-decision::before {
   .mini-node--unlock-glow,
   .mission-node--unlock-glow { animation: none; }
 }
+
+/* ============================================================
+   Milestone 29A — Cyber Operations Center Spatial Layout
+   Additive atmosphere on top of the existing 25E three-column workstation.
+   Reinforces 3 psychological regions (LEFT = Mission Operations,
+   CENTER = active investigation battlefield, RIGHT = Live Intelligence),
+   reduces the "stacked website panel" feel, adds a compact persistent
+   operations strip, and lets the environment react subtly to incident
+   context. No layout rebuild, no new gameplay panels, low cognitive load.
+   ============================================================ */
+
+/* ---- Persistent operations strip — top row of an ACTIVE dashboard ---- */
+/* Add an auto top row only while running; off-mission the strip is
+   display:none so the base .dashboard grid is untouched. */
+body.mission-running .dashboard { grid-template-rows: auto 1fr; }
+.ops-strip { display: none; }
+body.mission-running .ops-strip {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 16px;
+  padding: 7px 14px;
+  margin-bottom: var(--gap-md);
+  font-family: var(--font-mono);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg,
+    rgba(0, 229, 255, 0.07),
+    rgba(0, 0, 0, 0.10) 45%,
+    rgba(255, 90, 90, 0.05));
+  box-shadow: inset 0 0 30px rgba(0, 229, 255, 0.05);
+}
+.ops-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 0.04em; }
+.ops-chip-key {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 9.5px;
+  color: var(--color-text-dim);
+}
+.ops-chip-val { color: var(--color-text); font-weight: 600; }
+.ops-chip--team .ops-chip-val { color: var(--color-cyan); }
+/* Threat value tints */
+.ops-chip-val--threat-low      { color: #7ee0a8; }
+.ops-chip-val--threat-medium   { color: #ffce6b; }
+.ops-chip-val--threat-high     { color: #ff9b5a; }
+.ops-chip-val--threat-critical { color: #ff6a6a; }
+/* Containment value tints */
+.ops-chip-val--contain-none    { color: var(--color-text-dim); }
+.ops-chip-val--contain-partial { color: #ffce6b; }
+.ops-chip-val--contain-full    { color: #6ad0ff; }
+/* Ambient rotating "world is alive" line — pushed to the far right. */
+.ops-chip--ambient { margin-left: auto; }
+.ops-chip--ambient .ops-chip-val {
+  color: var(--color-text-dim);
+  font-weight: 500;
+  font-style: italic;
+  transition: opacity 0.4s ease;
+}
+.ops-chip--ambient.ops-ambient-swap .ops-chip-val { opacity: 0; }
+.ops-chip-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--color-cyan);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.8);
+  animation: opsAmbientBlink 2.4s ease-in-out infinite;
+}
+@keyframes opsAmbientBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+/* ---- Spatial hierarchy: subtle region washes during an active mission ---- */
+/* CENTER = the live battlefield: brighter contrast + a subtle operational glow. */
+body.mission-running .center-column .terminal-panel,
+body.mission-running .center-column .commands-panel {
+  border-color: rgba(0, 229, 255, 0.26);
+  box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.05), 0 0 38px rgba(0, 229, 255, 0.06);
+}
+body.mission-running .center-column .terminal-panel { background: rgba(4, 14, 18, 0.6); }
+/* LEFT = Mission Operations: a faint cool ops wash. */
+body.mission-running .mission-panel {
+  background: linear-gradient(180deg, rgba(0, 120, 160, 0.05), rgba(0, 0, 0, 0)), var(--color-bg-panel);
+}
+/* RIGHT = Live Intelligence: a faint warm intel wash. */
+body.mission-running .xp-panel {
+  background: linear-gradient(180deg, rgba(255, 90, 90, 0.045), rgba(0, 0, 0, 0)), var(--color-bg-panel);
+}
+
+/* ---- Reduce the "stacked website panel" feel during active play ---- */
+body.mission-running .mission-panel .collapsible,
+body.mission-running .xp-panel .live-status > * {
+  border-color: rgba(120, 160, 180, 0.14);
+  background: rgba(255, 255, 255, 0.012);
+}
+body.mission-running .xp-panel .live-status > * { box-shadow: none; }
+
+/* ---- Environmental density reactions (transient, lightweight) ---- */
+@keyframes opsIntelPulse {
+  0%, 100% { box-shadow: inset 0 0 0 rgba(255, 90, 90, 0); }
+  45%      { box-shadow: inset 0 0 40px rgba(255, 90, 90, 0.16); }
+}
+.xp-panel.region--intel-pulse { animation: opsIntelPulse 1.3s ease; }
+@keyframes opsOpsGlow {
+  0%, 100% { box-shadow: inset 0 0 0 rgba(0, 255, 170, 0); }
+  45%      { box-shadow: inset 0 0 44px rgba(0, 255, 170, 0.16); }
+}
+.mission-panel.region--ops-glow { animation: opsOpsGlow 1.6s ease; }
+
+/* ---- Mission 3 sector: locked, but ALIVE (reconnaissance monitoring) ---- */
+.mission-node--monitoring .mission-node-status,
+.mini-node--monitoring .mini-node-name { color: #ffce6b; }
+.mission-node--monitoring .mission-node-ring {
+  border-color: rgba(255, 206, 107, 0.5);
+  animation: opsReconScan 3.2s ease-in-out infinite;
+}
+.mini-node--monitoring .mini-node-dot {
+  border-color: rgba(255, 206, 107, 0.55);
+  animation: opsReconScan 3.2s ease-in-out infinite;
+}
+@keyframes opsReconScan {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 206, 107, 0); }
+  50%      { box-shadow: 0 0 0 5px rgba(255, 206, 107, 0.10); }
+}
+
+/* ---- Responsive: keep the ops strip compact + preserve 25E stacked rows ----
+   The desktop "auto 1fr" row rule above is later in the file than the 25E
+   responsive blocks, so it would otherwise clobber their stacked "auto" rows.
+   Re-assert "auto" here so the tablet/mobile layouts behave exactly as before
+   (the strip still spans grid-column 1/-1 as its own auto row). */
+@media (max-width: 1100px) {
+  body.mission-running .dashboard { grid-template-rows: auto; }
+}
+@media (max-width: 700px) {
+  body.mission-running .dashboard { grid-template-rows: auto; }
+  body.mission-running .ops-strip { font-size: 10px; padding: 6px 10px; gap: 4px 10px; }
+  .ops-chip--ambient { margin-left: 0; flex-basis: 100%; }
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .ops-chip-dot,
+  .xp-panel.region--intel-pulse,
+  .mission-panel.region--ops-glow,
+  .mission-node--monitoring .mission-node-ring,
+  .mini-node--monitoring .mini-node-dot { animation: none; }
+}

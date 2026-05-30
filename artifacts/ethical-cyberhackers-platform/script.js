@@ -2258,6 +2258,7 @@ function setThreatLevel(level, missionId) {
     showEventToast("Threat Rising", `Threat level raised to ${level}.`, "danger");
   }
   try { saveProgress(); } catch (_) { /* save errors are non-fatal */ }
+  try { updateOpsStrip(mid); } catch (_) { /* 29A — non-fatal */ }
   return level;
 }
 
@@ -5051,6 +5052,8 @@ function completeMission(newRank) {
   PROGRESS_STEPS.forEach((s) => completedProgressSteps.add(s.id));
   renderProgressTracker();
   renderAllMiniMaps(); // Milestone 25D — M1 node flips to completed.
+  glowOpsRegion("mission-001"); // Milestone 29A — Mission Operations win glow.
+  try { updateOpsStrip("mission-001"); } catch (_) { /* 29A — non-fatal */ }
 
   // Update rank in the XP sidebar
   if (rankNameEl) {
@@ -5940,7 +5943,8 @@ function missionMapStatus(missionId) {
 }
 
 function mapStatusLabel(missionId, status) {
-  if (MISSION_MAP[missionId] && MISSION_MAP[missionId].comingSoon) return "Coming Soon";
+  // Milestone 29A — the M3 recon sector stays LOCKED but reads as "alive".
+  if (MISSION_MAP[missionId] && MISSION_MAP[missionId].comingSoon) return "Monitoring";
   if (status === "completed") return "Completed";
   if (status === "available") return "Available";
   return "Locked";
@@ -5959,6 +5963,8 @@ function renderMissionMapStates() {
       "mission-node--locked"
     );
     node.classList.add(`mission-node--${status}`);
+    // Milestone 29A — coming-soon recon sector stays alive (monitoring pulse).
+    node.classList.toggle("mission-node--monitoring", !!def.comingSoon);
     // Locked nodes stay CLICKABLE so the student can still read their locked
     // details panel; only the Launch button is disabled (in renderMissionDetails).
     const badge = document.getElementById(def.statusId);
@@ -5993,6 +5999,8 @@ function renderMiniMap(rootId, activeMissionId) {
     );
     node.classList.add(`mini-node--${status}`);
     if (mid === activeMissionId) node.classList.add("mini-node--active");
+    // Milestone 29A — keep the recon (coming-soon) sector subtly alive.
+    node.classList.toggle("mini-node--monitoring", !!(MISSION_MAP[mid] && MISSION_MAP[mid].comingSoon));
   });
   const p12 = root.querySelector('.mini-path[data-path="12"]');
   if (p12) p12.classList.toggle("mini-path--lit", missionMapStatus("mission-002") !== "locked");
@@ -6035,7 +6043,7 @@ function renderMissionDetails(missionId) {
 
   let btnHtml;
   if (def.comingSoon) {
-    btnHtml = `<button class="mission-launch-btn" id="missionLaunchBtn" type="button" disabled>Coming Soon</button>`;
+    btnHtml = `<button class="mission-launch-btn" id="missionLaunchBtn" type="button" disabled>Monitoring · Locked</button>`;
   } else if (locked) {
     btnHtml = `<button class="mission-launch-btn" id="missionLaunchBtn" type="button" disabled>🔒 Locked</button>`;
   } else {
@@ -8146,6 +8154,7 @@ function boot() {
   const m2OpenFullMap = document.getElementById("m2OpenFullMapBtn");
   if (m2OpenFullMap) m2OpenFullMap.addEventListener("click", showMissionsMap);
   renderAllMiniMaps(); // Milestone 25D — initial compact route map render.
+  initOpsStrips();     // Milestone 29A — inject the persistent operations strip.
 
   // Milestone 17 — Student Name input gating.
   // The button starts disabled (set in index.html) and becomes enabled
@@ -8389,6 +8398,9 @@ function setMissionRunning(on) {
   document.body.classList.toggle("mission-running", !!on);
   if (!on) exitFocusMode();
   updateFocusBar();
+  // Milestone 29A — operations-center atmosphere lifecycle.
+  if (on) { updateAllOpsStrips(); startAmbientOps(); }
+  else { stopAmbientOps(); clearOpsAtmosphere(); }
 }
 
 function enterFocusMode() {
@@ -8619,6 +8631,7 @@ function triggerAdversaryEvent(eventText, severity, opts) {
     duration: ADVERSARY_TOAST_MS, // dwell longer — let the student absorb it
   });
   pulseActiveMissionNode();
+  pulseIntelRegion("mission-001"); // Milestone 29A — Live Intelligence region reacts.
   // Stage 2 — Blue Team identity: surface the "Red Team Activity Detected" flag.
   setRedTeamActive("mission-001", true);
   // Milestone 28C — brief cinematic emphasis around major Red Team movement.
@@ -8708,6 +8721,7 @@ function renderContainment(missionId) {
   if (pct)  pct.textContent  = val + "%";
   const panel = btDom(missionId, "panel");
   if (panel) panel.classList.toggle("blue-team-panel--contained", val >= 100);
+  try { updateOpsStrip(missionId); } catch (_) { /* 29A — non-fatal */ }
 }
 
 function setContainmentCaption(missionId, text) {
@@ -8722,6 +8736,7 @@ function setIncidentStatus(missionId, text) {
   const k = text.toLowerCase();
   el.classList.toggle("bt-incident--threat", k.includes("threat") || k.includes("escalat"));
   el.classList.toggle("bt-incident--contained", k.includes("contain"));
+  try { updateOpsStrip(missionId); } catch (_) { /* 29A — non-fatal */ }
 }
 
 function setBlueTeamAssignment(missionId, text) {
@@ -8736,6 +8751,7 @@ function setRedTeamActive(missionId, active) {
   const flag = btDom(missionId, "flag");
   if (flag) flag.hidden = !blueTeamRedActive[missionId];
   if (blueTeamRedActive[missionId]) setIncidentStatus(missionId, "Active Threat");
+  try { updateOpsStrip(missionId); } catch (_) { /* 29A — non-fatal */ }
 }
 
 /** Reusable — adjust a mission's containment. Returns the new value. */
@@ -8993,6 +9009,7 @@ function triggerEscalationEvent(missionId, opts) {
   setRedTeamActive(missionId, true);
   showEventToast(ev.label, ev.text, "adversary", { duration: ADVERSARY_TOAST_MS });
   if (typeof pulseActiveMissionNode === "function") pulseActiveMissionNode();
+  pulseIntelRegion(missionId); // Milestone 29A — Live Intelligence region reacts.
 
   // Urgency messaging in the Blue Team panel.
   setIncidentStatus(missionId, "Escalating");
@@ -10366,6 +10383,172 @@ function endDemo() {
     document.body.appendChild(overlay);
   }
   renderGuidedReady();
+}
+
+/* ============================================================
+   Milestone 29A — Cyber Operations Center Spatial Layout
+   Additive atmosphere on top of the existing 25E three-column
+   workstation: a persistent operations strip, ambient operational
+   updates, and subtle environmental reactions. No new gameplay
+   systems and no progress changes — everything READS from existing
+   state (threat / containment / incident). All helpers no-op safely
+   before the strip exists (boot) and during the teaching demo.
+   ============================================================ */
+const OPS_DASHBOARDS = [
+  { dashId: "dashboard", missionId: "mission-001" },
+  { dashId: "mission2Dashboard", missionId: "mission-002" },
+];
+
+/** Build the compact operations strip for a dashboard. */
+function buildOpsStrip(missionId) {
+  const strip = document.createElement("div");
+  strip.className = "ops-strip";
+  strip.dataset.mission = missionId;
+  strip.setAttribute("aria-hidden", "true");
+  strip.innerHTML =
+    '<span class="ops-chip ops-chip--team">' +
+      '<span class="ops-chip-key">Blue Team</span>' +
+      '<span class="ops-chip-val" data-ops="team">Active</span></span>' +
+    '<span class="ops-chip">' +
+      '<span class="ops-chip-key">Incident</span>' +
+      '<span class="ops-chip-val" data-ops="incident">Investigating</span></span>' +
+    '<span class="ops-chip">' +
+      '<span class="ops-chip-key">Threat</span>' +
+      '<span class="ops-chip-val" data-ops="threat">Medium</span></span>' +
+    '<span class="ops-chip">' +
+      '<span class="ops-chip-key">Containment</span>' +
+      '<span class="ops-chip-val" data-ops="containment">None</span></span>' +
+    '<span class="ops-chip ops-chip--ambient">' +
+      '<span class="ops-chip-dot" aria-hidden="true"></span>' +
+      '<span class="ops-chip-val" data-ops="ambient">Security monitoring online.</span></span>';
+  return strip;
+}
+
+/** Inject one ops strip at the top of each dashboard grid (idempotent). */
+function initOpsStrips() {
+  OPS_DASHBOARDS.forEach(({ dashId, missionId }) => {
+    const dash = document.getElementById(dashId);
+    if (!dash || dash.querySelector(".ops-strip")) return;
+    dash.insertBefore(buildOpsStrip(missionId), dash.firstChild);
+  });
+  updateAllOpsStrips();
+}
+
+/** Containment percentage → compact label + tint suffix. */
+function opsContainmentLabel(val) {
+  if (val >= 100) return { text: "Contained", cls: "full" };
+  if (val > 0) return { text: "Partial " + val + "%", cls: "partial" };
+  return { text: "None", cls: "none" };
+}
+
+/** Refresh ONE dashboard's ops strip from current mission state. No-op
+ *  until the strip exists; safe to call during restore. */
+function updateOpsStrip(missionId) {
+  const mid = btMissionId(missionId);
+  const dash = document.getElementById(mid === "mission-002" ? "mission2Dashboard" : "dashboard");
+  const strip = dash && dash.querySelector(".ops-strip");
+  if (!strip) return;
+
+  const threat = (getThreatLevel(mid) || "Medium");
+  const tEl = strip.querySelector('[data-ops="threat"]');
+  if (tEl) {
+    tEl.textContent = threat;
+    tEl.className = "ops-chip-val ops-chip-val--threat-" + threat.toLowerCase();
+  }
+
+  const cVal = (blueTeamContainment && blueTeamContainment[mid]) || 0;
+  const c = opsContainmentLabel(cVal);
+  const cEl = strip.querySelector('[data-ops="containment"]');
+  if (cEl) {
+    cEl.textContent = c.text;
+    cEl.className = "ops-chip-val ops-chip-val--contain-" + c.cls;
+  }
+
+  const incSrc = btDom(mid, "incident");
+  const incEl = strip.querySelector('[data-ops="incident"]');
+  if (incEl) {
+    incEl.textContent = (incSrc && incSrc.textContent && incSrc.textContent.trim()) || "Investigating";
+  }
+}
+
+function updateAllOpsStrips() {
+  updateOpsStrip("mission-001");
+  updateOpsStrip("mission-002");
+}
+
+/* ---- Ambient operational updates (one rotating compact line) -------- */
+const AMBIENT_OPS_INTERVAL_MS = 22000;
+const AMBIENT_OPS_LINES = [
+  "Security monitoring online.",
+  "Email gateway filtering suspicious traffic.",
+  "Endpoint sensors reporting normal baseline.",
+  "Network telemetry streaming to the SOC.",
+  "Firewall rules synced across segments.",
+  "Threat-intel feed updated.",
+  "Log pipeline healthy.",
+  "Identity provider sessions nominal.",
+];
+let ambientOpsTimer = null;
+let ambientOpsIndex = 0;
+
+function setAmbientLine(text) {
+  document.querySelectorAll(".ops-chip--ambient").forEach((chip) => {
+    const val = chip.querySelector('[data-ops="ambient"]');
+    if (!val) return;
+    chip.classList.add("ops-ambient-swap");
+    window.setTimeout(() => {
+      val.textContent = text;
+      chip.classList.remove("ops-ambient-swap");
+    }, 380);
+  });
+}
+
+function scheduleAmbientOps() {
+  ambientOpsTimer = window.setTimeout(() => {
+    ambientOpsIndex = (ambientOpsIndex + 1) % AMBIENT_OPS_LINES.length;
+    setAmbientLine(AMBIENT_OPS_LINES[ambientOpsIndex]);
+    scheduleAmbientOps();
+  }, AMBIENT_OPS_INTERVAL_MS);
+}
+
+function startAmbientOps() {
+  if (ambientOpsTimer || demoRunning) return;
+  scheduleAmbientOps();
+}
+
+function stopAmbientOps() {
+  if (ambientOpsTimer) { clearTimeout(ambientOpsTimer); ambientOpsTimer = null; }
+}
+
+/* ---- Environmental density reactions (transient region cues) -------- */
+function opsRegionEl(missionId, selector) {
+  const dash = document.getElementById(missionId === "mission-002" ? "mission2Dashboard" : "dashboard");
+  return dash ? dash.querySelector(selector) : null;
+}
+
+function flashRegion(el, cls, ms) {
+  if (!el) return;
+  el.classList.remove(cls);
+  void el.offsetWidth; // restart the animation
+  el.classList.add(cls);
+  window.setTimeout(() => el.classList.remove(cls), ms);
+}
+
+/** Right column (Live Intelligence) reacts to adversary pressure. */
+function pulseIntelRegion(missionId) {
+  if (demoRunning) return;
+  flashRegion(opsRegionEl(btMissionId(missionId), ".xp-panel"), "region--intel-pulse", 1400);
+}
+
+/** Left column (Mission Operations) celebrates a contained incident. */
+function glowOpsRegion(missionId) {
+  flashRegion(opsRegionEl(btMissionId(missionId), ".mission-panel"), "region--ops-glow", 1700);
+}
+
+/** Strip lingering atmosphere classes (mission exit / teardown). */
+function clearOpsAtmosphere() {
+  document.querySelectorAll(".region--intel-pulse").forEach((el) => el.classList.remove("region--intel-pulse"));
+  document.querySelectorAll(".region--ops-glow").forEach((el) => el.classList.remove("region--ops-glow"));
 }
 
 document.addEventListener("DOMContentLoaded", boot);

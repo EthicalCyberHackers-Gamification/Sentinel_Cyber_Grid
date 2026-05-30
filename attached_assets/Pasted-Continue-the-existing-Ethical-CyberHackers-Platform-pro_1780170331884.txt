@@ -1,0 +1,306 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Guided investigative pacing exists.
+* Emotional Gameplay Decision Layer exists.
+* Reactive Incident Evolution exists.
+* Cinematic Incident Interruptions exist.
+* Mission 1 now feels dynamic and reactive.
+* Existing systems and architecture must remain intact.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 29A — Cyber Operations Center Spatial Layout
+
+Purpose:
+Gradually transform the interface from a “web dashboard” feeling into a believable cybersecurity operations center environment WITHOUT disrupting the existing architecture or overwhelming students.
+
+Important:
+Do NOT redesign the entire application.
+Do NOT break existing systems.
+Do NOT add giant new panels.
+Do NOT create clutter.
+Do NOT move core gameplay away from the terminal investigation flow.
+
+Core Design Goal:
+The interface should psychologically feel like:
+a live cybersecurity operations center.
+
+NOT:
+a learning website with stacked boxes.
+
+---
+
+1. ESTABLISH SPATIAL HIERARCHY
+
+---
+
+Restructure the layout into 3 psychological regions:
+
+LEFT SIDE
+Mission Operations
+
+CENTER
+Active Investigation Space
+
+RIGHT SIDE
+Live Incident Intelligence
+
+Do NOT fully rebuild architecture.
+Repurpose and reorganize existing sections gradually.
+
+---
+
+2. CENTER = ACTIVE INVESTIGATION SPACE
+
+---
+
+The CENTER area must become the visual focus of the entire interface.
+
+This region should contain:
+
+* terminal
+* active file investigation
+* operational decisions
+* reasoning prompts
+* cinematic interruptions
+
+Visual behavior:
+
+* slightly brighter contrast
+* subtle operational glow
+* strongest visual focus
+
+Purpose:
+This becomes the “live incident battlefield.”
+
+---
+
+3. LEFT SIDE = MISSION OPERATIONS
+
+---
+
+Move or organize these systems into the left operational region:
+
+* Mission Route / Mission Nodes
+* Blue Team Status
+* Manager Transmission
+* Containment Progress
+* Current Assignment
+
+This side should feel like:
+operations coordination.
+
+Reduce excessive spacing and stacked-card appearance.
+
+Make sections feel more integrated.
+
+---
+
+4. RIGHT SIDE = LIVE INCIDENT INTELLIGENCE
+
+---
+
+Move or organize these systems into the right intelligence region:
+
+* Threat Level
+* Analyst Confidence
+* Investigation Timeline
+* Evidence Board
+* Red Team Activity
+* Trust Score
+
+This side should feel like:
+live cyber incident monitoring.
+
+Use compact information density.
+
+Avoid giant card stacks.
+
+---
+
+5. REDUCE “WEBSITE PANEL” FEEL
+
+---
+
+Current issue:
+Too many boxed panels create a traditional dashboard appearance.
+
+Reduce:
+
+* heavy borders
+* excessive outlines
+* thick card separation
+* isolated rectangles
+
+Increase:
+
+* layered transparency
+* subtle connected backgrounds
+* integrated operational surfaces
+* shared spatial grouping
+
+Goal:
+The interface should feel continuous and operational.
+
+---
+
+6. ADD PERSISTENT OPERATIONS STRIP
+
+---
+
+Add a compact persistent top operations strip.
+
+Example content:
+BLUE TEAM ACTIVE
+INCIDENT STATUS: INVESTIGATING
+THREAT LEVEL: MEDIUM
+CONTAINMENT: PARTIAL
+
+Behavior:
+
+* subtle
+* always visible
+* compact
+* operational tone
+
+Do NOT make it flashy.
+
+---
+
+7. ENVIRONMENTAL DENSITY REACTIONS
+
+---
+
+The environment should subtly react depending on context.
+
+Examples:
+
+Investigation active:
+Center region brightens slightly.
+
+Threat escalation:
+Right intelligence region pulses subtly.
+
+Mission complete:
+Mission Operations region glows softly.
+
+Containment success:
+Containment indicator stabilizes visually.
+
+Keep all effects:
+lightweight,
+professional,
+and cinematic.
+
+---
+
+8. MAKE THE WORLD FEEL ACTIVE
+
+---
+
+Add small environmental operational updates.
+
+Examples:
+“Security monitoring elevated.”
+“Lead analyst reviewing escalation.”
+“Finance department notified.”
+“Email gateway filtering suspicious traffic.”
+
+These should appear:
+occasionally,
+subtly,
+and compactly.
+
+Do NOT create giant feeds.
+
+Purpose:
+The organization should feel alive.
+
+---
+
+9. IMPROVE MISSION NODE IMMERSION
+
+---
+
+Mission nodes should feel like active operational sectors.
+
+Locked missions should still appear alive.
+
+Example:
+Mission 3:
+Reconnaissance Activity Detected
+Status: Monitoring
+
+Do NOT unlock Mission 3 yet.
+
+Purpose:
+Create anticipation and operational continuity.
+
+---
+
+10. MAINTAIN LOW COGNITIVE LOAD
+
+---
+
+Do NOT:
+
+* increase visible complexity
+* add more commands
+* add giant dashboards
+* show many simultaneous alerts
+* overload students with data
+
+The interface should feel:
+clean,
+focused,
+and immersive.
+
+---
+
+11. PRESERVE EXISTING SYSTEMS
+
+---
+
+Do not break:
+
+* terminal commands
+* guided file reveal
+* reasoning prompts
+* evidence classification
+* decision system
+* reactive incident evolution
+* cinematic interruptions
+* manager reactions
+* hints
+* XP
+* trust score
+* threat level
+* containment progress
+* mission completion
+* scorecards
+* mission map
+* local progress save
+* Mission 2
+
+---
+
+## GOAL
+
+The interface should now feel like:
+
+a lightweight cinematic cybersecurity operations center
+
+where:
+
+* the center is the active investigation battlefield
+* the left side coordinates Blue Team operations
+* the right side monitors live incident intelligence
+* the environment feels operational and alive
+
+WITHOUT:
+breaking the current architecture,
+creating clutter,
+or overwhelming students.

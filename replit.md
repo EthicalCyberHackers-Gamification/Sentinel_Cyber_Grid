@@ -779,6 +779,43 @@ The 28C JS module sits after `fxPulseXP` (`script.js` ~9368); the CSS is appende
 - Verified: typecheck clean, clean boot with no console errors, architect review (it caught the
   `showMission2Overview` teardown gap above — fixed).
 
+### Cyber Operations Center Spatial Layout (Milestone 29A)
+ADDITIVE atmosphere/polish on the existing 25E 3-column active-mission layout (LEFT
+`.mission-panel` = Mission Operations, CENTER `.center-column` = Active Investigation, RIGHT
+`.xp-panel`/`.live-status` = Live Intelligence). NO panel-moving DOM surgery, no new
+gameplay/progress state — everything READS from existing state. 29A JS module is appended at
+the END of `script.js` (~10374+); 29A CSS block is appended at the END of `style.css` (~7819+).
+- **Persistent operations strip** (`.ops-strip`): `buildOpsStrip`/`initOpsStrips` inject one
+  strip as the FIRST child of `#dashboard` and `#mission2Dashboard` at boot (idempotent), shown
+  only during `body.mission-running` (`grid-column:1/-1`). Four live chips (`data-ops`:
+  team/incident/threat/containment) + a rotating ambient line. `updateOpsStrip(missionId)` reads
+  `getThreatLevel`, `blueTeamContainment[mid]`, and `btDom(mid,"incident").textContent`; it is
+  no-op-safe before the strip exists (restore) and is called from `setThreatLevel`,
+  `setIncidentStatus`, `renderContainment`, `setRedTeamActive`, and `completeMission`.
+  `updateAllOpsStrips()` fires on `setMissionRunning(true)`.
+  - GRID-ROWS PITFALL: the strip needs `body.mission-running .dashboard{grid-template-rows:auto 1fr}`,
+    but that 29A rule is LATER in `style.css` than the 25E responsive blocks, so it would clobber
+    their stacked `grid-template-rows:auto`. Fixed by re-asserting `auto` in 29A `@media`
+    (≤1100px and ≤700px) overrides (architect-caught).
+- **Spatial hierarchy (CSS, `body.mission-running` scoped)**: CENTER brighter + subtle cyan glow;
+  faint cool wash on LEFT, faint warm wash on RIGHT; reduced panel borders/shadows. No eyebrow
+  labels (kept subtle to avoid clutter — T002 satisfied via washes + center focus).
+- **Environmental reactions** (transient, self-clearing): `pulseIntelRegion` (RIGHT `.xp-panel`,
+  class `region--intel-pulse`) hooked into `triggerEscalationEvent` + `triggerAdversaryEvent`;
+  `glowOpsRegion` (LEFT `.mission-panel`, class `region--ops-glow`) in `completeMission`.
+  `flashRegion` force-reflows then removes the class after the animation; `clearOpsAtmosphere`
+  strips lingering classes on `setMissionRunning(false)`. `pulseIntelRegion` is `demoRunning`-guarded.
+- **Ambient ops updates**: one rotating line (`AMBIENT_OPS_LINES`, 22s interval) — NOT a feed.
+  `startAmbientOps`/`stopAmbientOps` are cancel-safe and driven by `setMissionRunning` (start on
+  true, stop on false), so every mission-exit path tears the timer down. Guarded by `demoRunning`.
+- **Mission 3 immersion (still LOCKED)**: `mapStatusLabel` returns "Monitoring" for `comingSoon`;
+  `renderMissionMapStates` + `renderMiniMap` toggle `.mission-node--monitoring` /
+  `.mini-node--monitoring` (amber recon pulse); details launch button reads "Monitoring · Locked"
+  and stays disabled.
+- Verified: `node --check` clean; e2e Playwright reached the active M1 dashboard (ops strip
+  visible, 3-col layout intact, M3 "Monitoring", no console errors); architect review PASSED
+  (only the grid-rows responsive override, now fixed).
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
