@@ -1,2 +1,1 @@
-- [ECH adversary/atmosphere layers](ech-derived-ui-layers.md) — derive new live-status UI from already-persisted state instead of adding save/restore; guard runtime behavior on demoRunning.
-- [ECH investigation pin shape](ech-pin-shape.md) — pins store `level`/`critical`, NOT `suspicion`; count criticals via `pin.critical === true` or 0 silently.
+- [Operations Center home re-render](ech-landing-render.md) — every path that reveals `#moduleLanding` (boot/restore/clear AND back-nav) must call `renderOperationsCenter()` or it shows stale progress.

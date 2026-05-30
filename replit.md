@@ -892,6 +892,46 @@ no removal of M2 content. M1 untouched.
 - Verified: `node --check` clean; workflow restarts clean; full M2 e2e (map → launch → commands
   → reasoning → pins → decision → analyst review → quiz → scorecard) succeeded.
 
+### Cyber Operations Career Entry Experience (Milestone 32A)
+Reframes the entry screen (`#moduleLanding`) from a course dashboard into a "CyberCorp
+Operations Center" home where the player reports for duty on Blue Team. PRESENTATION-ONLY —
+no flow/logic/state changes, no backend/AI/auth, no Mission 3 (its assignment is a
+non-launchable placeholder). Existing systems untouched: M1/M2, mission map, terminal,
+save/restore/clear, name gating.
+- **Markup** (`index.html`, inside `.module-landing-card`): header (title "CyberCorp
+  Operations Center" / subtitle "Blue Team Network Defense Division"), a 4-chip
+  `.ops-status-strip` (Blue Team: Active / Security Posture: Elevated / Threat Monitoring:
+  Online / Current Role: Cybersecurity Intern), a 2-col `.ops-grid` (LEFT = Career Track
+  + Active Assignments; RIGHT = Sarah Reyes manager + Live Threat Status), and an
+  `.ops-signin` row. PRESERVED IDs `#studentNameInput`, `#enterModuleBtn` (relabeled
+  "Start Blue Team Shift"), `#saveIndicatorLanding`, `#clearProgressBtnLanding` keep
+  `syncEnterBtn` gating + save/clear wiring intact.
+- **`renderOperationsCenter()`** (`script.js`, before `enterModule`, ~5922) + helper
+  `setOpsAssignment()`: pure presentation, reads existing state ONLY (`missionComplete`,
+  `mission2Complete`, `currentXP`/`MAX_XP`, `trustScore`), every DOM lookup guarded.
+  Computes promotion% = `(missionsDone/2)*70 + (currentXP/MAX_XP)*30` clamped 0–100 (note
+  `INITIAL_XP=750` baseline → a fresh recruit reads ~23%). Maps Active Assignments to
+  missions: A1=mission-001 (Available→Completed), A2=mission-002 (Locked until M1 done →
+  Available→Completed), A3=Monitoring placeholder; sets row state classes
+  `ops-assign--available|completed|locked|monitoring`. Adapts Sarah Reyes' message, the
+  containment line (`Stable` once any mission done, else `In Progress`), and XP/Trust chips.
+- **Refresh triggers**: called at end of `boot()`, `restoreSavedProgress()`,
+  `clearSavedProgress()`, AND on every in-session return to the landing
+  (`backToModuleOverview()`, `hideMission2Overview()`) so the home never shows stale
+  career/assignment/XP state (architect fix).
+- **Launch sequence**: `SIM_BOOT_LINES` (~3954) replaced with 5 operational lines
+  ("Initializing Blue Team workspace..." → "Operations Center ready."). Flow itself
+  (`enterModule` → `runSimulationLoader` → `showMissionsMap`) is UNCHANGED.
+- **Map relabel** (`index.html` ~279/281): full map title "Cyber Missions Map" → "Cyber
+  Operations Map", eyebrow value "Mission Control" → "Operations Command". Nodes/launch
+  behavior unchanged (the in-mission mini-map "Mission Control" labels are left as-is).
+- **CSS** appended at END of `style.css` (`.ops-*`), reusing dark/cyber tokens; `#moduleLanding
+  .module-landing-card` widened to 1040px (takeover-preview reuse unaffected); responsive
+  stack ≤900px.
+- Verified: `node --check` clean; workflow restarts clean; e2e (fresh sign-in gating →
+  Start Shift → launch sequence → Operations Map → launch M1) + in-session return refresh
+  regression both passed; browser console clean.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

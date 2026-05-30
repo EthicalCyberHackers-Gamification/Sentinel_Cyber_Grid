@@ -1,0 +1,339 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Mission 1 and Mission 2 work.
+* Mission Engine exists.
+* Mission Map exists.
+* Cyber Operations Center layout exists.
+* Blue Team / Red Team dynamics exist.
+* Emotional gameplay, reactive incidents, cinematic emphasis, and persistent adversary presence exist.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 32A — Cyber Operations Career Entry Experience
+
+Purpose:
+Change the entry point from feeling like a course dashboard into feeling like the player is reporting for duty inside a cybersecurity operations center.
+
+Important:
+Do NOT redesign the full app.
+Do NOT break Mission 1 or Mission 2.
+Do NOT remove the terminal investigation flow.
+Do NOT add backend, AI, login, authentication, multiplayer, or real hacking.
+Do NOT overload the home screen.
+
+Core Design Goal:
+The player should feel:
+
+“I am joining Blue Team operations.”
+
+NOT:
+
+“I am selecting a cybersecurity lesson.”
+
+---
+
+1. RENAME ENTRY EXPERIENCE
+
+---
+
+Replace generic course/module framing with operational language.
+
+Use:
+
+CyberCorp Operations Center
+Blue Team Network Defense Division
+
+Avoid:
+
+* Course Dashboard
+* Lesson Selection
+* Module Page
+
+Use:
+
+* Operations Center
+* Career Track
+* Active Assignments
+* Analyst Status
+* Threat Status
+
+---
+
+2. ADD OPERATIONS CENTER HOME SCREEN
+
+---
+
+Create or update the first screen the player sees.
+
+It should include:
+
+Title:
+CyberCorp Operations Center
+
+Subtitle:
+Blue Team Network Defense Division
+
+Status strip:
+
+* Blue Team: Active
+* Security Posture: Elevated
+* Threat Monitoring: Online
+* Current Role: Cybersecurity Intern
+
+Keep this clean and visually strong.
+
+---
+
+3. ADD CAREER TRACK PANEL
+
+---
+
+Add a panel:
+
+Career Track
+
+Current Role:
+Cybersecurity Intern
+
+Next Promotion:
+Junior SOC Analyst
+
+Promotion Progress:
+based on completed missions / XP / trust score if available
+
+Example:
+67% toward Junior SOC Analyst
+
+Locked future roles:
+
+* Junior SOC Analyst
+* SOC Analyst
+* Incident Responder
+* Cyber Defense Specialist
+
+Do not activate future roles yet.
+
+---
+
+4. ADD ACTIVE ASSIGNMENTS PANEL
+
+---
+
+Replace plain mission selection with:
+
+Active Assignments
+
+Assignment 1:
+Credential Phishing Investigation
+
+Status:
+Available / Completed
+
+Assignment 2:
+Network Exposure Review
+
+Status:
+Locked / Available / Completed
+
+Assignment 3:
+Reconnaissance Detection
+
+Status:
+Locked / Monitoring
+
+Each assignment should map to existing missions:
+
+* Assignment 1 = Mission 1
+* Assignment 2 = Mission 2
+* Assignment 3 = Mission 3 placeholder only
+
+Do not build Mission 3 yet.
+
+---
+
+5. ADD LIVE THREAT STATUS PANEL
+
+---
+
+Add compact operational status:
+
+Live Threat Status
+
+Examples:
+
+* Credential phishing activity detected
+* External probing activity monitored
+* Reconnaissance activity under observation
+* Containment status: Stable / In Progress
+* Red Team Activity: Monitored
+
+This should feel like a live cyber defense environment.
+
+Keep it compact.
+Do not create a giant feed.
+
+---
+
+6. ADD MANAGER ASSIGNMENT PANEL
+
+---
+
+Add a manager transmission panel on the home screen.
+
+Manager:
+Sarah Reyes
+Lead Analyst
+
+Message:
+“Welcome to Blue Team Operations. Your first assignments are designed to build your investigation, evidence handling, and incident response judgment.”
+
+If Mission 1 is incomplete:
+“Start with Credential Phishing Investigation.”
+
+If Mission 1 is complete and Mission 2 is available:
+“Your next assignment is Network Exposure Review.”
+
+If Mission 2 is complete:
+“Reconnaissance Detection is being monitored for future assignment.”
+
+---
+
+7. ADD START SHIFT BUTTON
+
+---
+
+Instead of “Start Course” or “Enter Module,” use:
+
+Start Blue Team Shift
+
+When clicked:
+
+* show short operational launch sequence
+* then open the existing Mission Map / assignment selection flow
+
+Launch sequence text:
+Initializing Blue Team workspace...
+Synchronizing threat intelligence...
+Loading active assignments...
+Connecting to Mission Control...
+Operations Center ready.
+
+Do not change existing mission logic.
+
+---
+
+8. PRESERVE MISSION MAP
+
+---
+
+The existing Mission Map should now feel like:
+
+Cyber Operations Career Map
+
+Update label if appropriate:
+Mission Map → Operations Map
+or
+Cyber Operations Map
+
+Mission nodes should represent assignments, not lessons.
+
+Do not remove the map.
+Do not break launch behavior.
+
+---
+
+9. UPDATE LANGUAGE THROUGHOUT ENTRY FLOW
+
+---
+
+Gradually replace:
+
+Mission → Assignment where appropriate on entry screens
+Course → Career Track
+Lesson → Briefing
+Quiz → Analyst Review where appropriate
+Module → Operations Track where appropriate
+
+Do not force terminology changes inside deeply working mission logic if risky.
+
+Prioritize entry screen and map language first.
+
+---
+
+10. RETURNING PLAYER STATE
+
+---
+
+If local progress exists, home screen should reflect it.
+
+Examples:
+
+* Mission 1 completed → Assignment 1 completed
+* Mission 2 unlocked → Assignment 2 available
+* XP/trust visible in analyst status
+* current role remains Cybersecurity Intern for now
+
+No backend.
+Use existing localStorage.
+
+---
+
+11. KEEP HOME SCREEN SIMPLE
+
+---
+
+Do NOT show:
+
+* every mission detail
+* long learning objectives
+* long briefings
+* giant dashboards
+* every system at once
+
+Show only:
+
+* operational identity
+* current role
+* active assignments
+* threat status
+* manager direction
+* start shift action
+
+---
+
+12. PRESERVE EXISTING SYSTEMS
+
+---
+
+Do not break:
+
+* Mission 1
+* Mission 2
+* Mission Map
+* terminal commands
+* guided pacing
+* evidence classification
+* decision system
+* cinematic interruptions
+* persistent adversary presence
+* scorecards
+* XP
+* trust score
+* threat level
+* containment progress
+* local progress save
+
+---
+
+## GOAL
+
+The opening experience should now feel like:
+
+a cybersecurity career simulation entry point
+
+where the player reports for duty as a Cybersecurity Intern inside Blue Team operations.
+
+The player should feel they are entering an active cybersecurity operations center, not selecting a course lesson.

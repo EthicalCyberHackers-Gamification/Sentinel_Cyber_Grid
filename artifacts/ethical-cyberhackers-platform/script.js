@@ -3680,6 +3680,8 @@ function restoreSavedProgress() {
   renderInvestigationBoard("mission-002");
 
   updateSaveIndicator(true);
+  // Milestone 32A — reflect restored progress onto the Operations Center home.
+  renderOperationsCenter();
 }
 
 /**
@@ -3726,6 +3728,9 @@ function clearSavedProgress() {
   if (overview && overview.style.display !== "none") {
     hideMission2Overview();
   }
+
+  // Milestone 32A — reset the Operations Center home to its fresh-recruit state.
+  renderOperationsCenter();
 }
 
 
@@ -3946,16 +3951,14 @@ const simLoaderStatusEl  = document.getElementById("simLoaderStatus");
  * row in the fake terminal, with the progress bar advancing in step.
  * Total runtime is roughly LINE_DELAY_MS * SIM_BOOT_LINES.length.
  */
+// Milestone 32A — operational "report for duty" launch sequence (replaces the
+// old course/simulation boot lines). Plays when the player starts their shift.
 const SIM_BOOT_LINES = [
-  "Initializing CyberCorp training environment...",
-  "Loading student profile...",
-  "Starting simulated workstation...",
-  "Mounting /home/student directory...",
-  "Loading mission files...",
-  "Checking terminal command system...",
-  "Activating phishing detection scenario...",
-  "Connecting analyst dashboard...",
-  "Simulation ready.",
+  "Initializing Blue Team workspace...",
+  "Synchronizing threat intelligence...",
+  "Loading active assignments...",
+  "Connecting to Mission Control...",
+  "Operations Center ready.",
 ];
 const SIM_LINE_DELAY_MS = 450;     // delay between lines (≈4 s total)
 const SIM_FINAL_PAUSE_MS = 500;    // brief pause after the last line
@@ -5894,6 +5897,85 @@ if (clrButton) clrButton.addEventListener("click", () => {
    remains in place after entering the module.
    ============================================================ */
 
+/* ============================================================
+   Milestone 32A — Cyber Operations Career Entry Experience.
+   renderOperationsCenter() reflects the player's locally-saved
+   progress onto the Operations Center home screen: career-track
+   promotion progress, Active Assignment statuses (mapped to the
+   existing missions), Sarah Reyes' manager direction, the live
+   threat/containment line, and the analyst XP / trust chips.
+   Pure presentation — reads existing state only (missionComplete,
+   mission2Complete, currentXP, trustScore). Every element is
+   guarded so it no-ops if the home markup isn't present.
+   ============================================================ */
+function setOpsAssignment(rowId, statusId, label, state) {
+  const row = document.getElementById(rowId);
+  const badge = document.getElementById(statusId);
+  if (badge) badge.textContent = label;
+  if (row) {
+    row.classList.remove(
+      "ops-assign--available", "ops-assign--completed",
+      "ops-assign--locked", "ops-assign--monitoring"
+    );
+    row.classList.add(`ops-assign--${state}`);
+  }
+}
+
+function renderOperationsCenter() {
+  const home = document.getElementById("moduleLanding");
+  if (!home) return;
+
+  const m1Done = !!missionComplete;
+  const m2Done = !!mission2Complete;
+  const missionsDone = (m1Done ? 1 : 0) + (m2Done ? 1 : 0);
+
+  // Promotion progress toward Junior SOC Analyst: completed assignments are the
+  // primary driver, with XP contributing a smaller, smoother share. Clamped 0–100.
+  const xpFrac = MAX_XP > 0 ? Math.min(1, Math.max(0, currentXP / MAX_XP)) : 0;
+  const promo = Math.max(0, Math.min(100,
+    Math.round((missionsDone / 2) * 70 + xpFrac * 30)
+  ));
+  const promoBar = document.getElementById("opsPromoBar");
+  const promoPct = document.getElementById("opsPromoPct");
+  if (promoBar) promoBar.style.width = `${promo}%`;
+  if (promoPct) promoPct.textContent = `${promo}%`;
+
+  // Active Assignments → existing missions.
+  setOpsAssignment("opsAssign1", "opsAssign1Status",
+    m1Done ? "Completed" : "Available",
+    m1Done ? "completed" : "available");
+  setOpsAssignment("opsAssign2", "opsAssign2Status",
+    m2Done ? "Completed" : (m1Done ? "Available" : "Locked"),
+    m2Done ? "completed" : (m1Done ? "available" : "locked"));
+  // Assignment 3 (Mission 3) is a placeholder only — never launchable yet.
+  setOpsAssignment("opsAssign3", "opsAssign3Status", "Monitoring", "monitoring");
+
+  // Manager direction (Sarah Reyes) adapts to progress.
+  const mgr = document.getElementById("opsManagerMsg");
+  if (mgr) {
+    const base = "Welcome to Blue Team Operations. Your first assignments are " +
+      "designed to build your investigation, evidence handling, and incident " +
+      "response judgment.";
+    let next;
+    if (!m1Done) {
+      next = "Start with Credential Phishing Investigation.";
+    } else if (!m2Done) {
+      next = "Your next assignment is Network Exposure Review.";
+    } else {
+      next = "Reconnaissance Detection is being monitored for future assignment.";
+    }
+    mgr.textContent = `${base} ${next}`;
+  }
+
+  // Live threat / containment line + analyst chips.
+  const contain = document.getElementById("opsContainStatus");
+  if (contain) contain.textContent = missionsDone > 0 ? "Stable" : "In Progress";
+  const xpChip = document.getElementById("opsAnalystXp");
+  if (xpChip) xpChip.textContent = String(Math.max(0, Math.round(currentXP)));
+  const trustChip = document.getElementById("opsAnalystTrust");
+  if (trustChip) trustChip.textContent = String(Math.max(0, Math.round(trustScore)));
+}
+
 function enterModule() {
   // Milestone 17 — capture the student name from the landing input.
   // Safety net: ignore clicks if the name is empty (button should already
@@ -6337,6 +6419,9 @@ function backToModuleOverview() {
   if (moduleLandingEl) moduleLandingEl.style.display = "";
   // Scroll the landing back to the top so the student sees the title
   if (moduleLandingEl) moduleLandingEl.scrollTop = 0;
+  // Milestone 32A — refresh the Operations Center so returning to the home
+  // reflects in-session career/assignment/XP/trust changes (no stale state).
+  renderOperationsCenter();
 }
 
 
@@ -6603,6 +6688,8 @@ function hideMission2Overview() {
     moduleLandingEl.style.display = "";
     moduleLandingEl.scrollTop = 0;
   }
+  // Milestone 32A — keep the Operations Center home in sync on return.
+  renderOperationsCenter();
 }
 
 /* ============================================================
@@ -8669,6 +8756,10 @@ function boot() {
 
   initTerminalInput();
   if (terminalInput) terminalInput.focus();
+
+  // Milestone 32A — paint the Operations Center home after restore so a fresh
+  // OR returning recruit sees the correct career/assignment/threat state.
+  renderOperationsCenter();
 }
 
 /* ============================================================

@@ -8239,3 +8239,247 @@ body.mission-running .xp-panel .live-status > * { box-shadow: none; }
 }
 .m2-outcome-tier--green  { background: rgba(64, 220, 150, 0.2); color: #46e0a0; border: 1px solid rgba(64, 220, 150, 0.5); }
 .m2-outcome-tier--yellow { background: rgba(240, 210, 90, 0.18); color: #f0d25a; border: 1px solid rgba(240, 210, 90, 0.45); }
+
+/* =====================================================
+ * Milestone 32A — Cyber Operations Career Entry Experience
+ * The landing screen ("CyberCorp Operations Center") where the
+ * player reports for duty on Blue Team. Appended at END per
+ * project convention. Reuses the dark/cyber design tokens.
+ * ===================================================== */
+
+/* Widen ONLY the landing card to fit the 2-column ops grid (the
+   takeover-preview reuse of .module-landing-card is unaffected). */
+#moduleLanding .module-landing-card {
+  max-width: 1040px;
+  gap: 20px;
+}
+
+/* ---- Header ---- */
+.ops-header { display: flex; flex-direction: column; gap: 6px; }
+.ops-eyebrow { display: flex; align-items: center; gap: 8px; }
+.ops-eyebrow-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--color-green);
+  box-shadow: 0 0 8px var(--color-green);
+  animation: opsPulse 1.8s ease-in-out infinite;
+}
+.ops-eyebrow-label {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 2px;
+  font-weight: 700; color: var(--color-cyan);
+}
+.ops-title {
+  font-family: var(--font-hud); font-size: 30px; line-height: 1.1;
+  font-weight: 800; letter-spacing: 1px; margin: 0;
+  color: var(--color-text-bright);
+  text-shadow: 0 0 18px rgba(0,255,136,0.18);
+}
+.ops-subtitle {
+  font-family: var(--font-mono); font-size: 14px; letter-spacing: 1px;
+  color: var(--color-text-dim); margin: 0;
+}
+
+@keyframes opsPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.8); }
+}
+
+/* ---- Status strip ---- */
+.ops-status-strip {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+}
+.ops-stat {
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--color-bg-panel-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 10px 12px;
+}
+.ops-stat-label {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--color-text-muted);
+}
+.ops-stat-value {
+  font-family: var(--font-hud); font-size: 14px; font-weight: 700;
+  color: var(--color-text-bright);
+}
+.ops-stat-value--ok   { color: var(--color-green); }
+.ops-stat-value--warn { color: var(--color-yellow); }
+
+/* ---- Two-column grid ---- */
+.ops-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;
+}
+.ops-col { display: flex; flex-direction: column; gap: 16px; }
+
+/* ---- Generic panel ---- */
+.ops-panel {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.ops-panel-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(180deg, rgba(0,229,255,0.05), transparent);
+}
+.ops-panel-icon { color: var(--color-cyan); font-size: 14px; }
+.ops-panel-title {
+  font-family: var(--font-hud); font-size: 14px; font-weight: 700;
+  letter-spacing: 1px; margin: 0; color: var(--color-text-bright);
+}
+.ops-panel-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.ops-mini-label {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--color-text-muted);
+}
+
+/* ---- Career Track ---- */
+.ops-career-roles { display: flex; align-items: flex-end; gap: 12px; }
+.ops-role-cell { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.ops-role-name {
+  font-family: var(--font-hud); font-size: 15px; font-weight: 700;
+  color: var(--color-text-bright);
+}
+.ops-role-name--next { color: var(--color-green); }
+.ops-role-arrow { color: var(--color-text-dim); font-size: 18px; padding-bottom: 2px; }
+
+.ops-promo { display: flex; flex-direction: column; gap: 6px; }
+.ops-promo-track {
+  height: 8px; border-radius: 6px; overflow: hidden;
+  background: var(--color-bg-panel-alt);
+  border: 1px solid var(--color-border);
+}
+.ops-promo-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-green), var(--color-cyan));
+  box-shadow: 0 0 10px rgba(0,255,136,0.4);
+  transition: width 400ms ease;
+}
+.ops-promo-meta {
+  display: flex; align-items: baseline; gap: 8px;
+  font-family: var(--font-mono); font-size: 12px;
+}
+.ops-promo-pct { color: var(--color-green); font-weight: 700; }
+.ops-promo-text { color: var(--color-text-dim); }
+
+.ops-future { display: flex; flex-direction: column; gap: 8px; }
+.ops-future-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ops-future-role {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--color-text-muted);
+}
+.ops-future-role--next { color: var(--color-cyan); }
+.ops-future-mark { font-size: 11px; }
+
+/* ---- Active Assignments ---- */
+.ops-assign-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ops-assign {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--color-bg-panel-alt);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 10px 12px;
+}
+.ops-assign-num {
+  font-family: var(--font-hud); font-size: 16px; font-weight: 800;
+  color: var(--color-text-muted); min-width: 22px;
+}
+.ops-assign-body { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.ops-assign-name {
+  font-family: var(--font-hud); font-size: 13px; font-weight: 700;
+  color: var(--color-text-bright);
+}
+.ops-assign-desc { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-dim); }
+.ops-assign-status {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  text-transform: uppercase; font-weight: 700;
+  padding: 4px 8px; border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border); white-space: nowrap;
+}
+.ops-assign--available { border-left-color: var(--color-green); }
+.ops-assign--available .ops-assign-status { color: var(--color-green); border-color: var(--color-green); }
+.ops-assign--available .ops-assign-num { color: var(--color-green); }
+.ops-assign--completed { border-left-color: var(--color-cyan); }
+.ops-assign--completed .ops-assign-status { color: var(--color-cyan); border-color: var(--color-cyan); }
+.ops-assign--locked { opacity: 0.7; }
+.ops-assign--locked .ops-assign-status { color: var(--color-text-muted); }
+.ops-assign--monitoring .ops-assign-status { color: var(--color-yellow); border-color: var(--color-yellow-dim); }
+
+/* ---- Manager (Sarah Reyes) ---- */
+.ops-manager-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(180deg, rgba(0,255,136,0.05), transparent);
+}
+.ops-manager-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-hud); font-weight: 800; font-size: 14px;
+  color: var(--color-bg); background: var(--color-green);
+  box-shadow: 0 0 14px rgba(0,255,136,0.4);
+}
+.ops-manager-meta { display: flex; flex-direction: column; gap: 1px; flex: 1; }
+.ops-manager-name { font-family: var(--font-hud); font-size: 14px; font-weight: 700; color: var(--color-text-bright); }
+.ops-manager-role { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-dim); }
+.ops-manager-live {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px;
+  color: var(--color-green);
+}
+.ops-live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--color-green); box-shadow: 0 0 8px var(--color-green);
+  animation: opsPulse 1.6s ease-in-out infinite;
+}
+.ops-manager-msg {
+  margin: 0; padding: 16px;
+  font-family: var(--font-body); font-size: 13px; line-height: 1.6;
+  color: var(--color-text);
+}
+
+/* ---- Live Threat Status ---- */
+.ops-threat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ops-threat-row {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--color-text);
+}
+.ops-threat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ops-threat-row--watch .ops-threat-dot { background: var(--color-orange); box-shadow: 0 0 6px var(--color-orange); }
+.ops-threat-row--info  .ops-threat-dot { background: var(--color-cyan); box-shadow: 0 0 6px var(--color-cyan); }
+.ops-threat-row--ok    .ops-threat-dot { background: var(--color-green); box-shadow: 0 0 6px var(--color-green); }
+.ops-threat-row strong { color: var(--color-green); font-weight: 700; }
+.ops-analyst-mini { display: flex; gap: 10px; padding-top: 4px; }
+.ops-analyst-chip {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--color-text-dim);
+  background: var(--color-bg-panel-alt); border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm); padding: 5px 10px;
+}
+.ops-analyst-chip strong { color: var(--color-cyan); font-weight: 700; }
+
+/* ---- Report for duty (sign-in) ---- */
+.ops-signin {
+  display: flex; align-items: flex-end; gap: 14px;
+  border-top: 1px solid var(--color-border); padding-top: 18px;
+}
+.ops-signin-field { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.ops-signin-label {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--color-cyan);
+}
+.ops-signin .student-name-input { margin: 0; }
+.ops-start-btn { white-space: nowrap; align-self: stretch; }
+
+/* ---- Responsive (stack ≤900px) ---- */
+@media (max-width: 900px) {
+  #moduleLanding .module-landing-card { padding: 24px 20px; }
+  .ops-status-strip { grid-template-columns: repeat(2, 1fr); }
+  .ops-grid { grid-template-columns: 1fr; }
+  .ops-signin { flex-direction: column; align-items: stretch; }
+  .ops-start-btn { align-self: auto; }
+  .ops-title { font-size: 24px; }
+}
+@media (max-width: 480px) {
+  .ops-status-strip { grid-template-columns: 1fr; }
+}

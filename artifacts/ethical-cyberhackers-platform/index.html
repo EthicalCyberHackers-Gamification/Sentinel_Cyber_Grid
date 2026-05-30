@@ -77,89 +77,173 @@
     <section id="moduleLanding" class="module-landing" aria-label="Module Overview">
       <div class="module-landing-card">
 
-        <div class="module-eyebrow">
-          <span class="module-eyebrow-label">COURSE</span>
-          <span class="module-eyebrow-value">
-            Cybersecurity Internship Simulator <span class="module-eyebrow-sep">—</span> Level 1
-          </span>
+        <!-- ===== Milestone 32A — Cyber Operations Career Entry Experience =====
+             The landing screen is reframed from a course dashboard into a
+             "CyberCorp Operations Center" where the player reports for duty on
+             Blue Team. Preserved IDs (#studentNameInput, #enterModuleBtn,
+             #saveIndicatorLanding, .clear-progress-btn) keep the existing name
+             gating / save / clear wiring intact. Dynamic fields are filled by
+             renderOperationsCenter() in script.js. -->
+        <header class="ops-header">
+          <div class="ops-eyebrow">
+            <span class="ops-eyebrow-dot" aria-hidden="true"></span>
+            <span class="ops-eyebrow-label">CYBERCORP &nbsp;//&nbsp; SECURE ACCESS</span>
+          </div>
+          <h1 class="ops-title">CyberCorp Operations Center</h1>
+          <p class="ops-subtitle">Blue Team Network Defense Division</p>
+        </header>
+
+        <div class="ops-status-strip" role="list" aria-label="Operations status">
+          <div class="ops-stat" role="listitem">
+            <span class="ops-stat-label">Blue Team</span>
+            <span class="ops-stat-value ops-stat-value--ok">Active</span>
+          </div>
+          <div class="ops-stat" role="listitem">
+            <span class="ops-stat-label">Security Posture</span>
+            <span class="ops-stat-value ops-stat-value--warn">Elevated</span>
+          </div>
+          <div class="ops-stat" role="listitem">
+            <span class="ops-stat-label">Threat Monitoring</span>
+            <span class="ops-stat-value ops-stat-value--ok">Online</span>
+          </div>
+          <div class="ops-stat" role="listitem">
+            <span class="ops-stat-label">Current Role</span>
+            <span class="ops-stat-value">Cybersecurity Intern</span>
+          </div>
         </div>
 
-        <h1 class="module-title">
-          Module 1: Cybersecurity Intern Onboarding
-        </h1>
+        <div class="ops-grid">
+          <!-- LEFT column -->
+          <div class="ops-col">
+            <section class="ops-panel ops-career" aria-label="Career Track">
+              <div class="ops-panel-head">
+                <span class="ops-panel-icon" aria-hidden="true">▲</span>
+                <h2 class="ops-panel-title">Career Track</h2>
+              </div>
+              <div class="ops-panel-body">
+                <div class="ops-career-roles">
+                  <div class="ops-role-cell">
+                    <span class="ops-mini-label">Current Role</span>
+                    <span class="ops-role-name">Cybersecurity Intern</span>
+                  </div>
+                  <span class="ops-role-arrow" aria-hidden="true">→</span>
+                  <div class="ops-role-cell">
+                    <span class="ops-mini-label">Next Promotion</span>
+                    <span class="ops-role-name ops-role-name--next">Junior SOC Analyst</span>
+                  </div>
+                </div>
+                <div class="ops-promo">
+                  <div class="ops-promo-track">
+                    <div class="ops-promo-fill" id="opsPromoBar" style="width:0%"></div>
+                  </div>
+                  <div class="ops-promo-meta">
+                    <span class="ops-promo-pct" id="opsPromoPct">0%</span>
+                    <span class="ops-promo-text" id="opsPromoText">toward Junior SOC Analyst</span>
+                  </div>
+                </div>
+                <div class="ops-future">
+                  <span class="ops-mini-label">Career Path</span>
+                  <ul class="ops-future-list">
+                    <li class="ops-future-role ops-future-role--next"><span class="ops-future-mark" aria-hidden="true">⬡</span>Junior SOC Analyst</li>
+                    <li class="ops-future-role"><span class="ops-future-mark" aria-hidden="true">🔒</span>SOC Analyst</li>
+                    <li class="ops-future-role"><span class="ops-future-mark" aria-hidden="true">🔒</span>Incident Responder</li>
+                    <li class="ops-future-role"><span class="ops-future-mark" aria-hidden="true">🔒</span>Cyber Defense Specialist</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
 
-        <div class="module-meta-row">
-          <div class="module-meta-item">
-            <span class="module-meta-label">ESTIMATED TIME</span>
-            <span class="module-meta-value">15–20 minutes</span>
+            <section class="ops-panel ops-assignments" aria-label="Active Assignments">
+              <div class="ops-panel-head">
+                <span class="ops-panel-icon" aria-hidden="true">◎</span>
+                <h2 class="ops-panel-title">Active Assignments</h2>
+              </div>
+              <div class="ops-panel-body">
+                <ul class="ops-assign-list">
+                  <li class="ops-assign ops-assign--available" id="opsAssign1">
+                    <span class="ops-assign-num">01</span>
+                    <div class="ops-assign-body">
+                      <span class="ops-assign-name">Credential Phishing Investigation</span>
+                      <span class="ops-assign-desc">Investigate a compromised analyst workstation.</span>
+                    </div>
+                    <span class="ops-assign-status" id="opsAssign1Status">Available</span>
+                  </li>
+                  <li class="ops-assign ops-assign--locked" id="opsAssign2">
+                    <span class="ops-assign-num">02</span>
+                    <div class="ops-assign-body">
+                      <span class="ops-assign-name">Network Exposure Review</span>
+                      <span class="ops-assign-desc">Map exposed services across the network.</span>
+                    </div>
+                    <span class="ops-assign-status" id="opsAssign2Status">Locked</span>
+                  </li>
+                  <li class="ops-assign ops-assign--monitoring" id="opsAssign3">
+                    <span class="ops-assign-num">03</span>
+                    <div class="ops-assign-body">
+                      <span class="ops-assign-name">Reconnaissance Detection</span>
+                      <span class="ops-assign-desc">Detect early-stage adversary reconnaissance.</span>
+                    </div>
+                    <span class="ops-assign-status" id="opsAssign3Status">Monitoring</span>
+                  </li>
+                </ul>
+              </div>
+            </section>
           </div>
-          <div class="module-meta-item">
-            <span class="module-meta-label">DIFFICULTY</span>
-            <span class="module-meta-value difficulty--beginner">BEGINNER</span>
-          </div>
-          <div class="module-meta-item">
-            <span class="module-meta-label">MISSIONS</span>
-            <span class="module-meta-value">2</span>
+
+          <!-- RIGHT column -->
+          <div class="ops-col">
+            <section class="ops-panel ops-manager" aria-label="Manager Assignment">
+              <div class="ops-manager-head">
+                <div class="ops-manager-avatar" aria-hidden="true">SR</div>
+                <div class="ops-manager-meta">
+                  <span class="ops-manager-name">Sarah Reyes</span>
+                  <span class="ops-manager-role">Lead Analyst</span>
+                </div>
+                <span class="ops-manager-live"><span class="ops-live-dot" aria-hidden="true"></span>TRANSMISSION</span>
+              </div>
+              <p class="ops-manager-msg" id="opsManagerMsg" aria-live="polite">
+                Welcome to Blue Team Operations. Your first assignments are designed to build your investigation, evidence handling, and incident response judgment.
+              </p>
+            </section>
+
+            <section class="ops-panel ops-threat" aria-label="Live Threat Status">
+              <div class="ops-panel-head">
+                <span class="ops-panel-icon" aria-hidden="true">⚠</span>
+                <h2 class="ops-panel-title">Live Threat Status</h2>
+              </div>
+              <div class="ops-panel-body">
+                <ul class="ops-threat-list">
+                  <li class="ops-threat-row ops-threat-row--watch"><span class="ops-threat-dot" aria-hidden="true"></span>Credential phishing activity detected</li>
+                  <li class="ops-threat-row ops-threat-row--watch"><span class="ops-threat-dot" aria-hidden="true"></span>External probing activity monitored</li>
+                  <li class="ops-threat-row ops-threat-row--info"><span class="ops-threat-dot" aria-hidden="true"></span>Reconnaissance activity under observation</li>
+                  <li class="ops-threat-row ops-threat-row--ok"><span class="ops-threat-dot" aria-hidden="true"></span>Containment status: <strong id="opsContainStatus">Stable</strong></li>
+                  <li class="ops-threat-row ops-threat-row--info"><span class="ops-threat-dot" aria-hidden="true"></span>Red Team Activity: Monitored</li>
+                </ul>
+                <div class="ops-analyst-mini">
+                  <span class="ops-analyst-chip">XP <strong id="opsAnalystXp">0</strong></span>
+                  <span class="ops-analyst-chip">Trust <strong id="opsAnalystTrust">50</strong></span>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
-        <section class="module-section">
-          <h2 class="module-section-title">MODULE GOAL</h2>
-          <p class="module-section-text">
-            Learn how cybersecurity analysts safely inspect a workstation,
-            identify suspicious behavior, and report a possible phishing
-            attempt.
-          </p>
-        </section>
-
-        <section class="module-section">
-          <h2 class="module-section-title">MISSIONS IN THIS MODULE</h2>
-          <ol class="module-mission-list">
-            <li class="module-mission-item">
-              <span class="module-mission-num">01</span>
-              <div class="module-mission-body">
-                <span class="module-mission-name">New Cybersecurity Intern</span>
-                <span class="module-mission-desc">Investigate a suspicious workstation.</span>
-              </div>
-            </li>
-            <li class="module-mission-item">
-              <span class="module-mission-num">02</span>
-              <div class="module-mission-body">
-                <span class="module-mission-name">Network Basics</span>
-                <span class="module-mission-desc">Identify devices and services on a network.</span>
-              </div>
-            </li>
-          </ol>
-        </section>
-
-        <section class="module-section">
-          <h2 class="module-section-title">SKILLS YOU WILL PRACTICE</h2>
-          <ul class="module-skills">
-            <li><span class="module-skill-bullet">▹</span>Reading cybersecurity instructions</li>
-            <li><span class="module-skill-bullet">▹</span>Using basic Linux-style commands</li>
-            <li><span class="module-skill-bullet">▹</span>Inspecting files</li>
-            <li><span class="module-skill-bullet">▹</span>Identifying phishing behavior</li>
-            <li><span class="module-skill-bullet">▹</span>Reporting findings</li>
-          </ul>
-        </section>
-
-        <!-- Milestone 17: Student Name input. The Enter Module button
-             below stays disabled until this field has a non-empty value. -->
-        <section class="module-section module-name-section">
-          <label for="studentNameInput" class="module-section-title">STUDENT NAME</label>
-          <input id="studentNameInput"
-                 class="student-name-input"
-                 type="text"
-                 placeholder="Enter your name"
-                 maxlength="40"
-                 autocomplete="off"
-                 spellcheck="false"
-                 aria-label="Student Name" />
-        </section>
-
-        <button id="enterModuleBtn" class="enter-module-btn" disabled>
-          ▶&nbsp; Enter Module
-        </button>
+        <!-- Report for duty: name (preserved #studentNameInput) + Start Shift -->
+        <div class="ops-signin">
+          <div class="ops-signin-field">
+            <label for="studentNameInput" class="ops-signin-label">ANALYST NAME</label>
+            <input id="studentNameInput"
+                   class="student-name-input"
+                   type="text"
+                   placeholder="Enter your analyst name"
+                   maxlength="40"
+                   autocomplete="off"
+                   spellcheck="false"
+                   aria-label="Analyst Name" />
+          </div>
+          <button id="enterModuleBtn" class="enter-module-btn ops-start-btn" disabled>
+            ▶&nbsp; Start Blue Team Shift
+          </button>
+        </div>
 
         <!-- Milestone 18: local save status + clear button. The indicator
              text and Clear button enabled state are managed by
@@ -189,9 +273,9 @@
           <div class="missions-map-eyebrow">
             <span class="missions-map-eyebrow-label">CYBER RANGE</span>
             <span class="missions-map-eyebrow-sep">—</span>
-            <span class="missions-map-eyebrow-value">Mission Control</span>
+            <span class="missions-map-eyebrow-value">Operations Command</span>
           </div>
-          <h1 class="missions-map-title">Cyber Missions Map</h1>
+          <h1 class="missions-map-title">Cyber Operations Map</h1>
           <p class="missions-map-subtitle" id="missionsMapWelcome">
             Select an assignment to view its briefing.
           </p>
