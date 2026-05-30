@@ -886,6 +886,38 @@
             </div>
           </div>
 
+          <!-- ===== BLUE TEAM STATUS (Stage 2) =====
+               Casts the student as a Blue Team defender. Shows team identity,
+               a Containment Progress bar, the Red Team activity flag, and a
+               short Blue Team update feed. Mission 1 only; render fns no-op
+               safely if these ids are absent. -->
+          <div id="blueTeamPanel" class="blue-team-panel">
+            <div class="blue-team-head">
+              <span class="blue-team-badge">BLUE TEAM</span>
+              <span class="blue-team-live"><span class="blue-team-live-dot" aria-hidden="true"></span>DEFENDING</span>
+            </div>
+            <div class="blue-team-id">
+              <div class="bt-row"><span class="bt-key">Team</span><span class="bt-val">Blue Team</span></div>
+              <div class="bt-row"><span class="bt-key">Role</span><span class="bt-val">Cybersecurity Intern</span></div>
+              <div class="bt-row"><span class="bt-key">Assignment</span><span class="bt-val" id="blueTeamAssignment">Investigate the workstation</span></div>
+              <div class="bt-row"><span class="bt-key">Incident</span><span class="bt-val bt-incident" id="blueTeamIncident">Monitoring</span></div>
+            </div>
+            <div class="red-team-flag" id="redTeamFlag" hidden>
+              <span class="red-team-flag-dot" aria-hidden="true"></span>Red Team Activity Detected
+            </div>
+            <div class="containment">
+              <div class="containment-head">
+                <span class="containment-label">Containment Progress</span>
+                <span class="containment-pct" id="containmentPct">0%</span>
+              </div>
+              <div class="containment-bar">
+                <div class="containment-bar-fill" id="containmentFill" style="width:0%;"></div>
+              </div>
+              <p class="containment-caption" id="containmentCaption">Awaiting investigation.</p>
+            </div>
+            <div class="blue-team-feed" id="blueTeamFeed" aria-live="polite"></div>
+          </div>
+
           <!-- ===== SUPERVISOR MESSAGE (Milestone 13) =====
                Scripted manager-style guidance. script.js calls
                setManagerMessage(key) at each lifecycle moment.

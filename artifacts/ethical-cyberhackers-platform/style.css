@@ -6943,3 +6943,189 @@ body.mission-running .center-column { min-width: 0; }
 @media (prefers-reduced-motion: reduce) {
   .mini-node--adversary-pulse { animation: none; }
 }
+
+/* ============================================================
+   Stage 2 — Blue Team Identity System (Mission 1)
+   Defender identity card + Containment Progress + Red Team flag
+   + a short Blue Team update feed. Lives in the M1 mission panel
+   (left "Mission Control" column during an active investigation).
+   ============================================================ */
+.blue-team-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(20, 38, 64, 0.92), rgba(12, 24, 44, 0.92));
+  border: 1px solid rgba(64, 156, 255, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(64, 156, 255, 0.05),
+              0 6px 18px rgba(0, 0, 0, 0.28);
+}
+.blue-team-panel--flash { animation: blueTeamFlash 0.7s ease-out 1; }
+@keyframes blueTeamFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(64, 156, 255, 0.55); }
+  100% { box-shadow: 0 0 0 14px rgba(64, 156, 255, 0); }
+}
+.blue-team-panel--contained {
+  border-color: rgba(46, 204, 113, 0.5);
+}
+
+.blue-team-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.blue-team-badge {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #cfe6ff;
+  background: rgba(64, 156, 255, 0.18);
+  border: 1px solid rgba(64, 156, 255, 0.4);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.blue-team-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #7fd4a0;
+}
+.blue-team-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2ecc71;
+  box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.55);
+  animation: blueTeamLive 2s ease-out infinite;
+}
+@keyframes blueTeamLive {
+  0%   { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.5); }
+  70%  { box-shadow: 0 0 0 7px rgba(46, 204, 113, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+}
+
+.blue-team-id { display: grid; gap: 6px; margin-bottom: 12px; }
+.bt-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+.bt-key {
+  color: #8aa3c2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 700;
+}
+.bt-val { color: #e7f0fb; font-weight: 600; text-align: right; }
+.bt-incident { color: #cbd8ea; }
+.bt-incident--threat { color: #ff7a6b; }
+.bt-incident--contained { color: #4ddf8f; }
+
+.red-team-flag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 11px;
+  border-radius: 9px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #ffd9d2;
+  background: rgba(214, 48, 49, 0.16);
+  border: 1px solid rgba(255, 90, 76, 0.5);
+  animation: redTeamFlagIn 0.4s ease-out 1;
+}
+.red-team-flag[hidden] { display: none; }
+.red-team-flag-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff5a4c;
+  box-shadow: 0 0 0 0 rgba(255, 90, 76, 0.6);
+  animation: redTeamFlagDot 1.4s ease-out infinite;
+}
+@keyframes redTeamFlagIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes redTeamFlagDot {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 90, 76, 0.6); }
+  70%  { box-shadow: 0 0 0 8px rgba(255, 90, 76, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 90, 76, 0); }
+}
+
+.containment { margin-bottom: 12px; }
+.containment-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.containment-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #9fb6d4;
+}
+.containment-pct { font-size: 13px; font-weight: 800; color: #6fe0a6; }
+.containment-bar {
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(8, 18, 34, 0.85);
+  border: 1px solid rgba(64, 156, 255, 0.22);
+  overflow: hidden;
+}
+.containment-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2f80ed, #27d39a);
+  box-shadow: 0 0 10px rgba(39, 211, 154, 0.45);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.containment-caption {
+  margin: 7px 0 0;
+  font-size: 11px;
+  color: #8aa3c2;
+  line-height: 1.4;
+}
+
+.blue-team-feed { display: grid; gap: 6px; }
+.blue-team-update {
+  display: grid;
+  gap: 1px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(64, 156, 255, 0.1);
+  border-left: 3px solid #409cff;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.blue-team-update--show { opacity: 1; transform: translateX(0); }
+.blue-team-update-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #7fb8ff;
+}
+.blue-team-update-text { font-size: 12px; color: #e7f0fb; }
+
+@media (prefers-reduced-motion: reduce) {
+  .blue-team-panel--flash,
+  .blue-team-live-dot,
+  .red-team-flag,
+  .red-team-flag-dot,
+  .blue-team-update { animation: none; transition: none; }
+  .blue-team-update { opacity: 1; transform: none; }
+  .containment-bar-fill { transition: none; }
+}

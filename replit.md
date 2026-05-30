@@ -441,6 +441,49 @@ in `script.js` (~7254); CSS appended at the END of `style.css`.
   (`!missionLaunched["mission-001"]` captured at the TOP of `beginMission`) ensures it only fires
   on a genuine fresh launch, not a mid-mission resume.
 
+### Blue Team Identity System (Stage 2)
+Casts the M1 student as a Blue Team DEFENDER (builds on Stage 1 + the 26A toast system; no
+flow/system changes, M1-only ids so M2 is untouched). The module lives at the bottom of
+`script.js` (~7429+, after `triggerBlueTeamResponse`); panel markup is in `index.html` inside
+the M1 mission-panel (`#blueTeamPanel`, after the mini-map); CSS appended at the END of
+`style.css`.
+- **Longer toast dwell**: `showEventToast`/`renderEventToast` gained an optional `opts.duration`
+  (fallback `EVENT_TOAST_MS`); adversary toasts use `ADVERSARY_TOAST_MS` (9s), blue-team toasts
+  `BLUE_TEAM_TOAST_MS` (7s), so a "Red Team Activity" alert no longer vanishes in ~1–2s.
+- **Blue Team Status panel** (`#blueTeamPanel`, M1 left "Mission Control" column): a BLUE TEAM
+  badge + "DEFENDING" live dot, an identity card (Team: Blue Team / Role: Cybersecurity Intern /
+  Assignment `#blueTeamAssignment` / Incident `#blueTeamIncident`), a hidden-by-default
+  "Red Team Activity Detected" flag (`#redTeamFlag`), a Containment Progress bar
+  (`#containmentFill`/`#containmentPct`/`#containmentCaption`, 0%→100%), and a short
+  "[BLUE TEAM]" update feed (`#blueTeamFeed`, capped at `BLUE_TEAM_FEED_MAX`=4).
+- **Reusable engine**: `updateContainmentProgress(amount, opts)` clamped 0–100 (`opts`: `stepId`
+  one-time guard, `set` absolute, `caption`, `incident`, `assignment`; flashes the panel + saves);
+  `showBlueTeamUpdate(text, opts{toast})` pushes a feed bubble (+ optional blue toast) and persists.
+  Helpers: `clampPct`, `renderContainment`, `setContainmentCaption`, `setIncidentStatus`,
+  `setBlueTeamAssignment`, `setRedTeamActive` (toggles `#redTeamFlag` + sets "Active Threat"),
+  `deriveBlueTeamState` (re-derives incident/assignment from credited steps — restore-safe),
+  `renderBlueTeamPanel`, `appendBlueFeedBubble`/`renderBlueFeed`, `resetBlueTeamM1`.
+- **Containment ladder (M1, monotonic)**: open `suspicious_file.txt` first-read +15
+  (`stepId "open-suspicious"`, "Suspicious file isolated.", incident → Active Threat); correct
+  Critical pin +25 (`"classify-critical"`, "Evidence logged."); correct escalate decision +30
+  (`"escalate"`, "Incident escalated to lead analyst."); correct finding +20 (`"finding"`,
+  "Phishing attempt confirmed and documented."); ladder totals 90, then `completeMission` forces
+  `set:100` + incident Contained + `setRedTeamActive(false)`. A poor decision (Ignore) applies a
+  one-time `-10` per action (`stepId "poor-"+actionId`) and slows the caption.
+- **Adversary linkage**: `triggerAdversaryEvent` passes the long `duration` and calls
+  `setRedTeamActive(true)` ("Red Team Activity Detected"); `triggerBlueTeamResponse` routes
+  through `showBlueTeamUpdate({toast:true})`.
+- **State + persistence**: `m1Containment` (0), `m1ContainmentSteps` (Set of credited step ids),
+  `redTeamActive`, and `m1BlueFeed` (bounded feed history) are written in `saveProgress` and
+  restored in `restoreSavedProgress` — containment clamped, steps validated via
+  `isValidContainmentStep` (known fixed ids OR a `poor-` prefix, hardening against tampered
+  localStorage), feed filtered to strings + capped, and forced to 100 when `missionComplete`.
+  `renderBlueTeamPanel` re-renders the bar/flag/incident/assignment AND replays the feed history
+  (`renderBlueFeed`) so a mid-mission reload resumes containment %, the red flag, AND the feed.
+  `resetMission` calls `resetBlueTeamM1` (zeroes state + clears the feed). Verified e2e: full M1
+  run 0→100 with red flag + feed, and a mid-mission reload restoring 40%/flag/feed (overlay
+  correctly skipped). M1-only — M2 has no Blue Team hooks.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

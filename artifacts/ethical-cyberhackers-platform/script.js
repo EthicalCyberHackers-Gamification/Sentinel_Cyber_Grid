@@ -520,6 +520,9 @@ function handlePinClassification(missionId, key, level) {
     if (correct) {
       setThreatLevel("High", "mission-001");
       updateManagerReaction("threat_increased", { missionId: "mission-001" });
+      // Stage 2 — Blue Team: critical evidence logged → containment up.
+      updateContainmentProgress(25, { stepId: "classify-critical", caption: "Critical evidence logged." });
+      showBlueTeamUpdate("Evidence logged.");
       setTimeout(() => {
         if (decisionAdvanced["mission-001"]) showFindingPanel();
         else showDecisionActions("mission-001");
@@ -1904,6 +1907,14 @@ function handleDecisionAction(actionId) {
       // Stage 1 — blue-team response to a correct escalation (Mission 1).
       if (def.missionId === "mission-001") {
         triggerBlueTeamResponse("Suspicious credential activity contained.");
+        // Stage 2 — escalation is the decisive containment step.
+        updateContainmentProgress(30, {
+          stepId: "escalate",
+          incident: "Escalating",
+          assignment: "Escalate to lead analyst",
+          caption: "Incident escalated to the lead analyst.",
+        });
+        showBlueTeamUpdate("Incident escalated to lead analyst.");
       }
     }
 
@@ -1924,6 +1935,12 @@ function handleDecisionAction(actionId) {
     // Stage 1 — a poor decision lets the adversary gain ground (Mission 1).
     if (def.missionId === "mission-001") {
       triggerAdversaryEvent("Potential phishing spread risk increasing.", "high", { force: true });
+      // Stage 2 — a poor call slows containment (one-time penalty per action).
+      updateContainmentProgress(-10, {
+        stepId: "poor-" + actionId,
+        caption: "Containment slowed — the attacker gained ground.",
+      });
+      showBlueTeamUpdate("Hold position — re-evaluating the threat.");
     }
   }
 }
@@ -2340,6 +2357,11 @@ function saveProgress() {
       // Milestone 25B (resume-safe) — persist per-mission "investigation launched"
       // so a mid-mission reload resumes directly instead of re-onboarding.
       missionLaunched: (typeof missionLaunched === "object" && missionLaunched) ? missionLaunched : {},
+      // Stage 2 — persist Blue Team / containment state (Mission 1).
+      m1Containment,
+      m1ContainmentSteps: Array.from(m1ContainmentSteps),
+      redTeamActive,
+      m1BlueFeed: m1BlueFeed.slice(-BLUE_TEAM_FEED_MAX),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -2462,6 +2484,27 @@ function restoreSavedProgress() {
     trustScore = clampTrust(data.trustScore);
   }
   renderTrustScore();
+
+  // Stage 2 — restore Blue Team / containment state (Mission 1), validated.
+  if (typeof data.m1Containment === "number" && isFinite(data.m1Containment)) {
+    m1Containment = clampPct(data.m1Containment);
+  }
+  m1ContainmentSteps.clear();
+  if (Array.isArray(data.m1ContainmentSteps)) {
+    data.m1ContainmentSteps.forEach((s) => { if (isValidContainmentStep(s)) m1ContainmentSteps.add(s); });
+  }
+  redTeamActive = !!data.redTeamActive;
+  // Restore the bounded Blue Team feed history (strings only, capped).
+  m1BlueFeed = [];
+  if (Array.isArray(data.m1BlueFeed)) {
+    data.m1BlueFeed
+      .filter((t) => typeof t === "string" && t)
+      .slice(-BLUE_TEAM_FEED_MAX)
+      .forEach((t) => m1BlueFeed.push(t));
+  }
+  // Backward-compat: a completed Mission 1 is, by definition, fully contained.
+  if (missionComplete) m1Containment = 100;
+  renderBlueTeamPanel();
 
   // 9. Milestone 24D — restore decision system state. Only known
   //    action ids are accepted; unknown keys are ignored.
@@ -3101,6 +3144,14 @@ function handleM1FileRead(filename) {
     // Stage 1 — adversary presence: opening the phishing file confirms an
     // active credential-collection attempt.
     triggerAdversaryEvent("Unknown external email attempting credential collection.", "medium", { force: true });
+    // Stage 2 — Blue Team: isolate the file and advance containment.
+    updateContainmentProgress(15, {
+      stepId: "open-suspicious",
+      incident: "Active Threat",
+      assignment: "Isolate the suspicious file",
+      caption: "Suspicious file located and flagged.",
+    });
+    showBlueTeamUpdate("Suspicious file isolated.");
   }
 
   if (name === "meeting_schedule.txt" || name === "finance_update.txt") {
@@ -3598,6 +3649,9 @@ function handleFindingAnswer(answerId) {
     setThreatLevel("Medium", "mission-001");
     // Milestone 26A — event toast: correct finding submitted.
     showEventToast("Finding Submitted", "Phishing attempt confirmed.", "success");
+    // Stage 2 — Blue Team: a documented finding advances containment.
+    updateContainmentProgress(20, { stepId: "finding", caption: "Phishing attempt documented." });
+    showBlueTeamUpdate("Phishing attempt confirmed and documented.");
     // Milestone 24C — careful analyst work → +10 trust.
     increaseTrustScore(10);
     // Milestone 24G — finding submitted → Finding Report done; Quiz unlocks.
@@ -3889,6 +3943,16 @@ function completeMission(newRank) {
   // Milestone 24E — mission complete ⇒ alert moves to Resolved
   // ("Alert Resolved" badge per spec #12).
   markAlertResolved("mission-001");
+
+  // Stage 2 — Blue Team: threat fully contained on mission completion.
+  setRedTeamActive(false);
+  updateContainmentProgress(0, {
+    set: 100,
+    incident: "Contained",
+    assignment: "Incident contained — stand down",
+    caption: "Threat fully contained. Workstation secured.",
+  });
+  showBlueTeamUpdate("Threat fully contained. Excellent work, Intern.");
 
   // Milestone 24G — mission complete → every M1 tool is marked completed.
   markAllToolsCompleted("mission-001");
@@ -4371,6 +4435,9 @@ function resetMission() {
 
   unlockedKeys.clear();
   completedSteps.clear();
+
+  // Stage 2 — reset Mission 1 Blue Team / containment state.
+  resetBlueTeamM1();
 
   // Challenge Layer 1 — reset Mission 1 confidence + investigation tracking.
   m1Confidence = 0;
@@ -7222,8 +7289,12 @@ function fxToast(text, tone) {
    ============================================================ */
 const EVENT_TOAST_TYPES = ["info", "success", "warning", "danger", "unlock", "adversary", "blueteam"];
 const EVENT_TOAST_MAX = 2;        // max simultaneously visible
-const EVENT_TOAST_MS = 3500;      // visible duration (3–4s)
+const EVENT_TOAST_MS = 3500;      // default visible duration (3–4s)
 const EVENT_TOAST_FADE_MS = 350;  // slide/fade-out duration
+// Stage 2 — live-threat toasts (Red Team activity / Blue Team response) dwell
+// LONGER so a student can follow and absorb the context before they disappear.
+const ADVERSARY_TOAST_MS = 9000;
+const BLUE_TEAM_TOAST_MS = 7000;
 let eventToastHost = null;
 let eventToastVisible = 0;        // currently on-screen count
 const eventToastQueue = [];       // pending toasts beyond the visible cap
@@ -7244,7 +7315,8 @@ function showEventToast(title, message, type, opts) {
   if (!title && !message) return;
   const t = EVENT_TOAST_TYPES.includes(type) ? type : "info";
   const extraClass = (opts && opts.extraClass) || "";
-  eventToastQueue.push({ title: title || "", message: message || "", type: t, extraClass });
+  const duration = opts && typeof opts.duration === "number" ? opts.duration : 0;
+  eventToastQueue.push({ title: title || "", message: message || "", type: t, extraClass, duration });
   pumpEventToasts();
 }
 
@@ -7272,6 +7344,7 @@ function renderEventToast(item) {
   el.querySelector(".event-toast-msg").textContent = item.message;
   host.appendChild(el);
 
+  const visibleMs = item.duration && item.duration > 0 ? item.duration : EVENT_TOAST_MS;
   requestAnimationFrame(() => el.classList.add("event-toast--show"));
   window.setTimeout(() => {
     el.classList.remove("event-toast--show");
@@ -7281,7 +7354,7 @@ function renderEventToast(item) {
       eventToastVisible = Math.max(0, eventToastVisible - 1);
       pumpEventToasts(); // a slot freed up — show the next queued toast
     }, EVENT_TOAST_FADE_MS);
-  }, EVENT_TOAST_MS);
+  }, visibleMs);
 }
 
 /* ============================================================
@@ -7328,16 +7401,180 @@ function triggerAdversaryEvent(eventText, severity, opts) {
   lastAdversaryAt = now;
 
   const label = sev === "high" ? "ATTACKER MOVEMENT" : "ATTACKER ACTIVITY";
-  showEventToast(label, eventText, "adversary", { extraClass: `event-toast--sev-${sev}` });
+  showEventToast(label, eventText, "adversary", {
+    extraClass: `event-toast--sev-${sev}`,
+    duration: ADVERSARY_TOAST_MS, // dwell longer — let the student absorb it
+  });
   pulseActiveMissionNode();
+  // Stage 2 — Blue Team identity: surface the "Red Team Activity Detected" flag.
+  setRedTeamActive(true);
   return true;
 }
 
-/** Defensive counter-message after a correct escalation. */
+/** Defensive counter-message after a correct escalation. Routes through the
+ *  Stage 2 Blue Team feed + a long-dwell blue toast. */
 function triggerBlueTeamResponse(eventText) {
   if (!eventText) return;
   if (demoRunning) return;
-  showEventToast("BLUE TEAM RESPONSE", eventText, "blueteam");
+  showBlueTeamUpdate(eventText, { toast: true });
+}
+
+/* ============================================================
+   Stage 2 — Blue Team Identity System (Mission 1)
+   Casts the student as a Blue Team defender responding to the
+   Stage 1 adversary. Pure front-end flavor + a Containment
+   Progress model — no backend / AI / new global progress system.
+   All DOM ids live in the Mission 1 panel, so these helpers
+   no-op safely outside Mission 1 / before the panel exists.
+   - updateContainmentProgress(amount, opts) — reusable; opts:
+     { stepId (one-time guard), set (absolute 0–100), caption,
+       incident, assignment }. Value is clamped 0–100.
+   - showBlueTeamUpdate(text, opts) — appends a "[BLUE TEAM]"
+     feed bubble; opts.toast also raises a long-dwell blue toast.
+   ============================================================ */
+const BLUE_TEAM_FEED_MAX = 4;
+const BLUE_TEAM_STEP_IDS = [
+  "open-suspicious", "classify-critical", "escalate", "finding",
+];
+// A credited step id is valid if it's a known fixed id or a one-time
+// poor-decision penalty ("poor-<actionId>"). Guards restore from tampered state.
+function isValidContainmentStep(id) {
+  return typeof id === "string" &&
+    (BLUE_TEAM_STEP_IDS.includes(id) || id.startsWith("poor-"));
+}
+let m1Containment = 0;                 // 0–100, Mission 1 only
+const m1ContainmentSteps = new Set();  // one-time credited step ids
+let redTeamActive = false;
+let m1BlueFeed = [];                   // bounded feed history (persisted)
+
+function clampPct(n) {
+  if (!isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function renderContainment() {
+  const fill = document.getElementById("containmentFill");
+  const pct  = document.getElementById("containmentPct");
+  if (fill) fill.style.width = m1Containment + "%";
+  if (pct)  pct.textContent  = m1Containment + "%";
+  const panel = document.getElementById("blueTeamPanel");
+  if (panel) panel.classList.toggle("blue-team-panel--contained", m1Containment >= 100);
+}
+
+function setContainmentCaption(text) {
+  const el = document.getElementById("containmentCaption");
+  if (el && text) el.textContent = text;
+}
+
+function setIncidentStatus(text) {
+  const el = document.getElementById("blueTeamIncident");
+  if (!el || !text) return;
+  el.textContent = text;
+  const k = text.toLowerCase();
+  el.classList.toggle("bt-incident--threat", k.includes("threat") || k.includes("escalat"));
+  el.classList.toggle("bt-incident--contained", k.includes("contain"));
+}
+
+function setBlueTeamAssignment(text) {
+  const el = document.getElementById("blueTeamAssignment");
+  if (el && text) el.textContent = text;
+}
+
+/** Reveal/clear the "Red Team Activity Detected" flag. */
+function setRedTeamActive(active) {
+  redTeamActive = !!active;
+  const flag = document.getElementById("redTeamFlag");
+  if (flag) flag.hidden = !redTeamActive;
+  if (redTeamActive) setIncidentStatus("Active Threat");
+}
+
+/** Reusable — adjust Mission 1 containment. Returns the new value. */
+function updateContainmentProgress(amount, opts) {
+  opts = opts || {};
+  if (opts.stepId) {
+    if (m1ContainmentSteps.has(opts.stepId)) return m1Containment; // credit once
+    m1ContainmentSteps.add(opts.stepId);
+  }
+  if (typeof opts.set === "number") m1Containment = clampPct(opts.set);
+  else m1Containment = clampPct(m1Containment + (amount || 0));
+  renderContainment();
+  if (opts.caption)    setContainmentCaption(opts.caption);
+  if (opts.incident)   setIncidentStatus(opts.incident);
+  if (opts.assignment) setBlueTeamAssignment(opts.assignment);
+  fxFlash(document.getElementById("blueTeamPanel"), "blue-team-panel--flash", 700);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+  return m1Containment;
+}
+
+/** Append one "[BLUE TEAM]" bubble to the feed DOM. `animate` slides it in. */
+function appendBlueFeedBubble(text, animate) {
+  const feed = document.getElementById("blueTeamFeed");
+  if (!feed || !text) return;
+  const bubble = document.createElement("div");
+  bubble.className = "blue-team-update";
+  bubble.innerHTML =
+    `<span class="blue-team-update-label">[BLUE TEAM]</span>` +
+    `<span class="blue-team-update-text"></span>`;
+  bubble.querySelector(".blue-team-update-text").textContent = text;
+  feed.appendChild(bubble);
+  if (animate) requestAnimationFrame(() => bubble.classList.add("blue-team-update--show"));
+  else bubble.classList.add("blue-team-update--show");
+  while (feed.children.length > BLUE_TEAM_FEED_MAX) feed.removeChild(feed.firstChild);
+}
+
+/** Re-render the persisted feed history into the panel (restore-safe). */
+function renderBlueFeed() {
+  const feed = document.getElementById("blueTeamFeed");
+  if (!feed) return;
+  feed.innerHTML = "";
+  m1BlueFeed.forEach((t) => appendBlueFeedBubble(t, false));
+}
+
+/** Reusable — a short Blue Team status update (feed bubble + optional toast). */
+function showBlueTeamUpdate(text, opts) {
+  if (!text) return;
+  opts = opts || {};
+  if (demoRunning) return; // never intrude on the teaching demo
+  m1BlueFeed.push(text);
+  while (m1BlueFeed.length > BLUE_TEAM_FEED_MAX) m1BlueFeed.shift();
+  appendBlueFeedBubble(text, true);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+  if (opts.toast) showEventToast("BLUE TEAM", text, "blueteam", { duration: BLUE_TEAM_TOAST_MS });
+}
+
+/** Re-derive incident/assignment from credited steps (restore-safe). */
+function deriveBlueTeamState() {
+  let assignment = "Investigate the workstation";
+  let incident   = "Monitoring";
+  if (m1ContainmentSteps.has("open-suspicious")) assignment = "Isolate the suspicious file";
+  if (m1ContainmentSteps.has("escalate"))        assignment = "Escalate to lead analyst";
+  if (redTeamActive) incident = "Active Threat";
+  if (missionComplete || m1Containment >= 100) {
+    incident   = "Contained";
+    assignment = "Incident contained — stand down";
+  }
+  return { assignment, incident };
+}
+
+/** Refresh the whole Blue Team panel from current state (restore/reset). */
+function renderBlueTeamPanel() {
+  renderContainment();
+  const flag = document.getElementById("redTeamFlag");
+  if (flag) flag.hidden = !redTeamActive;
+  const st = deriveBlueTeamState();
+  setBlueTeamAssignment(st.assignment);
+  setIncidentStatus(st.incident);
+  renderBlueFeed();
+}
+
+/** Reset Mission 1 Blue Team state (called from resetMission). */
+function resetBlueTeamM1() {
+  m1Containment = 0;
+  m1ContainmentSteps.clear();
+  redTeamActive = false;
+  m1BlueFeed = [];
+  setContainmentCaption("Awaiting investigation.");
+  renderBlueTeamPanel();
 }
 
 function fxPulse(id) {

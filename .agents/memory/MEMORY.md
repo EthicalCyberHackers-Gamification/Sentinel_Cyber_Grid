@@ -1,1 +1,3 @@
-- [ECH Platform architecture](ech-platform.md) — endGuidedRun is the central teardown/exit hub; session-vs-persisted flags; @assets audio gesture; afterCommand needs a button key; overlays out-rank floating UI; capped toast queue; first-run flags captured before unlock chain; delayed timer triggers must be tracked+cleared in endGuidedRun and re-gated on dashboard visibility.
+# Memory Index
+
+- [ECH Platform gotchas](ech-platform.md) — frontend-only cyber training app: ES-module (no console nav), reload boots to landing, persisted state must also re-render on restore, M1/M2 id isolation.
