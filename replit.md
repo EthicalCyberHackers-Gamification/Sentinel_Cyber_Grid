@@ -441,12 +441,27 @@ in `script.js` (~7254); CSS appended at the END of `style.css`.
   (`!missionLaunched["mission-001"]` captured at the TOP of `beginMission`) ensures it only fires
   on a genuine fresh launch, not a mid-mission resume.
 
-### Blue Team Identity System (Stage 2)
-Casts the M1 student as a Blue Team DEFENDER (builds on Stage 1 + the 26A toast system; no
-flow/system changes, M1-only ids so M2 is untouched). The module lives at the bottom of
-`script.js` (~7429+, after `triggerBlueTeamResponse`); panel markup is in `index.html` inside
-the M1 mission-panel (`#blueTeamPanel`, after the mini-map); CSS appended at the END of
-`style.css`.
+### Blue Team Identity System (Stage 2 — mission-keyed for M1 + M2)
+Casts the student as a Blue Team DEFENDER (builds on Stage 1 + the 26A toast system; no
+flow/system changes). Originally M1-only, the engine was GENERALIZED to be mission-keyed so
+BOTH missions share one engine (no duplicated code). The module lives at the bottom of
+`script.js` (~7438+, after `triggerBlueTeamResponse`); panel markup is in `index.html` inside
+each mission-panel (M1 `#blueTeamPanel` after the mini-map; M2 `#m2BlueTeamPanel` after the M2
+mini-map-panel, before `#m2ManagerPanel`); CSS is SHARED (no `style.css` change for M2).
+- **Mission-keyed state + DOM**: state is now objects keyed by mission id
+  (`blueTeamContainment`/`blueTeamSteps`/`blueTeamRedActive`/`blueTeamFeeds`, keyed
+  `"mission-001"`/`"mission-002"`); `BLUE_TEAM_DOM` maps each mission to its element ids,
+  resolved via `btMissionId`/`btDom`. EVERY engine fn takes `missionId` as its FIRST argument
+  (`updateContainmentProgress`, `showBlueTeamUpdate`, `setRedTeamActive`, `renderBlueTeamPanel`,
+  etc.); `resetBlueTeamM1` was renamed `resetBlueTeam(missionId)`. All M1 callsites pass
+  `"mission-001"`; M2 callsites pass `"mission-002"`.
+- **M2 containment ladder**: nmap service scan +15 (`m2-recon`, "Exposed services identified.",
+  sets Red Team flag), correct Critical pin +25 (`m2-critical`, "Evidence logged."), correct
+  escalate decision +30 (`m2-escalate`), correct analyst review +20 (`m2-analyst`) — totals 90,
+  then M2 quiz completion forces `set:100` + clears the flag. Poor M2 decision applies the same
+  one-time `-10` (`poor-`+actionId). M2 assignment progresses "Map the network" → "Assess
+  exposed services" → "Escalate to lead analyst" via `deriveBlueTeamState` (mission-aware; M2
+  uses `mission2Complete`).
 - **Longer toast dwell**: `showEventToast`/`renderEventToast` gained an optional `opts.duration`
   (fallback `EVENT_TOAST_MS`); adversary toasts use `ADVERSARY_TOAST_MS` (9s), blue-team toasts
   `BLUE_TEAM_TOAST_MS` (7s), so a "Red Team Activity" alert no longer vanishes in ~1–2s.
@@ -480,9 +495,11 @@ the M1 mission-panel (`#blueTeamPanel`, after the mini-map); CSS appended at the
   localStorage), feed filtered to strings + capped, and forced to 100 when `missionComplete`.
   `renderBlueTeamPanel` re-renders the bar/flag/incident/assignment AND replays the feed history
   (`renderBlueFeed`) so a mid-mission reload resumes containment %, the red flag, AND the feed.
-  `resetMission` calls `resetBlueTeamM1` (zeroes state + clears the feed). Verified e2e: full M1
-  run 0→100 with red flag + feed, and a mid-mission reload restoring 40%/flag/feed (overlay
-  correctly skipped). M1-only — M2 has no Blue Team hooks.
+  `resetMission`/`resetMission2` call `resetBlueTeam(missionId)` (zeroes that mission's state +
+  clears its feed). Save persists all 4 keyed objects; restore calls `restoreBlueTeamMission` for
+  BOTH missions (M1 keeps a legacy fallback to the old flat `m1Containment`/`m1ContainmentSteps`/
+  `redTeamActive`/`m1BlueFeed` keys). Verified e2e: full M1 run 0→100 with flag + feed; M2 nmap →
+  Critical pin reaching 40% with flag + feed; mid-mission reload resumes containment/flag/feed.
 
 ## User preferences
 

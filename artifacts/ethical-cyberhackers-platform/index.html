@@ -429,6 +429,36 @@
             </div>
           </div>
 
+          <!-- Blue Team Status (Mission 2) — Stage 2 generalized engine.
+               Mirrors the Mission 1 panel with m2-prefixed ids; the shared
+               Blue Team helpers no-op safely if these ids are absent. -->
+          <div id="m2BlueTeamPanel" class="blue-team-panel">
+            <div class="blue-team-head">
+              <span class="blue-team-badge">BLUE TEAM</span>
+              <span class="blue-team-live"><span class="blue-team-live-dot" aria-hidden="true"></span>DEFENDING</span>
+            </div>
+            <div class="blue-team-id">
+              <div class="bt-row"><span class="bt-key">Team</span><span class="bt-val">Blue Team</span></div>
+              <div class="bt-row"><span class="bt-key">Role</span><span class="bt-val">Cybersecurity Intern</span></div>
+              <div class="bt-row"><span class="bt-key">Assignment</span><span class="bt-val" id="m2BlueTeamAssignment">Map the network</span></div>
+              <div class="bt-row"><span class="bt-key">Incident</span><span class="bt-val bt-incident" id="m2BlueTeamIncident">Monitoring</span></div>
+            </div>
+            <div class="red-team-flag" id="m2RedTeamFlag" hidden>
+              <span class="red-team-flag-dot" aria-hidden="true"></span>Red Team Activity Detected
+            </div>
+            <div class="containment">
+              <div class="containment-head">
+                <span class="containment-label">Containment Progress</span>
+                <span class="containment-pct" id="m2ContainmentPct">0%</span>
+              </div>
+              <div class="containment-bar">
+                <div class="containment-bar-fill" id="m2ContainmentFill" style="width:0%;"></div>
+              </div>
+              <p class="containment-caption" id="m2ContainmentCaption">Awaiting service scan.</p>
+            </div>
+            <div class="blue-team-feed" id="m2BlueTeamFeed" aria-live="polite"></div>
+          </div>
+
           <!-- Supervisor — Sarah Reyes (Mission 2 instance) -->
           <div id="m2ManagerPanel" class="manager-panel" aria-live="polite">
             <div class="manager-header">

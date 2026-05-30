@@ -521,8 +521,8 @@ function handlePinClassification(missionId, key, level) {
       setThreatLevel("High", "mission-001");
       updateManagerReaction("threat_increased", { missionId: "mission-001" });
       // Stage 2 — Blue Team: critical evidence logged → containment up.
-      updateContainmentProgress(25, { stepId: "classify-critical", caption: "Critical evidence logged." });
-      showBlueTeamUpdate("Evidence logged.");
+      updateContainmentProgress("mission-001", 25, { stepId: "classify-critical", caption: "Critical evidence logged." });
+      showBlueTeamUpdate("mission-001", "Evidence logged.");
       setTimeout(() => {
         if (decisionAdvanced["mission-001"]) showFindingPanel();
         else showDecisionActions("mission-001");
@@ -530,6 +530,13 @@ function handlePinClassification(missionId, key, level) {
     } else {
       setHint("You have not identified the primary threat evidence yet.", "warning");
     }
+  }
+
+  // Stage 2 — Blue Team (Mission 2): correctly classifying an exposed-services
+  // finding as Critical advances network containment (one-time).
+  if (missionId === "mission-002" && correct && meta.critical) {
+    updateContainmentProgress("mission-002", 25, { stepId: "m2-critical", caption: "Critical evidence logged." });
+    showBlueTeamUpdate("mission-002", "Evidence logged.");
   }
 
   // Refresh the pin action area: clear when correct, otherwise offer a
@@ -1908,13 +1915,22 @@ function handleDecisionAction(actionId) {
       if (def.missionId === "mission-001") {
         triggerBlueTeamResponse("Suspicious credential activity contained.");
         // Stage 2 — escalation is the decisive containment step.
-        updateContainmentProgress(30, {
+        updateContainmentProgress("mission-001", 30, {
           stepId: "escalate",
           incident: "Escalating",
           assignment: "Escalate to lead analyst",
           caption: "Incident escalated to the lead analyst.",
         });
-        showBlueTeamUpdate("Incident escalated to lead analyst.");
+        showBlueTeamUpdate("mission-001", "Incident escalated to lead analyst.");
+      } else if (def.missionId === "mission-002") {
+        // Stage 2 (Mission 2) — escalation is the decisive containment step.
+        updateContainmentProgress("mission-002", 30, {
+          stepId: "m2-escalate",
+          incident: "Escalating",
+          assignment: "Escalate to lead analyst",
+          caption: "Incident escalated to the lead analyst.",
+        });
+        showBlueTeamUpdate("mission-002", "Incident escalated to lead analyst.", { toast: true });
       }
     }
 
@@ -1936,11 +1952,18 @@ function handleDecisionAction(actionId) {
     if (def.missionId === "mission-001") {
       triggerAdversaryEvent("Potential phishing spread risk increasing.", "high", { force: true });
       // Stage 2 — a poor call slows containment (one-time penalty per action).
-      updateContainmentProgress(-10, {
+      updateContainmentProgress("mission-001", -10, {
         stepId: "poor-" + actionId,
         caption: "Containment slowed — the attacker gained ground.",
       });
-      showBlueTeamUpdate("Hold position — re-evaluating the threat.");
+      showBlueTeamUpdate("mission-001", "Hold position — re-evaluating the threat.");
+    } else if (def.missionId === "mission-002") {
+      // Stage 2 (Mission 2) — a poor call slows network containment.
+      updateContainmentProgress("mission-002", -10, {
+        stepId: "poor-" + actionId,
+        caption: "Containment slowed — the attacker gained ground.",
+      });
+      showBlueTeamUpdate("mission-002", "Hold position — re-evaluating the threat.");
     }
   }
 }
@@ -2357,11 +2380,17 @@ function saveProgress() {
       // Milestone 25B (resume-safe) — persist per-mission "investigation launched"
       // so a mid-mission reload resumes directly instead of re-onboarding.
       missionLaunched: (typeof missionLaunched === "object" && missionLaunched) ? missionLaunched : {},
-      // Stage 2 — persist Blue Team / containment state (Mission 1).
-      m1Containment,
-      m1ContainmentSteps: Array.from(m1ContainmentSteps),
-      redTeamActive,
-      m1BlueFeed: m1BlueFeed.slice(-BLUE_TEAM_FEED_MAX),
+      // Stage 2 — persist Blue Team / containment state (Mission 1 + Mission 2).
+      blueTeamContainment: { ...blueTeamContainment },
+      blueTeamSteps: {
+        "mission-001": Array.from(blueTeamSteps["mission-001"]),
+        "mission-002": Array.from(blueTeamSteps["mission-002"]),
+      },
+      blueTeamRedActive: { ...blueTeamRedActive },
+      blueTeamFeeds: {
+        "mission-001": blueTeamFeeds["mission-001"].slice(-BLUE_TEAM_FEED_MAX),
+        "mission-002": blueTeamFeeds["mission-002"].slice(-BLUE_TEAM_FEED_MAX),
+      },
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -2485,26 +2514,21 @@ function restoreSavedProgress() {
   }
   renderTrustScore();
 
-  // Stage 2 — restore Blue Team / containment state (Mission 1), validated.
-  if (typeof data.m1Containment === "number" && isFinite(data.m1Containment)) {
-    m1Containment = clampPct(data.m1Containment);
-  }
-  m1ContainmentSteps.clear();
-  if (Array.isArray(data.m1ContainmentSteps)) {
-    data.m1ContainmentSteps.forEach((s) => { if (isValidContainmentStep(s)) m1ContainmentSteps.add(s); });
-  }
-  redTeamActive = !!data.redTeamActive;
-  // Restore the bounded Blue Team feed history (strings only, capped).
-  m1BlueFeed = [];
-  if (Array.isArray(data.m1BlueFeed)) {
-    data.m1BlueFeed
-      .filter((t) => typeof t === "string" && t)
-      .slice(-BLUE_TEAM_FEED_MAX)
-      .forEach((t) => m1BlueFeed.push(t));
-  }
-  // Backward-compat: a completed Mission 1 is, by definition, fully contained.
-  if (missionComplete) m1Containment = 100;
-  renderBlueTeamPanel();
+  // Stage 2 — restore Blue Team / containment state (Mission 1 + Mission 2),
+  // validated. Mission 1 falls back to the legacy pre-generalization keys so
+  // existing saves (m1Containment / redTeamActive / m1BlueFeed) survive upgrade.
+  restoreBlueTeamMission(data, "mission-001", {
+    containment: data.m1Containment,
+    steps: data.m1ContainmentSteps,
+    red: data.redTeamActive,
+    feed: data.m1BlueFeed,
+  });
+  restoreBlueTeamMission(data, "mission-002", null);
+  // Backward-compat: a completed mission is, by definition, fully contained.
+  if (missionComplete)  blueTeamContainment["mission-001"] = 100;
+  if (mission2Complete) blueTeamContainment["mission-002"] = 100;
+  renderBlueTeamPanel("mission-001");
+  renderBlueTeamPanel("mission-002");
 
   // 9. Milestone 24D — restore decision system state. Only known
   //    action ids are accepted; unknown keys are ignored.
@@ -3145,13 +3169,13 @@ function handleM1FileRead(filename) {
     // active credential-collection attempt.
     triggerAdversaryEvent("Unknown external email attempting credential collection.", "medium", { force: true });
     // Stage 2 — Blue Team: isolate the file and advance containment.
-    updateContainmentProgress(15, {
+    updateContainmentProgress("mission-001", 15, {
       stepId: "open-suspicious",
       incident: "Active Threat",
       assignment: "Isolate the suspicious file",
       caption: "Suspicious file located and flagged.",
     });
-    showBlueTeamUpdate("Suspicious file isolated.");
+    showBlueTeamUpdate("mission-001", "Suspicious file isolated.");
   }
 
   if (name === "meeting_schedule.txt" || name === "finance_update.txt") {
@@ -3650,8 +3674,8 @@ function handleFindingAnswer(answerId) {
     // Milestone 26A — event toast: correct finding submitted.
     showEventToast("Finding Submitted", "Phishing attempt confirmed.", "success");
     // Stage 2 — Blue Team: a documented finding advances containment.
-    updateContainmentProgress(20, { stepId: "finding", caption: "Phishing attempt documented." });
-    showBlueTeamUpdate("Phishing attempt confirmed and documented.");
+    updateContainmentProgress("mission-001", 20, { stepId: "finding", caption: "Phishing attempt documented." });
+    showBlueTeamUpdate("mission-001", "Phishing attempt confirmed and documented.");
     // Milestone 24C — careful analyst work → +10 trust.
     increaseTrustScore(10);
     // Milestone 24G — finding submitted → Finding Report done; Quiz unlocks.
@@ -3945,14 +3969,14 @@ function completeMission(newRank) {
   markAlertResolved("mission-001");
 
   // Stage 2 — Blue Team: threat fully contained on mission completion.
-  setRedTeamActive(false);
-  updateContainmentProgress(0, {
+  setRedTeamActive("mission-001", false);
+  updateContainmentProgress("mission-001", 0, {
     set: 100,
     incident: "Contained",
     assignment: "Incident contained — stand down",
     caption: "Threat fully contained. Workstation secured.",
   });
-  showBlueTeamUpdate("Threat fully contained. Excellent work, Intern.");
+  showBlueTeamUpdate("mission-001", "Threat fully contained. Excellent work, Intern.");
 
   // Milestone 24G — mission complete → every M1 tool is marked completed.
   markAllToolsCompleted("mission-001");
@@ -4437,7 +4461,7 @@ function resetMission() {
   completedSteps.clear();
 
   // Stage 2 — reset Mission 1 Blue Team / containment state.
-  resetBlueTeamM1();
+  resetBlueTeam("mission-001");
 
   // Challenge Layer 1 — reset Mission 1 confidence + investigation tracking.
   m1Confidence = 0;
@@ -5643,7 +5667,19 @@ function runM2Command(key) {
       "mission-002"
     );
     // Milestone 26A — event toast: open services discovered (first scan only).
-    if (firstNmap) showEventToast("Services Found", "Open ports detected on the target.", "info");
+    if (firstNmap) {
+      showEventToast("Services Found", "Open ports detected on the target.", "info");
+      // Stage 2 — Blue Team (Mission 2): exposed services = red-team-exploitable
+      // attack surface → raise the Red Team flag and advance containment.
+      setRedTeamActive("mission-002", true);
+      updateContainmentProgress("mission-002", 15, {
+        stepId: "m2-recon",
+        incident: "Active Threat",
+        assignment: "Assess exposed services",
+        caption: "Exposed services identified.",
+      });
+      showBlueTeamUpdate("mission-002", "Exposed services identified.", { toast: true });
+    }
     // Milestone 24B — open services discovered → threat rises.
     setThreatLevel("High", "mission-002");
     // Milestone 24F — threat just rose to High → manager reacts.
@@ -5794,6 +5830,9 @@ function handleM2AnalystAnswer(letter) {
   setActiveTool("m2-quiz");
   markM2Status("analyst-review");
   markM2Status("threat-assessment");
+  // Stage 2 — Blue Team (Mission 2): a documented threat assessment advances containment.
+  updateContainmentProgress("mission-002", 20, { stepId: "m2-analyst", caption: "Threat assessment documented." });
+  showBlueTeamUpdate("mission-002", "Threat assessment confirmed and documented.");
   setM2Hint("Mission 2 threat assessment complete. Final assessment incoming.");
   setM2ManagerMessage("Excellent reasoning, Agent. You're starting to think like an analyst — one final question to confirm your understanding.");
 
@@ -5941,6 +5980,16 @@ function handleM2QuizAnswer(letter) {
 
   // Milestone 24B — Mission 2 complete → network secured (Low).
   setThreatLevel("Low", "mission-002");
+
+  // Stage 2 — Blue Team (Mission 2): threat fully contained on completion.
+  setRedTeamActive("mission-002", false);
+  updateContainmentProgress("mission-002", 0, {
+    set: 100,
+    incident: "Contained",
+    assignment: "Incident contained — stand down",
+    caption: "Network secured. All exposed services hardened.",
+  });
+  showBlueTeamUpdate("mission-002", "Network secured. Excellent work, Agent.");
 
   // FIX 5 — completion-state clarity for Mission 2.
   syncM2Buttons(); // lock command buttons now that the mission is complete
@@ -6220,6 +6269,8 @@ function resetMission2() {
   resetThreatLevelForMission("mission-002");
   // Milestone 24G — restart resets Mission 2's tools to their start states.
   resetToolsForMission("mission-002");
+  // Stage 2 — restart clears Mission 2's Blue Team containment state.
+  resetBlueTeam("mission-002");
   // Persist — clears mission2Complete flag from localStorage too
   saveProgress();
   // Course progress reflects the regression (M2 back to "Unlocked")
@@ -7407,7 +7458,7 @@ function triggerAdversaryEvent(eventText, severity, opts) {
   });
   pulseActiveMissionNode();
   // Stage 2 — Blue Team identity: surface the "Red Team Activity Detected" flag.
-  setRedTeamActive(true);
+  setRedTeamActive("mission-001", true);
   return true;
 }
 
@@ -7416,7 +7467,7 @@ function triggerAdversaryEvent(eventText, severity, opts) {
 function triggerBlueTeamResponse(eventText) {
   if (!eventText) return;
   if (demoRunning) return;
-  showBlueTeamUpdate(eventText, { toast: true });
+  showBlueTeamUpdate("mission-001", eventText, { toast: true });
 }
 
 /* ============================================================
@@ -7434,7 +7485,10 @@ function triggerBlueTeamResponse(eventText) {
    ============================================================ */
 const BLUE_TEAM_FEED_MAX = 4;
 const BLUE_TEAM_STEP_IDS = [
+  // Mission 1 containment steps
   "open-suspicious", "classify-critical", "escalate", "finding",
+  // Mission 2 containment steps (network recon → service hardening)
+  "m2-recon", "m2-critical", "m2-escalate", "m2-analyst",
 ];
 // A credited step id is valid if it's a known fixed id or a one-time
 // poor-decision penalty ("poor-<actionId>"). Guards restore from tampered state.
@@ -7442,32 +7496,63 @@ function isValidContainmentStep(id) {
   return typeof id === "string" &&
     (BLUE_TEAM_STEP_IDS.includes(id) || id.startsWith("poor-"));
 }
-let m1Containment = 0;                 // 0–100, Mission 1 only
-const m1ContainmentSteps = new Set();  // one-time credited step ids
-let redTeamActive = false;
-let m1BlueFeed = [];                   // bounded feed history (persisted)
+
+// Blue Team state is keyed by mission so Mission 1 and Mission 2 each run the
+// SAME engine against their own panel. Mission 1 keeps the original DOM ids;
+// Mission 2 uses m2-prefixed ids — see BLUE_TEAM_DOM below.
+const blueTeamContainment = { "mission-001": 0, "mission-002": 0 };
+const blueTeamSteps = {
+  "mission-001": new Set(),
+  "mission-002": new Set(),
+};
+const blueTeamRedActive = { "mission-001": false, "mission-002": false };
+let blueTeamFeeds = { "mission-001": [], "mission-002": [] };
+
+// Per-mission DOM id map. Helpers resolve elements through this so one set of
+// functions drives both panels; all lookups no-op safely when ids are absent.
+const BLUE_TEAM_DOM = {
+  "mission-001": {
+    panel: "blueTeamPanel", fill: "containmentFill", pct: "containmentPct",
+    caption: "containmentCaption", incident: "blueTeamIncident",
+    assignment: "blueTeamAssignment", flag: "redTeamFlag", feed: "blueTeamFeed",
+  },
+  "mission-002": {
+    panel: "m2BlueTeamPanel", fill: "m2ContainmentFill", pct: "m2ContainmentPct",
+    caption: "m2ContainmentCaption", incident: "m2BlueTeamIncident",
+    assignment: "m2BlueTeamAssignment", flag: "m2RedTeamFlag", feed: "m2BlueTeamFeed",
+  },
+};
+function btMissionId(missionId) {
+  return missionId === "mission-002" ? "mission-002" : "mission-001";
+}
+function btDom(missionId, key) {
+  const map = BLUE_TEAM_DOM[btMissionId(missionId)];
+  return document.getElementById(map[key]);
+}
 
 function clampPct(n) {
   if (!isFinite(n)) return 0;
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-function renderContainment() {
-  const fill = document.getElementById("containmentFill");
-  const pct  = document.getElementById("containmentPct");
-  if (fill) fill.style.width = m1Containment + "%";
-  if (pct)  pct.textContent  = m1Containment + "%";
-  const panel = document.getElementById("blueTeamPanel");
-  if (panel) panel.classList.toggle("blue-team-panel--contained", m1Containment >= 100);
+function renderContainment(missionId) {
+  missionId = btMissionId(missionId);
+  const val  = blueTeamContainment[missionId];
+  const fill = btDom(missionId, "fill");
+  const pct  = btDom(missionId, "pct");
+  if (fill) fill.style.width = val + "%";
+  if (pct)  pct.textContent  = val + "%";
+  const panel = btDom(missionId, "panel");
+  if (panel) panel.classList.toggle("blue-team-panel--contained", val >= 100);
 }
 
-function setContainmentCaption(text) {
-  const el = document.getElementById("containmentCaption");
+function setContainmentCaption(missionId, text) {
+  const el = btDom(missionId, "caption");
   if (el && text) el.textContent = text;
 }
 
-function setIncidentStatus(text) {
-  const el = document.getElementById("blueTeamIncident");
+function setIncidentStatus(missionId, text) {
+  const el = btDom(missionId, "incident");
   if (!el || !text) return;
   el.textContent = text;
   const k = text.toLowerCase();
@@ -7475,40 +7560,42 @@ function setIncidentStatus(text) {
   el.classList.toggle("bt-incident--contained", k.includes("contain"));
 }
 
-function setBlueTeamAssignment(text) {
-  const el = document.getElementById("blueTeamAssignment");
+function setBlueTeamAssignment(missionId, text) {
+  const el = btDom(missionId, "assignment");
   if (el && text) el.textContent = text;
 }
 
-/** Reveal/clear the "Red Team Activity Detected" flag. */
-function setRedTeamActive(active) {
-  redTeamActive = !!active;
-  const flag = document.getElementById("redTeamFlag");
-  if (flag) flag.hidden = !redTeamActive;
-  if (redTeamActive) setIncidentStatus("Active Threat");
+/** Reveal/clear the "Red Team Activity Detected" flag for a mission. */
+function setRedTeamActive(missionId, active) {
+  missionId = btMissionId(missionId);
+  blueTeamRedActive[missionId] = !!active;
+  const flag = btDom(missionId, "flag");
+  if (flag) flag.hidden = !blueTeamRedActive[missionId];
+  if (blueTeamRedActive[missionId]) setIncidentStatus(missionId, "Active Threat");
 }
 
-/** Reusable — adjust Mission 1 containment. Returns the new value. */
-function updateContainmentProgress(amount, opts) {
+/** Reusable — adjust a mission's containment. Returns the new value. */
+function updateContainmentProgress(missionId, amount, opts) {
+  missionId = btMissionId(missionId);
   opts = opts || {};
   if (opts.stepId) {
-    if (m1ContainmentSteps.has(opts.stepId)) return m1Containment; // credit once
-    m1ContainmentSteps.add(opts.stepId);
+    if (blueTeamSteps[missionId].has(opts.stepId)) return blueTeamContainment[missionId]; // credit once
+    blueTeamSteps[missionId].add(opts.stepId);
   }
-  if (typeof opts.set === "number") m1Containment = clampPct(opts.set);
-  else m1Containment = clampPct(m1Containment + (amount || 0));
-  renderContainment();
-  if (opts.caption)    setContainmentCaption(opts.caption);
-  if (opts.incident)   setIncidentStatus(opts.incident);
-  if (opts.assignment) setBlueTeamAssignment(opts.assignment);
-  fxFlash(document.getElementById("blueTeamPanel"), "blue-team-panel--flash", 700);
+  if (typeof opts.set === "number") blueTeamContainment[missionId] = clampPct(opts.set);
+  else blueTeamContainment[missionId] = clampPct(blueTeamContainment[missionId] + (amount || 0));
+  renderContainment(missionId);
+  if (opts.caption)    setContainmentCaption(missionId, opts.caption);
+  if (opts.incident)   setIncidentStatus(missionId, opts.incident);
+  if (opts.assignment) setBlueTeamAssignment(missionId, opts.assignment);
+  fxFlash(btDom(missionId, "panel"), "blue-team-panel--flash", 700);
   try { saveProgress(); } catch (_) { /* non-fatal */ }
-  return m1Containment;
+  return blueTeamContainment[missionId];
 }
 
-/** Append one "[BLUE TEAM]" bubble to the feed DOM. `animate` slides it in. */
-function appendBlueFeedBubble(text, animate) {
-  const feed = document.getElementById("blueTeamFeed");
+/** Append one "[BLUE TEAM]" bubble to a mission's feed DOM. `animate` slides it in. */
+function appendBlueFeedBubble(missionId, text, animate) {
+  const feed = btDom(missionId, "feed");
   if (!feed || !text) return;
   const bubble = document.createElement("div");
   bubble.className = "blue-team-update";
@@ -7522,59 +7609,103 @@ function appendBlueFeedBubble(text, animate) {
   while (feed.children.length > BLUE_TEAM_FEED_MAX) feed.removeChild(feed.firstChild);
 }
 
-/** Re-render the persisted feed history into the panel (restore-safe). */
-function renderBlueFeed() {
-  const feed = document.getElementById("blueTeamFeed");
+/** Re-render a mission's persisted feed history into its panel (restore-safe). */
+function renderBlueFeed(missionId) {
+  missionId = btMissionId(missionId);
+  const feed = btDom(missionId, "feed");
   if (!feed) return;
   feed.innerHTML = "";
-  m1BlueFeed.forEach((t) => appendBlueFeedBubble(t, false));
+  blueTeamFeeds[missionId].forEach((t) => appendBlueFeedBubble(missionId, t, false));
 }
 
 /** Reusable — a short Blue Team status update (feed bubble + optional toast). */
-function showBlueTeamUpdate(text, opts) {
+function showBlueTeamUpdate(missionId, text, opts) {
+  missionId = btMissionId(missionId);
   if (!text) return;
   opts = opts || {};
   if (demoRunning) return; // never intrude on the teaching demo
-  m1BlueFeed.push(text);
-  while (m1BlueFeed.length > BLUE_TEAM_FEED_MAX) m1BlueFeed.shift();
-  appendBlueFeedBubble(text, true);
+  blueTeamFeeds[missionId].push(text);
+  while (blueTeamFeeds[missionId].length > BLUE_TEAM_FEED_MAX) blueTeamFeeds[missionId].shift();
+  appendBlueFeedBubble(missionId, text, true);
   try { saveProgress(); } catch (_) { /* non-fatal */ }
   if (opts.toast) showEventToast("BLUE TEAM", text, "blueteam", { duration: BLUE_TEAM_TOAST_MS });
 }
 
 /** Re-derive incident/assignment from credited steps (restore-safe). */
-function deriveBlueTeamState() {
-  let assignment = "Investigate the workstation";
-  let incident   = "Monitoring";
-  if (m1ContainmentSteps.has("open-suspicious")) assignment = "Isolate the suspicious file";
-  if (m1ContainmentSteps.has("escalate"))        assignment = "Escalate to lead analyst";
-  if (redTeamActive) incident = "Active Threat";
-  if (missionComplete || m1Containment >= 100) {
+function deriveBlueTeamState(missionId) {
+  missionId = btMissionId(missionId);
+  const steps = blueTeamSteps[missionId];
+  let assignment, incident = "Monitoring";
+  if (missionId === "mission-002") {
+    assignment = "Map the network";
+    if (steps.has("m2-recon"))    assignment = "Assess exposed services";
+    if (steps.has("m2-escalate")) assignment = "Escalate to lead analyst";
+  } else {
+    assignment = "Investigate the workstation";
+    if (steps.has("open-suspicious")) assignment = "Isolate the suspicious file";
+    if (steps.has("escalate"))        assignment = "Escalate to lead analyst";
+  }
+  if (blueTeamRedActive[missionId]) incident = "Active Threat";
+  const done = missionId === "mission-002"
+    ? (mission2Complete || blueTeamContainment[missionId] >= 100)
+    : (missionComplete  || blueTeamContainment[missionId] >= 100);
+  if (done) {
     incident   = "Contained";
     assignment = "Incident contained — stand down";
   }
   return { assignment, incident };
 }
 
-/** Refresh the whole Blue Team panel from current state (restore/reset). */
-function renderBlueTeamPanel() {
-  renderContainment();
-  const flag = document.getElementById("redTeamFlag");
-  if (flag) flag.hidden = !redTeamActive;
-  const st = deriveBlueTeamState();
-  setBlueTeamAssignment(st.assignment);
-  setIncidentStatus(st.incident);
-  renderBlueFeed();
+/** Refresh a mission's whole Blue Team panel from current state (restore/reset). */
+function renderBlueTeamPanel(missionId) {
+  missionId = btMissionId(missionId);
+  renderContainment(missionId);
+  const flag = btDom(missionId, "flag");
+  if (flag) flag.hidden = !blueTeamRedActive[missionId];
+  const st = deriveBlueTeamState(missionId);
+  setBlueTeamAssignment(missionId, st.assignment);
+  setIncidentStatus(missionId, st.incident);
+  renderBlueFeed(missionId);
 }
 
-/** Reset Mission 1 Blue Team state (called from resetMission). */
-function resetBlueTeamM1() {
-  m1Containment = 0;
-  m1ContainmentSteps.clear();
-  redTeamActive = false;
-  m1BlueFeed = [];
-  setContainmentCaption("Awaiting investigation.");
-  renderBlueTeamPanel();
+/** Reset a mission's Blue Team state (called from resetMission / resetMission2). */
+function resetBlueTeam(missionId) {
+  missionId = btMissionId(missionId);
+  blueTeamContainment[missionId] = 0;
+  blueTeamSteps[missionId].clear();
+  blueTeamRedActive[missionId] = false;
+  blueTeamFeeds[missionId] = [];
+  setContainmentCaption(missionId, missionId === "mission-002" ? "Awaiting service scan." : "Awaiting investigation.");
+  renderBlueTeamPanel(missionId);
+}
+
+/** Restore one mission's Blue Team state from saved data (new mission-keyed
+ *  shape, with a legacy fallback for Mission 1's pre-generalization keys). */
+function restoreBlueTeamMission(data, missionId, legacy) {
+  missionId = btMissionId(missionId);
+  let c = data.blueTeamContainment && data.blueTeamContainment[missionId];
+  if (!(typeof c === "number" && isFinite(c)) && legacy) c = legacy.containment;
+  if (typeof c === "number" && isFinite(c)) blueTeamContainment[missionId] = clampPct(c);
+
+  blueTeamSteps[missionId].clear();
+  let steps = data.blueTeamSteps && data.blueTeamSteps[missionId];
+  if (!Array.isArray(steps) && legacy) steps = legacy.steps;
+  if (Array.isArray(steps)) {
+    steps.forEach((s) => { if (isValidContainmentStep(s)) blueTeamSteps[missionId].add(s); });
+  }
+
+  let red = data.blueTeamRedActive && data.blueTeamRedActive[missionId];
+  if (typeof red !== "boolean" && legacy) red = legacy.red;
+  blueTeamRedActive[missionId] = !!red;
+
+  blueTeamFeeds[missionId] = [];
+  let feed = data.blueTeamFeeds && data.blueTeamFeeds[missionId];
+  if (!Array.isArray(feed) && legacy) feed = legacy.feed;
+  if (Array.isArray(feed)) {
+    feed.filter((t) => typeof t === "string" && t)
+        .slice(-BLUE_TEAM_FEED_MAX)
+        .forEach((t) => blueTeamFeeds[missionId].push(t));
+  }
 }
 
 function fxPulse(id) {

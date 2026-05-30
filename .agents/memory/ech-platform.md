@@ -31,7 +31,12 @@ panel restored containment/flag but came back with an empty feed.
 call, and validate against an allowlist (e.g. `isValidContainmentStep`) to harden against tampered
 localStorage.
 
-## M1-only vs M2 isolation
-M1 and M2 share helpers but use distinct DOM ids (M2 mirrors with `m2*`). Stage 2 Blue Team is
-M1-only (its ids/hooks never touch M2). **How to apply:** keep new mission-specific features gated
-on `def.missionId === "mission-001"` / M1 ids so M2 stays unaffected.
+## M1/M2 share helpers but use distinct `m2*` DOM ids
+M1 and M2 share render/engine helpers but each mission has its own DOM ids (M2 mirrors M1 with an
+`m2` prefix). Two valid patterns coexist: (a) gate a feature on a single mission's ids, or (b)
+generalize an engine to be MISSION-KEYED.
+**Why:** Stage 2 Blue Team started M1-only, then was generalized so both missions reuse ONE engine
+instead of duplicating it. **How to apply:** when adding the same feature to both missions, prefer
+keying state by mission id (objects keyed `"mission-001"`/`"mission-002"`) + a mission→ids DOM map
+and pass `missionId` as the first arg to every helper — do NOT copy/paste the M1 block into M2.
+When generalizing, keep a LEGACY restore fallback so old persisted (flat M1) saves still load.
