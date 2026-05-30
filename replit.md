@@ -621,6 +621,54 @@ ARE the `cat-*` command buttons (the "Inspect Files" group).
   (cd→only ls; ls→one file; one-by-one classify advance; employee_notes incorrect msg; no reclassify
   warning; suspicious Critical → decision flow; no console errors).
 
+### Investigative Reasoning Layer (Milestone 27A — Mission 1 ONLY)
+Adds an analyst-grade reasoning step between reading a file and classifying it. M2 untouched
+(classify buttons branch on `missionId==="mission-002"`). The 27A module sits near the top of
+`script.js` (after the pin/XP block, ~485+); data (`M1_REASONING`) + state (`m1AnalystScore`,
+`m1ReasoningCorrect` Set, `m1ReasoningBonusAwarded`, `m1AnalysisTimer`) are declared ~232.
+- **File contents (`missions.js`)**: the 4 false-lead/supporting files read as mildly odd but
+  resolve harmless; `suspicious_file.txt` no longer drops the explicit `[!] WARNING` giveaway —
+  students must reason it out.
+- **Analyst Confidence** (separate meter from Evidence Confidence, host `#analystConfidence` in
+  M1 Live Status): level Low/Building/Strong/Ready painted by `renderAnalystConfidence`
+  (pct 18/48/76/100). Score is DERIVED/idempotent via `recomputeM1AnalystScore` (reasoning-set
+  size + per-correct-pin points critical 3 / helpful 2 / normal·low 1) — never incremented, so it
+  is safe across re-reads and reloads. The recompute is corrupt-state hardened: it only counts
+  pin keys present in `EVIDENCE_RATINGS["mission-001"]` with a valid suspicion level.
+- **`m1AnalystLevel`**: returns "Ready" once `m1CriticalIdentified()` (= `canCompleteM1()`, i.e.
+  suspicious_file correctly Critical), else ≥6 Strong / ≥3 Building / else Low. Ready≡critical is
+  INTENTIONAL (anti-soft-lock; matches the spec acceptance "suspicious critical → Ready → finding").
+- **Reasoning flow (one prompt at a time)**: `handleM1FileRead` else-branch (guarded by
+  `!demoRunning`) → `showM1ReasoningPrompt(key)` renders the per-file MCQ in the pin host (skips
+  straight to classification if already in `m1ReasoningCorrect`). `handleM1Reasoning` disables the
+  options, shows "Submitting analysis to manager..." for a 700–1200ms `m1AnalysisDelay`, then on
+  correct: one-time add to `m1ReasoningCorrect` + recompute + render + manager "why this matters"
+  + a "Continue to classification →" button → `showClassificationPrompt`; on wrong: manager
+  guidance + retry. M1 classify buttons route through `submitM1Classification` (same delay) →
+  `handlePinClassification`; the M1 branch of `handlePinClassification` recomputes the analyst
+  score, renders the meter, and calls `maybeAwardReasoningBonus` (+25 XP ONCE when BOTH
+  `employee_notes.txt` AND `security_policy.txt` are correctly classified `helpful`).
+- **Cancel-safe delay**: both "Submitting analysis..." timeouts are tracked in `m1AnalysisTimer`
+  and torn down by `clearM1AnalysisTimer()`, called from `endGuidedRun`, `resetMission`, and
+  (via `resetMission`) `abortDemo` — so a stale callback can never mutate pins/XP/UI after the
+  student resets, navigates away, or starts the demo.
+- **Completion gate**: `showFindingPanel` requires `canCompleteM1() && m1AnalystReadyToSubmit()`
+  (Strong or Ready); otherwise it warns via `setHint(...,"warning")` and returns — never soft-locks
+  since reading/reasoning more files always raises the score.
+- **Persistence**: `saveProgress` persists `m1ReasoningCorrect` (array) + `m1ReasoningBonusAwarded`;
+  `restoreSavedProgress` restores them (reasoning keys allowlisted against `M1_REASONING`) and then,
+  AFTER pins are restored, calls `recomputeM1AnalystScore()` + `renderAnalystConfidence()`.
+  `resetMission` clears the analyst state and repaints the meter; `openMission1Dashboard` repaints
+  it on entry. Scorecard: `buildReasoningScorecardHTML` wired into M1 `challengeRows` as an
+  "Investigation Reasoning" section.
+- **Demo compatibility**: reasoning never fires in the demo (`handleM1FileRead` guarded by
+  `!demoRunning`); the demo calls `handlePinClassification` DIRECTLY, bypassing the
+  `submitM1Classification` delay; `suppressSave` + `abortDemo→resetMission` (which now clears the
+  analyst state and the pending timer) prevent leakage. CSS appended at END of `style.css`
+  (analyst meter levels + reasoning prompt + why box + pending pulse + reduced-motion). Verified
+  e2e: full M1 reason→classify→meter-climb→suspicious-Critical→Ready→finding; demo to completion;
+  reset clears; no console errors.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

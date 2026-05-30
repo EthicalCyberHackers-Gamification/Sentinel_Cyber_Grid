@@ -224,6 +224,16 @@ const m1FalseLeadsChecked = new Set();
 let   m1BonusFound        = false;
 let   m1ProgressiveHintIx = 0;
 
+// Milestone 27A — Investigative Reasoning Layer (Mission 1 only).
+// Analyst Confidence = quality of the student's REASONING (kept separate from
+// Evidence Confidence, which measures strength of pinned evidence). The score is
+// DERIVED (recomputed) from correct reasoning answers + correct classifications,
+// so it's idempotent across re-reads / reloads.
+let   m1AnalystScore         = 0;          // derived; see recomputeM1AnalystScore
+const m1ReasoningCorrect     = new Set();  // file names whose reasoning prompt was answered correctly
+let   m1ReasoningBonusAwarded = false;     // one-time +25 XP (both supporting files correct)
+let   m1AnalysisTimer        = null;       // pending "Submitting analysis..." delay (cancel-safe)
+
 const M1_PROGRESSIVE_HINTS = [
   "Not every file is suspicious. Review files carefully.",
   "Company policy may help you judge whether a file is dangerous.",
@@ -401,6 +411,319 @@ function pinXpAmount(correct, level) {
   return 10;
 }
 
+/* ============================================================
+   MILESTONE 27A — INVESTIGATIVE REASONING LAYER (Mission 1)
+   Per-file reasoning prompts ("What does this file suggest?"),
+   an Analyst Confidence meter (quality of the student's reasoning,
+   kept separate from Evidence Confidence), delayed "Submitting
+   analysis to manager..." validation, "why this matters" micro-
+   feedback, and a one-time reasoning bonus. Frontend-only.
+   Mission 2 is untouched; the opt-in demo follows its own curated
+   path and bypasses these prompts.
+   ============================================================ */
+
+// Per-file reasoning question shown right after a file is opened. Exactly one
+// option is correct. `why` is the short "why this matters" feedback shown after
+// a correct answer.
+const M1_REASONING = {
+  "employee_notes.txt": {
+    question: "What does this file suggest?",
+    options: [
+      { id: "A", text: "It is a threat because it mentions passwords.", correct: false },
+      { id: "B", text: "It is a reminder that supports safe reporting behavior.", correct: true },
+      { id: "C", text: "It proves an attacker is already inside the network.", correct: false },
+      { id: "D", text: "It should be escalated as an active attack.", correct: false },
+    ],
+    why: "Awareness reminders support an investigation, but they are not the attack itself.",
+  },
+  "meeting_schedule.txt": {
+    question: "What does this file suggest?",
+    options: [
+      { id: "A", text: "It is automatically dangerous because it says urgent.", correct: false },
+      { id: "B", text: "It appears to be normal business activity.", correct: true },
+      { id: "C", text: "It proves password theft.", correct: false },
+      { id: "D", text: "It should be escalated immediately.", correct: false },
+    ],
+    why: "Urgent language alone is not enough. Analysts look for credential requests, unknown links, or external pressure.",
+  },
+  "finance_update.txt": {
+    question: "What does this file suggest?",
+    options: [
+      { id: "A", text: "Finance files are always dangerous.", correct: false },
+      { id: "B", text: "It is normal activity — no password or external login request.", correct: true },
+      { id: "C", text: "It is proof of a phishing attempt.", correct: false },
+      { id: "D", text: "It must be escalated immediately.", correct: false },
+    ],
+    why: "Sensitive-sounding files are only a threat when they request credentials or external action.",
+  },
+  "security_policy.txt": {
+    question: "What does this file suggest?",
+    options: [
+      { id: "A", text: "It is a threat because it talks about passwords.", correct: false },
+      { id: "B", text: "It is company policy that helps judge unsafe behavior.", correct: true },
+      { id: "C", text: "It is the attack itself.", correct: false },
+      { id: "D", text: "It is irrelevant to the investigation.", correct: false },
+    ],
+    why: "Policy evidence helps explain WHY the suspicious file violates safe behavior.",
+  },
+  "suspicious_file.txt": {
+    question: "What does this file suggest?",
+    options: [
+      { id: "A", text: "It is normal because it sounds urgent.", correct: false },
+      { id: "B", text: "It is dangerous — it asks for a password through an unknown external email.", correct: true },
+      { id: "C", text: "It is harmless because it is in the documents folder.", correct: false },
+      { id: "D", text: "It only needs to be ignored.", correct: false },
+    ],
+    why: "Password requests from unknown external emails are strong phishing indicators.",
+  },
+};
+
+/** Random "Submitting analysis to manager..." delay (700–1200 ms) for anticipation. */
+function m1AnalysisDelay() {
+  return 700 + Math.floor(Math.random() * 500);
+}
+
+/** Cancel a pending "Submitting analysis..." delay so a stale callback can never
+ *  mutate pins/XP/UI after the student resets, navigates away, or starts the demo. */
+function clearM1AnalysisTimer() {
+  if (m1AnalysisTimer !== null) {
+    clearTimeout(m1AnalysisTimer);
+    m1AnalysisTimer = null;
+  }
+}
+
+/** True once suspicious_file.txt is correctly classified Critical (the primary threat). */
+function m1CriticalIdentified() {
+  return canCompleteM1();
+}
+
+/** Recompute Analyst Confidence score from correct reasoning + correct
+ *  classifications. Derived (idempotent) so re-reads / reloads never double-count. */
+function recomputeM1AnalystScore() {
+  let s = 0;
+  s += m1ReasoningCorrect.size; // +1 per correctly reasoned file
+  const pins = investigationPins["mission-001"] || {};
+  const ratings = EVIDENCE_RATINGS["mission-001"] || {};
+  const POINTS = { critical: 3, helpful: 2, low: 1, normal: 1 };
+  Object.keys(pins).forEach((key) => {
+    if (!ratings[key]) return;               // corrupt-state hardening: only known M1 files
+    const p = pins[key];
+    if (!p || !p.correct) return;            // incorrect classification pauses (no gain)
+    const pts = POINTS[p.level];             // only count valid suspicion levels
+    if (pts) s += pts;
+  });
+  m1AnalystScore = s;
+  return s;
+}
+
+/** Map the analyst score (+ critical-identified) to a level. Ready requires the
+ *  primary threat to be correctly identified. */
+function m1AnalystLevel() {
+  if (m1CriticalIdentified()) return "Ready";
+  if (m1AnalystScore >= 6) return "Strong";
+  if (m1AnalystScore >= 3) return "Building";
+  return "Low";
+}
+
+/** Completion-gate helper: reasoning strong enough to submit the final finding. */
+function m1AnalystReadyToSubmit() {
+  const lvl = m1AnalystLevel();
+  return lvl === "Strong" || lvl === "Ready";
+}
+
+/** Render the Analyst Confidence meter (Mission 1 only). */
+function renderAnalystConfidence() {
+  const host = document.getElementById("analystConfidence");
+  if (!host) return;
+  const level = m1AnalystLevel();
+  const pct = { Low: 18, Building: 48, Strong: 76, Ready: 100 }[level] || 0;
+  const caption = {
+    Low:      "Inspect and reason through each file to build your case.",
+    Building: "Good progress. Keep comparing clues and eliminating false leads.",
+    Strong:   "Strong reasoning. Confirm the primary threat to finish.",
+    Ready:    "You have the reasoning to submit your final finding.",
+  }[level];
+  host.innerHTML = `
+    <h3 class="objectives-title">
+      Analyst Confidence
+      <span class="analyst-pill analyst-pill--${level.toLowerCase()}">${level}</span>
+    </h3>
+    <div class="analyst-bar">
+      <div class="analyst-bar-fill analyst-bar-fill--${level.toLowerCase()}" style="width: ${pct}%;"></div>
+    </div>
+    <p class="confidence-caption">${escapeHtml(caption)}</p>
+  `;
+}
+
+/** Award the one-time Reasoning Bonus when BOTH supporting files are correctly classified. */
+function maybeAwardReasoningBonus() {
+  if (m1ReasoningBonusAwarded) return;
+  const pins = investigationPins["mission-001"] || {};
+  const ok = (p) => p && p.correct && p.level === "helpful";
+  if (ok(pins["employee_notes.txt"]) && ok(pins["security_policy.txt"])) {
+    m1ReasoningBonusAwarded = true;
+    awardXP(25);
+    showEventToast("Reasoning Bonus", "Supporting evidence identified.", "success");
+    try { saveProgress(); } catch (_) { /* non-fatal */ }
+  }
+}
+
+/** Build the reasoning-prompt HTML (one prompt for the active file). */
+function buildM1ReasoningHTML(key, feedback) {
+  const prompt = M1_REASONING[key];
+  if (!prompt) return "";
+  const rating = EVIDENCE_RATINGS["mission-001"][key];
+  const opts = prompt.options.map((o) => `
+    <button class="reason-btn" type="button" data-reason-id="${o.id}" data-key="${escapeHtml(key)}">
+      <span class="reason-letter">${o.id}</span>
+      <span class="reason-text">${escapeHtml(o.text)}</span>
+    </button>
+  `).join("");
+  return `
+    <div class="reason-panel">
+      <p class="classify-active-file">🔎 Current File Under Investigation</p>
+      <p class="classify-subject">${escapeHtml(rating ? rating.title : key)}</p>
+      <p class="reason-question">${escapeHtml(prompt.question)}</p>
+      <div class="reason-options">${opts}</div>
+      ${feedback ? `<div class="reason-feedback ${feedback.cls}">${feedback.html}</div>` : ""}
+    </div>
+  `;
+}
+
+/** Show the reasoning prompt for the active file (or skip straight to
+ *  classification if its reasoning was already answered correctly — e.g. re-read). */
+function showM1ReasoningPrompt(key) {
+  if (!M1_REASONING[key] || m1ReasoningCorrect.has(key)) {
+    showClassificationPrompt("mission-001", key);
+    return;
+  }
+  const host = document.getElementById(pinHostId("mission-001"));
+  if (!host) return;
+  host.style.display = "";
+  host.innerHTML = buildM1ReasoningHTML(key, null);
+  host.querySelectorAll(".reason-btn").forEach((btn) => {
+    btn.addEventListener("click", () => handleM1Reasoning(key, btn.getAttribute("data-reason-id")));
+  });
+}
+
+/** Handle a reasoning answer: delayed "submitting" → manager feedback → on correct,
+ *  show "why this matters" + Continue to classification; on wrong, allow a retry. */
+function handleM1Reasoning(key, answerId) {
+  const prompt = M1_REASONING[key];
+  if (!prompt) return;
+  const chosen = prompt.options.find((o) => o.id === answerId);
+  if (!chosen) return;
+  const host = document.getElementById(pinHostId("mission-001"));
+  if (!host) return;
+
+  // Anticipation — disable options and show the "submitting" state.
+  host.querySelectorAll(".reason-btn").forEach((b) => { b.disabled = true; });
+  const panel = host.querySelector(".reason-panel");
+  if (panel) {
+    const pending = document.createElement("div");
+    pending.className = "reason-feedback reason-feedback--pending";
+    pending.textContent = "Submitting analysis to manager...";
+    panel.appendChild(pending);
+  }
+
+  clearM1AnalysisTimer();
+  m1AnalysisTimer = setTimeout(() => {
+    m1AnalysisTimer = null;
+    if (chosen.correct) {
+      if (!m1ReasoningCorrect.has(key)) {
+        m1ReasoningCorrect.add(key);
+        recomputeM1AnalystScore();
+        renderAnalystConfidence();
+      }
+      setManagerText("mission-001", "Good reasoning. " + prompt.why);
+      host.innerHTML = buildM1ReasoningHTML(key, {
+        cls: "reason-feedback--correct",
+        html: `
+          <p class="reason-why"><span class="reason-why-label">Why this matters:</span> ${escapeHtml(prompt.why)}</p>
+          <button class="reason-continue-btn" type="button">Continue to classification →</button>
+        `,
+      });
+      host.querySelectorAll(".reason-btn").forEach((b) => {
+        b.disabled = true;
+        if (b.getAttribute("data-reason-id") === answerId) b.classList.add("reason-btn--correct");
+      });
+      const cont = host.querySelector(".reason-continue-btn");
+      if (cont) cont.addEventListener("click", () => showClassificationPrompt("mission-001", key));
+      try { saveProgress(); } catch (_) { /* non-fatal */ }
+    } else {
+      setManagerText("mission-001", "Look closer. Compare the wording against what a real threat does.");
+      host.innerHTML = buildM1ReasoningHTML(key, {
+        cls: "reason-feedback--wrong",
+        html: "Not quite. Re-read the file and consider what it actually asks for.",
+      });
+      host.querySelectorAll(".reason-btn").forEach((b) => {
+        b.disabled = false;
+        b.addEventListener("click", () => handleM1Reasoning(key, b.getAttribute("data-reason-id")));
+      });
+    }
+  }, m1AnalysisDelay());
+}
+
+/** M1 classification submit — adds the "Submitting analysis..." delay before
+ *  committing the pin. The demo bypasses this (calls handlePinClassification directly). */
+function submitM1Classification(key, level) {
+  const host = document.getElementById(pinHostId("mission-001"));
+  if (host) {
+    host.querySelectorAll(".classify-btn, .classify-skip-btn").forEach((b) => { b.disabled = true; });
+    const panel = host.querySelector(".classify-panel");
+    if (panel) {
+      const pending = document.createElement("div");
+      pending.className = "reason-feedback reason-feedback--pending";
+      pending.textContent = "Submitting analysis to manager...";
+      panel.appendChild(pending);
+    }
+  }
+  clearM1AnalysisTimer();
+  m1AnalysisTimer = setTimeout(() => {
+    m1AnalysisTimer = null;
+    handlePinClassification("mission-001", key, level);
+  }, m1AnalysisDelay());
+}
+
+/** Build the "Investigation Reasoning" scorecard rows (Mission 1). */
+function buildReasoningScorecardHTML() {
+  const pins = investigationPins["mission-001"] || {};
+  const ratings = EVIDENCE_RATINGS["mission-001"] || {};
+  let falseLeads = 0, supporting = 0;
+  Object.keys(pins).forEach((key) => {
+    const p = pins[key]; const r = ratings[key];
+    if (!p || !p.correct || !r) return;
+    if (r.correct === "normal" || r.correct === "low") falseLeads += 1;
+    if (r.correct === "helpful") supporting += 1;
+  });
+  const critical = m1CriticalIdentified() ? "Yes" : "No";
+  const bonus = m1ReasoningBonusAwarded ? "Yes (+25 XP)" : "No";
+  return `
+        <li class="outcome-row outcome-row--section">
+          <span class="outcome-key outcome-key--section">Investigation Reasoning</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">Analyst Confidence</span>
+          <span class="outcome-val outcome-val--cyan">${m1AnalystLevel()}</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">False Leads Eliminated</span>
+          <span class="outcome-val">${falseLeads}</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">Supporting Evidence Identified</span>
+          <span class="outcome-val">${supporting}</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">Critical Threat Identified</span>
+          <span class="outcome-val">${critical}</span>
+        </li>
+        <li class="outcome-row">
+          <span class="outcome-key">Reasoning Bonus Earned</span>
+          <span class="outcome-val">${bonus}</span>
+        </li>`;
+}
+
 /** Recompute a mission's Evidence Confidence purely from pinned findings. */
 function recomputeConfidenceFromPins(missionId) {
   const pins = investigationPins[missionId] || {};
@@ -527,9 +850,13 @@ function showClassificationPrompt(missionId, key) {
     </div>
   `;
   host.querySelectorAll(".classify-btn").forEach((btn) => {
-    btn.addEventListener("click", () =>
-      handlePinClassification(missionId, key, btn.getAttribute("data-level"))
-    );
+    btn.addEventListener("click", () => {
+      const lvl = btn.getAttribute("data-level");
+      // Milestone 27A — Mission 1 routes through a delayed "Submitting analysis
+      // to manager..." wrapper; Mission 2 commits immediately (unchanged).
+      if (missionId === "mission-001") submitM1Classification(key, lvl);
+      else handlePinClassification(missionId, key, lvl);
+    });
   });
   const skipEl = host.querySelector(".classify-skip-btn");
   if (skipEl) skipEl.addEventListener("click", () => handleM1Skip(key));
@@ -574,6 +901,11 @@ function handlePinClassification(missionId, key, level) {
     addConfidence("mission-002", `pin-${key}`, pinConfidenceAmount(correct, level));
   } else {
     recomputeConfidenceFromPins("mission-001");
+    // Milestone 27A — Analyst Confidence is derived from reasoning + correct
+    // classifications; recompute and refresh the meter, then check the bonus.
+    recomputeM1AnalystScore();
+    renderAnalystConfidence();
+    maybeAwardReasoningBonus();
   }
 
   // Trust: small reward for correct prioritization; no punishment for wrong.
@@ -1472,7 +1804,8 @@ ${investigationQuality}
         <li class="outcome-row">
           <span class="outcome-key">Final Evidence Confidence</span>
           <span class="outcome-val outcome-val--cyan">${confidencePct}%</span>
-        </li>`;
+        </li>
+${buildReasoningScorecardHTML()}`;
   } else {
     challengeRows = `
         <li class="outcome-row outcome-row--section">
@@ -2482,6 +2815,10 @@ function saveProgress() {
       m1FilesReviewed:     Array.from(m1FilesReviewed),
       m1FalseLeadsChecked: Array.from(m1FalseLeadsChecked),
       m1BonusFound,
+      // Milestone 27A — Investigative Reasoning Layer (score is recomputed on
+      // restore from these + pins, so it isn't persisted directly).
+      m1ReasoningCorrect:      Array.from(m1ReasoningCorrect),
+      m1ReasoningBonusAwarded,
       // Investigation Board — persist pins + pinnable findings + XP guards.
       investigationPins: (typeof investigationPins === "object" && investigationPins) ? investigationPins : {},
       pinnableFindings: {
@@ -2761,6 +3098,16 @@ function restoreSavedProgress() {
   }
   m1BonusFound     = data.m1BonusFound === true;
 
+  // Milestone 27A — restore Investigative Reasoning state (score recomputed below
+  // once pins are also restored). Only accept reasoning keys that exist.
+  m1ReasoningCorrect.clear();
+  if (Array.isArray(data.m1ReasoningCorrect)) {
+    data.m1ReasoningCorrect.forEach((k) => {
+      if (typeof k === "string" && M1_REASONING[k]) m1ReasoningCorrect.add(k);
+    });
+  }
+  m1ReasoningBonusAwarded = data.m1ReasoningBonusAwarded === true;
+
   // Investigation Board — restore pins, pinnable findings, and XP guards.
   investigationPins["mission-001"] = {};
   investigationPins["mission-002"] = {};
@@ -2790,6 +3137,9 @@ function restoreSavedProgress() {
   if (Array.isArray(data.pinXpAwarded)) {
     data.pinXpAwarded.forEach((k) => { if (typeof k === "string") pinXpAwarded.add(k); });
   }
+  // Milestone 27A — pins are now restored, so derive Analyst Confidence and paint the meter.
+  recomputeM1AnalystScore();
+  renderAnalystConfidence();
   // Milestone 24I — restore Briefing Room state + one-time XP guard.
   briefingReviewed["mission-001"].clear();
   briefingReviewed["mission-002"].clear();
@@ -3362,8 +3712,9 @@ function handleM1FileRead(filename) {
     } else {
       pinnableFindings["mission-001"].add(name);
       setM1ActiveFile(m1BtnKeyForFile(name));
-      setCurrentObjective("mission-001", "Classify this file: judge how suspicious it is.");
-      showClassificationPrompt("mission-001", name);
+      // Milestone 27A — reason first ("What does this file suggest?"), then classify.
+      setCurrentObjective("mission-001", "Analyze this file: what does it suggest?");
+      showM1ReasoningPrompt(name);
       // Milestone 25B — spotlight the classification action during a guided run.
       if (igEnabled) {
         const host = document.getElementById(pinHostId("mission-001"));
@@ -3824,6 +4175,15 @@ function renderMissionStatus() {
 /** Reveals the finding panel and hides command buttons. */
 function showFindingPanel() {
   if (!findingPanel || missionComplete) return;
+
+  // Milestone 27A — completion gate: the suspicious file must be reviewed AND
+  // correctly classified Critical (canCompleteM1) AND Analyst Confidence must be
+  // Strong/Ready before the final finding can be submitted. Correctly identifying
+  // the threat sets Ready, so this never soft-locks a legitimate finish.
+  if (!(canCompleteM1() && m1AnalystReadyToSubmit())) {
+    setHint("You need stronger reasoning before submitting the final finding.", "warning");
+    return;
+  }
 
   // Hide the command-button UI while the analyst writes their report
   if (btnContainer) btnContainer.style.display = "none";
@@ -4685,6 +5045,7 @@ function resetMission() {
   // Stop any in-progress command typing so a pending command can't fire
   // into the terminal after we've reset.
   cancelTerminalTyping();
+  clearM1AnalysisTimer(); // Milestone 27A — drop a pending analysis-submit delay
   setMapButtonsAttention("mission-001", false); // FIX 4 — restart clears the prompt.
   // 1. Reset state variables — back to the pre-briefing state
   currentDir       = "~";
@@ -4725,6 +5086,13 @@ function resetMission() {
   m1BonusFound     = false;
   m1ProgressiveHintIx = 0;
   renderConfidenceMeter("mission-001");
+
+  // Milestone 27A — clear Analyst Confidence / reasoning state on restart.
+  // (Also covers any leakage from the opt-in demo, which classifies directly.)
+  m1AnalystScore = 0;
+  m1ReasoningCorrect.clear();
+  m1ReasoningBonusAwarded = false;
+  renderAnalystConfidence();
 
   // Investigation Board — clear Mission 1 pins + pin UI on restart.
   investigationPins["mission-001"] = {};
@@ -5286,6 +5654,8 @@ function openMission1Dashboard() {
   renderBriefingRoom("mission-001");
   updateMission1CTA();
   renderAllMiniMaps();
+  // Milestone 27A — paint the Analyst Confidence meter on dashboard entry.
+  renderAnalystConfidence();
   // Milestone 25A — if Mission 1 was already in progress, re-assert the
   // mission-running control bar on dashboard re-entry.
   if (missionStarted && !missionComplete) {
@@ -8808,6 +9178,9 @@ function endGuidedRun() {
   // path is shared by every mission-exit (map/overview/back/reset), so one
   // call here covers them all.
   cancelTerminalTyping();
+  // Milestone 27A — cancel a pending "Submitting analysis..." delay so a stale
+  // reasoning/classification callback can't mutate pins/XP/UI after the exit.
+  clearM1AnalysisTimer();
   // Stage 3 — stop the idle-escalation watch on every mission-exit so a pending
   // timer can never fire off-screen after the student navigates away.
   clearEscalationWatch();

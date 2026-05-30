@@ -54,48 +54,45 @@ export const FILESYSTEM = {
     ],
 
     files: {
-      // A normal-looking internal note
+      // Supporting evidence — a reporting-behavior reminder (Helpful)
       "employee_notes.txt": [
         "=== employee_notes.txt ===",
         "",
-        "Reminder: Always report suspicious files to your",
-        "cybersecurity manager.",
-        "",
-        "Do NOT open attachments from unknown senders.",
-        "Do NOT share your password with anyone.",
+        "Reminder: Report suspicious files to your cybersecurity",
+        "manager. Never assume without evidence.",
       ],
 
-      // False lead — a harmless schedule note
+      // False lead — "Urgent" wording, but only a normal meeting note (Normal)
       "meeting_schedule.txt": [
         "=== meeting_schedule.txt ===",
         "",
-        "Team meeting moved to 3:00 PM. No security concerns found.",
+        "Urgent: Finance team meeting moved to 3:00 PM.",
+        "Bring updated budget notes.",
       ],
 
-      // False lead — a harmless finance note
+      // False lead — finance-sensitive, but no credential/external request (Normal)
       "finance_update.txt": [
         "=== finance_update.txt ===",
         "",
-        "Quarterly finance review notes. No suspicious password request found.",
+        "Finance review file updated. No password or external",
+        "login request included.",
       ],
 
-      // Bonus evidence — supporting company policy
+      // Supporting evidence — company password policy (Helpful)
       "security_policy.txt": [
         "=== security_policy.txt ===",
         "",
-        "Company policy: Never share passwords through email or external links.",
+        "Company policy: Passwords must never be shared through",
+        "email, chat, or external links.",
       ],
 
-      // A social-engineering / phishing message — the evidence
+      // The threat — a phishing / social-engineering message (Critical)
       "suspicious_file.txt": [
         "=== suspicious_file.txt ===",
         "",
         "Urgent: Send your password to",
         "external-support@unknownmail.com",
         "to avoid account suspension.",
-        "",
-        "[!] WARNING: This is a social engineering attack.",
-        "[!] Real IT departments NEVER ask for your password.",
       ],
 
       // Extra file for future missions

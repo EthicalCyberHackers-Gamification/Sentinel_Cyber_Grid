@@ -1,1 +1,2 @@
 - [M1 command flow changes](ech-m1-command-flow.md) — changing Mission 1's command-unlock flow must be re-checked against the opt-in demo (curated path) AND resume (unlockedKeys not persisted).
+- [Deferred timers must be cancel-safe](ech-deferred-timers.md) — any setTimeout in script.js must track its id + clear in endGuidedRun/resetMission/abortDemo, or it fires off-screen after navigation.

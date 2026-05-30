@@ -1,0 +1,266 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Mission 1 and Mission 2 work.
+* Mission Engine exists.
+* Mission Map exists.
+* Mission 1 now uses guided investigative pacing.
+* Files are revealed one at a time.
+* Evidence classification exists.
+* Manager reactions, trust score, threat level, XP, investigation board, and scorecards work.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 27A — Investigative Reasoning Layer
+
+Purpose:
+Make Mission 1 feel less predictable and more like a real investigation. Students should not simply wait for the obvious suspicious file. They should compare clues, eliminate false leads, and build analyst confidence before submitting a finding.
+
+Do not add Mission 3.
+Do not redesign the full app.
+Do not remove existing systems.
+Do not add backend, AI, authentication, or multiplayer.
+
+---
+
+1. ADD ANALYST CONFIDENCE METER
+
+---
+
+Add a compact meter:
+
+Analyst Confidence
+
+Levels:
+
+* Low
+* Building
+* Strong
+* Ready
+
+Purpose:
+This should reflect how well the student is reasoning through the evidence.
+
+Rules:
+
+* Starts at Low.
+* Correctly classifying a normal file increases confidence slightly.
+* Correctly classifying supporting evidence increases confidence moderately.
+* Correctly classifying the critical threat increases confidence strongly.
+* Incorrect classification decreases or pauses confidence.
+* Confidence reaches Ready only after the student has correctly identified the primary threat evidence.
+
+Keep this separate from Evidence Confidence.
+
+Evidence Confidence = strength of evidence.
+Analyst Confidence = quality of student reasoning.
+
+---
+
+2. MAKE FALSE LEADS MORE INTERESTING
+
+---
+
+Update harmless files so they initially look mildly suspicious but resolve as harmless after inspection.
+
+meeting_schedule.txt:
+Content:
+“Urgent: Finance team meeting moved to 3:00 PM. Bring updated budget notes.”
+
+Reasoning:
+The word “Urgent” may look suspicious, but the file is only about a normal meeting.
+
+Correct classification:
+Normal Activity
+
+finance_update.txt:
+Content:
+“Finance review file updated. No password or external login request included.”
+
+Reasoning:
+Finance-related files may be sensitive, but this one does not ask for credentials or external action.
+
+Correct classification:
+Normal Activity
+
+employee_notes.txt:
+Content:
+“Reminder: Report suspicious files to your cybersecurity manager. Never assume without evidence.”
+
+Correct classification:
+Helpful Supporting Evidence
+
+security_policy.txt:
+Content:
+“Company policy: Passwords must never be shared through email, chat, or external links.”
+
+Correct classification:
+Helpful Supporting Evidence
+
+suspicious_file.txt:
+Content:
+“Urgent: Send your password to [external-support@unknownmail.com](mailto:external-support@unknownmail.com) to avoid account suspension.”
+
+Correct classification:
+Critical Threat Evidence
+
+---
+
+3. ADD REASONING PROMPTS AFTER EACH FILE
+
+---
+
+After each file is opened, ask:
+
+“What does this file suggest?”
+
+Options should depend on the file.
+
+Example for meeting_schedule.txt:
+A. It is automatically dangerous because it says urgent.
+B. It appears to be normal business activity.
+C. It proves password theft.
+D. It should be escalated immediately.
+
+Correct:
+B
+
+Example for suspicious_file.txt:
+A. It is normal because it sounds urgent.
+B. It is dangerous because it asks for a password through an unknown external email.
+C. It is harmless because it is in documents.
+D. It only needs to be ignored.
+
+Correct:
+B
+
+---
+
+4. DELAY VALIDATION SLIGHTLY
+
+---
+
+When the student submits a classification or reasoning answer:
+
+Show:
+“Submitting analysis to manager...”
+
+Wait about 700–1200 ms.
+
+Then show manager feedback.
+
+Purpose:
+Create anticipation instead of instant mechanical feedback.
+
+---
+
+5. ADD “WHY THIS MATTERS” MICRO-FEEDBACK
+
+---
+
+After correct answers, show one short explanation.
+
+Examples:
+
+Meeting Schedule:
+“Urgent language alone is not enough. Analysts look for credential requests, unknown links, or external pressure.”
+
+Security Policy:
+“Policy evidence helps explain why the suspicious file violates safe behavior.”
+
+Suspicious File:
+“Password requests from unknown external emails are strong phishing indicators.”
+
+Keep explanations short.
+
+---
+
+6. ADD OPTIONAL BONUS DISCOVERY
+
+---
+
+If the student correctly classifies both:
+
+* employee_notes.txt
+* security_policy.txt
+
+Award:
++25 Reasoning Bonus XP
+
+Toast:
+“Reasoning Bonus: Supporting evidence identified.”
+
+Only award once.
+
+---
+
+7. UPDATE COMPLETION GATE
+
+---
+
+Do not allow Mission 1 final finding submission unless:
+
+* suspicious_file.txt was reviewed
+* suspicious_file.txt was correctly classified as Critical Threat Evidence
+* Analyst Confidence is Strong or Ready
+
+If not ready, show:
+“You need stronger reasoning before submitting the final finding.”
+
+---
+
+8. UPDATE SCORECARD
+
+---
+
+Add section:
+
+Investigation Reasoning
+
+Include:
+
+* Analyst Confidence Final Level
+* False Leads Correctly Eliminated
+* Supporting Evidence Identified
+* Critical Threat Identified
+* Reasoning Bonus Earned
+
+---
+
+9. KEEP UI SIMPLE
+
+---
+
+Do not show all reasoning prompts at once.
+
+Only show one prompt for the active file.
+
+After the file is completed, hide that prompt and move to the next file.
+
+---
+
+10. PRESERVE EXISTING SYSTEMS
+
+---
+
+Do not break:
+
+* terminal commands
+* guided file reveal
+* evidence board
+* classification
+* manager reactions
+* hints
+* threat level
+* trust score
+* XP
+* mission completion
+* scorecard
+* local progress save
+* Mission 2
+
+Goal:
+Mission 1 should feel more like detective-style cybersecurity reasoning:
+inspect → question → judge → receive feedback → build confidence → submit final finding.
