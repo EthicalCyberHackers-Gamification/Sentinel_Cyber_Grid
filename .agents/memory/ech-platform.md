@@ -91,3 +91,16 @@ echoes and queued them as slow output.
 `printM2Line`. Any new terminal writer must flush before echoing a command, and clears
 (`clearTerminal`, `resetMission2`) must drop the queue (`clearTerminalOutputQueue`).
 Clicking either terminal flushes pending reveals (skip-to-end).
+
+## Delayed event triggers must be tracked + cancelled + strongly gated
+Stage 1 (Simulated Adversary Presence) added a `setTimeout`-delayed mission-start toast in
+`beginMission`. Any DELAYED/timer-based trigger in this game MUST: (1) be stored in a tracked
+handle (e.g. `m1AdversaryIntroTimer`) and cleared before re-scheduling; (2) be cleared in
+`endGuidedRun()` (the central exit hub that every map/overview/back/reset routes through); and
+(3) have its callback re-check live context at fire time — NOT just `body.mission-running` but the
+specific dashboard's visibility (`#dashboard.style.display !== "none"`) + `missionStarted` +
+`!missionComplete`.
+**Why:** an untracked timer gated only on `mission-running` can fire a stale toast during M2 (if
+the user switches quickly) or duplicate after a reset→restart. `missionStarted` is M1-scoped and
+stays true after navigating to M2, so it alone is insufficient — confirm the dashboard is on-screen.
+**How to apply:** mirror this pattern for any future timed adversary/manager/spotlight event.

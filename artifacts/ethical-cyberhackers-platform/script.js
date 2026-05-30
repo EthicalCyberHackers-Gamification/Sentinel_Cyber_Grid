@@ -1901,6 +1901,10 @@ function handleDecisionAction(actionId) {
     // ("Alert Resolved").
     if (def.kind === "correct") {
       markAlertContained(def.missionId);
+      // Stage 1 — blue-team response to a correct escalation (Mission 1).
+      if (def.missionId === "mission-001") {
+        triggerBlueTeamResponse("Suspicious credential activity contained.");
+      }
     }
 
     try { saveProgress(); } catch (_) { /* non-fatal */ }
@@ -1917,6 +1921,10 @@ function handleDecisionAction(actionId) {
   } else {
     // Poor action — persist trust/threat changes; do NOT advance.
     try { saveProgress(); } catch (_) { /* non-fatal */ }
+    // Stage 1 — a poor decision lets the adversary gain ground (Mission 1).
+    if (def.missionId === "mission-001") {
+      triggerAdversaryEvent("Potential phishing spread risk increasing.", "high", { force: true });
+    }
   }
 }
 
@@ -3090,6 +3098,9 @@ function handleM1FileRead(filename) {
   // Milestone 26A — event toast: the key suspicious file was opened (first read only).
   if (firstRead && name === "suspicious_file.txt") {
     showEventToast("Suspicious File", "A password request from an unknown sender.", "warning");
+    // Stage 1 — adversary presence: opening the phishing file confirms an
+    // active credential-collection attempt.
+    triggerAdversaryEvent("Unknown external email attempting credential collection.", "medium", { force: true });
   }
 
   if (name === "meeting_schedule.txt" || name === "finance_update.txt") {
@@ -4229,6 +4240,9 @@ function updateMission1CTA() {
 
 function beginMission() {
   if (missionStarted) return;
+  // Stage 1 — only treat a genuinely fresh launch (not a mid-mission resume)
+  // as the moment the adversary first appears.
+  const freshStart = !missionLaunched["mission-001"];
   missionStarted = true;
   furthestSeqIndex = -1;
 
@@ -4240,6 +4254,28 @@ function beginMission() {
   updateManagerReaction("mission_started", { missionId: "mission-001" });
   // Milestone 26A — event toast: investigation begins.
   showEventToast("Investigation Started", "Inspect the workstation and gather evidence.", "info");
+  // Stage 1 — adversary presence: an attacker is already probing as the
+  // mission opens. Delayed slightly so it reads as emergent activity rather
+  // than stacking on the "Investigation Started" toast; gated so it never
+  // fires off-screen or on a resume.
+  if (freshStart) {
+    if (m1AdversaryIntroTimer) clearTimeout(m1AdversaryIntroTimer);
+    m1AdversaryIntroTimer = window.setTimeout(() => {
+      m1AdversaryIntroTimer = null;
+      // Strong context gate: the M1 dashboard must be the on-screen, active,
+      // in-progress mission — so a stale timer can never fire during M2 or
+      // after a reset/navigation.
+      const m1Visible = dashboardEl && dashboardEl.style.display !== "none";
+      if (
+        m1Visible &&
+        document.body.classList.contains("mission-running") &&
+        missionStarted &&
+        !missionComplete
+      ) {
+        triggerAdversaryEvent("Suspicious credential request detected.", "low", { force: true });
+      }
+    }, 2200);
+  }
   // Milestone 24G — initialize the M1 tool set (File Inspector + Terminal
   // available, rest locked) and make the Terminal the active focus.
   initializeMissionTools("mission-001");
@@ -7184,7 +7220,7 @@ function fxToast(text, tone) {
    - top-right stack, pointer-events:none (never blocks the terminal),
      slides in, auto-fades after ~3.5s, max 2 visible at once.
    ============================================================ */
-const EVENT_TOAST_TYPES = ["info", "success", "warning", "danger", "unlock"];
+const EVENT_TOAST_TYPES = ["info", "success", "warning", "danger", "unlock", "adversary", "blueteam"];
 const EVENT_TOAST_MAX = 2;        // max simultaneously visible
 const EVENT_TOAST_MS = 3500;      // visible duration (3–4s)
 const EVENT_TOAST_FADE_MS = 350;  // slide/fade-out duration
@@ -7204,10 +7240,11 @@ function ensureEventToastHost() {
 /** Public API — enqueue a toast. Renders immediately if under the visible
  *  cap, otherwise queues so each toast still gets its full visible duration
  *  (no premature truncation under bursts). */
-function showEventToast(title, message, type) {
+function showEventToast(title, message, type, opts) {
   if (!title && !message) return;
   const t = EVENT_TOAST_TYPES.includes(type) ? type : "info";
-  eventToastQueue.push({ title: title || "", message: message || "", type: t });
+  const extraClass = (opts && opts.extraClass) || "";
+  eventToastQueue.push({ title: title || "", message: message || "", type: t, extraClass });
   pumpEventToasts();
 }
 
@@ -7222,7 +7259,7 @@ function renderEventToast(item) {
   eventToastVisible++;
 
   const el = document.createElement("div");
-  el.className = `event-toast event-toast--${item.type}`;
+  el.className = `event-toast event-toast--${item.type}${item.extraClass ? " " + item.extraClass : ""}`;
   el.setAttribute("role", "status");
   el.setAttribute("aria-atomic", "true");
   el.innerHTML =
@@ -7245,6 +7282,62 @@ function renderEventToast(item) {
       pumpEventToasts(); // a slot freed up — show the next queued toast
     }, EVENT_TOAST_FADE_MS);
   }, EVENT_TOAST_MS);
+}
+
+/* ============================================================
+   Stage 1 — Simulated Adversary Presence
+   Lightweight "an attacker is active" layer built ON TOP of the
+   26A event-toast system. No backend / AI / multiplayer / real
+   hacking — scripted, mission-driven flavor only.
+   - triggerAdversaryEvent(eventText, severity) — severity:
+     low | medium | high. Renders a RED-accent toast (visually
+     distinct from manager chat) + a subtle pulse on the current
+     mission node.
+   - triggerBlueTeamResponse(eventText) — the defensive
+     counter-message shown after a correct escalation.
+   - Throttled so students are never spammed: at most one ambient
+     adversary event per cooldown window; "important mission
+     actions" pass { force: true } to bypass the cooldown.
+   ============================================================ */
+const ADVERSARY_SEVERITIES = ["low", "medium", "high"];
+const ADVERSARY_COOLDOWN_MS = 22000; // ambient throttle (within the 20–40s spec window)
+let lastAdversaryAt = 0;
+let m1AdversaryIntroTimer = null; // tracked so a pending mission-start intro can be cancelled
+
+/** Pulse the active node in whichever mission route map is on screen. */
+function pulseActiveMissionNode() {
+  const nodes = document.querySelectorAll(
+    "#m1MiniMap .mini-node--active, #m2MiniMap .mini-node--active"
+  );
+  nodes.forEach((node) => {
+    node.classList.remove("mini-node--adversary-pulse");
+    void node.offsetWidth; // restart the animation if it is mid-flight
+    node.classList.add("mini-node--adversary-pulse");
+    window.setTimeout(() => node.classList.remove("mini-node--adversary-pulse"), 1600);
+  });
+}
+
+/** Public API — surface a short adversary update. Returns true if shown. */
+function triggerAdversaryEvent(eventText, severity, opts) {
+  if (!eventText) return false;
+  if (demoRunning) return false; // never intrude on the teaching demo
+  const sev = ADVERSARY_SEVERITIES.includes(severity) ? severity : "low";
+  const force = !!(opts && opts.force); // important mission actions bypass the cooldown
+  const now = Date.now();
+  if (!force && now - lastAdversaryAt < ADVERSARY_COOLDOWN_MS) return false;
+  lastAdversaryAt = now;
+
+  const label = sev === "high" ? "ATTACKER MOVEMENT" : "ATTACKER ACTIVITY";
+  showEventToast(label, eventText, "adversary", { extraClass: `event-toast--sev-${sev}` });
+  pulseActiveMissionNode();
+  return true;
+}
+
+/** Defensive counter-message after a correct escalation. */
+function triggerBlueTeamResponse(eventText) {
+  if (!eventText) return;
+  if (demoRunning) return;
+  showEventToast("BLUE TEAM RESPONSE", eventText, "blueteam");
 }
 
 function fxPulse(id) {
@@ -7593,6 +7686,12 @@ function endGuidedRun() {
   // If an opt-in demo is mid-flight, tear it down on ANY navigation exit so
   // its timers can't fire off-screen and `suppressSave` is never left stuck.
   if (demoRunning) abortDemo();
+  // Stage 1 — cancel a pending mission-start adversary intro so it can never
+  // fire off-screen after a navigation/reset (this hub covers every exit).
+  if (m1AdversaryIntroTimer) {
+    clearTimeout(m1AdversaryIntroTimer);
+    m1AdversaryIntroTimer = null;
+  }
   igEnabled = false;
   igPhasesShown.clear();
   igPending.clear();

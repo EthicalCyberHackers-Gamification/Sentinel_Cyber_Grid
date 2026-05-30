@@ -6888,3 +6888,58 @@ body.mission-running .center-column { min-width: 0; }
   .event-toast--show { transform: none; }
   .event-toast--hide { transform: none; }
 }
+
+/* ============================================================
+   Stage 1 — Simulated Adversary Presence
+   Red-accent adversary toasts (deliberately distinct from the
+   manager chat feed), severity tiers, the blue-team response
+   variant, and a subtle red pulse on the active mission node.
+   ============================================================ */
+.event-toast--adversary {
+  background: rgba(28, 8, 10, 0.96);
+  border-color: rgba(255, 70, 70, 0.42);
+  border-left-color: #ff3b3b;
+}
+.event-toast--adversary .event-toast-dot { background: #ff3b3b; }
+.event-toast--adversary .event-toast-title {
+  color: #ff6b6b;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.event-toast--adversary .event-toast-msg { color: #f1c9c9; }
+
+/* Severity tiers — escalate the red accent and glow. */
+.event-toast--sev-low    { border-left-color: #f87171; }
+.event-toast--sev-low    .event-toast-dot { background: #f87171; }
+.event-toast--sev-medium { border-left-color: #ff5a5a; }
+.event-toast--sev-medium .event-toast-dot { background: #ff5a5a; }
+.event-toast--sev-high {
+  border-left-color: #ff2d2d;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45), 0 0 16px rgba(255, 45, 45, 0.4);
+}
+.event-toast--sev-high   .event-toast-dot { background: #ff2d2d; box-shadow: 0 0 10px #ff2d2d; }
+.event-toast--sev-high   .event-toast-title { color: #ff8a8a; }
+
+/* Blue-team defensive response — cool blue, clearly "the good guys". */
+.event-toast--blueteam {
+  background: rgba(8, 18, 30, 0.96);
+  border-color: rgba(78, 168, 255, 0.42);
+  border-left-color: #4ea8ff;
+}
+.event-toast--blueteam .event-toast-dot { background: #4ea8ff; }
+.event-toast--blueteam .event-toast-title {
+  color: #7ec0ff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Active mission node reacts to adversary activity. */
+@keyframes adversaryNodePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 45, 45, 0.65); }
+  70%  { box-shadow: 0 0 0 13px rgba(255, 45, 45, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 45, 45, 0); }
+}
+.mini-node--adversary-pulse { animation: adversaryNodePulse 1.4s ease-out 1; }
+@media (prefers-reduced-motion: reduce) {
+  .mini-node--adversary-pulse { animation: none; }
+}

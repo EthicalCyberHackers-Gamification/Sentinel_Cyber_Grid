@@ -413,6 +413,34 @@ the END of `style.css`.
   `runM2Command` captures `firstPing`/`firstNmap` at the TOP (before the unlock chain mutates
   `m2UnlockedCmds`); `handleM1FileRead` snapshots `firstRead` before `m1FilesReviewed.add`.
 
+### Simulated Adversary Presence (Stage 1)
+A Mission-1-only "an attacker is active" immersion layer built ON TOP of the 26A event-toast
+system (no backend/AI/multiplayer/real-hacking/redesign). Module lives after `renderEventToast`
+in `script.js` (~7254); CSS appended at the END of `style.css`.
+- **API**: `triggerAdversaryEvent(eventText, severity, opts)` — `severity` low|medium|high;
+  renders a RED-accent toast (`event-toast--adversary` + `event-toast--sev-{low|medium|high}`,
+  title "ATTACKER ACTIVITY" for low/medium, "ATTACKER MOVEMENT" for high) AND pulses the active
+  mission-route node (`pulseActiveMissionNode` toggles transient `.mini-node--adversary-pulse` on
+  `#m1MiniMap/#m2MiniMap .mini-node--active`). `triggerBlueTeamResponse(text)` →
+  `event-toast--blueteam` (BLUE, "the good guys"). Both no-op when `demoRunning`.
+- **Throttle**: ambient events respect `ADVERSARY_COOLDOWN_MS` (22s, within the 20–40s spec);
+  important mission actions pass `{ force: true }` to bypass. `showEventToast` gained an optional
+  4th arg `opts.extraClass` (back-compatible; 3-arg callsites unchanged); two new toast types
+  added to `EVENT_TOAST_TYPES`.
+- **Triggers (M1 only, all gated `def.missionId === "mission-001"` where applicable)**:
+  mission start → low ("Suspicious credential request detected.", DELAYED ~2.2s so it reads as
+  emergent); first read of `suspicious_file.txt` → medium ("Unknown external email attempting
+  credential collection."); poor decision (Ignore Alert) → high ("Potential phishing spread risk
+  increasing."); correct escalation (Escalate to Manager) → BLUE TEAM RESPONSE ("Suspicious
+  credential activity contained.").
+- **Resume/navigation safety (architect fix)**: the delayed mission-start toast is scheduled via
+  the tracked `m1AdversaryIntroTimer`. It's CLEARED before re-scheduling in `beginMission` AND in
+  `endGuidedRun()` (the central exit hub — covers map/overview/back/reset), and its callback is
+  STRONGLY gated (M1 `#dashboard` visible + `body.mission-running` + `missionStarted` +
+  `!missionComplete`) so a stale timer can never fire during M2 or after a reset. `freshStart`
+  (`!missionLaunched["mission-001"]` captured at the TOP of `beginMission`) ensures it only fires
+  on a genuine fresh launch, not a mid-mission resume.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
