@@ -7270,3 +7270,132 @@ body.mission-running .center-column { min-width: 0; }
   .threat-contained-dot { animation: none; }
   .containment-action-btn { transition: none; }
 }
+
+/* ======================================================
+   GUIDED ONE-CLUE-AT-A-TIME INVESTIGATION (Mission 1)
+   The student opens and classifies one file at a time. The
+   active file card is spotlighted, already-classified files
+   dim to "reviewed", and the rest of the dashboard recedes so
+   the single investigative decision stays front and centre.
+   ====================================================== */
+
+/* Active file under investigation — strong cyan spotlight. */
+.cmd-btn--active-file {
+  position: relative;
+  border-color: var(--color-cyan, #00e0ff) !important;
+  box-shadow:
+    0 0 0 1px rgba(0,224,255,0.55),
+    0 0 26px rgba(0,224,255,0.5);
+  animation: activeFilePulse 1.8s ease-in-out infinite;
+  z-index: 2;
+}
+.cmd-btn--active-file::after {
+  content: "INVESTIGATING";
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  padding: 2px 8px;
+  background: var(--color-cyan, #00e0ff);
+  color: var(--color-bg, #06121a);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(0,224,255,0.6);
+  pointer-events: none;
+}
+@keyframes activeFilePulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(0,224,255,0.55),
+      0 0 26px rgba(0,224,255,0.45);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(0,224,255,0.8),
+      0 0 36px rgba(0,224,255,0.65);
+  }
+}
+
+/* Already classified files — dimmed, marked reviewed, still clickable. */
+.cmd-btn--reviewed {
+  opacity: 0.5;
+  filter: saturate(0.6);
+  position: relative;
+}
+.cmd-btn--reviewed:hover {
+  opacity: 0.85;
+  filter: saturate(0.9);
+}
+.cmd-btn--reviewed::after {
+  content: "✓ REVIEWED";
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  padding: 2px 8px;
+  background: rgba(0,255,136,0.18);
+  color: var(--color-green, #00ff88);
+  border: 1px solid rgba(0,255,136,0.5);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* While a file is under investigation, recede the dense supporting panels
+   so the terminal + active file + classification choices dominate. */
+body.m1-file-active .focus-collapse {
+  opacity: 0.55;
+  transition: opacity 0.3s ease;
+}
+body.m1-file-active .focus-collapse:hover {
+  opacity: 1;
+}
+body.m1-file-active #pinPanel {
+  box-shadow: 0 0 0 1px rgba(0,224,255,0.35), 0 0 22px rgba(0,224,255,0.22);
+  border-radius: 8px;
+  animation: pinPanelFocusIn 0.35s ease;
+}
+@keyframes pinPanelFocusIn {
+  from { transform: translateY(6px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+/* "Current File Under Investigation" header above the classify choices. */
+.classify-active-file {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--color-cyan, #00e0ff);
+  text-transform: uppercase;
+}
+
+/* Optional "skip this file for now" control. */
+.classify-skip-btn {
+  margin-top: 0.6rem;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  background: transparent;
+  color: var(--color-text-dim, #8aa0ab);
+  border: 1px dashed rgba(138,160,171,0.5);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.classify-skip-btn:hover {
+  color: var(--color-text, #d7e6ee);
+  border-color: rgba(138,160,171,0.85);
+  background: rgba(138,160,171,0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmd-btn--active-file { animation: none; }
+  body.m1-file-active #pinPanel { animation: none; }
+}

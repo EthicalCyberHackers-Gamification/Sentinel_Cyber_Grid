@@ -582,6 +582,45 @@ progress system.
   completion shows THREAT CONTAINED banner + 4 summary rows → post-completion panel fully locked
   (all 4 disabled, no mutation on click); M2 intact, no console errors.
 
+### Guided One-Clue-at-a-Time Investigation (Mission 1)
+M1 reveals files ONE at a time instead of dumping all `cat-*` cards at once. The "file cards"
+ARE the `cat-*` command buttons (the "Inspect Files" group).
+- **Gated unlock chain (`missions.js`)**: `cd-documents.unlocksAfterRun = ["ls-documents"]` (no
+  file cards yet); `ls-documents.unlocksAfterRun = ["cat-employee-notes"]` (first file only). The
+  `~/documents`.ls order was reordered so `security_policy.txt` precedes `suspicious_file.txt`.
+- **Reveal order** (`M1_FILE_REVEAL` near the pin state in `script.js`, ~327): employee_notes →
+  meeting_schedule → finance_update → security_policy → suspicious_file. Each subsequent file
+  card is unlocked by `revealNextM1File(currentFile)` (one-time toast "Next File Available")
+  only AFTER the current file is opened AND classified (or skipped).
+- **Read → classify directly**: `handleM1FileRead` (M1, rated file) no longer calls `showPinPrompt`
+  — it sets `m1ActiveFileKey` via `setM1ActiveFile`, sets the objective "Classify this file…", and
+  calls `showClassificationPrompt` directly (no intermediate "Pin to Board" step). If the file is
+  ALREADY correctly classified (resume re-read), it instead walks the chain via `revealNextM1File`.
+- **Active-file focus**: `showClassificationPrompt` (M1 only) prepends a "🔎 Current File Under
+  Investigation" header + a "Skip this file for now" button (`handleM1Skip`, HIDDEN on the last
+  file — the suspicious file must be classified to win). `renderButtons` paints file cards:
+  `cmd-btn--active-file` (cyan spotlight, the open file), `cmd-btn--reviewed` (dimmed, classified),
+  and `cmd-btn--next` glow on the SINGLE earliest unlocked-unclassified file (`m1NextFileBtnKey`,
+  computed once per render so exactly one clue glows even after a skip). `body.m1-file-active`
+  recedes `.focus-collapse` panels and emphasizes `#pinPanel`.
+- **No reclassify warning for M1**: `handlePinClassification`'s host-refresh has an M1 branch that
+  clears the panel, `setM1ActiveFile(null)`, and `revealNextM1File(key)` on EITHER correct or
+  incorrect — it NEVER re-shows `showPinPrompt`/"Your earlier call didn't fit". The suspicious
+  Critical gate (decision/finding flow) is unchanged. `pinReactionText`: employee_notes incorrect →
+  "This file supports security awareness, but it is not the primary threat." (correct msg already
+  "Good. This note supports proper reporting behavior.").
+- **Objectives** (`afterCommand`): cd-documents → "List the contents of the documents folder.";
+  ls-documents → "Open the first document to begin your investigation."
+- **Demo compatibility**: the opt-in demo walks a curated path (skips ahead to finance/suspicious),
+  so `handleM1FileRead`'s per-file classify branch is guarded by `!demoRunning`, and
+  `demoClickCommand` reveals the needed `cat-*` button on demand (isolated by `suppressSave` +
+  `resetMission` teardown). The demo's explicit `handlePinClassification(suspicious, critical)`
+  step still drives completion.
+- **Cleanup**: `resetMission` clears `m1ActiveFileKey` + `body.m1-file-active`. CSS appended at the
+  END of `style.css`. `m1ActiveFileKey` is session-only (not persisted). M2 untouched. Verified e2e
+  (cd→only ls; ls→one file; one-by-one classify advance; employee_notes incorrect msg; no reclassify
+  warning; suspicious Critical → decision flow; no console errors).
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

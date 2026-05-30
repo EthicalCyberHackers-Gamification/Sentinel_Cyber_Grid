@@ -49,8 +49,8 @@ export const FILESYSTEM = {
       "employee_notes.txt",
       "meeting_schedule.txt",
       "finance_update.txt",
-      "suspicious_file.txt",
       "security_policy.txt",
+      "suspicious_file.txt",
     ],
 
     files: {
@@ -181,17 +181,11 @@ export const COMMAND_BUTTONS = [
     desc:            "Navigate into the documents folder",
     style:           "basic",
     unlockedAtStart: false,
-    // Once inside documents, reveal every file the student can inspect —
-    // the normal note, two false leads, the bonus policy, and the
-    // suspicious file. The student must sort real evidence from noise.
-    unlocksAfterRun: [
-      "ls-documents",
-      "cat-employee-notes",
-      "cat-meeting-schedule",
-      "cat-finance-update",
-      "cat-security-policy",
-      "cat-suspicious",
-    ],
+    // Guided one-clue-at-a-time flow: entering documents reveals ONLY the
+    // "List Documents" command — no file cards yet. The student must run ls
+    // to surface the first file, then files reveal one at a time as each is
+    // opened and classified (see revealNextM1File in script.js).
+    unlocksAfterRun: ["ls-documents"],
   },
 
   /* --- Unlocked after cd-documents is clicked --- */
@@ -203,7 +197,9 @@ export const COMMAND_BUTTONS = [
     desc:            "See the files inside documents/",
     style:           "basic",
     unlockedAtStart: false,
-    unlocksAfterRun: [],
+    // Listing the documents folder reveals ONLY the first file card. Each
+    // subsequent file is revealed after the current one is classified/skipped.
+    unlocksAfterRun: ["cat-employee-notes"],
   },
   {
     key:             "cat-employee-notes",

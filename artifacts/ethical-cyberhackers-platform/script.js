@@ -321,6 +321,66 @@ const pinnableFindings = {
 // One-time XP guard keyed by `${missionId}:${key}` so re-classifying can't farm XP.
 const pinXpAwarded = new Set();
 
+/* ============================================================
+   GUIDED ONE-CLUE-AT-A-TIME FLOW (Mission 1)
+   Files reveal one at a time: each file card (a cat-* command button)
+   is unlocked only after the previous file is opened AND classified (or
+   skipped). The student focuses on a single investigative decision at a
+   time instead of being shown every file/command at once.
+   ============================================================ */
+
+// Reveal order (file name ↔ its cat-* command button key). The order here
+// drives BOTH which file unlocks next and the active-file spotlight.
+const M1_FILE_REVEAL = [
+  { file: "employee_notes.txt",  btn: "cat-employee-notes"  },
+  { file: "meeting_schedule.txt", btn: "cat-meeting-schedule" },
+  { file: "finance_update.txt",  btn: "cat-finance-update"   },
+  { file: "security_policy.txt", btn: "cat-security-policy"  },
+  { file: "suspicious_file.txt", btn: "cat-suspicious"       },
+];
+
+// The cat-* button key for the file currently "under investigation" (opened
+// and awaiting classification). null when no file is actively being judged.
+let m1ActiveFileKey = null;
+
+/** Map a cat-* button key → its file name (or null). */
+function m1FileForBtnKey(key) {
+  const entry = M1_FILE_REVEAL.find((f) => f.btn === key);
+  return entry ? entry.file : null;
+}
+/** Map an M1 file name → its cat-* button key (or null). */
+function m1BtnKeyForFile(file) {
+  const entry = M1_FILE_REVEAL.find((f) => f.file === file);
+  return entry ? entry.btn : null;
+}
+
+/** Set (or clear) the file currently under investigation + repaint cards. */
+function setM1ActiveFile(btnKey) {
+  m1ActiveFileKey = btnKey || null;
+  document.body.classList.toggle("m1-file-active", !!m1ActiveFileKey);
+  // Repaint so the active/reviewed/next card states update immediately.
+  try { renderButtons(); } catch (_) { /* btnContainer may not exist yet */ }
+}
+
+/**
+ * Reveal the NEXT file card in M1_FILE_REVEAL after `currentFile`.
+ * Called once a file's classification interaction completes (correct,
+ * incorrect, or skipped). No-op on the last file. Resume-safe: re-reading an
+ * already-classified file walks the chain forward.
+ */
+function revealNextM1File(currentFile) {
+  const idx = M1_FILE_REVEAL.findIndex((f) => f.file === currentFile);
+  if (idx < 0) return;
+  const next = M1_FILE_REVEAL[idx + 1];
+  if (!next) return; // last file (suspicious_file) — nothing further to reveal
+  const newly = unlockButtons([next.btn]);
+  renderButtons(newly); // newly-unlocked card gets the .cmd-btn--unlocking fade/pulse
+  if (newly.length) {
+    showEventToast("Next File Available", "A new document is ready to inspect.", "info");
+    setCurrentObjective("mission-001", "Open the next document to continue your investigation.");
+  }
+}
+
 /** Confidence awarded for a pin given correctness + chosen level. */
 function pinConfidenceAmount(correct, level) {
   if (!correct) return 3;
@@ -443,11 +503,27 @@ function showClassificationPrompt(missionId, key) {
       ${escapeHtml(SUSPICION_LEVELS[lvl].label)}
     </button>
   `).join("");
+
+  // Guided one-clue-at-a-time flow (Mission 1): frame this as the single file
+  // currently "under investigation", and offer an explicit Skip (except on the
+  // final file, where the suspicious file must actually be classified to win).
+  const isM1 = missionId === "mission-001";
+  const fileIdx = isM1 ? M1_FILE_REVEAL.findIndex((f) => f.file === key) : -1;
+  const canSkip = isM1 && fileIdx >= 0 && fileIdx < M1_FILE_REVEAL.length - 1;
+  const activeHeader = isM1
+    ? `<p class="classify-active-file">🔎 Current File Under Investigation</p>`
+    : "";
+  const skipBtn = canSkip
+    ? `<button class="classify-skip-btn" type="button" data-skip-key="${escapeHtml(key)}">Skip this file for now</button>`
+    : "";
+
   host.innerHTML = `
     <div class="classify-panel">
+      ${activeHeader}
       <p class="classify-title">How suspicious is this evidence?</p>
       <p class="classify-subject">${escapeHtml(rating.title)}</p>
       <div class="classify-options">${opts}</div>
+      ${skipBtn}
     </div>
   `;
   host.querySelectorAll(".classify-btn").forEach((btn) => {
@@ -455,6 +531,23 @@ function showClassificationPrompt(missionId, key) {
       handlePinClassification(missionId, key, btn.getAttribute("data-level"))
     );
   });
+  const skipEl = host.querySelector(".classify-skip-btn");
+  if (skipEl) skipEl.addEventListener("click", () => handleM1Skip(key));
+}
+
+/**
+ * Guided flow — the student intentionally skips classifying the active file.
+ * No pin/evidence is recorded; the chain simply advances to the next file.
+ * The file card stays available so they can revisit it later.
+ */
+function handleM1Skip(key) {
+  setM1ActiveFile(null);
+  const host = document.getElementById(pinHostId("mission-001"));
+  if (host) { host.innerHTML = ""; host.style.display = "none"; }
+  setManagerText("mission-001", "Skipped for now. You can reopen this file anytime to classify it.");
+  showEventToast("File Skipped", "You can revisit this document later.", "info");
+  revealNextM1File(key);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
 }
 
 /** Commit a pin + classification, apply effects, react, and re-render. */
@@ -544,12 +637,24 @@ function handlePinClassification(missionId, key, level) {
     showBlueTeamUpdate("mission-002", "Evidence logged.");
   }
 
-  // Refresh the pin action area: clear when correct, otherwise offer a
-  // re-classification, then surface any remaining pending finding.
+  // Refresh the pin action area.
   const host = document.getElementById(pinHostId(missionId));
   if (host) {
-    if (correct) { host.innerHTML = ""; host.style.display = "none"; showNextPinnable(missionId); }
-    else { showPinPrompt(missionId, key); }
+    if (missionId === "mission-001") {
+      // Guided one-clue-at-a-time flow: the classification interaction is now
+      // complete (correct OR incorrect), so clear the active-file panel and
+      // reveal the next file. NEVER re-show the "Pin to Board" prompt or the
+      // "Your earlier call didn't fit" reclassification warning — the manager
+      // reaction already guides a misjudged file, and the student can simply
+      // reopen the file card to try again.
+      host.innerHTML = ""; host.style.display = "none";
+      setM1ActiveFile(null);
+      revealNextM1File(key);
+    } else if (correct) {
+      host.innerHTML = ""; host.style.display = "none"; showNextPinnable(missionId);
+    } else {
+      showPinPrompt(missionId, key);
+    }
   }
 
   try { saveProgress(); } catch (_) { /* non-fatal */ }
@@ -560,7 +665,7 @@ function pinReactionText(missionId, key, level, correct) {
   if (!correct) {
     // FIX 2 — clearer guidance when the employee notes finding is misjudged.
     if (missionId === "mission-001" && key === "employee_notes.txt") {
-      return "Re-check this note. It supports reporting suspicious files, but it is not the main threat.";
+      return "This file supports security awareness, but it is not the primary threat.";
     }
     return "This appears to be normal business activity. Focus on evidence involving credentials, external communication, or policy violations.";
   }
@@ -3242,12 +3347,29 @@ function handleM1FileRead(filename) {
     m1BonusFound = true;
   }
 
-  // Evidence Prioritization — reading a file no longer auto-confirms a
-  // finding or auto-advances the mission. Instead, the student is offered
-  // the choice to PIN it to the Investigation Board and CLASSIFY how
-  // suspicious it is. Confidence/trust/decisions flow from that judgement.
-  if (EVIDENCE_RATINGS["mission-001"][name]) {
-    showPinPrompt("mission-001", name);
+  // Guided one-clue-at-a-time flow — opening a file does not auto-confirm a
+  // finding or auto-advance. The student must CLASSIFY how suspicious it is.
+  // Reading goes STRAIGHT to the classification choices (no intermediate
+  // "Pin to Board" step), framed as the single active investigative decision.
+  // The opt-in demo follows its OWN curated path (it classifies the suspicious
+  // file explicitly), so suppress the per-file prompt while it runs.
+  if (EVIDENCE_RATINGS["mission-001"][name] && !demoRunning) {
+    const existing = investigationPins["mission-001"][name];
+    if (existing && existing.correct) {
+      // Already correctly classified (e.g. a re-read on resume). Don't re-prompt;
+      // instead walk the guided chain forward so the next file stays reachable.
+      revealNextM1File(name);
+    } else {
+      pinnableFindings["mission-001"].add(name);
+      setM1ActiveFile(m1BtnKeyForFile(name));
+      setCurrentObjective("mission-001", "Classify this file: judge how suspicious it is.");
+      showClassificationPrompt("mission-001", name);
+      // Milestone 25B — spotlight the classification action during a guided run.
+      if (igEnabled) {
+        const host = document.getElementById(pinHostId("mission-001"));
+        if (host) igShow("mission-001", "board", host);
+      }
+    }
   }
 }
 
@@ -3438,6 +3560,14 @@ function afterCommand(buttonKey) {
   // the just-used button gets dimmed — even when nothing new unlocked.
   renderButtons(newlyUnlocked);
 
+  // Guided one-clue-at-a-time flow — keep the Current Objective focused on the
+  // single next action as the student walks into the documents folder.
+  if (buttonKey === "cd-documents") {
+    setCurrentObjective("mission-001", "List the contents of the documents folder.");
+  } else if (buttonKey === "ls-documents") {
+    setCurrentObjective("mission-001", "Open the first document to begin your investigation.");
+  }
+
   // Milestone 7: show the "Submit Finding" panel 800ms after reading the
   // suspicious file. The quiz is no longer triggered directly — it now
   // unlocks only after the student submits the correct finding.
@@ -3536,6 +3666,20 @@ function renderButtons(newlyUnlocked = []) {
     }
   });
 
+  // Guided one-clue-at-a-time flow — the SINGLE next file to open is the
+  // earliest unlocked, unclassified file in reveal order. Only that card glows
+  // as "next" so exactly one clue is highlighted even after a skip (which can
+  // leave more than one unlocked-but-unclassified file on the board).
+  let m1NextFileBtnKey = null;
+  if (!m1ActiveFileKey) {
+    for (const f of M1_FILE_REVEAL) {
+      if (unlockedKeys.has(f.btn) && !investigationPins["mission-001"][f.file]) {
+        m1NextFileBtnKey = f.btn;
+        break;
+      }
+    }
+  }
+
   // Milestone 25A — group commands by category with labels so the panel
   // reads like an investigation workflow (Navigate → Inspect Files).
   // Groups are created lazily and only when they have a visible button.
@@ -3562,11 +3706,36 @@ function renderButtons(newlyUnlocked = []) {
     el.dataset.command   = btn.command;
     el.dataset.buttonKey = btn.key;
 
+    // Guided one-clue-at-a-time flow: file cards (cat-*) carry their own
+    // investigation state — the active file is spotlighted, already-classified
+    // files are dimmed as "reviewed", and the single unclassified-but-unlocked
+    // file glows as the one to open next. These override the generic next/used
+    // styling for file cards so the student's eye lands on exactly one card.
+    const fileName = m1FileForBtnKey(btn.key);
+    let fileStyled = false;
+    if (fileName) {
+      const pin = investigationPins["mission-001"][fileName];
+      if (m1ActiveFileKey === btn.key) {
+        el.classList.add("cmd-btn--active-file");
+        fileStyled = true;
+      } else if (pin) {
+        el.classList.add("cmd-btn--reviewed");
+        fileStyled = true;
+      } else if (!m1ActiveFileKey && m1NextFileBtnKey === btn.key) {
+        // No file under investigation — only the SINGLE earliest unlocked,
+        // unclassified file glows as the one clue to open next.
+        el.classList.add("cmd-btn--next");
+        fileStyled = true;
+      }
+    }
+
     // Spotlight the next step (overrides "used" dimming if both apply)
-    if (btn.key === nextKey) {
-      el.classList.add("cmd-btn--next");
-    } else if (usedKeys.has(btn.key)) {
-      el.classList.add("cmd-btn--used");
+    if (!fileStyled) {
+      if (btn.key === nextKey) {
+        el.classList.add("cmd-btn--next");
+      } else if (usedKeys.has(btn.key)) {
+        el.classList.add("cmd-btn--used");
+      }
     }
 
     if (newlyUnlocked.includes(btn.key)) {
@@ -4566,6 +4735,10 @@ function resetMission() {
   renderInvestigationBoard("mission-001");
   const pinHostM1 = document.getElementById("pinPanel");
   if (pinHostM1) { pinHostM1.innerHTML = ""; pinHostM1.style.display = "none"; }
+
+  // Guided one-clue-at-a-time flow — clear the active-file spotlight state.
+  m1ActiveFileKey = null;
+  document.body.classList.remove("m1-file-active");
 
   // Milestone 24I — replaying clears Mission 1's Briefing Room state.
   briefingReviewed["mission-001"].clear();
@@ -8853,9 +9026,21 @@ function m1KeyForCommand(command) {
  *  fire exactly as in real play). Falls back to a keyed run + typing if the
  *  button isn't rendered yet (keeps the progression chain intact). */
 function demoClickCommand(command) {
-  const btn = btnContainer
+  let btn = btnContainer
     ? btnContainer.querySelector(`[data-command="${command}"]`)
     : null;
+  // The guided one-clue-at-a-time flow reveals file cards one at a time, but the
+  // demo walks a curated path (it skips ahead to finance/suspicious). Reveal the
+  // needed command button on demand so the demo's "watch me click" fidelity is
+  // preserved. Side effects stay isolated (suppressSave + resetMission teardown).
+  if (!btn && btnContainer) {
+    const key = m1KeyForCommand(command);
+    if (key && !unlockedKeys.has(key)) {
+      unlockButtons([key]);
+      renderButtons();
+      btn = btnContainer.querySelector(`[data-command="${command}"]`);
+    }
+  }
   if (btn) {
     btn.classList.add("demo-press");
     demoWait(() => btn.classList.remove("demo-press"), 520);

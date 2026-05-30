@@ -1,0 +1,247 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current issue:
+The investigation workflow still shows too many files and actions at once. Students become overwhelmed because the interface exposes all evidence immediately instead of guiding discovery step-by-step.
+
+There is also still a classification issue with employee_notes.txt.
+
+Goal:
+Transform Mission 1 into a guided investigative flow where the student discovers and processes one piece of evidence at a time.
+
+Do not redesign the full app.
+Do not remove terminal functionality.
+Do not break Mission 1 or Mission 2.
+Do not add backend, AI, or multiplayer.
+
+---
+
+1. FIX INVESTIGATION FLOW CLUTTER
+
+---
+
+Current problem:
+After:
+cd documents
+
+The UI immediately shows all document cards.
+
+This is overwhelming and removes discovery pacing.
+
+New behavior:
+
+Step 1:
+Student runs:
+cd documents
+
+Result:
+ONLY terminal output appears.
+
+Do NOT display all files yet.
+
+Current Objective updates:
+“List the contents of the documents folder.”
+
+---
+
+2. LIST DOCUMENTS SHOULD REVEAL FILES GRADUALLY
+
+---
+
+When student runs:
+ls
+
+Show ONLY ONE document card at a time.
+
+Mission 1 file reveal order:
+
+1. employee_notes.txt
+2. meeting_schedule.txt
+3. finance_update.txt
+4. security_policy.txt
+5. suspicious_file.txt
+
+Only reveal the next file AFTER:
+
+* the current file is opened
+* classification interaction is completed
+* or the student intentionally skips it
+
+---
+
+3. ACTIVE FILE FOCUS MODE
+
+---
+
+When a file is active:
+
+* visually spotlight that file card
+* dim or hide inactive files
+* show:
+  Current File Under Investigation
+
+Only after the student finishes interaction should the next file appear.
+
+Goal:
+Student focuses on ONE investigative decision at a time.
+
+---
+
+4. FILE PROCESSING FLOW
+
+---
+
+For each file:
+
+Step A:
+Student opens file.
+
+Step B:
+Terminal displays file contents slowly/readably.
+
+Step C:
+Current Objective updates:
+“Classify this file.”
+
+Step D:
+Show classification choices.
+
+Step E:
+Student classifies evidence.
+
+Step F:
+Manager reaction appears.
+
+Step G:
+Toast/event feedback appears.
+
+Step H:
+Next file becomes available.
+
+---
+
+5. FIX EMPLOYEE NOTES CLASSIFICATION
+
+---
+
+Correct classification:
+
+employee_notes.txt
+→ Helpful Supporting Evidence
+
+Current issue:
+System incorrectly says:
+“Your earlier call didn't fit.”
+
+Fix validation logic completely.
+
+Correct response:
+“Good. This note supports proper reporting behavior.”
+
+Incorrect response:
+“This file supports security awareness, but it is not the primary threat.”
+
+Do NOT trigger reclassification warning if student classified correctly.
+
+---
+
+6. REDUCE SCREEN NOISE
+
+---
+
+During active file investigation:
+Hide or minimize:
+
+* unrelated commands
+* future file cards
+* unnecessary status panels
+* duplicate instructions
+* repeated explanations
+
+Keep visible:
+
+* terminal
+* current objective
+* active file card
+* manager transmission
+* mission map access
+* compact threat/trust/evidence indicators
+
+---
+
+7. COMMAND PROGRESSION
+
+---
+
+Commands should unlock contextually.
+
+Example:
+
+Before entering documents:
+show navigation commands only.
+
+After entering documents:
+show:
+ls
+
+After file revealed:
+show only:
+cat employee_notes.txt
+
+After classification:
+show next available file action.
+
+Goal:
+Student should never see 15 possible actions simultaneously.
+
+---
+
+8. INVESTIGATION PACING
+
+---
+
+The mission should feel paced and cinematic.
+
+Student flow should become:
+
+discover
+→ inspect
+→ judge
+→ respond
+→ continue
+
+NOT:
+scan giant dashboard.
+
+---
+
+9. ADD MICRO-TRANSITIONS
+
+---
+
+When moving between files:
+
+* small fade
+* subtle pulse
+* “Next File Available”
+* slight mission node pulse
+
+No large popups.
+
+No interruptions.
+
+---
+
+10. KEEP EVERYTHING FRONTEND-ONLY
+
+---
+
+Do not add backend.
+Do not add authentication.
+Do not add AI.
+Do not add multiplayer.
+
+---
+
+## GOAL
+
+Mission 1 should feel like a guided cybersecurity investigation where the student processes one clue at a time instead of being overwhelmed by many simultaneous actions and panels.
