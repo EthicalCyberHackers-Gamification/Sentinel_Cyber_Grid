@@ -236,12 +236,19 @@ let   m1AnalysisTimer        = null;       // pending "Submitting analysis..." d
 
 // Milestone 28A — Emotional Gameplay Decision Layer (Mission 1 only) state.
 let   m1DecisionTimer        = null;       // pending "Submitting Blue Team recommendation..." (cancel-safe)
-let   m1RedTeamTimer         = null;       // delayed [RED TEAM ACTIVITY] from "continue silently" (cancel-safe)
 let   m1DecisionPending      = false;      // true while a Blue Team submit is in flight
 const INCIDENT_TIMELINE_BASE_MIN = 9 * 60 + 12; // 09:12 synthetic incident clock start
 const INCIDENT_TIMELINE_MAX  = 6;          // keep the timeline compact (latest events)
 const incidentTimeline       = { "mission-001": [] }; // [{ t:"09:12", label:"..." }]
 const incidentTimelineSeq    = { "mission-001": 0 };  // monotonic clock index
+
+// Milestone 28B — Reactive Incident Evolution (Mission 1 only) state. The
+// incident reacts to Blue Team decisions with delayed, believable "beats"
+// (queue + single cancel-safe timer). Ephemeral — never persisted; a deferred
+// beat only fires in a live, on-screen, in-progress Mission 1.
+let   incidentEvolutionTimer = null;       // pending evolution beat (cancel-safe)
+let   incidentEvolutionQueue = [];         // remaining beats for the active reaction
+let   incidentEvolutionKind  = null;       // the decision id driving the reaction
 
 const M1_PROGRESSIVE_HINTS = [
   "Not every file is suspicious. Review files carefully.",
@@ -517,43 +524,13 @@ function clearM1DecisionTimer() {
   }
 }
 
-/** Cancel the delayed [RED TEAM ACTIVITY] event from "continue silently". */
-function clearM1RedTeamTimer() {
-  if (m1RedTeamTimer !== null) {
-    clearTimeout(m1RedTeamTimer);
-    m1RedTeamTimer = null;
-  }
-}
-
-/** Tear down every Milestone 28A timer + the in-flight submit flag. Called on
- *  every mission-exit (via endGuidedRun) so a stale callback can never fire
+/** Tear down every Milestone 28A/28B timer + the in-flight submit flag. Called
+ *  on every mission-exit (via endGuidedRun) so a stale callback can never fire
  *  off-screen after a reset / navigation / demo. */
 function clearM1DecisionTimers() {
   clearM1DecisionTimer();
-  clearM1RedTeamTimer();
+  clearIncidentEvolution(); // Milestone 28B — cancel pending reactive beats.
   m1DecisionPending = false;
-}
-
-/** Schedule the delayed adversary reaction to "Continue gathering evidence
- *  silently" — a believable consequence of delayed containment. Cancel-safe
- *  and strongly gated so it never fires off-screen / during the demo. */
-function scheduleM1DelayedRedTeam() {
-  clearM1RedTeamTimer();
-  m1RedTeamTimer = window.setTimeout(() => {
-    m1RedTeamTimer = null;
-    const m1Visible = dashboardEl && dashboardEl.style.display !== "none";
-    if (
-      m1Visible &&
-      document.body.classList.contains("mission-running") &&
-      missionStarted &&
-      !missionComplete &&
-      !demoRunning
-    ) {
-      triggerEscalationEvent("mission-001", {
-        event: { label: "RED TEAM ACTIVITY", text: "Additional suspicious outbound activity detected." },
-      });
-    }
-  }, 3500);
 }
 
 /** Synthetic incident clock — 09:12, +2 min per event (HH:MM, 24h). */
@@ -601,23 +578,33 @@ function renderIncidentTimeline(missionId) {
 }
 
 /** Determine the Mission 1 outcome variation from how the incident unfolded.
- *  Based on the adversary's peak movement + the decisiveness of the response.
+ *  Reactive (Milestone 28B): the summary varies by the decisiveness of the
+ *  Blue Team response AND whether the adversary managed to move (peak pressure).
  *  NEVER a hard fail — always returns a completed-mission outcome. */
 function m1OutcomeVariation() {
   const peak = (typeof escalationPeak === "object" && escalationPeak)
     ? (escalationPeak["mission-001"] || 0) : 0;
   const taken = decisionTaken["mission-001"];
   const kind = (taken && DECISION_ACTIONS[taken]) ? DECISION_ACTIONS[taken].kind : null;
+  // Decisive, clean response — the adversary never gained ground.
   if (kind === "correct" && peak === 0) {
     return { key: "excellent", title: "Excellent Containment",
              text: "Threat contained before additional spread." };
   }
-  if (peak > 0) {
-    return { key: "delayed", title: "Delayed Containment",
-             text: "Threat contained after additional suspicious activity was detected." };
+  // Decisive response, but the incident had already started to move —
+  // operational escalation stabilized it.
+  if (kind === "correct" && peak > 0) {
+    return { key: "reactive", title: "Reactive Recovery",
+             text: "Threat stabilized after operational escalation." };
   }
-  return { key: "weak", title: "Weak Investigation",
-           text: "Incident escalated with incomplete evidence." };
+  // A slower, evidence-first call let limited phishing expansion occur first.
+  if (kind === "acceptable") {
+    return { key: "delayed", title: "Delayed Containment",
+             text: "Threat contained after limited phishing expansion." };
+  }
+  // Fallback — escalation dominated the response.
+  return { key: "weak", title: "Weak Response",
+           text: "Incident escalated after delayed Blue Team action." };
 }
 
 /** Completion-screen markup for the Mission 1 outcome variation. */
@@ -628,6 +615,171 @@ function buildM1OutcomeVariationHTML() {
         <span class="mission-outcome-title">${escapeHtml(o.title)}</span>
         <span class="mission-outcome-text">${escapeHtml(o.text)}</span>
       </div>`;
+}
+
+/* ============================================================
+   Milestone 28B — Reactive Incident Evolution (Mission 1 only)
+   ------------------------------------------------------------
+   Make the incident react BELIEVABLY to the Blue Team decision so
+   the student feels "my earlier action changed what happened next."
+   This is a thin reactive LAYER on top of the existing Stage 1–4 +
+   28A primitives — no backend / AI / multiplayer / giant branching.
+
+   Each decision schedules a short, data-driven sequence of delayed
+   "beats" (INCIDENT_EVOLUTION). One cancel-safe timer drives the
+   queue; every beat re-checks that Mission 1 is still live + on
+   screen (incidentEvolutionActive) so a stale callback can never
+   fire off-screen. The whole reaction is torn down on every
+   mission-exit via clearM1DecisionTimers (already in endGuidedRun).
+
+   Reusable API (per the task spec):
+     - triggerIncidentEvolution(eventType) — start a reaction
+     - advanceIncidentState()             — apply the next beat
+     - renderIncidentTimelineUpdate(label)— add + highlight a row
+   ============================================================ */
+
+// Per-decision reactive sequences. Beats fire in order, each after its own
+// `delay` (ms). Fields are all optional and reuse existing primitives:
+//   red:{label,text}  → triggerEscalationEvent (pressure+threat pulse+flag+toast)
+//   toast:{label,text,type} → showEventToast flavor update ([BLUE TEAM]/[INCIDENT])
+//   contain (string)  → record in the Blue Team feed (no extra toast)
+//   manager (string)  → scripted manager chat reaction
+//   trust (number)    → trust delta   | containment (number) → containment delta
+//   threatDown (bool) → ease threat one notch | pressure (number) → red beat amount
+//   timeline (string) → add a timeline row (highlighted)
+const INCIDENT_EVOLUTION = {
+  // Escalate immediately → strong, decisive containment.
+  "m1-escalate": [
+    { delay: 1400, toast: { label: "BLUE TEAM UPDATE", text: "Lead analyst reviewing containment request.", type: "blueteam" } },
+    { delay: 2000, toast: { label: "INCIDENT UPDATE", text: "Potential credential spread interrupted early.", type: "blueteam" },
+      contain: "Credential spread interrupted early.",
+      manager: "Strong escalation timing helped reduce operational risk.",
+      trust: 4, containment: 10, timeline: "Credential spread interrupted" },
+  ],
+  // Isolate the workstation → spread reduced, some evidence lost.
+  "m1-isolate": [
+    { delay: 1400, toast: { label: "BLUE TEAM ACTION", text: "Workstation isolation successful.", type: "blueteam" } },
+    { delay: 2000, toast: { label: "INCIDENT UPDATE", text: "External communication attempts reduced.", type: "blueteam" },
+      contain: "External communication attempts reduced.",
+      manager: "Containment reduced threat spread, though some evidence collection was limited.",
+      threatDown: true, containment: 15, timeline: "External comms reduced" },
+  ],
+  // Continue gathering evidence silently → delayed adversary movement.
+  "m1-continue": [
+    { delay: 3200, red: { label: "RED TEAM ACTIVITY", text: "Additional suspicious outbound activity detected." },
+      pressure: 10,
+      manager: "The threat may be spreading beyond the original workstation.",
+      timeline: "Additional outbound activity detected" },
+  ],
+  // Ignore for now (poor, non-advancing) → wider phishing exposure. Kept LIGHT
+  // (the immediate decision already applied the trust/threat penalty) so the
+  // student is nudged, not heavily punished.
+  "m1-ignore": [
+    { delay: 2800, red: { label: "RED TEAM MOVEMENT", text: "Additional employee targeted by suspicious email activity." },
+      pressure: 12,
+      manager: "We may now be dealing with wider phishing exposure.",
+      timeline: "Phishing exposure widening" },
+  ],
+};
+
+/** Cancel any in-flight reactive sequence (cancel-safe, idempotent). */
+function clearIncidentEvolution() {
+  if (incidentEvolutionTimer !== null) {
+    clearTimeout(incidentEvolutionTimer);
+    incidentEvolutionTimer = null;
+  }
+  incidentEvolutionQueue = [];
+  incidentEvolutionKind = null;
+}
+
+/** True only when Mission 1 is live, on screen, in progress, not in the demo —
+ *  the same guard the 28A delayed red-team beat used. */
+function incidentEvolutionActive() {
+  const m1Visible = dashboardEl && dashboardEl.style.display !== "none";
+  return !!(
+    m1Visible &&
+    document.body.classList.contains("mission-running") &&
+    missionStarted &&
+    !missionComplete &&
+    !demoRunning
+  );
+}
+
+/** Start the reactive incident sequence for a Blue Team decision (Mission 1). */
+function triggerIncidentEvolution(eventType) {
+  const seq = INCIDENT_EVOLUTION[eventType];
+  if (!Array.isArray(seq) || !seq.length) return;
+  clearIncidentEvolution();
+  incidentEvolutionKind = eventType;
+  incidentEvolutionQueue = seq.map((beat, i) => ({ ...beat, _i: i }));
+  scheduleNextIncidentBeat();
+}
+
+/** Arm the timer for the next queued beat (no-op when the queue is empty). */
+function scheduleNextIncidentBeat() {
+  if (!incidentEvolutionQueue.length) { incidentEvolutionKind = null; return; }
+  const delay = typeof incidentEvolutionQueue[0].delay === "number"
+    ? incidentEvolutionQueue[0].delay : 1500;
+  incidentEvolutionTimer = window.setTimeout(advanceIncidentState, delay);
+}
+
+/** Apply the next beat then schedule the following one. Bails (and tears down)
+ *  if Mission 1 is no longer the live, on-screen, in-progress mission. */
+function advanceIncidentState() {
+  incidentEvolutionTimer = null;
+  const beat = incidentEvolutionQueue.shift();
+  if (!beat) { incidentEvolutionKind = null; return; }
+  if (!incidentEvolutionActive()) { clearIncidentEvolution(); return; }
+  applyIncidentBeat(beat);
+  if (incidentEvolutionQueue.length) scheduleNextIncidentBeat();
+  else incidentEvolutionKind = null;
+}
+
+/** Apply one reactive beat's effects, reusing the existing primitives. */
+function applyIncidentBeat(beat) {
+  if (beat.red) {
+    // Adversary gains a little ground: pressure + threat pulse + red flag +
+    // long-dwell red toast + active-node pulse (all handled inside).
+    triggerEscalationEvent("mission-001", {
+      event: beat.red,
+      amount: typeof beat.pressure === "number" ? beat.pressure : ESCALATION_STEP,
+    });
+  } else {
+    if (beat.toast) {
+      showEventToast(beat.toast.label, beat.toast.text, beat.toast.type || "blueteam",
+        { duration: BLUE_TEAM_TOAST_MS });
+    }
+    if (beat.contain) showBlueTeamUpdate("mission-001", beat.contain); // feed record (no 2nd toast)
+    if (typeof pulseActiveMissionNode === "function") pulseActiveMissionNode();
+  }
+  if (typeof beat.trust === "number") {
+    if (beat.trust > 0) increaseTrustScore(beat.trust);
+    else if (beat.trust < 0) decreaseTrustScore(-beat.trust);
+  }
+  if (typeof beat.containment === "number") {
+    updateContainmentProgress("mission-001", beat.containment, {
+      stepId: "evo-" + incidentEvolutionKind + "-" + beat._i, // one-time credit
+    });
+  }
+  if (beat.threatDown) {
+    // Reuse the existing monotonic threat-lowering helper, then pulse the meter
+    // so the containment reads as a visible, reactive change.
+    lowerThreatOneStep("mission-001");
+    fxPulseThreat("mission-001");
+  }
+  if (beat.manager) pushManagerMessage("mission-001", beat.manager);
+  if (beat.timeline) renderIncidentTimelineUpdate(beat.timeline);
+}
+
+/** Add a timeline row AND briefly highlight the newest entry (reactive feel). */
+function renderIncidentTimelineUpdate(label) {
+  if (label) addTimelineEvent("mission-001", label);
+  else renderIncidentTimeline("mission-001");
+  const host = document.getElementById("incidentTimeline");
+  if (!host) return;
+  const rows = host.querySelectorAll(".incident-timeline-row");
+  const last = rows[rows.length - 1];
+  if (last) fxFlash(last, "incident-timeline-row--new", 1300);
 }
 
 /** True once suspicious_file.txt is correctly classified Critical (the primary threat). */
@@ -2602,16 +2754,19 @@ function resolveDecisionAction(actionId) {
       }
     }
 
-    // Milestone 28A — "Continue gathering evidence silently" (acceptable) is
-    // believable but risky: schedule a delayed [RED TEAM ACTIVITY] escalation
-    // so delayed containment carries an operational consequence (cancel-safe).
-    if (def.missionId === "mission-001" && def.kind === "acceptable") {
-      scheduleM1DelayedRedTeam();
-    }
-
-    // Milestone 28A — record the response on the Incident Timeline (M1).
+    // Milestone 28B — record a decision-specific Incident Timeline entry and
+    // kick off the reactive incident evolution (delayed, believable beats that
+    // make the student feel their choice changed what happened next).
     if (def.missionId === "mission-001") {
-      addTimelineEvent("mission-001", "Containment action initiated");
+      const M1_DECISION_TIMELINE = {
+        "m1-escalate": "Escalation initiated",
+        "m1-isolate":  "Workstation isolated",
+        "m1-continue": "Investigation continued quietly",
+      };
+      if (M1_DECISION_TIMELINE[actionId]) {
+        addTimelineEvent("mission-001", M1_DECISION_TIMELINE[actionId]);
+      }
+      triggerIncidentEvolution(actionId);
     }
 
     try { saveProgress(); } catch (_) { /* non-fatal */ }
@@ -2646,6 +2801,11 @@ function resolveDecisionAction(actionId) {
       showBlueTeamUpdate("mission-001", "Hold position — re-evaluating the threat.");
       // Stage 3 — a poor decision lets the adversary escalate the incident.
       triggerEscalationEvent("mission-001");
+      // Milestone 28B — a poor call has a believable LATER consequence (wider
+      // phishing exposure) + a scripted manager concern. Kept light — the
+      // student still re-decides, so this nudges rather than punishes.
+      addTimelineEvent("mission-001", "Threat dismissed — re-evaluating");
+      triggerIncidentEvolution("m1-ignore");
     } else if (def.missionId === "mission-002") {
       // Stage 2 (Mission 2) — a poor call slows network containment.
       updateContainmentProgress("mission-002", -10, {

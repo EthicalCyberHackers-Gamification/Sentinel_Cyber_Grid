@@ -1,0 +1,296 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Mission 1 and Mission 2 work.
+* Guided investigative pacing exists.
+* Investigative Reasoning Layer exists.
+* Emotional Gameplay Decision Layer exists.
+* Blue Team operational decisions now exist.
+* Threat level, trust score, manager reactions, investigation board, mission map, and containment progress work.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 28B — Reactive Incident Evolution
+
+Purpose:
+Make the cyber incident evolve in response to student decisions. The student should feel like the investigation is unfolding dynamically rather than following a fixed script.
+
+Important:
+Do NOT redesign the app.
+Do NOT add backend.
+Do NOT add AI.
+Do NOT add multiplayer.
+Do NOT create giant branching systems.
+Do NOT overwhelm students.
+
+Core Design Goal:
+The incident should react BELIEVABLY to Blue Team decisions.
+
+The player should feel:
+“My earlier actions changed what happened next.”
+
+---
+
+1. ADD INCIDENT EVOLUTION SYSTEM
+
+---
+
+Add a lightweight reactive incident system.
+
+Create reusable functions:
+
+triggerIncidentEvolution(eventType)
+advanceIncidentState()
+renderIncidentTimelineUpdate()
+
+Purpose:
+The incident changes slightly depending on:
+
+* containment choices
+* escalation timing
+* evidence quality
+* operational decisions
+
+---
+
+2. DECISION-BASED INCIDENT REACTIONS
+
+---
+
+If student chooses:
+Continue gathering evidence silently
+
+Then later:
+Trigger:
+
+[RED TEAM ACTIVITY]
+Additional suspicious outbound activity detected.
+
+Manager:
+“The threat may be spreading beyond the original workstation.”
+
+Effects:
+
+* Incident Pressure rises slightly
+* Threat Level pulses briefly
+
+---
+
+3. FAST ESCALATION RESPONSE
+
+---
+
+If student chooses:
+Escalate immediately
+
+Later:
+Trigger:
+
+[BLUE TEAM UPDATE]
+Lead analyst reviewing containment request.
+
+Then:
+[INCIDENT UPDATE]
+Potential credential spread interrupted early.
+
+Manager:
+“Strong escalation timing helped reduce operational risk.”
+
+Effects:
+
+* Manager Trust increases
+* Containment Progress improves
+
+---
+
+4. WORKSTATION ISOLATION RESPONSE
+
+---
+
+If student chooses:
+Isolate workstation
+
+Later:
+Trigger:
+
+[BLUE TEAM ACTION]
+Workstation isolation successful.
+
+Then:
+[INCIDENT UPDATE]
+External communication attempts reduced.
+
+Manager:
+“Containment reduced threat spread, though some evidence collection was limited.”
+
+Effects:
+
+* Threat Level decreases
+* Containment Progress increases strongly
+* Analyst Confidence slightly reduced or stabilized
+
+---
+
+5. IGNORE OPTION RESPONSE
+
+---
+
+If student chooses:
+Ignore for now
+
+Later:
+Trigger:
+
+[RED TEAM MOVEMENT]
+Additional employee targeted by suspicious email activity.
+
+Manager:
+“We may now be dealing with wider phishing exposure.”
+
+Effects:
+
+* Threat Level increases
+* Incident Pressure rises
+* Trust Score decreases slightly
+
+Do NOT heavily punish the student.
+
+---
+
+6. ADD REACTIVE INCIDENT TIMELINE
+
+---
+
+Expand the compact timeline.
+
+Examples:
+
+09:12 Incident detected
+09:14 Analyst assigned
+09:16 Suspicious file identified
+09:18 Workstation isolated
+09:19 Additional outbound activity detected
+09:21 Escalation initiated
+
+Timeline entries should change depending on student decisions.
+
+Keep timeline compact and readable.
+
+---
+
+7. ADD SMALL ENVIRONMENTAL REACTIONS
+
+---
+
+When reactive events occur:
+
+* current mission node pulses briefly
+* threat indicator animates slightly
+* containment progress updates visibly
+* event toast appears
+
+Do NOT add giant popups.
+
+Do NOT interrupt gameplay heavily.
+
+---
+
+8. ADD MANAGER EMOTIONAL REACTIONS
+
+---
+
+Manager messages should feel more human and reactive.
+
+Examples:
+
+Positive:
+“Good judgment. That helped stabilize the situation.”
+
+Concerned:
+“We may be losing containment.”
+
+Neutral:
+“Continue carefully. We still need stronger evidence.”
+
+Do NOT use AI.
+Keep scripted reactions.
+
+---
+
+9. ADD REACTIVE MISSION OUTCOMES
+
+---
+
+Mission end summaries should vary based on student decisions.
+
+Examples:
+
+Excellent Containment
+“Threat contained before additional spread.”
+
+Delayed Containment
+“Threat contained after limited phishing expansion.”
+
+Reactive Recovery
+“Threat stabilized after operational escalation.”
+
+Weak Response
+“Incident escalated after delayed Blue Team action.”
+
+Do NOT fail the mission completely.
+
+---
+
+10. KEEP UI SIMPLE
+
+---
+
+Do NOT:
+
+* show multiple alerts simultaneously
+* add giant dashboards
+* create constant flashing
+* spam the student with warnings
+
+Only show:
+small meaningful reactions.
+
+---
+
+11. PRESERVE EXISTING SYSTEMS
+
+---
+
+Do not break:
+
+* terminal commands
+* guided file reveal
+* reasoning prompts
+* evidence classification
+* investigation board
+* manager reactions
+* hints
+* XP
+* trust score
+* threat level
+* containment progress
+* mission completion
+* scorecards
+* mission map
+* local progress save
+* Mission 2
+
+---
+
+## GOAL
+
+Mission 1 should now feel like a living cyber incident where:
+
+* student decisions influence the environment
+* Blue Team actions affect containment
+* Red Team activity reacts dynamically
+* the investigation evolves over time
+
+The experience should become emotionally engaging and replayable WITHOUT becoming visually cluttered or mechanically overwhelming.

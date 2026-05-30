@@ -7642,12 +7642,25 @@ body.m1-blueteam-decision::before {
 }
 .mission-outcome--excellent { border-left-color: #2ee6a6; }
 .mission-outcome--excellent .mission-outcome-title { color: #2ee6a6; }
+.mission-outcome--reactive  { border-left-color: var(--color-cyan, #00e5ff); }
+.mission-outcome--reactive  .mission-outcome-title { color: var(--color-cyan, #00e5ff); }
 .mission-outcome--delayed   { border-left-color: #ffcf5c; }
 .mission-outcome--delayed   .mission-outcome-title { color: #ffcf5c; }
 .mission-outcome--weak      { border-left-color: #ff8b6b; }
 .mission-outcome--weak      .mission-outcome-title { color: #ff8b6b; }
 
+/* Milestone 28B — briefly highlight the newest reactive timeline row so the
+   student notices the incident just changed. */
+.incident-timeline-row--new {
+  animation: incidentTimelineRowNew 1.3s ease-out;
+}
+@keyframes incidentTimelineRowNew {
+  0%   { background: rgba(0, 229, 255, 0.22); }
+  100% { background: transparent; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.m1-blueteam-decision::before { animation: none; }
   .decision-feedback--pending { animation: none; opacity: 1; }
+  .incident-timeline-row--new { animation: none; }
 }

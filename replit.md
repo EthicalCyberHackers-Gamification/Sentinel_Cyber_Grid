@@ -669,6 +669,44 @@ Adds an analyst-grade reasoning step between reading a file and classifying it. 
   e2e: full M1 reason→classify→meter-climb→suspicious-Critical→Ready→finding; demo to completion;
   reset clears; no console errors.
 
+### Reactive Incident Evolution (Milestone 28B — Mission 1 ONLY)
+A thin reactive LAYER (M2 untouched) that makes the M1 incident react believably to the
+Blue Team decision: each decision schedules a short sequence of DELAYED "beats" so the
+student feels their choice changed what happened next. Reuses existing primitives only
+(no backend/AI/branching). Lives in `script.js` right after `buildM1OutcomeVariationHTML`
+(~623+).
+- **Data-driven `INCIDENT_EVOLUTION`** (keyed by decision id `m1-escalate`/`m1-isolate`/
+  `m1-continue`/`m1-ignore`): each beat has optional `delay`, `red:{label,text}`+`pressure`
+  (→`triggerEscalationEvent`), `toast:{label,text,type}` (→`showEventToast` flavor, type
+  `blueteam`/`adversary`), `contain` (→`showBlueTeamUpdate` feed record, no 2nd toast),
+  `manager` (→`pushManagerMessage`), `trust`, `containment` (one-time via stepId
+  `evo-<kind>-<i>`), `threatDown` (→ existing `lowerThreatOneStep` + `fxPulseThreat`),
+  `timeline` (→`renderIncidentTimelineUpdate`).
+- **Engine**: `triggerIncidentEvolution(eventType)` clears any prior run then queues +
+  `scheduleNextIncidentBeat()`; ONE cancel-safe timer (`incidentEvolutionTimer`) drives
+  `advanceIncidentState()` → `applyIncidentBeat()`. `incidentEvolutionActive()` guard
+  (M1 `#dashboard` visible + `mission-running` + `missionStarted` + `!missionComplete` +
+  `!demoRunning`) bails+tears down if a beat would fire off-screen. State vars
+  `incidentEvolutionTimer/Queue/Kind`. NOTE: do NOT redeclare `lowerThreatOneStep` — it
+  already exists (~9105, `(missionId, floor)` monotonic); the engine reuses it.
+- **Wiring** in `resolveDecisionAction`: advancing branch adds a decision-specific timeline
+  entry (escalate→"Escalation initiated", isolate→"Workstation isolated", continue→
+  "Investigation continued quietly") then `triggerIncidentEvolution(actionId)`; the poor
+  (`m1-ignore`) branch adds "Threat dismissed — re-evaluating" + `triggerIncidentEvolution
+  ("m1-ignore")` (kept LIGHT — the immediate poor-decision penalty already applied, so the
+  later beat nudges not punishes). Replaced the old generic "Containment action initiated"
+  entry; removed dead `scheduleM1DelayedRedTeam`/`clearM1RedTeamTimer`/`m1RedTeamTimer`.
+- **Teardown**: `clearM1DecisionTimers()` now calls `clearIncidentEvolution()`, so EVERY
+  mission-exit already routed through `endGuidedRun()` (map/overview/back/reset/demo-abort/
+  resume) cancels pending beats. State is ephemeral (NOT persisted).
+- **4 reactive outcomes** (`m1OutcomeVariation`, never hard-fails): correct & peak 0 →
+  "Excellent Containment"; correct & peak>0 → "Reactive Recovery" / "Threat stabilized
+  after operational escalation." (new, cyan `.mission-outcome--reactive`); acceptable →
+  "Delayed Containment" / "...limited phishing expansion."; else → "Weak Response".
+  `renderIncidentTimelineUpdate` flashes the newest row via `.incident-timeline-row--new`.
+  CSS appended at END of `style.css` (~7648+), incl. reduced-motion override. Verified:
+  typecheck clean, boots with no console errors; architect review PASS.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
