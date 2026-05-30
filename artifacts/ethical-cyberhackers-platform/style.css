@@ -8483,3 +8483,107 @@ body.mission-running .xp-panel .live-status > * { box-shadow: none; }
 @media (max-width: 480px) {
   .ops-status-strip { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   Milestone 33A — Persistent Player Identity & Career Reputation
+   A lightweight, professional career-identity strip on the
+   Operations Center home + an Operational Assessment block in the
+   mission scorecards. Reuses the existing .ops-panel chrome and
+   the dark/cyber design tokens.
+   ============================================================ */
+.ops-profile-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  align-items: start; margin-top: 16px;
+}
+
+/* ---- Analyst Profile (LEFT) ---- */
+.ops-profile-id {
+  display: flex; align-items: center; gap: 12px;
+}
+.ops-profile-avatar {
+  width: 44px; height: 44px; flex: 0 0 44px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-panel-alt);
+  border: 1px solid var(--color-cyan-dim);
+  color: var(--color-cyan); font-size: 16px; letter-spacing: -2px;
+  box-shadow: 0 0 12px rgba(0,229,255,0.18);
+}
+.ops-profile-id-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ops-profile-name {
+  font-family: var(--font-hud); font-size: 15px; font-weight: 700;
+  color: var(--color-text-bright);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ops-profile-role {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px;
+  color: var(--color-text-dim); text-transform: uppercase;
+}
+
+.ops-rep { display: flex; flex-direction: column; gap: 8px; }
+.ops-rep-standing {
+  font-family: var(--font-hud); font-size: 16px; font-weight: 700;
+  color: var(--color-green);
+  text-shadow: 0 0 10px rgba(0,255,136,0.25);
+}
+.ops-rep-traits { display: flex; flex-wrap: wrap; gap: 6px; }
+.ops-rep-trait {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.5px;
+  padding: 3px 9px; border-radius: 999px;
+  color: var(--color-cyan);
+  background: rgba(0,229,255,0.07);
+  border: 1px solid var(--color-cyan-dim);
+}
+
+.ops-rating-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ops-rating {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--color-border);
+}
+.ops-rating:last-child { border-bottom: none; padding-bottom: 0; }
+.ops-rating-key {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.5px;
+  color: var(--color-text-dim); text-transform: uppercase;
+}
+.ops-rating-val {
+  font-family: var(--font-hud); font-size: 13px; font-weight: 700;
+  color: var(--color-text-bright);
+}
+
+/* ---- Previous Operations (RIGHT) ---- */
+.ops-history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ops-history-empty {
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.5;
+  color: var(--color-text-dim);
+}
+.ops-history-row {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono); font-size: 13px;
+  padding: 8px 10px; border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-panel-alt);
+  border: 1px solid var(--color-border);
+}
+.ops-history-mark { flex: 0 0 auto; font-size: 13px; }
+.ops-history-label { color: var(--color-text-bright); }
+.ops-history-row--ok { border-left: 3px solid var(--color-green); }
+.ops-history-row--ok .ops-history-mark { color: var(--color-green); }
+.ops-history-row--warn { border-left: 3px solid var(--color-yellow); }
+.ops-history-row--warn .ops-history-mark { color: var(--color-yellow); }
+
+/* ---- Operational Assessment (scorecard block) ---- */
+.scorecard-assessment .op-assessment-list {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px;
+}
+.op-assessment-item {
+  display: flex; align-items: flex-start; gap: 9px;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
+  color: var(--color-text-bright);
+}
+.op-assessment-mark { flex: 0 0 auto; }
+.op-assessment-item--pos .op-assessment-mark { color: var(--color-green); }
+.op-assessment-item--watch .op-assessment-mark { color: var(--color-yellow); }
+.op-assessment-item--watch { color: var(--color-text-dim); }
+
+@media (max-width: 900px) {
+  .ops-profile-grid { grid-template-columns: 1fr; }
+}

@@ -250,6 +250,14 @@ const m1ReasoningCorrect     = new Set();  // file names whose reasoning prompt 
 let   m1ReasoningBonusAwarded = false;     // one-time +25 XP (both supporting files correct)
 let   m1AnalysisTimer        = null;       // pending "Submitting analysis..." delay (cancel-safe)
 
+// Milestone 33A — Persistent Player Identity & Career Reputation.
+// The ONLY new persisted state is a compact operational-history log; all
+// reputation/ratings/traits are DERIVED at render from already-persisted signals
+// (mission completion, trust, outcomes, containment, confidence, evidence) so the
+// career memory survives reload without duplicating any existing system.
+let   operationalHistory     = [];         // [{id,label,status:"success"|"warn",at}]
+const OPERATIONAL_HISTORY_MAX = 12;
+
 // Milestone 28A — Emotional Gameplay Decision Layer (Mission 1 only) state.
 let   m1DecisionTimer        = null;       // pending "Submitting Blue Team recommendation..." (cancel-safe)
 let   m1DecisionPending      = false;      // true while a Blue Team submit is in flight
@@ -3285,6 +3293,9 @@ function saveProgress() {
       // restore from these + pins, so it isn't persisted directly).
       m1ReasoningCorrect:      Array.from(m1ReasoningCorrect),
       m1ReasoningBonusAwarded,
+      // Milestone 33A — persistent career history (the only new persisted state;
+      // all reputation/ratings/traits are derived at render, not stored).
+      operationalHistory: Array.isArray(operationalHistory) ? operationalHistory : [],
       // Investigation Board — persist pins + pinnable findings + XP guards.
       investigationPins: (typeof investigationPins === "object" && investigationPins) ? investigationPins : {},
       pinnableFindings: {
@@ -3610,6 +3621,27 @@ function restoreSavedProgress() {
   }
   m1ReasoningBonusAwarded = data.m1ReasoningBonusAwarded === true;
 
+  // Milestone 33A — restore the persistent career history (validated + capped).
+  operationalHistory = [];
+  if (Array.isArray(data.operationalHistory)) {
+    const seen = new Set();
+    data.operationalHistory.forEach((e) => {
+      if (!e || typeof e !== "object") return;
+      if (typeof e.id !== "string" || typeof e.label !== "string") return;
+      if (seen.has(e.id)) return;
+      seen.add(e.id);
+      operationalHistory.push({
+        id: e.id,
+        label: e.label,
+        status: e.status === "success" ? "success" : "warn",
+        at: typeof e.at === "number" ? e.at : Date.now(),
+      });
+    });
+    if (operationalHistory.length > OPERATIONAL_HISTORY_MAX) {
+      operationalHistory = operationalHistory.slice(-OPERATIONAL_HISTORY_MAX);
+    }
+  }
+
   // Investigation Board — restore pins, pinnable findings, and XP guards.
   investigationPins["mission-001"] = {};
   investigationPins["mission-002"] = {};
@@ -3728,6 +3760,9 @@ function clearSavedProgress() {
   if (overview && overview.style.display !== "none") {
     hideMission2Overview();
   }
+
+  // Milestone 33A — clearing progress wipes the persistent career history too.
+  operationalHistory = [];
 
   // Milestone 32A — reset the Operations Center home to its fresh-recruit state.
   renderOperationsCenter();
@@ -5201,6 +5236,9 @@ function completeMission(newRank) {
   // Milestone 18 — persist completion + new rank + unlock state
   saveProgress();
 
+  // Milestone 33A — record this operation in the persistent career history.
+  updateOperationalReputation("mission-001");
+
   // Milestone 28C — cinematic mission-complete transition: a BRIEF "MISSION
   // COMPLETE / Threat Contained" caption + Mission 2 node unlock glow, layered
   // AROUND the existing completion alerts/objective (timing/location unchanged).
@@ -5356,6 +5394,7 @@ function buildCompletionHTML(newRank) {
              Restates the full Alert → Investigation → Evidence →
              Decision → Consequence → Reward loop the student completed. -->
         ${buildOutcomeSummaryHTML("mission-001")}
+        ${buildOperationalAssessmentHTML("mission-001")}
 
         <!-- Skills Practiced -->
         <div class="scorecard-section scorecard-section--collapsed">
@@ -5950,21 +5989,27 @@ function renderOperationsCenter() {
   // Assignment 3 (Mission 3) is a placeholder only — never launchable yet.
   setOpsAssignment("opsAssign3", "opsAssign3Status", "Monitoring", "monitoring");
 
-  // Manager direction (Sarah Reyes) adapts to progress.
+  // Manager direction (Sarah Reyes) adapts to progress. Milestone 33A — it now
+  // also recognizes prior operations and reflects cumulative operational behavior
+  // (manager trust evolution), so the world feels persistent and the manager
+  // "remembers" how the analyst has performed.
   const mgr = document.getElementById("opsManagerMsg");
   if (mgr) {
     const base = "Welcome to Blue Team Operations. Your first assignments are " +
       "designed to build your investigation, evidence handling, and incident " +
       "response judgment.";
-    let next;
+    let next, recog = "";
     if (!m1Done) {
       next = "Start with Credential Phishing Investigation.";
     } else if (!m2Done) {
       next = "Your next assignment is Network Exposure Review.";
+      recog = "Previous phishing incident successfully contained.";
     } else {
       next = "Reconnaissance Detection is being monitored for future assignment.";
+      recog = "You handled the network exposure review well.";
     }
-    mgr.textContent = `${base} ${next}`;
+    const evolution = managerTrustEvolutionMessage();
+    mgr.textContent = [base, recog, evolution, next].filter(Boolean).join(" ");
   }
 
   // Live threat / containment line + analyst chips.
@@ -5974,6 +6019,304 @@ function renderOperationsCenter() {
   if (xpChip) xpChip.textContent = String(Math.max(0, Math.round(currentXP)));
   const trustChip = document.getElementById("opsAnalystTrust");
   if (trustChip) trustChip.textContent = String(Math.max(0, Math.round(trustScore)));
+
+  // Milestone 33A — persistent world recognition: once any operation is on
+  // record, Blue Team readiness improves visibly on the threat board.
+  const readinessRow = document.getElementById("opsReadinessRow");
+  if (readinessRow) readinessRow.style.display = missionsDone > 0 ? "" : "none";
+
+  // Milestone 33A — refresh the persistent Analyst Profile / reputation / history.
+  renderAnalystProfile();
+}
+
+/* ============================================================
+   Milestone 33A — Persistent Player Identity & Career Reputation
+   ------------------------------------------------------------
+   A lightweight, PROFESSIONAL reputation layer (no RPG, no fantasy,
+   no raw stat dashboards). Reputation is DERIVED at render time from
+   signals the game already persists, so it survives reload without a
+   second progress system. Only `operationalHistory` is new state.
+
+   Public API (per the task spec):
+     - calculateAnalystBehavior() — normalized behavioral signals (internal)
+     - updateOperationalReputation(missionId) — record an operation on completion
+     - renderAnalystProfile() — paint the profile / traits / history on the home
+   ============================================================ */
+
+/** Count critical-classified pins for a mission (reused evidence signal). */
+function countCriticalPins(missionId) {
+  const keys = pinnableFindings[missionId] ? Array.from(pinnableFindings[missionId]) : [];
+  return keys.filter((k) => {
+    const pin = investigationPins[missionId] && investigationPins[missionId][k];
+    return pin && pin.critical === true;
+  }).length;
+}
+
+/**
+ * Derive normalized behavioral signals (0..1, higher = better) from existing
+ * persisted state. No raw numbers are surfaced to the player — these feed the
+ * professional reputation language only.
+ */
+function calculateAnalystBehavior() {
+  const m1Done = !!missionComplete;
+  const m2Done = !!mission2Complete;
+  const missionsDone = (m1Done ? 1 : 0) + (m2Done ? 1 : 0);
+
+  // Manager trust (0..100 → 0..1).
+  const trust = clampTrust(typeof trustScore === "number" ? trustScore : DEFAULT_TRUST_SCORE);
+
+  // Containment effectiveness — average over completed missions.
+  let containSum = 0, containN = 0;
+  if (m1Done) { containSum += Math.max(0, Math.min(100, blueTeamContainment["mission-001"] || 0)); containN++; }
+  if (m2Done) { containSum += Math.max(0, Math.min(100, blueTeamContainment["mission-002"] || 0)); containN++; }
+  const containment = containN ? (containSum / containN) / 100 : 0;
+
+  // Escalation timing (M1) — a low adversary peak means a fast, clean response.
+  const peak1 = (escalationPeak["mission-001"] || 0);
+  const escBad = ESCALATION_MAX > 0 ? Math.min(1, peak1 / ESCALATION_MAX) : 0;
+  const escalationTiming = m1Done ? (1 - escBad) : 0;
+
+  // Reasoning accuracy — correct M1 reasoning + M2 analyst confidence.
+  const m1Reason = m1ReasoningCorrect ? m1ReasoningCorrect.size : 0;
+  const m2Conf = Math.max(0, Math.min(100, m2AnalystConfidence || 0));
+  let reasonSum = 0, reasonN = 0;
+  if (m1Done) { reasonSum += Math.min(1, m1Reason / 2); reasonN++; }
+  if (m2Done) { reasonSum += m2Conf / 100; reasonN++; }
+  const reasoning = reasonN ? reasonSum / reasonN : 0;
+
+  // Evidence discipline — avoided distractions (M1 false leads) + critical pins.
+  const falseLeads = m1FalseLeadsChecked ? m1FalseLeadsChecked.size : 0;
+  const critPins = countCriticalPins("mission-001") + countCriticalPins("mission-002");
+  let evidence = 0;
+  if (missionsDone > 0) {
+    const cleanM1 = m1Done ? (falseLeads === 0 ? 1 : 0.5) : 0.5;
+    const pinScore = Math.min(1, critPins / Math.max(1, missionsDone));
+    evidence = (cleanM1 + pinScore) / 2;
+  }
+
+  // Decision quality — outcome tiers + M2 scope drift.
+  const m1Out = m1Done ? m1OutcomeVariation().key : null;     // excellent|reactive|delayed|weak
+  const m2Out = m2Done ? m2OutcomeTier().label : null;        // Excellent|Delayed|Weak
+  const drift = Math.max(0, m2DecisionDrift || 0);
+  let decisionSum = 0, decisionN = 0;
+  if (m1Out) {
+    decisionSum += (m1Out === "excellent") ? 1 : (m1Out === "reactive") ? 0.8
+      : (m1Out === "delayed") ? 0.55 : 0.3;
+    decisionN++;
+  }
+  if (m2Out) {
+    decisionSum += (m2Out === "Excellent") ? 1 : (m2Out === "Delayed") ? 0.6 : 0.4;
+    decisionN++;
+  }
+  let decisionQuality = decisionN ? decisionSum / decisionN : 0;
+  if (drift > 0) decisionQuality = Math.max(0, decisionQuality - Math.min(0.3, drift * 0.1));
+
+  return {
+    m1Done, m2Done, missionsDone,
+    trust: trust / 100,
+    containment, escalationTiming, reasoning, evidence, decisionQuality,
+    falseLeads, critPins, drift,
+    m1Out, m2Out,
+  };
+}
+
+/** Tier helper: pick a label by value thresholds. */
+function repTier(value, lowLabel, midLabel, highLabel) {
+  if (value >= 0.75) return highLabel;
+  if (value >= 0.45) return midLabel;
+  return lowLabel;
+}
+
+/** Professional ratings for the Analyst Profile (no raw numbers). */
+function analystProfileRatings() {
+  const b = calculateAnalystBehavior();
+  if (b.missionsDone === 0) {
+    return { containment: "Developing", threatResponse: "Developing", managerTrust: repTier(b.trust, "Low", "Moderate", "High") };
+  }
+  // Blend escalation timing + decision quality into "threat response".
+  const threat = (b.escalationTiming + b.decisionQuality) / 2;
+  return {
+    containment: repTier(b.containment, "Developing", "Stable", "Strong"),
+    threatResponse: repTier(threat, "Developing", "Improving", "Reliable"),
+    managerTrust: repTier(b.trust, "Low", "Moderate", "High"),
+  };
+}
+
+/** Overall reputation standing headline. */
+function analystReputationStanding() {
+  const b = calculateAnalystBehavior();
+  if (b.missionsDone === 0) return "Awaiting First Assignment";
+  const overall = (b.containment + b.escalationTiming + b.reasoning + b.evidence + b.decisionQuality + b.trust) / 6;
+  if (overall >= 0.75) return "Trusted Operator";
+  if (overall >= 0.5) return "Steady Analyst";
+  return "Developing Analyst";
+}
+
+/**
+ * Pick 1–2 DOMINANT operational reputation traits from behavior. Kept short and
+ * professional — never gamey, never fantasy. Falls back to "Developing Analyst".
+ */
+function analystReputationTraits() {
+  const b = calculateAnalystBehavior();
+  if (b.missionsDone === 0) return ["Developing Analyst"];
+
+  const candidates = [
+    { label: "Threat Stabilizer",        score: b.containment >= 0.85 ? b.containment + 0.1 : 0 },
+    { label: "Fast Responder",           score: b.escalationTiming >= 0.85 ? b.escalationTiming : 0 },
+    { label: "Careful Analyst",          score: (b.falseLeads === 0 && b.m1Done) ? 0.8 + b.evidence * 0.1 : 0 },
+    { label: "Evidence Focused",         score: b.critPins >= 2 ? 0.75 + Math.min(0.2, b.critPins * 0.05) : 0 },
+    { label: "Reliable Investigator",    score: (b.reasoning >= 0.7 && b.decisionQuality >= 0.7) ? b.reasoning : 0 },
+    { label: "Operationally Disciplined", score: (b.drift === 0 && b.decisionQuality >= 0.7) ? b.decisionQuality - 0.02 : 0 },
+  ].filter((c) => c.score > 0).sort((a, c) => c.score - a.score);
+
+  if (!candidates.length) {
+    return b.decisionQuality >= 0.5 ? ["Improving Responder"] : ["Developing Analyst"];
+  }
+  return candidates.slice(0, 2).map((c) => c.label);
+}
+
+/**
+ * Cumulative manager trust evolution line (scripted, no AI). Empty until the
+ * analyst has at least one operation on record.
+ */
+function managerTrustEvolutionMessage() {
+  const b = calculateAnalystBehavior();
+  if (b.missionsDone === 0) return "";
+  const overall = (b.containment + b.decisionQuality + b.evidence + b.trust) / 4;
+  if (b.evidence < 0.45) return "We need stronger evidence discipline before escalation.";
+  if (overall >= 0.7) return "You consistently prioritize containment effectively.";
+  return "Your operational judgment is improving.";
+}
+
+/**
+ * Append an operation to the persistent history on mission completion. Idempotent
+ * per mission (stable ids), capped, and saved. The icon/status reflects outcome.
+ */
+function updateOperationalReputation(missionId) {
+  // Upsert one canonical record per stable id: a replay with a different outcome
+  // refreshes the existing entry (status/label) instead of duplicating it, so the
+  // career history stays idempotent yet reflects the latest result.
+  const add = (id, label, status) => {
+    const existing = operationalHistory.find((e) => e.id === id);
+    if (existing) {
+      existing.label = label;
+      existing.status = status;
+      existing.at = Date.now();
+      return;
+    }
+    operationalHistory.push({ id, label, status, at: Date.now() });
+  };
+
+  if (missionId === "mission-001") {
+    const out = m1OutcomeVariation().key; // excellent|reactive|delayed|weak
+    const good = (out === "excellent" || out === "reactive");
+    add("op-m1", "Credential Phishing Investigation", good ? "success" : "warn");
+    add("op-m1-outcome",
+      good ? "Threat Contained Successfully" : "Delayed Containment Incident",
+      good ? "success" : "warn");
+  } else if (missionId === "mission-002") {
+    const tier = m2OutcomeTier().label; // Excellent|Delayed|Weak
+    const good = (tier === "Excellent" || tier === "Delayed");
+    add("op-m2", "Network Exposure Review", good ? "success" : "warn");
+    add("op-m2-outcome",
+      good ? "Network Threat Stabilized" : "Exposure Review — Recommendation Missed",
+      good ? "success" : "warn");
+  }
+
+  if (operationalHistory.length > OPERATIONAL_HISTORY_MAX) {
+    operationalHistory = operationalHistory.slice(-OPERATIONAL_HISTORY_MAX);
+  }
+  saveProgress();
+  renderAnalystProfile();
+}
+
+/** Paint the persistent Analyst Profile, reputation traits, ratings, and history. */
+function renderAnalystProfile() {
+  const nameEl = document.getElementById("opsProfileName");
+  if (nameEl) {
+    nameEl.textContent = (studentName && studentName.trim())
+      ? `${studentName.trim()} — Blue Team Analyst`
+      : "Blue Team Analyst";
+  }
+
+  const standingEl = document.getElementById("opsRepStanding");
+  if (standingEl) standingEl.textContent = analystReputationStanding();
+
+  const traitsEl = document.getElementById("opsRepTraits");
+  if (traitsEl) {
+    traitsEl.innerHTML = analystReputationTraits()
+      .map((t) => `<span class="ops-rep-trait">${escapeHtml(t)}</span>`)
+      .join("");
+  }
+
+  const ratings = analystProfileRatings();
+  const setRating = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+  setRating("opsRatingContainment", ratings.containment);
+  setRating("opsRatingThreat", ratings.threatResponse);
+  setRating("opsRatingTrust", ratings.managerTrust);
+
+  const histEl = document.getElementById("opsHistoryList");
+  if (histEl) {
+    if (!operationalHistory.length) {
+      histEl.innerHTML =
+        `<li class="ops-history-empty">No operations on record yet. Complete your first assignment to begin building your operational history.</li>`;
+    } else {
+      // Most recent first.
+      histEl.innerHTML = operationalHistory.slice().reverse().map((e) => {
+        const icon = e.status === "success" ? "✔" : "⚠";
+        return `<li class="ops-history-row ops-history-row--${e.status === "success" ? "ok" : "warn"}">` +
+          `<span class="ops-history-mark" aria-hidden="true">${icon}</span>` +
+          `<span class="ops-history-label">${escapeHtml(e.label)}</span></li>`;
+      }).join("");
+    }
+  }
+}
+
+/**
+ * Milestone 33A — Operational Assessment block for the mission scorecards: a
+ * short, professional evaluation derived from that mission's behavior.
+ */
+function buildOperationalAssessmentHTML(missionId) {
+  const b = calculateAnalystBehavior();
+  const items = [];
+  const pos = (t) => items.push({ t, tone: "pos" });
+  const watch = (t) => items.push({ t, tone: "watch" });
+
+  if (missionId === "mission-001") {
+    if (b.m1Out === "excellent" || b.m1Out === "reactive") pos("Strong containment timing");
+    else if (b.m1Out === "delayed") watch("Containment timing needs refinement");
+    else watch("Delayed Blue Team response");
+
+    if (b.falseLeads === 0) pos("Reliable evidence prioritization");
+    else watch("Investigation thoroughness improving");
+
+    if ((m1ReasoningCorrect ? m1ReasoningCorrect.size : 0) >= 1) pos("Good escalation discipline");
+    else watch("Escalation reasoning needs refinement");
+  } else if (missionId === "mission-002") {
+    if (decisionTaken["mission-002"] === "m2-recommend" && b.drift === 0) pos("Correct Blue Team recommendation");
+    else if (decisionTaken["mission-002"] === "m2-recommend") watch("Escalation timing needs refinement");
+    else watch("Ideal Blue Team recommendation missed");
+
+    if ((m2AnalystConfidence || 0) >= 70) pos("Strong analyst confidence");
+    else watch("Analyst confidence developing");
+
+    if (countCriticalPins("mission-002") >= 1) pos("Reliable network evidence handling");
+    else watch("Investigation thoroughness improving");
+  }
+
+  if (!items.length) return "";
+  const rows = items.map((it) =>
+    `<li class="op-assessment-item op-assessment-item--${it.tone}">` +
+    `<span class="op-assessment-mark" aria-hidden="true">${it.tone === "pos" ? "▹" : "△"}</span>` +
+    `${escapeHtml(it.t)}</li>`).join("");
+  return `
+        <div class="scorecard-section scorecard-assessment">
+          <span class="scorecard-section-label">OPERATIONAL ASSESSMENT</span>
+          <ul class="op-assessment-list">${rows}</ul>
+        </div>`;
 }
 
 function enterModule() {
@@ -7522,6 +7865,8 @@ function handleM2QuizAnswer(letter) {
 
   // Persist + sync the M2 dashboard's mirrored profile panel
   saveProgress();
+  // Milestone 33A — record this operation in the persistent career history.
+  updateOperationalReputation("mission-002");
   syncM2XPPanel();
 
   // Mark final status + update course progress
@@ -7712,6 +8057,7 @@ function renderM2Scorecard() {
              Restates the full Alert → Investigation → Evidence →
              Decision → Consequence → Reward loop the student completed. -->
         ${buildOutcomeSummaryHTML("mission-002")}
+        ${buildOperationalAssessmentHTML("mission-002")}
 
         <!-- Skills Practiced -->
         <div class="scorecard-section scorecard-section--collapsed">
@@ -8227,6 +8573,8 @@ function completeMissionEngine(newRank) {
     // Render the scorecard so engine-driven completion produces the
     // same final UI as the quiz path. printM2Line is best-effort —
     // if no M2 terminal is on-screen yet, it just no-ops.
+    // Milestone 33A — record this operation in the persistent career history.
+    updateOperationalReputation("mission-002");
     renderM2Scorecard();
     printM2Line("[ MISSION 2 COMPLETE — Network Basics passed. +100 XP awarded. ]", "m2-line--info");
     return;

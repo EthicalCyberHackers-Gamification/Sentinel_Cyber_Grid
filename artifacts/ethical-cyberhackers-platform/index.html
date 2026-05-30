@@ -217,6 +217,7 @@
                   <li class="ops-threat-row ops-threat-row--info"><span class="ops-threat-dot" aria-hidden="true"></span>Reconnaissance activity under observation</li>
                   <li class="ops-threat-row ops-threat-row--ok"><span class="ops-threat-dot" aria-hidden="true"></span>Containment status: <strong id="opsContainStatus">Stable</strong></li>
                   <li class="ops-threat-row ops-threat-row--info"><span class="ops-threat-dot" aria-hidden="true"></span>Red Team Activity: Monitored</li>
+                  <li class="ops-threat-row ops-threat-row--ok" id="opsReadinessRow" style="display:none;"><span class="ops-threat-dot" aria-hidden="true"></span>Blue Team readiness improving</li>
                 </ul>
                 <div class="ops-analyst-mini">
                   <span class="ops-analyst-chip">XP <strong id="opsAnalystXp">0</strong></span>
@@ -225,6 +226,50 @@
               </div>
             </section>
           </div>
+        </div>
+
+        <!-- ===== Milestone 33A — Persistent Analyst Profile + Operational History =====
+             A compact, professional career-identity strip. The reputation
+             standing, traits, ratings, and operational history are filled by
+             renderAnalystProfile() in script.js from already-persisted signals. -->
+        <div class="ops-profile-grid">
+          <section class="ops-panel ops-profile" aria-label="Analyst Profile">
+            <div class="ops-panel-head">
+              <span class="ops-panel-icon" aria-hidden="true">🛡</span>
+              <h2 class="ops-panel-title">Analyst Profile</h2>
+            </div>
+            <div class="ops-panel-body">
+              <div class="ops-profile-id">
+                <span class="ops-profile-avatar" aria-hidden="true">◢◤</span>
+                <div class="ops-profile-id-meta">
+                  <span class="ops-profile-name" id="opsProfileName">Blue Team Analyst</span>
+                  <span class="ops-profile-role">Cybersecurity Intern</span>
+                </div>
+              </div>
+              <div class="ops-rep">
+                <span class="ops-mini-label">Operational Reputation</span>
+                <span class="ops-rep-standing" id="opsRepStanding">Awaiting First Assignment</span>
+                <div class="ops-rep-traits" id="opsRepTraits"></div>
+              </div>
+              <ul class="ops-rating-list">
+                <li class="ops-rating"><span class="ops-rating-key">Containment Rating</span><strong class="ops-rating-val" id="opsRatingContainment">Developing</strong></li>
+                <li class="ops-rating"><span class="ops-rating-key">Threat Response</span><strong class="ops-rating-val" id="opsRatingThreat">Developing</strong></li>
+                <li class="ops-rating"><span class="ops-rating-key">Manager Trust</span><strong class="ops-rating-val" id="opsRatingTrust">Moderate</strong></li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="ops-panel ops-history-panel" aria-label="Previous Operations">
+            <div class="ops-panel-head">
+              <span class="ops-panel-icon" aria-hidden="true">▤</span>
+              <h2 class="ops-panel-title">Previous Operations</h2>
+            </div>
+            <div class="ops-panel-body">
+              <ul class="ops-history-list" id="opsHistoryList">
+                <li class="ops-history-empty">No operations on record yet. Complete your first assignment to begin building your operational history.</li>
+              </ul>
+            </div>
+          </section>
         </div>
 
         <!-- Report for duty: name (preserved #studentNameInput) + Start Shift -->

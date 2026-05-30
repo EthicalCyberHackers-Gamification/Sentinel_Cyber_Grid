@@ -1,0 +1,344 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Cyber Operations Center entry experience exists.
+* Career Track framing exists.
+* Blue Team vs Red Team dynamics exist.
+* Emotional gameplay systems exist.
+* Reactive Incident Evolution exists.
+* Cinematic Incident Interruptions exist.
+* Mission 1 and Mission 2 work.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 33A — Persistent Player Identity & Career Reputation
+
+Purpose:
+Create long-term player identity and operational reputation systems so the player feels like they are building a cybersecurity career inside a persistent operations environment.
+
+Important:
+Do NOT turn this into an RPG.
+Do NOT add fantasy mechanics.
+Do NOT add complex stat systems.
+Do NOT add backend, AI, authentication, multiplayer, or economy systems.
+Do NOT clutter the interface.
+
+Core Design Goal:
+The player should feel:
+
+“My operational decisions define my cybersecurity reputation.”
+
+NOT:
+
+“I completed disconnected missions.”
+
+---
+
+1. ADD PERSISTENT ANALYST PROFILE
+
+---
+
+Create a compact persistent Analyst Profile section.
+
+Display:
+
+ANALYST PROFILE
+
+Name:
+Blue Team Analyst
+
+Current Role:
+Cybersecurity Intern
+
+Operational Reputation:
+Generating dynamically
+
+Containment Rating:
+Developing / Stable / Strong
+
+Threat Response:
+Developing / Improving / Reliable
+
+Manager Trust:
+Low / Moderate / High
+
+Do NOT make this large.
+Keep compact and professional.
+
+---
+
+2. ADD OPERATIONAL REPUTATION SYSTEM
+
+---
+
+Create lightweight reputation tracking.
+
+Add reusable functions:
+
+updateOperationalReputation()
+calculateAnalystBehavior()
+renderAnalystProfile()
+
+Purpose:
+The game should remember how the player behaves operationally across assignments.
+
+---
+
+3. TRACK PLAYER DECISION PATTERNS
+
+---
+
+Track behavioral tendencies such as:
+
+* careful evidence handling
+* fast escalation
+* delayed escalation
+* strong containment
+* excessive containment
+* accurate reasoning
+* weak prioritization
+* operational focus
+* investigation discipline
+
+Do NOT expose raw numbers.
+
+Instead:
+translate behavior into professional reputation language.
+
+---
+
+4. GENERATE REPUTATION TRAITS
+
+---
+
+Based on behavior patterns, assign lightweight reputation labels.
+
+Examples:
+
+* Reliable Investigator
+* Careful Analyst
+* Fast Responder
+* Threat Stabilizer
+* Evidence Focused
+* Operationally Disciplined
+* Developing Analyst
+* Improving Responder
+
+Do NOT:
+
+* assign too many labels
+* make them feel gamey
+* create fantasy classes
+
+Only show:
+1–2 dominant operational traits.
+
+---
+
+5. ADD MANAGER TRUST EVOLUTION
+
+---
+
+Manager reactions should now reflect cumulative operational behavior.
+
+Examples:
+
+Positive:
+“You consistently prioritize containment effectively.”
+
+Concerned:
+“We need stronger evidence discipline before escalation.”
+
+Neutral:
+“Your operational judgment is improving.”
+
+This should evolve over time using:
+
+* mission outcomes
+* containment choices
+* evidence handling
+* analyst confidence
+* decision quality
+
+Do NOT use AI.
+Use scripted behavior logic.
+
+---
+
+6. ADD PERSISTENT OPERATIONAL HISTORY
+
+---
+
+Add compact section:
+
+Previous Operations
+
+Examples:
+✔ Credential Phishing Investigation
+✔ Network Exposure Review
+⚠ Delayed Containment Incident
+✔ Threat Stabilized Successfully
+
+Purpose:
+Player should feel:
+they have a growing operational history.
+
+Keep compact and scrollable if needed.
+
+---
+
+7. ADD CAREER PROMOTION PROGRESSION
+
+---
+
+Current Role:
+Cybersecurity Intern
+
+Next Role:
+Junior SOC Analyst
+
+Promotion readiness should depend on:
+
+* completed assignments
+* trust score
+* operational reputation
+* analyst confidence trends
+* containment effectiveness
+
+Do NOT unlock promotion yet.
+Only show progression toward it.
+
+Example:
+Promotion Readiness: 68%
+
+---
+
+8. ADD PERFORMANCE SUMMARIES AFTER MISSIONS
+
+---
+
+Mission completion summaries should now include professional interpretation.
+
+Examples:
+
+Operational Assessment:
+
+* Strong containment timing
+* Reliable evidence prioritization
+* Good escalation discipline
+
+or:
+
+Operational Assessment:
+
+* Investigation thoroughness improving
+* Escalation timing needs refinement
+
+This should feel like:
+professional evaluation.
+
+---
+
+9. ADD PERSISTENT WORLD RECOGNITION
+
+---
+
+The world should recognize player history.
+
+Examples:
+
+Operations Center:
+“Previous phishing incident successfully contained.”
+
+Manager:
+“You handled the previous exposure review well.”
+
+Threat Status:
+“Blue Team readiness improving.”
+
+This creates:
+persistent world continuity.
+
+---
+
+10. KEEP SYSTEM LIGHTWEIGHT
+
+---
+
+Do NOT:
+
+* add giant progression trees
+* add huge stat dashboards
+* add dozens of skills
+* add inventory systems
+* add currencies
+* add complicated RPG mechanics
+
+The system should feel:
+professional,
+operational,
+and believable.
+
+---
+
+11. USE LOCAL STORAGE ONLY
+
+---
+
+Store:
+
+* operational reputation
+* analyst profile
+* promotion readiness
+* operational history
+* manager trust trends
+
+using existing localStorage architecture.
+
+Do NOT add backend systems.
+
+---
+
+12. PRESERVE EXISTING SYSTEMS
+
+---
+
+Do not break:
+
+* Mission 1
+* Mission 2
+* Mission Map / Operations Map
+* terminal commands
+* guided pacing
+* reasoning prompts
+* evidence classification
+* emotional gameplay
+* reactive incident evolution
+* cinematic interruptions
+* persistent adversary presence
+* scorecards
+* XP
+* trust score
+* threat level
+* containment progress
+* local progress save
+
+---
+
+## GOAL
+
+The player should now feel like:
+
+a persistent Blue Team analyst building a cybersecurity career and operational reputation inside an evolving cyber defense organization.
+
+The experience should feel:
+professional,
+immersive,
+and progression-driven
+
+WITHOUT:
+turning into an RPG,
+creating clutter,
+or disrupting the current architecture.

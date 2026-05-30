@@ -932,6 +932,50 @@ save/restore/clear, name gating.
   Start Shift → launch sequence → Operations Map → launch M1) + in-session return refresh
   regression both passed; browser console clean.
 
+### Persistent Player Identity & Career Reputation (Milestone 33A)
+A lightweight, PROFESSIONAL analyst-reputation layer on the Operations Center home + scorecards
+(no RPG/fantasy, no raw-stat dashboards, no backend/AI). Reputation is DERIVED at render from
+already-persisted signals; the ONLY new persisted state is `operationalHistory`. No new progress
+system — it reuses `missionComplete`/`mission2Complete`, `trustScore`, `currentXP`, mission
+outcomes, evidence pins, etc.
+- **State**: `operationalHistory = []` (~256) + `OPERATIONAL_HISTORY_MAX = 12`.
+- **Reputation engine** (`script.js`, after `renderOperationsCenter`, ~6004): `countCriticalPins`,
+  `calculateAnalystBehavior` (normalizes existing signals: `trustScore`, `blueTeamContainment`,
+  `escalationPeak`/`ESCALATION_MAX`, `m1ReasoningCorrect`, `m2AnalystConfidence`,
+  `m1FalseLeadsChecked`, `investigationPins`, `m1OutcomeVariation`, `m2OutcomeTier`,
+  `m2DecisionDrift`, `decisionTaken`), `repTier`, `analystProfileRatings`,
+  `analystReputationStanding`, `analystReputationTraits`, `managerTrustEvolutionMessage`,
+  `updateOperationalReputation`, `renderAnalystProfile`, `buildOperationalAssessmentHTML`. All
+  derive-at-render and DOM-guarded — nothing throws on a fresh/empty state.
+- **Markup** (`index.html`): a `.ops-profile-grid` section after `.ops-grid` (~233) — LEFT
+  "Analyst Profile" (reputation standing + traits + 3 ratings: containment/threat-response/
+  manager-trust), RIGHT "Previous Operations" list. Plus a hidden `#opsReadinessRow` recognition
+  line. IDs: `opsProfileName`, `opsRepStanding`, `opsRepTraits`, `opsRatingContainment/Threat/Trust`,
+  `opsHistoryList`, `opsAnalystXp`.
+- **`renderAnalystProfile()`** fills those IDs (all guarded) and is called at the END of
+  `renderOperationsCenter()`, so EVERY home-reveal path (boot/restore/clear/back-nav) refreshes the
+  profile (per memory `ech-landing-render.md`). `renderOperationsCenter` also extends Sarah Reyes'
+  message with world recognition + a manager trust-evolution line and toggles `#opsReadinessRow`.
+- **Completion hooks** — one call to `updateOperationalReputation(missionId)` from: M1
+  `completeMission`, M2 quiz path `handleM2QuizAnswer`, AND M2 engine path `completeMissionEngine`.
+- **`operationalHistory` entries** use stable ids (`op-m1`, `op-m1-outcome`, `op-m2`,
+  `op-m2-outcome`) and are UPSERTED (one canonical record per id; a replay refreshes status/label
+  to the latest outcome instead of duplicating), capped at `OPERATIONAL_HISTORY_MAX`.
+- **Scorecards**: `buildOperationalAssessmentHTML(missionId)` injected after the outcome summary in
+  M1 `buildCompletionHTML` and M2 `renderM2Scorecard` (2–3 professional bullets from that mission's
+  behavior).
+- **Persistence**: `operationalHistory` saved in `saveProgress`, restored (validated shape + deduped
+  + capped) in `restoreSavedProgress`, reset to `[]` in `clearSavedProgress`. NOTE: it is career
+  memory, so it is NOT cleared by `resetMission`/`resetMission2` — only by full clear-progress.
+- **CSS** appended at END of `style.css` (`.ops-profile-grid`, `.ops-profile`, `.ops-rep-*`,
+  `.ops-rating-list`, `.ops-history-*`, `.op-assessment-*`), reusing dark/cyber tokens; responsive
+  ≤900px.
+- Verified: `node --check` clean; workflow restarts clean; fresh render shows "Awaiting First
+  Assignment" + empty ops + hidden readiness with NO console errors; restore plumbing confirmed in
+  the app's own frame (studentName restores, profile renders error-free). NOTE: the e2e harness
+  CANNOT prime localStorage for restore tests — `page.evaluate` writes to the proxy-shell frame, but
+  the app reads its OWN nested-iframe localStorage; drive persistence THROUGH the app UI instead.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
