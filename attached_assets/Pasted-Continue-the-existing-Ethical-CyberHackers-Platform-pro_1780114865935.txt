@@ -1,0 +1,104 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Mission 1 and Mission 2 work.
+* Cyber Missions Map exists.
+* Mission Engine exists.
+* Evidence, trust score, threat level, manager reactions, investigation board, mission map, and scorecards work.
+* The project is frontend-only.
+
+Now implement:
+
+Milestone 26A — Contextual Event Toast System
+
+Purpose:
+Create short, focused event notifications that briefly guide student attention without adding dashboard clutter.
+
+Important:
+Do not create a large persistent incident feed.
+Do not add new panels that stay open all the time.
+Do not add Mission 3.
+Do not redesign the whole app.
+Do not break Mission 1 or Mission 2.
+
+Core idea:
+When something important happens, show a small animated event toast for 3–4 seconds, then fade it away.
+
+Examples:
+
+* Evidence added
+* Threat level rising
+* Trust score increased
+* Mission objective updated
+* New tool unlocked
+* Mission complete
+* Next assignment unlocked
+
+Requirements:
+
+1. Add reusable function:
+
+showEventToast(title, message, type)
+
+2. Toast types:
+
+* info
+* success
+* warning
+* danger
+* unlock
+
+3. Toast behavior:
+
+* appears near top-right or bottom-right
+* does not block terminal interaction
+* fades/slides in
+* stays visible for 3–4 seconds
+* fades out automatically
+* max 2 visible at once
+
+4. Trigger toasts for these events:
+
+Mission 1:
+
+* Begin investigation
+* Suspicious file opened
+* Evidence pinned
+* Evidence classified correctly
+* Threat level increases
+* Correct finding submitted
+* Mission complete
+* Mission 2 unlocked
+
+Mission 2:
+
+* Begin investigation
+* Reachable host found
+* Open services discovered
+* Correct analyst review
+* Mission complete
+
+5. Keep messages short.
+
+Examples:
+Title: Evidence Added
+Message: Suspicious password request pinned to board.
+
+Title: Threat Rising
+Message: Credential theft risk detected.
+
+Title: New Assignment
+Message: Mission 2 unlocked on the map.
+
+6. Do not replace manager messages.
+   Manager messages still provide guidance.
+   Toasts provide short event feedback.
+
+7. Do not replace current objective.
+   Current objective still tells the student what to do next.
+
+8. Keep everything frontend-only.
+
+Goal:
+Students should notice important changes immediately without needing to monitor many panels.

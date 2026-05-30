@@ -6805,3 +6805,86 @@ body.mission-running .center-column { min-width: 0; }
 @media (prefers-reduced-motion: reduce) {
   .map-cta-attention { animation: none; }
 }
+
+/* ============================================================
+   Milestone 26A — Contextual Event Toast System
+   ------------------------------------------------------------
+   Transient, non-blocking event notifications stacked at the
+   top-right. pointer-events:none ensures the terminal and all
+   controls stay fully clickable underneath. Max 2 visible is
+   enforced in JS (showEventToast). z-index sits below the demo
+   coach (10000) / music toggle (9999) so it never traps clicks.
+   ============================================================ */
+.event-toast-host {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9500;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  max-width: min(340px, calc(100vw - 32px));
+}
+.event-toast {
+  pointer-events: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(10, 18, 28, 0.96);
+  border: 1px solid rgba(0, 229, 255, 0.28);
+  border-left: 4px solid #00e5ff;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  color: #e8f6ff;
+  font-family: inherit;
+  opacity: 0;
+  transform: translateX(24px);
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+.event-toast--show { opacity: 1; transform: translateX(0); }
+.event-toast--hide { opacity: 0; transform: translateX(24px); }
+.event-toast-dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #00e5ff;
+  box-shadow: 0 0 8px currentColor;
+}
+.event-toast-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.event-toast-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+.event-toast-msg {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #b6cfdd;
+  word-break: break-word;
+}
+
+/* Type variants — accent border + dot colour. */
+.event-toast--info    { border-left-color: #38bdf8; }
+.event-toast--info    .event-toast-dot { background: #38bdf8; }
+.event-toast--success { border-left-color: #34d399; }
+.event-toast--success .event-toast-dot { background: #34d399; }
+.event-toast--warning { border-left-color: #fbbf24; }
+.event-toast--warning .event-toast-dot { background: #fbbf24; }
+.event-toast--danger  { border-left-color: #f87171; }
+.event-toast--danger  .event-toast-dot { background: #f87171; }
+.event-toast--unlock  { border-left-color: #c084fc; }
+.event-toast--unlock  .event-toast-dot { background: #c084fc; }
+
+@media (max-width: 700px) {
+  .event-toast-host { top: 10px; right: 10px; left: 10px; max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .event-toast { transition: opacity 0.2s ease; transform: none; }
+  .event-toast--show { transform: none; }
+  .event-toast--hide { transform: none; }
+}

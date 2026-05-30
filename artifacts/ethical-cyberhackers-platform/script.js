@@ -506,8 +506,13 @@ function handlePinClassification(missionId, key, level) {
   // Milestone 25A — interactive feedback for pinning evidence.
   fxPulseBoard(missionId);
   fxPulseConfidence(missionId);
-  if (correct) fxToast("Evidence Added", "success");
-  else fxToast("Re-check priority", "caution");
+  // Milestone 26A — event toasts: evidence pinned, then classify outcome.
+  showEventToast("Evidence Added", `${rating.title} pinned to the board.`, "info");
+  if (correct) {
+    showEventToast("Evidence Classified", "Suspicion level recorded correctly.", "success");
+  } else {
+    showEventToast("Re-check Evidence", "This finding's priority looks off.", "warning");
+  }
 
   // Mission 1 gate: correctly tagging the suspicious file as Critical
   // is what unlocks the escalation / finding flow.
@@ -1494,9 +1499,19 @@ function getThreatLevel(missionId) {
 function setThreatLevel(level, missionId) {
   const mid = missionId || getActiveMissionId();
   if (!isValidThreatLevel(level)) return getThreatLevel(mid);
+  const prev = threatLevelByMission[mid];
   threatLevelByMission[mid] = level;
   renderThreatLevel(mid);
   fxPulseThreat(mid); // Milestone 25A — pulse the threat meter on change.
+  // Milestone 26A — event toast only when the threat RISES during active play
+  // (gated on mission-running so a resume/restore never fires a stale toast).
+  if (
+    prev &&
+    THREAT_LEVELS.indexOf(level) > THREAT_LEVELS.indexOf(prev) &&
+    document.body.classList.contains("mission-running")
+  ) {
+    showEventToast("Threat Rising", `Threat level raised to ${level}.`, "danger");
+  }
   try { saveProgress(); } catch (_) { /* save errors are non-fatal */ }
   return level;
 }
@@ -3069,7 +3084,13 @@ function clearTerminal() {
  */
 function handleM1FileRead(filename) {
   const name = (filename || "").toLowerCase();
+  const firstRead = !m1FilesReviewed.has(name);
   m1FilesReviewed.add(name);
+
+  // Milestone 26A — event toast: the key suspicious file was opened (first read only).
+  if (firstRead && name === "suspicious_file.txt") {
+    showEventToast("Suspicious File", "A password request from an unknown sender.", "warning");
+  }
 
   if (name === "meeting_schedule.txt" || name === "finance_update.txt") {
     m1FalseLeadsChecked.add(name);
@@ -3564,6 +3585,8 @@ function handleFindingAnswer(answerId) {
     markProgressStep("submit-finding");
     // Milestone 24B — analyst submitted correct finding → threat eases.
     setThreatLevel("Medium", "mission-001");
+    // Milestone 26A — event toast: correct finding submitted.
+    showEventToast("Finding Submitted", "Phishing attempt confirmed.", "success");
     // Milestone 24C — careful analyst work → +10 trust.
     increaseTrustScore(10);
     // Milestone 24G — finding submitted → Finding Report done; Quiz unlocks.
@@ -3896,6 +3919,8 @@ function completeMission(newRank) {
   // Milestone 9 — flip Mission 1 to Completed and unlock Mission 2 in the
   // Course Progress panel. Also print an unlock notice to the terminal.
   printOutput("[ Mission 2 unlocked: Network Basics ]", "info");
+  // Milestone 26A — event toast: a new assignment is available.
+  showEventToast("New Assignment", "Mission 2 unlocked on the map.", "unlock");
   renderCourseProgress();
 
   // Milestone 22 — swap the M1 primary CTA from "Begin Mission" to
@@ -4213,6 +4238,8 @@ function beginMission() {
   setManagerMessage("started");
   // Milestone 24F — dynamic manager reaction for mission start (M1).
   updateManagerReaction("mission_started", { missionId: "mission-001" });
+  // Milestone 26A — event toast: investigation begins.
+  showEventToast("Investigation Started", "Inspect the workstation and gather evidence.", "info");
   // Milestone 24G — initialize the M1 tool set (File Inspector + Terminal
   // available, rest locked) and make the Terminal the active focus.
   initializeMissionTools("mission-001");
@@ -5426,6 +5453,8 @@ function beginMission2() {
   setM2ManagerMessage("Welcome to Mission 2, Agent. Let's map this network — start by identifying your local IP address.");
   // Milestone 24F — dynamic manager reaction for mission start (M2).
   updateManagerReaction("mission_started", { missionId: "mission-002" });
+  // Milestone 26A — event toast: investigation begins.
+  showEventToast("Investigation Started", "Map the network and assess the target host.", "info");
 
   // Print a small system line in the terminal so it's not empty
   printM2Line("[ Mission 2 environment ready ]", "m2-line--info");
@@ -5467,6 +5496,11 @@ function runM2Command(key) {
   const def = M2_COMMANDS[key];
   if (!def) return;
 
+  // Milestone 26A — capture "first run" BEFORE the unlock chain below adds the
+  // next command, so event toasts fire once (not on every re-click).
+  const firstPing = key === "ping" && !m2UnlockedCmds.has("nmap");
+  const firstNmap = key === "nmap" && !m2UnlockedCmds.has("review");
+
   // Print prompt line + each output line
   printM2Line(`<span class="m2-prompt">student@cybercorp:~$</span> ${escapeHtml(def.cmd)}`, "m2-line--prompt");
   def.output.forEach((line) => printM2Line(escapeHtml(line), "m2-line--output"));
@@ -5495,12 +5529,18 @@ function runM2Command(key) {
   // `nmap` reveals the open services; `review services` is the analyst
   // step that flags those services as needing follow-up. addEvidence is
   // idempotent, so re-clicking either command will not duplicate items.
+  if (firstPing) {
+    // Milestone 26A — event toast: target host responded.
+    showEventToast("Host Reachable", "Target 10.0.0.5 responded.", "success");
+  }
   if (key === "nmap") {
     addEvidence(
       "m2-open-ports",
       "Target host exposes SSH, HTTP, and HTTPS services",
       "mission-002"
     );
+    // Milestone 26A — event toast: open services discovered (first scan only).
+    if (firstNmap) showEventToast("Services Found", "Open ports detected on the target.", "info");
     // Milestone 24B — open services discovered → threat rises.
     setThreatLevel("High", "mission-002");
     // Milestone 24F — threat just rose to High → manager reacts.
@@ -5641,6 +5681,8 @@ function handleM2AnalystAnswer(letter) {
 
   // Correct path — finalize
   m2AnalystAnswered = true;
+  // Milestone 26A — event toast: correct analyst review.
+  showEventToast("Analysis Correct", "Threat assessment recorded.", "success");
   // Milestone 24C — correct M2 analyst review → +10 trust.
   increaseTrustScore(10);
   // Milestone 24G — analyst review answered → Analyst Review done; Quiz unlocks.
@@ -6281,8 +6323,13 @@ function renderManagerReaction(messageText) {
 function updateManagerReaction(eventType, context) {
   const text = getManagerReaction(eventType, context);
   if (text) renderManagerReaction(text);
-  // Milestone 25A — celebratory toast on mission completion (M1 + M2).
-  if (eventType === "mission_completed") fxToast("Mission Complete!", "success");
+  // Milestone 25A / 26A — event toast on mission completion (M1 + M2).
+  if (eventType === "mission_completed") {
+    const m = context && context.missionId === "mission-002"
+      ? "Mission 2 cleared. Network secured."
+      : "Mission 1 cleared. Phishing threat handled.";
+    showEventToast("Mission Complete", m, "success");
+  }
   return text;
 }
 
@@ -7123,6 +7170,81 @@ function fxToast(text, tone) {
     t.classList.remove("fx-toast--show");
     window.setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, 400);
   }, 1800);
+}
+
+/* ============================================================
+   Milestone 26A — Contextual Event Toast System
+   ------------------------------------------------------------
+   Short, focused event notifications that briefly guide student
+   attention without adding persistent dashboard clutter. These do
+   NOT replace manager messages or the Current Objective — they are
+   transient event feedback only.
+   - showEventToast(title, message, type)
+   - types: info | success | warning | danger | unlock
+   - top-right stack, pointer-events:none (never blocks the terminal),
+     slides in, auto-fades after ~3.5s, max 2 visible at once.
+   ============================================================ */
+const EVENT_TOAST_TYPES = ["info", "success", "warning", "danger", "unlock"];
+const EVENT_TOAST_MAX = 2;        // max simultaneously visible
+const EVENT_TOAST_MS = 3500;      // visible duration (3–4s)
+const EVENT_TOAST_FADE_MS = 350;  // slide/fade-out duration
+let eventToastHost = null;
+let eventToastVisible = 0;        // currently on-screen count
+const eventToastQueue = [];       // pending toasts beyond the visible cap
+
+function ensureEventToastHost() {
+  if (eventToastHost && document.body.contains(eventToastHost)) return eventToastHost;
+  eventToastHost = document.createElement("div");
+  eventToastHost.className = "event-toast-host";
+  eventToastHost.setAttribute("aria-live", "polite");
+  document.body.appendChild(eventToastHost);
+  return eventToastHost;
+}
+
+/** Public API — enqueue a toast. Renders immediately if under the visible
+ *  cap, otherwise queues so each toast still gets its full visible duration
+ *  (no premature truncation under bursts). */
+function showEventToast(title, message, type) {
+  if (!title && !message) return;
+  const t = EVENT_TOAST_TYPES.includes(type) ? type : "info";
+  eventToastQueue.push({ title: title || "", message: message || "", type: t });
+  pumpEventToasts();
+}
+
+function pumpEventToasts() {
+  while (eventToastVisible < EVENT_TOAST_MAX && eventToastQueue.length) {
+    renderEventToast(eventToastQueue.shift());
+  }
+}
+
+function renderEventToast(item) {
+  const host = ensureEventToastHost();
+  eventToastVisible++;
+
+  const el = document.createElement("div");
+  el.className = `event-toast event-toast--${item.type}`;
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-atomic", "true");
+  el.innerHTML =
+    `<span class="event-toast-dot" aria-hidden="true"></span>` +
+    `<span class="event-toast-body">` +
+    `<span class="event-toast-title"></span>` +
+    `<span class="event-toast-msg"></span>` +
+    `</span>`;
+  el.querySelector(".event-toast-title").textContent = item.title;
+  el.querySelector(".event-toast-msg").textContent = item.message;
+  host.appendChild(el);
+
+  requestAnimationFrame(() => el.classList.add("event-toast--show"));
+  window.setTimeout(() => {
+    el.classList.remove("event-toast--show");
+    el.classList.add("event-toast--hide");
+    window.setTimeout(() => {
+      if (el.parentNode) el.parentNode.removeChild(el);
+      eventToastVisible = Math.max(0, eventToastVisible - 1);
+      pumpEventToasts(); // a slot freed up — show the next queued toast
+    }, EVENT_TOAST_FADE_MS);
+  }, EVENT_TOAST_MS);
 }
 
 function fxPulse(id) {

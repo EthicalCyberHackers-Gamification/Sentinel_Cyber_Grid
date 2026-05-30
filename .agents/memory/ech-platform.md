@@ -61,6 +61,23 @@ these, so its Next button received no clicks (demo got "stuck").
 viewport (`positionCoach`) so its buttons never render off-screen when the target is
 scrolled to an edge.
 
+## "Max N visible" toast/notification UIs must QUEUE overflow, not truncate
+A capped notification stack (e.g. the event-toast system, max 2 visible) must enqueue
+extras and render them as visible slots free up — NOT remove the oldest on overflow.
+**Why:** burst events are common (one user action can fire 3+ toasts at once, e.g.
+pin+classify emits two and a threat-rise emits a third). Removing the oldest on overflow
+makes the first toast vanish almost instantly, breaking the "visible ~Ns" guarantee.
+**How to apply:** track a visible-count + a pending queue; on each toast's fade-out
+completion, decrement and pump the queue. Each toast then gets its full dwell time.
+
+## Re-runnable command toasts need a "first run" flag captured BEFORE the unlock chain
+M2 command handler (`runM2Command`) unlocks the NEXT command early in the function, so by
+the time later side-effect blocks run, the next command is already unlocked. To fire a
+one-time toast for a repeatable command (ping/nmap stay clickable), capture the first-run
+boolean (`key==="ping" && !m2UnlockedCmds.has("nmap")`) at the TOP, before the unlock
+loop mutates `m2UnlockedCmds`. M1 file-read uses the same idea: snapshot
+`!m1FilesReviewed.has(name)` before the `.add()`.
+
 ## One shared paced-reveal queue serves both M1 and M2 terminals
 The terminal "type-out" effect reveals OUTPUT lines one at a time from a single global
 queue (`outputRevealQueue`); both `#terminalOutput` (M1) and `#m2Terminal` (M2) feed it.

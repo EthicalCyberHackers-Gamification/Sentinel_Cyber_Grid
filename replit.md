@@ -382,6 +382,37 @@ Six UX fixes (no flow/system changes). CSS appended at the END of `style.css`.
   ("Mission complete. Open the Mission Map to continue.") and manager `COMPLETION_MANAGER`
   ("Good work. Return to the Mission Map to continue your training path.").
 
+### Contextual Event Toast System (Milestone 26A)
+A reusable, non-blocking notification layer (no flow/logic/progress changes) that surfaces
+short status toasts at key mission events. Does NOT replace manager messages or the Current
+Objective. The 26A module lives near the fx helpers in `script.js` (~7184); CSS appended at
+the END of `style.css`.
+- **API**: `showEventToast(title, message, type)` with `type` ∈ info|success|warning|danger|
+  unlock (invalid types fall back to info). Toasts render top-right in `.event-toast-host`
+  (fixed, `pointer-events:none` so the terminal is NEVER blocked), slide/fade in, stay
+  `EVENT_TOAST_MS` (3500ms), then fade out (`EVENT_TOAST_FADE_MS` 350ms). Each `.event-toast`
+  has `.event-toast-dot` + `.event-toast-body`(`.event-toast-title`/`.event-toast-msg`),
+  `role=status` + `aria-atomic`, host `aria-live=polite`. Per-type accent colors; responsive
+  ≤700px; `prefers-reduced-motion` honored.
+- **Max-2 with a real QUEUE (architect fix)**: at most `EVENT_TOAST_MAX` (2) are visible;
+  extras are ENQUEUED (`eventToastQueue`) and `renderEventToast` runs when a slot frees
+  (each toast's fade-out decrements `eventToastVisible` then `pumpEventToasts()`), so a burst
+  never truncates a toast's dwell time. Helpers: `ensureEventToastHost` (idempotent),
+  `pumpEventToasts`, `renderEventToast`.
+- **Triggers** (each tagged "Milestone 26A"): M1 — `beginMission` (Investigation Started/info),
+  `handleM1FileRead` suspicious_file FIRST read only (Suspicious File/warning),
+  `handlePinClassification` (Evidence Added/info + Evidence Classified success / Re-check
+  Evidence warning — replaced old `fxToast`), `setThreatLevel` rise gated on
+  `body.mission-running` (Threat Rising/danger — avoids restore-time spurious fire),
+  `handleFindingAnswer` correct (Finding Submitted/success), `completeMission` (New
+  Assignment/unlock), `updateManagerReaction` mission_completed (per-mission Mission
+  Complete/success — replaced old `fxToast`). M2 — `beginMission2` (Investigation
+  Started/info), `runM2Command` ping reachable (Host Reachable/success) + nmap (Services
+  Found/info), `handleM2AnalystAnswer` correct (Analysis Correct/success).
+- **First-run guards (architect fix)**: repeatable commands fire their toast once.
+  `runM2Command` captures `firstPing`/`firstNmap` at the TOP (before the unlock chain mutates
+  `m2UnlockedCmds`); `handleM1FileRead` snapshots `firstRead` before `m1FilesReviewed.add`.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
