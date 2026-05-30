@@ -40,3 +40,22 @@ instead of duplicating it. **How to apply:** when adding the same feature to bot
 keying state by mission id (objects keyed `"mission-001"`/`"mission-002"`) + a mission→ids DOM map
 and pass `missionId` as the first arg to every helper — do NOT copy/paste the M1 block into M2.
 When generalizing, keep a LEGACY restore fallback so old persisted (flat M1) saves still load.
+
+## Visual "raise" helpers must be monotonic (never downgrade)
+A helper that bumps a level up one step (e.g. `raiseThreatOneStep`) must guard `if (curIndex >=
+capIndex) return;` BEFORE computing the next level. Naive `levels[min(i+1, capI)]` DOWNGRADES when
+the current value is already above the cap.
+**Why:** a poor decision can set Threat = Critical, then an escalation event calls
+`raiseThreatOneStep(.., "High")` — without the guard it would LOWER Critical→High, the opposite of
+escalating. **How to apply:** any "increase only" UI metric (threat/pressure/score) should clamp by
+returning early when already at/above the ceiling, not by `min()`-ing into a lower bucket.
+
+## Session-only flags don't gate cross-reload, but DO gate same-session re-entry — re-arm timers
+`missionStarted`/`m2Started` are session-only. Timers/watches torn down on mission exit (via
+`endGuidedRun`) must be RE-ARMED on same-session re-entry, not just on fresh start. Re-arm in
+`openMission1Dashboard`'s `missionStarted && !missionComplete` branch and in `beginMission2` BEFORE
+its `m2Started` early-return.
+**Why:** Stage 3's idle escalation watch silently stopped after map/overview leave+resume because
+only the fresh-start `beginMission*` path armed it. **How to apply:** any per-mission timer (idle
+watch, polling) needs an arm call on EVERY active re-entry path; make the start fn idempotent (clear
+then schedule) so double-calls are safe.

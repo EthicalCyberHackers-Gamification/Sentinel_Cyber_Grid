@@ -501,6 +501,50 @@ mini-map-panel, before `#m2ManagerPanel`); CSS is SHARED (no `style.css` change 
   `redTeamActive`/`m1BlueFeed` keys). Verified e2e: full M1 run 0→100 with flag + feed; M2 nmap →
   Critical pin reaching 40% with flag + feed; mid-mission reload resumes containment/flag/feed.
 
+### Adversary Escalation System (Stage 3)
+The attacker REACTS to investigation progress. Built ON TOP of the Stage 2 Blue Team engine
+(`BLUE_TEAM_DOM`, `btDom`/`btMissionId`, `setRedTeamActive`, `setIncidentStatus`,
+`setContainmentCaption`) and the toast system (`showEventToast` with `opts.duration`,
+`ADVERSARY_TOAST_MS`). The Stage 3 module sits in `script.js` just after
+`restoreBlueTeamMission`. Beginner-friendly by design — escalation is CAPPED.
+- **Reusable core**: `triggerEscalationEvent(missionId, opts)` — adversary gains ground:
+  rotates an `ESCALATION_EVENTS` red-team message ("[RED TEAM MOVEMENT] Credential harvesting
+  attempt spreading.", "[RED TEAM ACTIVITY] Additional employee targeted.", "External
+  communication frequency increasing."), raises `incidentPressure[missionId]` by
+  `ESCALATION_STEP`, nudges Threat Level up one notch, sets the Red Team flag + a long-dwell
+  (`ADVERSARY_TOAST_MS`≈9s) red toast + map pulse, and sets urgency wording ("Escalating" /
+  "Pressure rising — act quickly to contain."). `containThreatActivity(missionId)` — correct/
+  quick action: relieves pressure by `ESCALATION_RELIEF` and shows "[BLUE TEAM] Threat spread
+  interrupted." Both NO-OP during the demo (`demoRunning` guard); `containThreatActivity` only
+  speaks when `incidentPressure>0` OR the Red Team flag is set (avoids noise pre-escalation).
+- **Caps (beginner-friendly)**: `incidentPressure` is per-mission, clamped to `ESCALATION_MAX`
+  (the "Moderate" ceiling — never higher). `escalationLevelLabel` maps the value to
+  Stable→Elevated→Moderate. Threat is capped at "High" via `raiseThreatOneStep(missionId, cap)`,
+  which is MONOTONIC — if the current threat index is already ≥ the cap (e.g. a poor decision
+  already set Critical), it returns WITHOUT lowering the threat (the raise is only ever an
+  increase). Idle escalation stops at `ESCALATION_MAX_IDLE_EVENTS` (2) per mission.
+- **Delay-based escalation**: an idle watch (`startEscalationWatch`/`scheduleEscalationIdle`/
+  `onEscalationIdle`/`clearEscalationWatch`, `ESCALATION_IDLE_MS`≈40s) escalates when the student
+  stalls; `noteInvestigationActivity()` (called from `afterCommand`/`runM2Command`) resets the
+  clock on real activity. The watch self-stops at the idle/pressure ceiling, on completion, or
+  when `body.mission-running` is gone.
+- **Wiring**: poor decision (M1+M2) → `triggerEscalationEvent`; correct escalate decision (M1+M2)
+  and correct Critical pin (`handlePinClassification`) → `containThreatActivity`;
+  `beginMission`/`beginMission2` → `startEscalationWatch`; `completeMission` + M2 quiz completion →
+  `clearEscalationWatch` + pressure 0; `resetMission`/`resetMission2` → `resetEscalation`;
+  `endGuidedRun` (every mission exit) → `clearEscalationWatch`; `renderBlueTeamPanel` →
+  `renderIncidentPressure`. RESUME-SAFE: the watch is torn down on every exit, so it is RE-ARMED
+  on same-session re-entry — `openMission1Dashboard` calls `startEscalationWatch("mission-001")`
+  in its `missionStarted && !missionComplete` branch, and `beginMission2` calls
+  `startEscalationWatch("mission-002")` BEFORE its `m2Started` early-return.
+- **UI + persistence**: an "Incident Pressure" block (bar fill + level word) in BOTH Blue Team
+  panels (M1 `#incidentPressureWrap`/`#incidentPressureFill`/`#incidentPressureLevel`; M2 `m2*`
+  mirror). `incidentPressure` + `escalationIdleCount` are persisted (`saveProgress`) and restored
+  clamped (zeroed when the mission is complete). Stage 3 CSS appended at the END of `style.css`
+  (amber→red fill, level colors, reduced-motion). Verified e2e on M1: pressure Stable/0 → poor
+  decision → Elevated + red toast + threat up → correct escalate → "Threat spread interrupted." +
+  pressure drops + flow advances; M1/M2 intact, no console errors.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

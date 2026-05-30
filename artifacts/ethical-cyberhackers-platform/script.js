@@ -506,6 +506,9 @@ function handlePinClassification(missionId, key, level) {
   // Milestone 25A — interactive feedback for pinning evidence.
   fxPulseBoard(missionId);
   fxPulseConfidence(missionId);
+  // Stage 3 — correctly flagging critical evidence interrupts the adversary's
+  // spread (no-ops quietly when there's no active pressure to contain).
+  if (correct && meta.critical) containThreatActivity(missionId);
   // Milestone 26A — event toasts: evidence pinned, then classify outcome.
   showEventToast("Evidence Added", `${rating.title} pinned to the board.`, "info");
   if (correct) {
@@ -1922,6 +1925,8 @@ function handleDecisionAction(actionId) {
           caption: "Incident escalated to the lead analyst.",
         });
         showBlueTeamUpdate("mission-001", "Incident escalated to lead analyst.");
+        // Stage 3 — a correct, decisive call interrupts the adversary's spread.
+        containThreatActivity("mission-001");
       } else if (def.missionId === "mission-002") {
         // Stage 2 (Mission 2) — escalation is the decisive containment step.
         updateContainmentProgress("mission-002", 30, {
@@ -1931,6 +1936,8 @@ function handleDecisionAction(actionId) {
           caption: "Incident escalated to the lead analyst.",
         });
         showBlueTeamUpdate("mission-002", "Incident escalated to lead analyst.", { toast: true });
+        // Stage 3 — a correct, decisive call interrupts the adversary's spread.
+        containThreatActivity("mission-002");
       }
     }
 
@@ -1957,6 +1964,8 @@ function handleDecisionAction(actionId) {
         caption: "Containment slowed — the attacker gained ground.",
       });
       showBlueTeamUpdate("mission-001", "Hold position — re-evaluating the threat.");
+      // Stage 3 — a poor decision lets the adversary escalate the incident.
+      triggerEscalationEvent("mission-001");
     } else if (def.missionId === "mission-002") {
       // Stage 2 (Mission 2) — a poor call slows network containment.
       updateContainmentProgress("mission-002", -10, {
@@ -1964,6 +1973,8 @@ function handleDecisionAction(actionId) {
         caption: "Containment slowed — the attacker gained ground.",
       });
       showBlueTeamUpdate("mission-002", "Hold position — re-evaluating the threat.");
+      // Stage 3 — a poor decision lets the adversary escalate the incident.
+      triggerEscalationEvent("mission-002");
     }
   }
 }
@@ -2391,6 +2402,9 @@ function saveProgress() {
         "mission-001": blueTeamFeeds["mission-001"].slice(-BLUE_TEAM_FEED_MAX),
         "mission-002": blueTeamFeeds["mission-002"].slice(-BLUE_TEAM_FEED_MAX),
       },
+      // Stage 3 — Adversary Escalation: incident pressure + idle-escalation cap.
+      incidentPressure: { ...incidentPressure },
+      escalationIdleCount: { ...escalationIdleCount },
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -2527,6 +2541,22 @@ function restoreSavedProgress() {
   // Backward-compat: a completed mission is, by definition, fully contained.
   if (missionComplete)  blueTeamContainment["mission-001"] = 100;
   if (mission2Complete) blueTeamContainment["mission-002"] = 100;
+
+  // Stage 3 — restore Adversary Escalation state (incident pressure + idle cap),
+  // validated and clamped. A completed mission has zero residual pressure.
+  ["mission-001", "mission-002"].forEach((mid) => {
+    const p = data.incidentPressure && data.incidentPressure[mid];
+    if (typeof p === "number" && isFinite(p)) {
+      incidentPressure[mid] = Math.max(0, Math.min(ESCALATION_MAX, Math.round(p)));
+    }
+    const c = data.escalationIdleCount && data.escalationIdleCount[mid];
+    if (typeof c === "number" && isFinite(c)) {
+      escalationIdleCount[mid] = Math.max(0, Math.min(ESCALATION_MAX_IDLE_EVENTS, Math.round(c)));
+    }
+  });
+  if (missionComplete)  incidentPressure["mission-001"] = 0;
+  if (mission2Complete) incidentPressure["mission-002"] = 0;
+
   renderBlueTeamPanel("mission-001");
   renderBlueTeamPanel("mission-002");
 
@@ -3358,6 +3388,9 @@ function setHint(text, tone) {
 function afterCommand(buttonKey) {
   if (!buttonKey) return;
 
+  // Stage 3 — real investigation progress resets the idle-escalation clock.
+  noteInvestigationActivity();
+
   // Milestone 6: update the hint panel BEFORE other logic so out-of-sequence
   // warnings show even though the command itself still executes normally.
   updateHint(buttonKey);
@@ -3968,6 +4001,11 @@ function completeMission(newRank) {
   // ("Alert Resolved" badge per spec #12).
   markAlertResolved("mission-001");
 
+  // Stage 3 — incident resolved: clear escalation pressure + stop the watch.
+  clearEscalationWatch();
+  incidentPressure["mission-001"] = 0;
+  renderIncidentPressure("mission-001");
+
   // Stage 2 — Blue Team: threat fully contained on mission completion.
   setRedTeamActive("mission-001", false);
   updateContainmentProgress("mission-001", 0, {
@@ -4412,6 +4450,9 @@ function beginMission() {
   missionLaunched["mission-001"] = true;
   saveProgress();
 
+  // Stage 3 — begin watching for investigation delays (idle escalation).
+  startEscalationWatch("mission-001");
+
   if (terminalInput) terminalInput.focus();
 }
 
@@ -4462,6 +4503,8 @@ function resetMission() {
 
   // Stage 2 — reset Mission 1 Blue Team / containment state.
   resetBlueTeam("mission-001");
+  // Stage 3 — reset Mission 1 Adversary Escalation state.
+  resetEscalation("mission-001");
 
   // Challenge Layer 1 — reset Mission 1 confidence + investigation tracking.
   m1Confidence = 0;
@@ -5033,6 +5076,9 @@ function openMission1Dashboard() {
   if (missionStarted && !missionComplete) {
     setMissionRunning(true);
     enterFocusMode();
+    // Stage 3 — re-arm the idle escalation watch on in-progress re-entry
+    // (the watch is torn down on every mission exit via endGuidedRun).
+    startEscalationWatch("mission-001");
   }
   if (terminalInput) terminalInput.focus();
   // Milestone 25B — auto-open the guided briefing overlay on a FRESH start.
@@ -5562,6 +5608,9 @@ function beginMission2() {
   // in-progress Mission 2 never leaves a stale/missing control bar.
   setMissionRunning(true);
   enterFocusMode();
+  // Stage 3 — (re)arm the idle escalation watch BEFORE the resume early-return,
+  // so resuming an in-progress Mission 2 keeps the adversary watch alive.
+  startEscalationWatch("mission-002");
 
   if (m2Started) return;
   m2Started = true;
@@ -5602,6 +5651,9 @@ function beginMission2() {
   // Milestone 25B (resume-safe) — persist that M2's investigation has launched.
   missionLaunched["mission-002"] = true;
   saveProgress();
+
+  // Stage 3 — begin watching for investigation delays (idle escalation).
+  startEscalationWatch("mission-002");
 }
 
 /** Return from the Mission 2 Dashboard back to the Mission 2 Overview.
@@ -5622,6 +5674,9 @@ function runM2Command(key) {
   if (!m2UnlockedCmds.has(key)) return;
   const def = M2_COMMANDS[key];
   if (!def) return;
+
+  // Stage 3 — real investigation progress resets the idle-escalation clock.
+  noteInvestigationActivity();
 
   // Milestone 26A — capture "first run" BEFORE the unlock chain below adds the
   // next command, so event toasts fire once (not on every re-click).
@@ -5981,6 +6036,11 @@ function handleM2QuizAnswer(letter) {
   // Milestone 24B — Mission 2 complete → network secured (Low).
   setThreatLevel("Low", "mission-002");
 
+  // Stage 3 — incident resolved: clear escalation pressure + stop the watch.
+  clearEscalationWatch();
+  incidentPressure["mission-002"] = 0;
+  renderIncidentPressure("mission-002");
+
   // Stage 2 — Blue Team (Mission 2): threat fully contained on completion.
   setRedTeamActive("mission-002", false);
   updateContainmentProgress("mission-002", 0, {
@@ -6271,6 +6331,8 @@ function resetMission2() {
   resetToolsForMission("mission-002");
   // Stage 2 — restart clears Mission 2's Blue Team containment state.
   resetBlueTeam("mission-002");
+  // Stage 3 — restart clears Mission 2's Adversary Escalation state.
+  resetEscalation("mission-002");
   // Persist — clears mission2Complete flag from localStorage too
   saveProgress();
   // Course progress reflects the regression (M2 back to "Unlocked")
@@ -7666,6 +7728,7 @@ function renderBlueTeamPanel(missionId) {
   setBlueTeamAssignment(missionId, st.assignment);
   setIncidentStatus(missionId, st.incident);
   renderBlueFeed(missionId);
+  renderIncidentPressure(missionId); // Stage 3 — keep the pressure bar in sync.
 }
 
 /** Reset a mission's Blue Team state (called from resetMission / resetMission2). */
@@ -7706,6 +7769,212 @@ function restoreBlueTeamMission(data, missionId, legacy) {
         .slice(-BLUE_TEAM_FEED_MAX)
         .forEach((t) => blueTeamFeeds[missionId].push(t));
   }
+}
+
+/* ============================================================
+   Stage 3 — Adversary Escalation System (Mission 1 + Mission 2)
+   The attacker REACTS to investigation progress. Poor decisions
+   or delays let the adversary gain ground ("Incident Pressure"
+   rises, the Threat Level nudges up one notch, and Red Team
+   movement messages appear). Acting correctly/quickly contains
+   the spread ("[BLUE TEAM] Threat spread interrupted.").
+   Beginner-friendly by design: pressure is capped at a MODERATE
+   ceiling, idle escalations are capped per mission, and threat
+   never auto-jumps to Critical from escalation alone — this adds
+   tension/immersion, NOT frustration. Pure front-end flavor on
+   TOP of the Stage 2 Blue Team engine — no backend / AI / new
+   global progress system. Reuses the per-mission Blue Team DOM
+   map (BLUE_TEAM_DOM) so one set of functions drives both panels
+   and every lookup no-ops safely when the panel is absent.
+   - triggerEscalationEvent(missionId, opts) — adversary gains
+     ground: +Incident Pressure (capped), +Threat one notch (cap
+     High), Red Team flag, red movement toast, urgency messaging.
+   - containThreatActivity(missionId, opts) — the defensive
+     counter: relieves pressure + "[BLUE TEAM] Threat spread
+     interrupted." (only when there was pressure/red activity).
+   ============================================================ */
+const ESCALATION_MAX = 60;          // moderate ceiling (beginner-friendly)
+const ESCALATION_STEP = 15;         // pressure added per escalation event
+const ESCALATION_RELIEF = 20;       // pressure removed when contained
+const ESCALATION_IDLE_MS = 40000;   // delay before an idle escalation fires
+const ESCALATION_MAX_IDLE_EVENTS = 2; // cap idle-driven escalations per mission
+const ESCALATION_THREAT_CAP = "High"; // escalation never forces Critical
+
+// Adversary "movement" flavor lines (rotated). The decisive ones come from the
+// task spec; kept short so the long-dwell toast reads at a glance.
+const ESCALATION_EVENTS = [
+  { label: "RED TEAM MOVEMENT", text: "Credential harvesting attempt spreading." },
+  { label: "RED TEAM ACTIVITY", text: "Additional employee targeted." },
+  { label: "RED TEAM MOVEMENT", text: "External communication frequency increasing." },
+];
+
+// Per-mission incident pressure (0–ESCALATION_MAX). Keyed like the Blue Team
+// engine so Mission 1 and Mission 2 each run the SAME escalation logic.
+const incidentPressure = { "mission-001": 0, "mission-002": 0 };
+const escalationIdleCount = { "mission-001": 0, "mission-002": 0 };
+let escalationEventIndex = 0;       // rotates ESCALATION_EVENTS
+let escalationIdleTimer = null;     // single active idle timer
+let escalationIdleMission = null;   // the mission the idle timer watches
+
+// Add Incident Pressure DOM ids to the shared per-mission map.
+BLUE_TEAM_DOM["mission-001"].pressureFill  = "incidentPressureFill";
+BLUE_TEAM_DOM["mission-001"].pressureLevel = "incidentPressureLevel";
+BLUE_TEAM_DOM["mission-001"].pressureWrap  = "incidentPressureWrap";
+BLUE_TEAM_DOM["mission-002"].pressureFill  = "m2IncidentPressureFill";
+BLUE_TEAM_DOM["mission-002"].pressureLevel = "m2IncidentPressureLevel";
+BLUE_TEAM_DOM["mission-002"].pressureWrap  = "m2IncidentPressureWrap";
+
+/** Discrete escalation label — capped at Moderate (never higher). */
+function escalationLevelLabel(p) {
+  if (p <= 0) return "Stable";
+  if (p < 30) return "Elevated";
+  return "Moderate";
+}
+
+/** Paint a mission's Incident Pressure bar + level word. No-ops if absent. */
+function renderIncidentPressure(missionId) {
+  missionId = btMissionId(missionId);
+  const p = incidentPressure[missionId];
+  const fill = btDom(missionId, "pressureFill");
+  const lvl  = btDom(missionId, "pressureLevel");
+  if (fill) {
+    fill.style.width = clampPct((p / ESCALATION_MAX) * 100) + "%";
+    fill.classList.toggle("incident-pressure-fill--high", p >= ESCALATION_MAX);
+  }
+  if (lvl) {
+    const word = escalationLevelLabel(p);
+    lvl.textContent = word;
+    lvl.className = "incident-pressure-level incident-pressure-level--" + word.toLowerCase();
+  }
+}
+
+/** Raise a mission's Threat Level by ONE notch, capped (escalation flavor). */
+function raiseThreatOneStep(missionId, cap) {
+  missionId = btMissionId(missionId);
+  const cur = threatLevelByMission[missionId];
+  let i = THREAT_LEVELS.indexOf(cur);
+  if (i < 0) i = 0;
+  let capI = THREAT_LEVELS.indexOf(cap || ESCALATION_THREAT_CAP);
+  if (capI < 0) capI = THREAT_LEVELS.length - 1;
+  // Monotonic: never LOWER the threat. If we're already at/above the cap
+  // (e.g. a poor decision already set Critical), leave it untouched.
+  if (i >= capI) return;
+  const next = THREAT_LEVELS[i + 1];
+  if (next && next !== cur) setThreatLevel(next, missionId);
+}
+
+/** Reusable — the adversary gains ground. Beginner-friendly: pressure capped at
+ *  a MODERATE ceiling, threat capped at High, never fires during the demo. */
+function triggerEscalationEvent(missionId, opts) {
+  missionId = btMissionId(missionId);
+  if (demoRunning) return false; // never intrude on the teaching demo
+  opts = opts || {};
+
+  // Pick a movement message (caller may override; otherwise rotate).
+  const ev = opts.event ||
+    ESCALATION_EVENTS[escalationEventIndex % ESCALATION_EVENTS.length];
+  escalationEventIndex++;
+
+  // Raise pressure (capped at the moderate ceiling).
+  const amount = typeof opts.amount === "number" ? opts.amount : ESCALATION_STEP;
+  incidentPressure[missionId] = Math.min(ESCALATION_MAX, incidentPressure[missionId] + amount);
+  renderIncidentPressure(missionId);
+
+  // Visually nudge the Threat Level up one notch (never to Critical).
+  raiseThreatOneStep(missionId, ESCALATION_THREAT_CAP);
+
+  // Red Team flag + long-dwell red movement toast + map pulse.
+  setRedTeamActive(missionId, true);
+  showEventToast(ev.label, ev.text, "adversary", { duration: ADVERSARY_TOAST_MS });
+  if (typeof pulseActiveMissionNode === "function") pulseActiveMissionNode();
+
+  // Urgency messaging in the Blue Team panel.
+  setIncidentStatus(missionId, "Escalating");
+  setContainmentCaption(missionId, "Pressure rising — act quickly to contain.");
+  fxFlash(btDom(missionId, "panel"), "blue-team-panel--flash", 700);
+
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+  return true;
+}
+
+/** Reusable — correct/quick defensive action interrupts the spread. Only speaks
+ *  up when there is actually pressure or red activity to counter. */
+function containThreatActivity(missionId, opts) {
+  missionId = btMissionId(missionId);
+  if (demoRunning) return;
+  opts = opts || {};
+  const hadPressure = incidentPressure[missionId] > 0 || blueTeamRedActive[missionId];
+  if (!hadPressure && !opts.always) return; // nothing to interrupt
+
+  const relief = typeof opts.amount === "number" ? opts.amount : ESCALATION_RELIEF;
+  incidentPressure[missionId] = Math.max(0, incidentPressure[missionId] - relief);
+  renderIncidentPressure(missionId);
+
+  showBlueTeamUpdate(missionId, opts.text || "Threat spread interrupted.", { toast: true });
+
+  if (incidentPressure[missionId] <= 0) {
+    setIncidentStatus(missionId, blueTeamRedActive[missionId] ? "Active Threat" : "Monitoring");
+    setContainmentCaption(missionId, "Adversary movement slowed.");
+  }
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+}
+
+/** Begin watching a mission for investigation DELAYS (idle escalation). */
+function startEscalationWatch(missionId) {
+  missionId = btMissionId(missionId);
+  clearEscalationWatch();
+  escalationIdleMission = missionId;
+  scheduleEscalationIdle();
+}
+
+/** (Re)arm the idle timer. Called on activity so progress resets the clock. */
+function scheduleEscalationIdle() {
+  if (escalationIdleTimer) { clearTimeout(escalationIdleTimer); }
+  escalationIdleTimer = window.setTimeout(onEscalationIdle, ESCALATION_IDLE_MS);
+}
+
+/** Idle fired — the student stalled. Escalate (capped) then keep watching. */
+function onEscalationIdle() {
+  escalationIdleTimer = null;
+  const mid = escalationIdleMission;
+  if (!mid) return;
+  if (demoRunning) { scheduleEscalationIdle(); return; }
+  const complete = mid === "mission-002" ? mission2Complete : missionComplete;
+  if (complete || !document.body.classList.contains("mission-running")) {
+    clearEscalationWatch();
+    return;
+  }
+  if (escalationIdleCount[mid] >= ESCALATION_MAX_IDLE_EVENTS ||
+      incidentPressure[mid] >= ESCALATION_MAX) {
+    clearEscalationWatch(); // ceiling reached — stop piling on (beginner-friendly)
+    return;
+  }
+  escalationIdleCount[mid]++;
+  triggerEscalationEvent(mid);
+  scheduleEscalationIdle();
+}
+
+/** Stop watching a mission (mission exit / completion / reset). */
+function clearEscalationWatch() {
+  if (escalationIdleTimer) { clearTimeout(escalationIdleTimer); escalationIdleTimer = null; }
+  escalationIdleMission = null;
+}
+
+/** Meaningful investigation activity resets the delay clock. */
+function noteInvestigationActivity() {
+  if (demoRunning) return;
+  if (escalationIdleMission && document.body.classList.contains("mission-running")) {
+    scheduleEscalationIdle();
+  }
+}
+
+/** Reset a mission's escalation state (called from resetMission/resetMission2). */
+function resetEscalation(missionId) {
+  missionId = btMissionId(missionId);
+  if (escalationIdleMission === missionId) clearEscalationWatch();
+  incidentPressure[missionId] = 0;
+  escalationIdleCount[missionId] = 0;
+  renderIncidentPressure(missionId);
 }
 
 function fxPulse(id) {
@@ -8051,6 +8320,9 @@ function endGuidedRun() {
   // path is shared by every mission-exit (map/overview/back/reset), so one
   // call here covers them all.
   cancelTerminalTyping();
+  // Stage 3 — stop the idle-escalation watch on every mission-exit so a pending
+  // timer can never fire off-screen after the student navigates away.
+  clearEscalationWatch();
   // If an opt-in demo is mid-flight, tear it down on ANY navigation exit so
   // its timers can't fire off-screen and `suppressSave` is never left stuck.
   if (demoRunning) abortDemo();

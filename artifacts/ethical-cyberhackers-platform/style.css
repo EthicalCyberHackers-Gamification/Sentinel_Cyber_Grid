@@ -7129,3 +7129,32 @@ body.mission-running .center-column { min-width: 0; }
   .blue-team-update { opacity: 1; transform: none; }
   .containment-bar-fill { transition: none; }
 }
+
+/* ============================================================
+   Stage 3 — Adversary Escalation: Incident Pressure meter
+   Sits below the Containment Progress bar in each Blue Team
+   panel. Reuses .containment-head / .containment-bar; only the
+   fill color + the level word are themed (amber → red as the
+   adversary gains ground; capped at a MODERATE ceiling).
+   ============================================================ */
+.incident-pressure { margin-top: 10px; }
+.incident-pressure-fill {
+  background: linear-gradient(90deg, #f2a93b, #f25c5c);
+  box-shadow: 0 0 10px rgba(242, 92, 92, 0.4);
+}
+.incident-pressure-fill--high {
+  background: linear-gradient(90deg, #f25c5c, #ff3b3b);
+  box-shadow: 0 0 14px rgba(255, 59, 59, 0.55);
+}
+.incident-pressure-level {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.incident-pressure-level--stable   { color: #6fe0a6; }
+.incident-pressure-level--elevated { color: #f2a93b; }
+.incident-pressure-level--moderate { color: #f25c5c; }
+
+@media (prefers-reduced-motion: reduce) {
+  .incident-pressure-fill { transition: none; }
+}
