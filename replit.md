@@ -816,6 +816,36 @@ the END of `script.js` (~10374+); 29A CSS block is appended at the END of `style
   visible, 3-col layout intact, M3 "Monitoring", no console errors); architect review PASSED
   (only the grid-rows responsive override, now fixed).
 
+### Persistent Adversary Presence (Milestone 30A)
+A continuously active, ADAPTING Red Team layer on top of the existing Blue Team / escalation /
+containment engines + the 29A ops center. ADDITIVE only — NO backend/AI/new progress system,
+beginner-friendly (no punitive mechanics). The 30A module lives at the bottom of `script.js`
+(before the final `DOMContentLoaded`).
+- **Derived state, no new persistence**: a compact `.red-team-panel` (M1 `#redTeamPanel`, M2
+  `#m2RedTeamPanel`) is JS-injected into each `.live-status` block ABOVE the threat meter
+  (anchors `#threatMeter` / `#m2ThreatMeter`). Its resting STATE (`computeRedTeamState`) and the
+  gradually-revealed "Possible Adversary Goal" chips (`adversaryGoalsRevealed`) are DERIVED from
+  EXISTING already-persisted state (`missionComplete`/`mission2Complete`, `blueTeamContainment`,
+  `getThreatLevel`, `incidentPressure`, `blueTeamRedActive`, `blueTeamSteps` size) — so reload
+  has NO persistence drift and NO new save/restore/reset was added. Only a transient
+  `adversaryMovement` flavor line lives in memory.
+- **Six states** (`RED_TEAM_STATES`, tone watch/warn/danger/calm): recon → harvest → outbound →
+  expanding → pressure → stabilized. **Four goals** (`ADVERSARY_GOALS`) reveal one per credited
+  containment step (full on completion). **Movement lines** (`RED_TEAM_MOVEMENT_LINES`) rotate on
+  a cancel-safe ~30s beat (`startRedTeamMovement`/`stopRedTeamMovement`/`scheduleRedTeamMovement`,
+  `RED_TEAM_MOVE_INTERVAL_MS`) started/stopped by `setMissionRunning(on/off)`.
+- **Adaptation** (`adaptRedTeam`): `triggerEscalationEvent` → "escalate" (shifts to alternate
+  account + `flashAdversaryMapReaction` pulses neighbor mini/full map nodes via
+  `.node--adversary-react`); `containThreatActivity` → "contained" (calm pulse). `resetBlueTeam`
+  → `resetAdversaryPresence` clears only the transient line.
+- **Sync + safety**: `updateOpsStrip` calls `updateRedTeamActivity(mid)` (try/catch) so the panel
+  tracks the same state as the 29A strip. Every helper no-ops before the panel exists
+  (boot/restore) and ALL runtime behaviors guard on `demoRunning` (teaching-demo isolation).
+  `initRedTeamPanels()` runs in `boot()` right after `initOpsStrips()`. `AMBIENT_OPS_LINES` gained
+  4 environmental lines (email filtering, monitoring elevated, SOC reviewing, finance notified).
+- Verified: `node --check` clean; e2e reached active M1 with "Red Team Activity" + "Possible
+  Adversary Goal" visible above the threat meter, no console errors; architect review PASSED.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

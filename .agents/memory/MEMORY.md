@@ -1,2 +1,1 @@
-- [ECH script.js conventions](ech-scriptjs.md) — ES-module gotchas for the Ethical CyberHackers platform: not-global fns, teardown/timer patterns, duplicate-symbol crash, mission-exit paths.
-- [CSS append-order vs media queries](css-append-order.md) — rules appended at end of a stylesheet override earlier @media breakpoint rules; re-assert breakpoint values when adding a base override.
+- [ECH adversary/atmosphere layers](ech-derived-ui-layers.md) — derive new live-status UI from already-persisted state instead of adding save/restore; guard runtime behavior on demoRunning.

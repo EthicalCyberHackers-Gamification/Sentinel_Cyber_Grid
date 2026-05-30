@@ -8155,6 +8155,7 @@ function boot() {
   if (m2OpenFullMap) m2OpenFullMap.addEventListener("click", showMissionsMap);
   renderAllMiniMaps(); // Milestone 25D — initial compact route map render.
   initOpsStrips();     // Milestone 29A — inject the persistent operations strip.
+  initRedTeamPanels(); // Milestone 30A — inject the RED TEAM ACTIVITY panel.
 
   // Milestone 17 — Student Name input gating.
   // The button starts disabled (set in index.html) and becomes enabled
@@ -8399,8 +8400,9 @@ function setMissionRunning(on) {
   if (!on) exitFocusMode();
   updateFocusBar();
   // Milestone 29A — operations-center atmosphere lifecycle.
-  if (on) { updateAllOpsStrips(); startAmbientOps(); }
-  else { stopAmbientOps(); clearOpsAtmosphere(); }
+  // Milestone 30A — persistent adversary beat starts/stops with the mission.
+  if (on) { updateAllOpsStrips(); startAmbientOps(); updateAllAdversaryStatus(); startRedTeamMovement(); }
+  else { stopAmbientOps(); clearOpsAtmosphere(); stopRedTeamMovement(); }
 }
 
 function enterFocusMode() {
@@ -8858,6 +8860,8 @@ function resetBlueTeam(missionId) {
   blueTeamFeeds[missionId] = [];
   setContainmentCaption(missionId, missionId === "mission-002" ? "Awaiting service scan." : "Awaiting investigation.");
   renderBlueTeamPanel(missionId);
+  // Milestone 30A — clear transient adversary flavor on reset (state is derived).
+  try { resetAdversaryPresence(missionId); } catch (_) { /* 30A — non-fatal */ }
 }
 
 /** Restore one mission's Blue Team state from saved data (new mission-keyed
@@ -9019,6 +9023,9 @@ function triggerEscalationEvent(missionId, opts) {
   // Milestone 28C — cinematic emphasis around mission escalation.
   showIncidentInterruption("escalation");
 
+  // Milestone 30A — the adversary ADAPTS when Blue Team is slow / escalation fires.
+  try { adaptRedTeam(missionId, "escalate"); } catch (_) { /* 30A — non-fatal */ }
+
   try { saveProgress(); } catch (_) { /* non-fatal */ }
   return true;
 }
@@ -9040,6 +9047,9 @@ function containThreatActivity(missionId, opts) {
 
   // Milestone 28C — cinematic stabilization glow around successful containment.
   showIncidentInterruption("containment-success");
+
+  // Milestone 30A — the adversary visibly stabilizes when Blue Team contains.
+  try { adaptRedTeam(missionId, "contained"); } catch (_) { /* 30A — non-fatal */ }
 
   if (incidentPressure[missionId] <= 0) {
     setIncidentStatus(missionId, blueTeamRedActive[missionId] ? "Active Threat" : "Monitoring");
@@ -10469,6 +10479,9 @@ function updateOpsStrip(missionId) {
   if (incEl) {
     incEl.textContent = (incSrc && incSrc.textContent && incSrc.textContent.trim()) || "Investigating";
   }
+
+  // Milestone 30A — keep the RED TEAM ACTIVITY panel in sync with the same state.
+  try { updateRedTeamActivity(mid); } catch (_) { /* 30A — non-fatal */ }
 }
 
 function updateAllOpsStrips() {
@@ -10487,6 +10500,11 @@ const AMBIENT_OPS_LINES = [
   "Threat-intel feed updated.",
   "Log pipeline healthy.",
   "Identity provider sessions nominal.",
+  // Milestone 30A — additional environmental operational updates.
+  "Email filtering rules updating.",
+  "Security monitoring elevated.",
+  "SOC analysts reviewing outbound traffic.",
+  "Finance department notified of phishing risk.",
 ];
 let ambientOpsTimer = null;
 let ambientOpsIndex = 0;
@@ -10549,6 +10567,248 @@ function glowOpsRegion(missionId) {
 function clearOpsAtmosphere() {
   document.querySelectorAll(".region--intel-pulse").forEach((el) => el.classList.remove("region--intel-pulse"));
   document.querySelectorAll(".region--ops-glow").forEach((el) => el.classList.remove("region--ops-glow"));
+}
+
+/* ============================================================
+   Milestone 30A — Persistent Adversary Presence
+   Makes the Red Team feel like a continuously active, adapting
+   opposing force instead of occasional scripted events. ADDITIVE on
+   top of the existing Stage 2/3 Blue Team + Escalation engines and the
+   29A operations center — NO backend / AI / new progress system.
+   The panel's resting STATE and the gradually-revealed "Possible
+   Adversary Goal" chips are DERIVED from existing, already-persisted
+   state (threat / containment / credited steps / red-active), so
+   nothing new needs saving or restoring. Only a transient "movement"
+   flavor line lives in memory. Every helper no-ops safely before the
+   panel exists (boot / restore) and during the teaching demo.
+   ============================================================ */
+const RED_TEAM_PANELS = [
+  { panelId: "redTeamPanel",   anchorId: "threatMeter",   missionId: "mission-001" },
+  { panelId: "m2RedTeamPanel", anchorId: "m2ThreatMeter", missionId: "mission-002" },
+];
+
+// Six operational states (task spec). tone drives the subtle red identity.
+const RED_TEAM_STATES = {
+  recon:      { label: "Recon Activity Detected",       tone: "watch"  },
+  harvest:    { label: "Credential Harvesting Attempt", tone: "warn"   },
+  outbound:   { label: "Suspicious Outbound Traffic",   tone: "warn"   },
+  expanding:  { label: "Threat Expanding",              tone: "danger" },
+  pressure:   { label: "Containment Pressure Rising",   tone: "danger" },
+  stabilized: { label: "Activity Stabilized",           tone: "calm"   },
+};
+
+// Revealed gradually (one per credited containment step) — never dumped at once.
+const ADVERSARY_GOALS = [
+  "Internal Reconnaissance",
+  "Credential Theft",
+  "Phishing Expansion",
+  "Unauthorized Access",
+];
+
+// Background "alive" movement lines, rotated on the ambient red-team beat.
+const RED_TEAM_MOVEMENT_LINES = [
+  "Probing alternate employee accounts.",
+  "Testing reused credentials against remote access.",
+  "Scanning internal shares for sensitive files.",
+  "Attempting to escalate access quietly.",
+  "Rotating through phishing payloads.",
+];
+
+// Adaptation reactions to Blue Team decisions (task spec examples).
+const RED_TEAM_ADAPT = {
+  escalate:  "Suspicious activity shifting to an alternate employee account.",
+  contained: "Threat activity partially stabilized.",
+};
+
+// Transient only — NOT persisted (resting state + goals are derived on render).
+const adversaryMovement = { "mission-001": "", "mission-002": "" };
+let redTeamMoveIndex = 0;
+
+function redTeamPanelEl(missionId) {
+  const mid = btMissionId(missionId);
+  return document.getElementById(mid === "mission-002" ? "m2RedTeamPanel" : "redTeamPanel");
+}
+
+/** Build the compact RED TEAM ACTIVITY panel (injected into .live-status). */
+function buildRedTeamPanel(missionId, panelId) {
+  const panel = document.createElement("div");
+  panel.className = "red-team-panel red-team-panel--watch";
+  panel.id = panelId;
+  panel.dataset.mission = missionId;
+  panel.innerHTML =
+    '<div class="rt-head">' +
+      '<span class="rt-icon" aria-hidden="true">⚠</span>' +
+      '<span class="rt-title">Red Team Activity</span>' +
+      '<span class="rt-dot" aria-hidden="true"></span>' +
+    '</div>' +
+    '<div class="rt-state" data-rt="state">Recon Activity Detected</div>' +
+    '<div class="rt-movement" data-rt="movement" style="display:none;"></div>' +
+    '<div class="rt-goals" style="display:none;">' +
+      '<span class="rt-goals-label">Possible Adversary Goal</span>' +
+      '<div class="rt-goals-list" data-rt="goals"></div>' +
+    '</div>';
+  return panel;
+}
+
+/** Inject one panel above the threat meter in each Live Status column (idempotent). */
+function initRedTeamPanels() {
+  RED_TEAM_PANELS.forEach(({ panelId, anchorId, missionId }) => {
+    if (document.getElementById(panelId)) return;
+    const anchor = document.getElementById(anchorId);
+    const live = anchor && anchor.closest(".live-status");
+    if (!live) return;
+    live.insertBefore(buildRedTeamPanel(missionId, panelId), anchor);
+  });
+  updateAllAdversaryStatus();
+}
+
+/** Resting Red Team state, DERIVED from existing mission state. */
+function computeRedTeamState(missionId) {
+  const mid = btMissionId(missionId);
+  const complete = mid === "mission-002" ? mission2Complete : missionComplete;
+  const contain  = (blueTeamContainment && blueTeamContainment[mid]) || 0;
+  if (complete || contain >= 60) return "stabilized";
+  const threat   = getThreatLevel(mid);
+  const pressure = (incidentPressure && incidentPressure[mid]) || 0;
+  const red      = !!(blueTeamRedActive && blueTeamRedActive[mid]);
+  if (threat === "Critical") return "pressure";
+  if (threat === "High")     return "expanding";
+  if (pressure >= 30)        return "outbound";
+  if (red)                   return "harvest";
+  if (threat === "Medium" && pressure > 0) return "outbound";
+  return "recon";
+}
+
+/** How many adversary goals have been uncovered (gradual, via real progress). */
+function adversaryGoalsRevealed(missionId) {
+  const mid = btMissionId(missionId);
+  const complete = mid === "mission-002" ? mission2Complete : missionComplete;
+  if (complete) return ADVERSARY_GOALS.length;
+  let n = (blueTeamSteps && blueTeamSteps[mid]) ? blueTeamSteps[mid].size : 0;
+  if (n < 1 && blueTeamRedActive && blueTeamRedActive[mid]) n = 1;
+  return Math.max(0, Math.min(ADVERSARY_GOALS.length, n));
+}
+
+/** Render the compact panel from derived state + the transient movement line.
+ *  No-ops safely until the panel has been injected (boot / restore). */
+function renderAdversaryStatus(missionId) {
+  const mid = btMissionId(missionId);
+  const panel = redTeamPanelEl(mid);
+  if (!panel) return;
+
+  const stId = computeRedTeamState(mid);
+  const st = RED_TEAM_STATES[stId] || RED_TEAM_STATES.recon;
+  panel.className = "red-team-panel red-team-panel--" + st.tone;
+
+  const stEl = panel.querySelector('[data-rt="state"]');
+  if (stEl) stEl.textContent = st.label;
+
+  const mvEl = panel.querySelector('[data-rt="movement"]');
+  if (mvEl) {
+    let mv = adversaryMovement[mid] || "";
+    if (stId === "stabilized") mv = "Threat activity stabilizing under containment.";
+    mvEl.textContent = mv;
+    mvEl.style.display = mv ? "" : "none";
+  }
+
+  const goalsWrap = panel.querySelector(".rt-goals");
+  const goalsEl = panel.querySelector('[data-rt="goals"]');
+  const n = adversaryGoalsRevealed(mid);
+  if (goalsWrap && goalsEl) {
+    if (n <= 0) {
+      goalsWrap.style.display = "none";
+    } else {
+      goalsWrap.style.display = "";
+      goalsEl.innerHTML = "";
+      ADVERSARY_GOALS.slice(0, n).forEach((g) => {
+        const chip = document.createElement("span");
+        chip.className = "rt-goal-chip";
+        chip.textContent = g;
+        goalsEl.appendChild(chip);
+      });
+    }
+  }
+}
+
+/** Public API alias — recompute one mission's derived adversary status. */
+function updateRedTeamActivity(missionId) { renderAdversaryStatus(missionId); }
+function updateAllAdversaryStatus() {
+  renderAdversaryStatus("mission-001");
+  renderAdversaryStatus("mission-002");
+}
+
+/** Subtle red identity pulse on the panel (alert vs calm tone). */
+function pulseRedTeamPanel(missionId, kind) {
+  const panel = redTeamPanelEl(missionId);
+  if (!panel) return;
+  const cls = kind === "calm" ? "red-team-panel--calm-pulse" : "red-team-panel--pulse";
+  panel.classList.remove("red-team-panel--pulse", "red-team-panel--calm-pulse");
+  void panel.offsetWidth; // restart the animation
+  panel.classList.add(cls);
+  window.setTimeout(() => panel.classList.remove(cls), 1500);
+}
+
+/** Neighboring mission nodes subtly react when the adversary moves. */
+function flashAdversaryMapReaction() {
+  const nodes = document.querySelectorAll(
+    "#m1MiniMap .mini-node, #m2MiniMap .mini-node, .mission-node"
+  );
+  nodes.forEach((node) => {
+    node.classList.remove("node--adversary-react");
+    void node.offsetWidth;
+    node.classList.add("node--adversary-react");
+    window.setTimeout(() => node.classList.remove("node--adversary-react"), 1500);
+  });
+}
+
+/** A background "alive" beat — rotate a movement line + pulse + refresh. */
+function triggerRedTeamMovement(missionId) {
+  if (demoRunning) return;
+  if (!document.body.classList.contains("mission-running")) return;
+  const mid = btMissionId(missionId || getActiveMissionId());
+  const complete = mid === "mission-002" ? mission2Complete : missionComplete;
+  if (complete) return;
+  adversaryMovement[mid] = RED_TEAM_MOVEMENT_LINES[redTeamMoveIndex % RED_TEAM_MOVEMENT_LINES.length];
+  redTeamMoveIndex++;
+  renderAdversaryStatus(mid);
+  pulseRedTeamPanel(mid, "alert");
+}
+
+/** Red Team ADAPTS to a Blue Team decision (escalation / containment). */
+function adaptRedTeam(missionId, kind) {
+  if (demoRunning) return;
+  const mid = btMissionId(missionId);
+  const line = RED_TEAM_ADAPT[kind];
+  if (!line) return;
+  adversaryMovement[mid] = line;
+  renderAdversaryStatus(mid);
+  pulseRedTeamPanel(mid, kind === "contained" ? "calm" : "alert");
+  if (kind !== "contained") flashAdversaryMapReaction();
+}
+
+/** Clear transient adversary flavor on mission reset (state is derived). */
+function resetAdversaryPresence(missionId) {
+  const mid = btMissionId(missionId);
+  if (adversaryMovement) adversaryMovement[mid] = "";
+  renderAdversaryStatus(mid);
+}
+
+/* ---- Continuous red-team beat (cancel-safe; torn down on mission exit) ---- */
+const RED_TEAM_MOVE_INTERVAL_MS = 30000;
+let redTeamMoveTimer = null;
+
+function scheduleRedTeamMovement() {
+  redTeamMoveTimer = window.setTimeout(() => {
+    triggerRedTeamMovement();
+    scheduleRedTeamMovement();
+  }, RED_TEAM_MOVE_INTERVAL_MS);
+}
+function startRedTeamMovement() {
+  if (redTeamMoveTimer || demoRunning) return;
+  scheduleRedTeamMovement();
+}
+function stopRedTeamMovement() {
+  if (redTeamMoveTimer) { clearTimeout(redTeamMoveTimer); redTeamMoveTimer = null; }
 }
 
 document.addEventListener("DOMContentLoaded", boot);

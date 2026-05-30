@@ -7955,3 +7955,162 @@ body.mission-running .xp-panel .live-status > * { box-shadow: none; }
   .mission-node--monitoring .mission-node-ring,
   .mini-node--monitoring .mini-node-dot { animation: none; }
 }
+
+/* ============================================================
+   Milestone 30A — Persistent Adversary Presence
+   Subtle red operational identity for the RED TEAM ACTIVITY panel
+   in the Live Status column. Professional + lightweight (not
+   cartoonish). Tone classes (watch/warn/danger/calm) shift the
+   accent; a slow dot pulse keeps it "alive"; transient pulses fire
+   on movement/adaptation. Appended LAST so it wins ties.
+   ============================================================ */
+.red-team-panel {
+  border: 1px solid rgba(255, 86, 86, 0.32);
+  border-left: 3px solid rgba(255, 86, 86, 0.7);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(40, 10, 12, 0.55), rgba(18, 8, 10, 0.4));
+  padding: 0.7rem 0.8rem;
+  margin-bottom: 0.9rem;
+  box-shadow: inset 0 0 18px rgba(255, 60, 60, 0.06);
+}
+.red-team-panel .rt-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.45rem;
+}
+.red-team-panel .rt-icon {
+  font-size: 0.82rem;
+  color: #ff6b6b;
+  filter: drop-shadow(0 0 4px rgba(255, 80, 80, 0.5));
+}
+.red-team-panel .rt-title {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ff8d8d;
+}
+.red-team-panel .rt-dot {
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff5656;
+  box-shadow: 0 0 0 0 rgba(255, 86, 86, 0.6);
+  animation: rtDotPulse 2.6s ease-out infinite;
+}
+.red-team-panel .rt-state {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #ffd2d2;
+  line-height: 1.25;
+}
+.red-team-panel .rt-movement {
+  margin-top: 0.32rem;
+  font-size: 0.72rem;
+  color: rgba(255, 190, 190, 0.78);
+  line-height: 1.3;
+}
+.red-team-panel .rt-goals {
+  margin-top: 0.55rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed rgba(255, 86, 86, 0.22);
+}
+.red-team-panel .rt-goals-label {
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 150, 150, 0.85);
+  margin-bottom: 0.4rem;
+}
+.red-team-panel .rt-goals-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+}
+.red-team-panel .rt-goal-chip {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #ffbcbc;
+  background: rgba(255, 70, 70, 0.12);
+  border: 1px solid rgba(255, 86, 86, 0.3);
+  border-radius: 999px;
+  padding: 0.16rem 0.55rem;
+  animation: rtChipIn 0.35s ease both;
+}
+
+/* Tone variants — accent shifts with the derived state. */
+.red-team-panel--watch {
+  border-left-color: rgba(255, 196, 92, 0.75);
+}
+.red-team-panel--watch .rt-icon,
+.red-team-panel--watch .rt-title { color: #ffc45c; }
+.red-team-panel--watch .rt-dot { background: #ffc45c; }
+
+.red-team-panel--warn {
+  border-left-color: rgba(255, 138, 76, 0.8);
+}
+.red-team-panel--warn .rt-icon,
+.red-team-panel--warn .rt-title { color: #ff9a5c; }
+.red-team-panel--warn .rt-dot { background: #ff8a4c; }
+
+.red-team-panel--danger {
+  border-color: rgba(255, 70, 70, 0.5);
+  border-left-color: #ff4d4d;
+  box-shadow: inset 0 0 22px rgba(255, 50, 50, 0.12);
+}
+
+.red-team-panel--calm {
+  border-color: rgba(86, 214, 140, 0.4);
+  border-left-color: rgba(86, 214, 140, 0.8);
+  background: linear-gradient(180deg, rgba(12, 38, 24, 0.5), rgba(8, 20, 14, 0.38));
+  box-shadow: inset 0 0 18px rgba(60, 220, 130, 0.06);
+}
+.red-team-panel--calm .rt-icon,
+.red-team-panel--calm .rt-title { color: #62d68c; }
+.red-team-panel--calm .rt-dot { background: #56d68c; }
+.red-team-panel--calm .rt-state { color: #d2ffe0; }
+
+/* Transient pulses on movement / adaptation. */
+.red-team-panel--pulse { animation: rtPanelPulse 1.4s ease-out 1; }
+.red-team-panel--calm-pulse { animation: rtPanelCalmPulse 1.4s ease-out 1; }
+
+/* Mission nodes subtly react when the adversary moves. */
+.node--adversary-react { animation: nodeAdversaryReact 1.4s ease-out 1; }
+
+@keyframes rtDotPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 86, 86, 0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(255, 86, 86, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 86, 86, 0); }
+}
+@keyframes rtChipIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes rtPanelPulse {
+  0%   { box-shadow: inset 0 0 22px rgba(255, 50, 50, 0.12), 0 0 0 0 rgba(255, 70, 70, 0.45); }
+  60%  { box-shadow: inset 0 0 28px rgba(255, 50, 50, 0.2), 0 0 0 6px rgba(255, 70, 70, 0); }
+  100% { box-shadow: inset 0 0 22px rgba(255, 50, 50, 0.12), 0 0 0 0 rgba(255, 70, 70, 0); }
+}
+@keyframes rtPanelCalmPulse {
+  0%   { box-shadow: inset 0 0 18px rgba(60, 220, 130, 0.06), 0 0 0 0 rgba(86, 214, 140, 0.4); }
+  60%  { box-shadow: inset 0 0 24px rgba(60, 220, 130, 0.14), 0 0 0 6px rgba(86, 214, 140, 0); }
+  100% { box-shadow: inset 0 0 18px rgba(60, 220, 130, 0.06), 0 0 0 0 rgba(86, 214, 140, 0); }
+}
+@keyframes nodeAdversaryReact {
+  0%   { filter: drop-shadow(0 0 0 rgba(255, 86, 86, 0)); }
+  45%  { filter: drop-shadow(0 0 7px rgba(255, 86, 86, 0.65)); }
+  100% { filter: drop-shadow(0 0 0 rgba(255, 86, 86, 0)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .red-team-panel .rt-dot,
+  .red-team-panel--pulse,
+  .red-team-panel--calm-pulse,
+  .red-team-panel .rt-goal-chip,
+  .node--adversary-react { animation: none; }
+}

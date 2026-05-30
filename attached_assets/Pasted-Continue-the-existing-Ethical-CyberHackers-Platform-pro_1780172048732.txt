@@ -1,0 +1,293 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Emotional Gameplay Decision Layer exists.
+* Reactive Incident Evolution exists.
+* Cinematic Incident Interruptions exist.
+* Cyber Operations Center Spatial Layout exists.
+* Mission 1 now feels reactive and operational.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 30A — Persistent Adversary Presence
+
+Purpose:
+Make Red Team feel like an active opposing force throughout the mission instead of occasional scripted events. The student should feel like an attacker is continuously attempting to adapt and progress against the organization.
+
+Important:
+Do NOT add real hacking.
+Do NOT add backend.
+Do NOT add AI.
+Do NOT add multiplayer.
+Do NOT create complicated strategy systems.
+Do NOT overwhelm students.
+
+Core Design Goal:
+Students should feel:
+
+“Blue Team is actively responding to a persistent attacker.”
+
+NOT:
+“I am completing isolated lesson steps.”
+
+---
+
+1. ADD PERSISTENT RED TEAM STATE
+
+---
+
+Create lightweight adversary state tracking.
+
+Add reusable functions:
+
+updateRedTeamActivity()
+triggerRedTeamMovement()
+renderAdversaryStatus()
+
+Purpose:
+The attacker should appear continuously active in the background of the mission.
+
+---
+
+2. ADD RED TEAM STATUS PANEL
+
+---
+
+Add compact section in Live Incident Intelligence region:
+
+RED TEAM ACTIVITY
+
+Possible states:
+
+* Recon Activity Detected
+* Credential Harvesting Attempt
+* Suspicious Outbound Traffic
+* Threat Expanding
+* Containment Pressure Rising
+* Activity Stabilized
+
+Display:
+
+* compact
+* operational
+* continuously alive
+
+Do NOT create giant dashboards.
+
+---
+
+3. ADD ADVERSARY ADAPTATION EVENTS
+
+---
+
+If Blue Team contains one threat path:
+Red Team should appear to adapt.
+
+Examples:
+
+After workstation isolation:
+⚠ RED TEAM ADAPTATION
+Suspicious activity shifting to alternate employee account.
+
+After delayed escalation:
+⚠ ATTACKER MOVEMENT
+Credential harvesting attempts increasing.
+
+After strong containment:
+✔ RED TEAM ACTIVITY REDUCED
+Threat activity partially stabilized.
+
+Purpose:
+Attacker should feel reactive and persistent.
+
+---
+
+4. ADD RED TEAM OBJECTIVE DISCOVERY
+
+---
+
+As investigation progresses, student gradually uncovers likely attacker intent.
+
+Examples:
+Possible Adversary Goal:
+
+* Credential Theft
+* Unauthorized Access
+* Phishing Expansion
+* Internal Reconnaissance
+
+Reveal gradually through investigation progress.
+
+Do NOT dump all information immediately.
+
+---
+
+5. ADD BACKGROUND OPERATIONAL ACTIVITY
+
+---
+
+Occasionally show subtle operational updates.
+
+Examples:
+“Email filtering rules updating...”
+“Security monitoring elevated.”
+“SOC analysts reviewing outbound traffic.”
+“Finance department notified of phishing risk.”
+
+These should:
+
+* appear subtly
+* feel environmental
+* make the organization feel alive
+
+Do NOT create giant feeds.
+
+---
+
+6. ADD THREAT PRESSURE RHYTHM
+
+---
+
+Red Team activity should fluctuate based on Blue Team decisions.
+
+Correct containment:
+
+* activity stabilizes
+* threat pressure lowers
+
+Delayed response:
+
+* activity increases
+* escalation events become more serious
+
+Poor decision:
+
+* attacker activity spreads slightly
+
+Do NOT heavily punish students.
+
+---
+
+7. ADD RED TEAM VISUAL IDENTITY
+
+---
+
+Red Team events should have subtle visual identity:
+
+* red accent glow
+* threat pulse
+* adversary iconography
+* operational warning styling
+
+Keep professional and lightweight.
+
+Do NOT become cartoonish.
+
+---
+
+8. ADD MISSION NODE REACTIONS
+
+---
+
+When adversary activity escalates:
+
+* active mission node pulses
+* neighboring mission nodes subtly react
+* locked missions appear “monitoring activity”
+
+Example:
+Mission 3:
+Reconnaissance Activity Detected
+Status: Monitoring
+
+Purpose:
+The cyber battlefield should feel larger than one mission.
+
+---
+
+9. ADD BLUE TEAM vs RED TEAM RHYTHM
+
+---
+
+The mission should now psychologically feel like:
+
+Red Team escalates
+→ Blue Team responds
+→ Red Team adapts
+→ Blue Team contains
+→ Threat stabilizes
+
+This should emerge naturally from:
+
+* operational decisions
+* containment actions
+* reactive incident evolution
+
+WITHOUT:
+adding complex gameplay controls.
+
+---
+
+10. KEEP UI SIMPLE
+
+---
+
+Do NOT:
+
+* add giant new systems
+* create complex attack trees
+* add overwhelming alerts
+* overload the student with data
+* create RTS-style gameplay
+
+Only:
+small believable adversarial reactions.
+
+---
+
+11. PRESERVE EXISTING SYSTEMS
+
+---
+
+Do not break:
+
+* terminal commands
+* guided file reveal
+* reasoning prompts
+* evidence classification
+* decision system
+* reactive incident evolution
+* cinematic interruptions
+* manager reactions
+* hints
+* XP
+* trust score
+* threat level
+* containment progress
+* mission completion
+* scorecards
+* mission map
+* local progress save
+* Mission 2
+
+---
+
+## GOAL
+
+Mission 1 should now feel like:
+
+a live battle between Blue Team and an adaptive adversary.
+
+The student should feel:
+
+* operational responsibility
+* adversarial tension
+* evolving cyber threat pressure
+* active containment gameplay
+
+WITHOUT:
+visual clutter,
+mechanical overload,
+or complex systems.
