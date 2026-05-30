@@ -273,15 +273,26 @@ appended at the END of `style.css` (replaced the 25D block, ~6224+).
   Full Map back-nav).
 
 ### Opt-in Guided Demo (Mission 1)
-An OPT-IN automated walkthrough offered on the M1 guided "Mission Ready" screen (a "Watch
+An OPT-IN walkthrough offered on the M1 guided "Mission Ready" screen (a "Watch
 Demo First" button `#guidedDemoBtn`, M1 only — M2 unaffected). It launches a clean Mission 1,
-auto-runs REAL example commands (`ls` → `cd documents`/`ls` → `cat finance_update.txt` →
-`cat suspicious_file.txt`), auto-classifies the suspicious file as Critical, while a pop-out
+runs REAL example commands (`ls` → `cd documents`/`ls` → `cat finance_update.txt` →
+`cat suspicious_file.txt`), classifies the suspicious file as Critical, while a pop-out
 (`#demoCoach`, reuses `.ig-coach`/`.ig-dim`/`.ig-spotlight-target`) MOVES near each location
 (command center → terminal → board → decision), then fully resets and returns the student to
 the Mission Ready screen so they do it themselves. The demo module lives at the bottom of
-`script.js` (~7250+): `DEMO_STEPS`, `startDemo`, `runDemoStep`, `showDemoCoach`,
-`positionDemoCoach`, `teardownDemoCoach`, `abortDemo`, `endDemo`, `demoWait`/`clearDemoTimers`.
+`script.js` (~7330+): `DEMO_STEPS` (8 steps), `startDemo`, `demoGo`/`demoNext`/`demoBack`,
+`renderDemoStep`, `showDemoCoach`, `positionDemoCoach`, `teardownDemoCoach`, `abortDemo`,
+`endDemo`, `demoWait`/`clearDemoTimers`.
+- **MANUAL step-through (not auto-advancing)**: the pop-out renders three controls —
+  `.demo-coach-back` ("← Back", disabled on step 1), `.demo-coach-cancel` ("Cancel"), and
+  `.demo-coach-next` ("Next →", or "Finish ✓" on the last step). The student drives the pace.
+  `demoNext`/`demoBack` call `demoGo(ix)`, which clamps `ix`, runs each step's real action
+  EXACTLY ONCE on forward navigation (tracked by `demoMaxRun`; the `while(demoMaxRun<ix)`
+  loop never runs when going Back, so terminal output is never duplicated — cumulative
+  terminal output can't be cleanly undone), then renders (deferred by `DEMO_ACTION_DELAY_MS`
+  ≈450ms when an action ran so its DOM settles, else immediately). `clearDemoTimers()` in
+  `demoGo` dedupes rapid clicks. Cancel → `endDemo`; Finish (`demoNext` on last step) →
+  `endDemo`. Both restore the Mission Ready overlay with no soft-lock.
 - **Side-effect isolation**: `suppressSave=true` during the demo (reuses the clear-progress
   flag) so nothing persists; `igEnabled=false` so the real spotlight never overlaps.
   `startDemo` snapshots `demoTrustSnapshot = trustScore` BEFORE mutating (because

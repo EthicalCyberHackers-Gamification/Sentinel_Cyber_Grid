@@ -7335,7 +7335,9 @@ function positionCoach(tip, el) {
 let demoRunning = false;
 let demoTimers  = [];
 let demoStepIx  = 0;
+let demoMaxRun  = -1; // furthest step whose real action has been executed
 let demoTrustSnapshot = DEFAULT_TRUST_SCORE;
+const DEMO_ACTION_DELAY_MS = 450; // let an action's DOM settle before re-pointing
 
 function demoWait(fn, ms) {
   const id = setTimeout(fn, ms);
@@ -7421,37 +7423,69 @@ function startDemo() {
   // Launch a clean Mission 1 dashboard so every real panel is on screen.
   beginMission();
 
-  // Auto-acknowledge the "Incoming Alert" modal so the demo can drive on.
+  // Auto-acknowledge the "Incoming Alert" modal, then show the FIRST step.
+  // The demo is now MANUAL — the student drives it with Next / Back / Cancel.
   demoWait(() => {
     if (!demoRunning) return;
     const ack = document.getElementById("alertModalInvestigateBtn");
     if (ack) ack.click();
-    demoStepIx = 0;
-    runDemoStep();
+    demoMaxRun = -1;
+    demoGo(0);
   }, 950);
 }
 
-function runDemoStep() {
+/** Navigate to step `ix`. Forward navigation runs any not-yet-run real actions
+ *  (terminal commands, pinning) ONCE; Back just re-points the pop-out without
+ *  re-running side effects, since terminal output is cumulative and can't be
+ *  cleanly undone. */
+function demoGo(ix) {
   if (!demoRunning) return;
-  if (demoStepIx >= DEMO_STEPS.length) { endDemo(); return; }
-  const step = DEMO_STEPS[demoStepIx];
+  ix = Math.max(0, Math.min(ix, DEMO_STEPS.length - 1));
 
-  if (typeof step.action === "function") {
-    try { step.action(); } catch (_) { /* non-fatal in demo */ }
+  // Run actions for any newly-revealed steps (forward only, each exactly once).
+  let ranAction = false;
+  while (demoMaxRun < ix) {
+    demoMaxRun += 1;
+    const s = DEMO_STEPS[demoMaxRun];
+    if (s && typeof s.action === "function") {
+      try { s.action(); ranAction = true; } catch (_) { /* non-fatal in demo */ }
+    }
   }
 
-  demoWait(() => {
-    if (!demoRunning) return;
-    const target = typeof step.target === "function" ? step.target() : null;
-    showDemoCoach(step.text, target, demoStepIx, DEMO_STEPS.length, step.last);
-    demoStepIx += 1;
-    if (!step.last) demoWait(runDemoStep, step.hold || 4000);
-    else demoWait(endDemo, step.hold || 5000);
-  }, step.actionDelay || 420);
+  demoStepIx = ix;
+  clearDemoTimers(); // dedupe rapid clicks: drop any pending re-point render
+  if (ranAction) {
+    demoWait(() => { if (demoRunning) renderDemoStep(); }, DEMO_ACTION_DELAY_MS);
+  } else {
+    renderDemoStep();
+  }
+}
+
+/** Advance one step, or finish the demo from the last step. */
+function demoNext() {
+  if (!demoRunning) return;
+  if (demoStepIx >= DEMO_STEPS.length - 1) { endDemo(); return; }
+  demoGo(demoStepIx + 1);
+}
+
+/** Step back one (no side effects re-run). No-op on the first step. */
+function demoBack() {
+  if (!demoRunning) return;
+  if (demoStepIx <= 0) return;
+  demoGo(demoStepIx - 1);
+}
+
+/** Render the pop-out for the current step. */
+function renderDemoStep() {
+  if (!demoRunning) return;
+  const step = DEMO_STEPS[demoStepIx];
+  if (!step) return;
+  const target = typeof step.target === "function" ? step.target() : null;
+  showDemoCoach(step, target, demoStepIx, DEMO_STEPS.length);
 }
 
 /** Render / move the demo pop-out near `target` (smooth CSS transition). */
-function showDemoCoach(text, target, ix, total, isLast) {
+function showDemoCoach(step, target, ix, total) {
   let dim = document.getElementById("demoDim");
   if (!dim) {
     dim = document.createElement("div");
@@ -7476,16 +7510,25 @@ function showDemoCoach(text, target, ix, total, isLast) {
     tip.className = "ig-coach demo-coach";
     document.body.appendChild(tip);
   }
+  const isFirst = ix === 0;
+  const isLast  = ix === total - 1;
   tip.innerHTML =
     `<div class="demo-coach-head">` +
       `<span class="demo-coach-tag">● DEMO</span>` +
       `<span class="demo-coach-counter">Step ${ix + 1} of ${total}</span>` +
     `</div>` +
-    `<p class="ig-coach-text demo-coach-text">${escapeHtml(text)}</p>` +
-    `<button class="ig-coach-dismiss demo-coach-skip" type="button">` +
-      `${isLast ? "Finish Demo" : "Skip Demo"}</button>`;
-  const skip = tip.querySelector(".demo-coach-skip");
-  if (skip) skip.addEventListener("click", endDemo);
+    `<p class="ig-coach-text demo-coach-text">${escapeHtml(step.text)}</p>` +
+    `<div class="demo-coach-nav">` +
+      `<button class="demo-coach-btn demo-coach-back" type="button"${isFirst ? " disabled" : ""}>← Back</button>` +
+      `<button class="demo-coach-btn demo-coach-cancel" type="button">Cancel</button>` +
+      `<button class="demo-coach-btn demo-coach-next" type="button">${isLast ? "Finish ✓" : "Next →"}</button>` +
+    `</div>`;
+  const backBtn   = tip.querySelector(".demo-coach-back");
+  const cancelBtn = tip.querySelector(".demo-coach-cancel");
+  const nextBtn   = tip.querySelector(".demo-coach-next");
+  if (backBtn)   backBtn.addEventListener("click", demoBack);
+  if (cancelBtn) cancelBtn.addEventListener("click", endDemo);
+  if (nextBtn)   nextBtn.addEventListener("click", demoNext);
 
   positionDemoCoach(tip, visible ? target : null);
 }
@@ -7517,6 +7560,7 @@ function teardownDemoCoach() {
 function abortDemo() {
   if (!demoRunning) return;
   demoRunning = false;
+  demoMaxRun = -1;
   clearDemoTimers();
   teardownDemoCoach();
 
