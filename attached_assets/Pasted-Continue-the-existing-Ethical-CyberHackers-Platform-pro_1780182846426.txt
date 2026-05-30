@@ -1,0 +1,307 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Mission 1 and Mission 2 exist.
+* Cyber Operations Center entry experience exists.
+* Emotional gameplay systems exist.
+* Persistent adversary presence exists.
+* Analyst reputation systems exist.
+* Career-track framing exists.
+* Operations Map exists.
+* Everything is frontend-only.
+
+Now begin:
+
+PHASE 2 — Cybersecurity Intern Vertical Slice Completion
+
+Purpose:
+Complete the first fully polished cybersecurity career experience so the platform feels like a coherent operational simulation instead of isolated missions.
+
+Important:
+Do NOT expand into many new missions yet.
+Do NOT add multiplayer.
+Do NOT add AI chat systems.
+Do NOT redesign the full architecture.
+Do NOT add unnecessary complexity.
+
+Core Design Goal:
+Create the first COMPLETE and emotionally engaging cybersecurity career progression loop.
+
+The player should feel:
+
+“I completed the Cybersecurity Intern operational track inside a living cybersecurity organization.”
+
+NOT:
+
+“I played disconnected cybersecurity mini-games.”
+
+---
+
+## PHASE 2 OBJECTIVES
+
+This phase focuses on:
+
+1. Completing the Cybersecurity Intern career track
+2. Strengthening assignment continuity
+3. Deepening persistent SOC world immersion
+4. Strengthening Blue Team vs Red Team operational rhythm
+5. Finalizing analyst identity progression
+6. Creating a polished vertical slice suitable for future scaling
+
+---
+
+1. FORMALIZE CAREER TRACK STRUCTURE
+
+---
+
+Fully transition mission framing into assignment-based career structure.
+
+Replace remaining visible “Mission” terminology where appropriate with:
+
+* Assignment
+* Operation
+* Incident
+* Threat Response
+
+Maintain:
+Cybersecurity Intern
+as the active career role.
+
+Assignments now become:
+
+Assignment 1:
+Credential Phishing Investigation
+
+Assignment 2:
+Network Exposure Review
+
+Assignment 3:
+Reconnaissance Detection (coming next)
+
+---
+
+2. STRENGTHEN ASSIGNMENT CONTINUITY
+
+---
+
+Assignments should now feel operationally connected.
+
+Examples:
+
+Mission 1 completion influences:
+
+* manager dialogue
+* operational history
+* threat monitoring
+
+Mission 2 references:
+
+* previous phishing containment
+* increased network monitoring
+* evolving recon activity
+
+The player should feel:
+the organization remembers prior operations.
+
+---
+
+3. ADD CYBERSECURITY INTERN PROGRESSION FEEL
+
+---
+
+Strengthen the feeling that the player is advancing professionally.
+
+Add:
+
+* promotion readiness visibility
+* operational maturity messaging
+* analyst growth feedback
+* increasing operational trust
+
+Examples:
+“Blue Team confidence in your investigations is improving.”
+“Your containment judgment is becoming more reliable.”
+
+Do NOT over-gamify.
+
+---
+
+4. DEEPEN PERSISTENT SOC ENVIRONMENT
+
+---
+
+Operations Center should now feel persistently alive.
+
+Expand:
+
+* operational activity updates
+* Red Team monitoring
+* assignment anticipation
+* environmental operations messaging
+* analyst transmissions
+
+Examples:
+“Recon activity continues externally.”
+“Monitoring increased around exposed services.”
+“Threat intelligence team reviewing suspicious outbound traffic.”
+
+Keep subtle and professional.
+
+---
+
+5. STRENGTHEN BLUE TEAM vs RED TEAM RHYTHM
+
+---
+
+The operational loop should now clearly feel like:
+
+Red Team pressure
+→ Blue Team investigation
+→ containment decisions
+→ adversary adaptation
+→ stabilization
+
+Add small operational reactions showing:
+
+* Red Team adaptation
+* Blue Team coordination
+* containment effectiveness
+* evolving operational pressure
+
+Do NOT create complex combat systems.
+
+---
+
+6. PREPARE ASSIGNMENT 3 FOUNDATION
+
+---
+
+Do NOT fully build Assignment 3 yet.
+
+Instead:
+prepare the world and operations environment for it.
+
+Assignment 3:
+Reconnaissance Detection
+
+Examples:
+
+* locked assignment node pulses subtly
+* operations center references recon monitoring
+* Red Team recon pressure appears environmentally
+* manager references upcoming recon investigations
+
+Purpose:
+create anticipation.
+
+---
+
+7. POLISH OPERATIONS MAP EXPERIENCE
+
+---
+
+The Operations Map should now feel like:
+
+a live operational assignment network.
+
+Improve:
+
+* assignment node continuity
+* operational status readability
+* active assignment focus
+* subtle environmental activity
+* career progression clarity
+
+Do NOT add clutter.
+
+---
+
+8. STRENGTHEN ANALYST PROFILE IMMERSION
+
+---
+
+Analyst Profile should now feel persistent and meaningful.
+
+Expand slightly:
+
+* operational reputation
+* career readiness
+* containment performance
+* assignment history
+* operational strengths
+
+Keep lightweight and professional.
+
+---
+
+9. ADD END-OF-TRACK DIRECTION
+
+---
+
+After Assignment 2 completion:
+show subtle future progression direction.
+
+Examples:
+“Junior SOC Analyst readiness progressing.”
+“Reconnaissance monitoring assignment pending.”
+“Operational complexity increasing.”
+
+Purpose:
+the player should feel:
+their career is evolving.
+
+---
+
+10. DO NOT OVEREXPAND
+
+---
+
+This phase is NOT about:
+
+* adding many missions
+* giant features
+* multiplayer
+* open-world systems
+* complicated AI
+
+This phase is about:
+perfecting the operational gameplay formula.
+
+---
+
+11. PRESERVE EXISTING SYSTEMS
+
+---
+
+Do not break:
+
+* Assignment 1
+* Assignment 2
+* terminal commands
+* guided pacing
+* evidence classification
+* reasoning prompts
+* emotional gameplay
+* reactive incident evolution
+* cinematic interruptions
+* persistent adversary presence
+* analyst profile
+* career progression
+* Operations Map
+* XP
+* trust score
+* threat level
+* containment progress
+* local progress save
+
+---
+
+## GOAL
+
+At the end of this phase, the project should feel like:
+
+a polished and emotionally engaging Cybersecurity Intern operational simulation inside a living cyber defense organization.
+
+This becomes:
+the foundational gameplay formula for all future career tiers and operational expansions.

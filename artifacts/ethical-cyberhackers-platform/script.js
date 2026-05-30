@@ -3827,7 +3827,7 @@ const MANAGER_MESSAGES = {
   "cat-suspicious":     "That message looks alarming. Pin it to your Investigation Board and classify how serious it is.",
   needMoreEvidence:     "You need stronger evidence before submitting your finding.",
   findingCorrect:       "Good analyst work. Now confirm your understanding in the quiz.",
-  missionComplete:      "Mission complete. You identified a phishing attempt and reported it properly.",
+  missionComplete:      "Assignment complete. You identified a phishing attempt and reported it properly. Your next assignment — Network Exposure Review — is now active on the operations map.",
 };
 
 /* ============================================================
@@ -3859,10 +3859,10 @@ const MANAGER_REACTIONS = {
     decision_neutral:  "Continue investigating, but prepare to submit a clear finding.",
     quiz_correct:      "You understand the risk. Password requests through unknown email channels are dangerous.",
     quiz_incorrect:    "Review the evidence again. Focus on what the message asked the user to do.",
-    mission_completed: "Mission complete. You identified and reported a possible phishing attempt.",
+    mission_completed: "Assignment complete. Phishing attempt identified and reported. Network Exposure Review is now active as your next assignment.",
   },
   "mission-002": {
-    mission_started:   "Start by identifying your network position, then check whether the target host is reachable.",
+    mission_started:   "With the phishing incident contained, monitoring is elevated. Identify your network position, then check whether the target host is reachable.",
     evidence_found:    "Good. Exposed services are important evidence during network review.",
     threat_increased:  "Multiple exposed services increase the attack surface if they are poorly secured.",
     decision_correct:  "Good recommendation. Security review is the right next step.",
@@ -3870,7 +3870,7 @@ const MANAGER_REACTIONS = {
     decision_neutral:  "Continue the investigation until your recommendation is supported by evidence.",
     quiz_correct:      "You understand that open services can accept network connections and require assessment.",
     quiz_incorrect:    "Review the scan output again. Focus on what the open service list means.",
-    mission_completed: "Mission complete. You identified exposed services and recommended review.",
+    mission_completed: "Assignment complete. You contained a phishing incident and reviewed network exposure — solid intern work. Reconnaissance Detection is being prepared next as operational complexity increases.",
   },
 };
 
@@ -5198,13 +5198,13 @@ function completeMission(newRank) {
   if (hintPanelEl) hintPanelEl.style.display = "none";
 
   // Print a terminal confirmation
-  printOutput("[ MISSION COMPLETE \u2014 Well done, Agent. ]", "info");
+  printOutput("[ ASSIGNMENT COMPLETE \u2014 Well done, Agent. ]", "info");
 
   // Milestone 9 — flip Mission 1 to Completed and unlock Mission 2 in the
   // Course Progress panel. Also print an unlock notice to the terminal.
-  printOutput("[ Mission 2 unlocked: Network Basics ]", "info");
+  printOutput("[ Assignment 2 unlocked: Network Exposure Review ]", "info");
   // Milestone 26A — event toast: a new assignment is available.
-  showEventToast("New Assignment", "Mission 2 unlocked on the map.", "unlock");
+  showEventToast("New Assignment", "Assignment 2 unlocked on the operations map.", "unlock");
   renderCourseProgress();
 
   // Milestone 22 — swap the M1 primary CTA from "Begin Mission" to
@@ -5257,7 +5257,7 @@ const NEXT_STEP_TEXT = {
   "mission-001": "Mission 1 complete. Return to the Mission Map to unlock and start Mission 2.",
   "mission-002": "Mission 2 complete. Return to the Mission Map to review your progress and see the next locked mission.",
 };
-const COMPLETION_OBJECTIVE = "Mission complete. Open the Mission Map to continue.";
+const COMPLETION_OBJECTIVE = "Assignment complete. Open the Operations Map to continue.";
 const COMPLETION_MANAGER   = "Good work. Return to the Mission Map to continue your training path.";
 
 function buildNextStepHTML(missionId) {
@@ -5323,7 +5323,7 @@ function buildCompletionHTML(newRank) {
       <div class="completion-header">
         <span class="completion-icon">🏆</span>
         <div class="completion-titles">
-          <h2 class="completion-title">Mission Complete</h2>
+          <h2 class="completion-title">Assignment Complete</h2>
           <p class="completion-subtitle">You identified a phishing attempt.</p>
         </div>
       </div>
@@ -5427,11 +5427,11 @@ function buildCompletionHTML(newRank) {
           </p>
         </div>
 
-        <!-- Next Mission Preview -->
+        <!-- Next Assignment Preview -->
         <div class="scorecard-section scorecard-next scorecard-section--collapsed">
-          <span class="scorecard-section-label">NEXT MISSION PREVIEW</span>
+          <span class="scorecard-section-label">NEXT ASSIGNMENT PREVIEW</span>
           <p class="scorecard-next-text">
-            <strong class="scorecard-next-title">Network Basics</strong>
+            <strong class="scorecard-next-title">Network Exposure Review</strong>
             — Learn how analysts identify devices and services on a network.
           </p>
         </div>
@@ -5978,6 +5978,14 @@ function renderOperationsCenter() {
   const promoPct = document.getElementById("opsPromoPct");
   if (promoBar) promoBar.style.width = `${promo}%`;
   if (promoPct) promoPct.textContent = `${promo}%`;
+  // Phase 2 — once both Intern assignments are cleared, the promotion line reads
+  // as readiness for the next role rather than progress toward it.
+  const promoText = document.getElementById("opsPromoText");
+  if (promoText) {
+    promoText.textContent = m2Done
+      ? "ready for Junior SOC Analyst review"
+      : "toward Junior SOC Analyst";
+  }
 
   // Active Assignments → existing missions.
   setOpsAssignment("opsAssign1", "opsAssign1Status",
@@ -6005,7 +6013,9 @@ function renderOperationsCenter() {
       next = "Your next assignment is Network Exposure Review.";
       recog = "Previous phishing incident successfully contained.";
     } else {
-      next = "Reconnaissance Detection is being monitored for future assignment.";
+      // End-of-track direction: both Intern assignments cleared. Point the
+      // analyst toward promotion readiness and the upcoming recon work.
+      next = "You're approaching Junior SOC Analyst readiness — Reconnaissance Detection is being prepared as operational complexity increases.";
       recog = "You handled the network exposure review well.";
     }
     const evolution = managerTrustEvolutionMessage();
@@ -6019,6 +6029,38 @@ function renderOperationsCenter() {
   if (xpChip) xpChip.textContent = String(Math.max(0, Math.round(currentXP)));
   const trustChip = document.getElementById("opsAnalystTrust");
   if (trustChip) trustChip.textContent = String(Math.max(0, Math.round(trustScore)));
+
+  // Phase 2 — living SOC board. The threat rows react to operational progress so
+  // the environment feels persistent: as Blue Team contains each threat, the rows
+  // flip from "watch" to "contained", while Red Team reconnaissance pressure rises
+  // (Blue/Red rhythm) and foreshadows the upcoming Reconnaissance Detection work.
+  const setThreatRow = (id, text, tone) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove("ops-threat-row--watch", "ops-threat-row--info", "ops-threat-row--ok");
+    el.classList.add(`ops-threat-row--${tone}`);
+    el.innerHTML = `<span class="ops-threat-dot" aria-hidden="true"></span>${escapeHtml(text)}`;
+  };
+  setThreatRow("opsThreatPhishing",
+    m1Done ? "Credential phishing activity contained" : "Credential phishing activity detected",
+    m1Done ? "ok" : "watch");
+  setThreatRow("opsThreatProbing",
+    m2Done ? "Exposed network services reviewed" : "External probing activity monitored",
+    m2Done ? "ok" : "watch");
+  setThreatRow("opsThreatRecon",
+    m2Done ? "Reconnaissance pressure increasing — detection assignment pending"
+           : "Reconnaissance activity under observation",
+    m2Done ? "watch" : "info");
+
+  // Red Team rhythm: monitored → active → escalating (recon) as Blue Team clears
+  // assignments. Updates only the value/strong + the row tone (keeps the label).
+  const redTeam = document.getElementById("opsRedTeamStatus");
+  if (redTeam) redTeam.textContent = missionsDone >= 2 ? "Escalating (Recon)" : (missionsDone === 1 ? "Active" : "Monitored");
+  const redRow = document.getElementById("opsThreatRedTeam");
+  if (redRow) {
+    redRow.classList.toggle("ops-threat-row--watch", missionsDone >= 2);
+    redRow.classList.toggle("ops-threat-row--info", missionsDone < 2);
+  }
 
   // Milestone 33A — persistent world recognition: once any operation is on
   // record, Blue Team readiness improves visibly on the threat board.
@@ -6189,6 +6231,18 @@ function managerTrustEvolutionMessage() {
 }
 
 /**
+ * Phase 2 — derived career-readiness line for the Analyst Profile. Reflects how
+ * close the intern is to the Junior SOC Analyst promotion, purely from existing
+ * completion flags (no new persisted state).
+ */
+function analystCareerReadiness() {
+  const m1 = !!missionComplete, m2 = !!mission2Complete;
+  if (!m1 && !m2) return "Career Readiness: Onboarding";
+  if (m1 && !m2) return "Career Readiness: Building toward Junior SOC Analyst";
+  return "Career Readiness: Promotion-Ready — Junior SOC Analyst";
+}
+
+/**
  * Append an operation to the persistent history on mission completion. Idempotent
  * per mission (stable ids), capped, and saved. The icon/status reflects outcome.
  */
@@ -6248,6 +6302,9 @@ function renderAnalystProfile() {
       .map((t) => `<span class="ops-rep-trait">${escapeHtml(t)}</span>`)
       .join("");
   }
+
+  const readinessEl = document.getElementById("opsRepReadiness");
+  if (readinessEl) readinessEl.textContent = analystCareerReadiness();
 
   const ratings = analystProfileRatings();
   const setRating = (id, val) => {
@@ -6371,7 +6428,7 @@ const MISSION_MAP = {
     num: "01",
     nodeId: "mapNode1",
     statusId: "mapNode1Status",
-    title: "Suspicious Workstation",
+    title: "Credential Phishing Investigation",
     role: "Cybersecurity Intern",
     threat: "Phishing / Credential Theft",
     briefing:
@@ -6385,18 +6442,19 @@ const MISSION_MAP = {
       "Reporting findings",
     ],
     transmission:
-      "Finance reported suspicious workstation activity. Review the mission brief, " +
-      "then launch the investigation.",
+      "Finance reported suspicious workstation activity. Review the assignment " +
+      "brief, then launch the investigation.",
   },
   "mission-002": {
     num: "02",
     nodeId: "mapNode2",
     statusId: "mapNode2Status",
-    title: "Network Basics",
+    title: "Network Exposure Review",
     role: "Cybersecurity Intern",
     threat: "Network Exposure",
     briefing:
-      "A target host is exposing network services that need review. Map the " +
+      "Following the credential-phishing containment, network monitoring is " +
+      "elevated. A target host is now exposing services that need review. Map the " +
       "local network, confirm which host is reachable, and assess the open " +
       "services for risk.",
     skills: [
@@ -6406,24 +6464,27 @@ const MISSION_MAP = {
       "Reasoning about attack surface",
     ],
     transmission:
-      "Network monitoring detected exposed services. Your task is to investigate " +
-      "safely and report findings.",
+      "With phishing contained, monitoring around exposed services has increased. " +
+      "Investigate the network safely and report your findings.",
   },
   "mission-003": {
     num: "03",
     nodeId: "mapNode3",
     statusId: "mapNode3Status",
-    title: "Reconnaissance & Discovery",
+    title: "Reconnaissance Detection",
     role: "Cybersecurity Intern",
-    threat: "—",
+    threat: "Early-Stage Reconnaissance",
     briefing:
-      "Advanced reconnaissance and discovery training. This assignment is still " +
-      "in development and will unlock in a future update.",
+      "Red Team reconnaissance pressure is building against external services. " +
+      "This assignment will train you to detect early-stage adversary recon. It " +
+      "is being prepared and will open as your operational complexity increases.",
     skills: [],
     locked: true,
     comingSoon: true,
     transmission:
-      "Complete earlier assignments before accessing reconnaissance training.",
+      "Recon activity continues externally and the threat-intelligence team is " +
+      "reviewing suspicious outbound traffic. A reconnaissance-detection " +
+      "assignment is pending — stay ready.",
   },
 };
 
@@ -6548,17 +6609,17 @@ function renderMissionDetails(missionId) {
 
   let btnHtml;
   if (def.comingSoon) {
-    btnHtml = `<button class="mission-launch-btn" id="missionLaunchBtn" type="button" disabled>Monitoring · Locked</button>`;
+    btnHtml = `<button class="mission-launch-btn" id="missionLaunchBtn" type="button" disabled>Recon Monitoring · Coming Next</button>`;
   } else if (locked) {
     btnHtml = `<button class="mission-launch-btn" id="missionLaunchBtn" type="button" disabled>🔒 Locked</button>`;
   } else {
-    const label = status === "completed" ? "▶ Launch Again" : "▶ Launch Mission";
+    const label = status === "completed" ? "▶ Launch Again" : "▶ Launch Assignment";
     btnHtml = `<button class="mission-launch-btn" id="missionLaunchBtn" type="button" data-mission="${missionId}">${label}</button>`;
   }
 
   panel.innerHTML = `
     <div class="mission-details-head">
-      <span class="mission-details-num">MISSION ${escapeHtml(def.num)}</span>
+      <span class="mission-details-num">ASSIGNMENT ${escapeHtml(def.num)}</span>
       <span class="mission-details-statuspill mission-details-statuspill--${status}">${escapeHtml(statusLabel)}</span>
     </div>
     <h2 class="mission-details-title">${escapeHtml(def.title)}</h2>
@@ -6921,7 +6982,7 @@ function buildCourseCardHTML(entry) {
     if (missionComplete && !mission2Complete) {
       actionHTML = `
         <div class="course-card-unlock-note">
-          ✓ Mission 2 unlocked: Network Basics
+          ✓ Assignment 2 unlocked: Network Exposure Review
         </div>
         <button id="startMission2Btn" class="course-start-btn">
           ▶&nbsp; Start Mission 2
@@ -7072,7 +7133,7 @@ const M2_QUIZ = {
 };
 
 const M2_SCORECARD = {
-  missionName:     "Network Basics",
+  missionName:     "Network Exposure Review",
   subtitle:        "You completed a network reconnaissance exercise.",
   skills: [
     "Identifying local IP address",
@@ -7912,7 +7973,7 @@ function handleM2QuizAnswer(letter) {
   setTimeout(() => renderM2Scorecard(), 1200);
 
   // Terminal confirmation
-  printM2Line("[ MISSION 2 COMPLETE — Network Basics passed. +100 XP awarded. ]", "m2-line--info");
+  printM2Line("[ ASSIGNMENT 2 COMPLETE — Network Exposure Review passed. +100 XP awarded. ]", "m2-line--info");
 }
 
 /* Milestone 31A — Mission 2 outcome tier (never a fail). Mirrors M1's notion of
@@ -7999,7 +8060,7 @@ function renderM2Scorecard() {
       <div class="completion-header">
         <span class="completion-icon">🏆</span>
         <div class="completion-titles">
-          <h2 class="completion-title">Mission 2 Complete</h2>
+          <h2 class="completion-title">Assignment 2 Complete</h2>
           <p class="completion-subtitle">
             <span class="m2-outcome-tier m2-outcome-tier--${m2Tier.tone}">${escapeHtml(m2Tier.label)}</span>
             — ${escapeHtml(m2Tier.note)}
@@ -8082,9 +8143,9 @@ function renderM2Scorecard() {
           </p>
         </div>
 
-        <!-- Next Mission Preview -->
+        <!-- Next Assignment Preview -->
         <div class="scorecard-section scorecard-next scorecard-section--collapsed">
-          <span class="scorecard-section-label">NEXT MISSION PREVIEW</span>
+          <span class="scorecard-section-label">NEXT ASSIGNMENT PREVIEW</span>
           <p class="scorecard-next-text">
             <strong class="scorecard-next-title">${escapeHtml(M2_SCORECARD.nextMissionTitle)}</strong>
             — ${escapeHtml(M2_SCORECARD.nextMissionDesc)}
@@ -8113,7 +8174,7 @@ function renderM2Scorecard() {
 
             <div class="certificate-field">
               <span class="certificate-label">For completing</span>
-              <span class="certificate-value">Mission 2 — Network Basics</span>
+              <span class="certificate-value">Assignment 2 — Network Exposure Review</span>
             </div>
 
             <div class="certificate-field">
@@ -8478,7 +8539,7 @@ function updateManagerReaction(eventType, context) {
     const m = context && context.missionId === "mission-002"
       ? "Mission 2 cleared. Network secured."
       : "Mission 1 cleared. Phishing threat handled.";
-    showEventToast("Mission Complete", m, "success", { duration: 8000 }); // FIX 2 — mission complete dwells 8s
+    showEventToast("Assignment Complete", m, "success", { duration: 8000 }); // FIX 2 — assignment complete dwells 8s
   }
   return text;
 }
@@ -8576,7 +8637,7 @@ function completeMissionEngine(newRank) {
     // Milestone 33A — record this operation in the persistent career history.
     updateOperationalReputation("mission-002");
     renderM2Scorecard();
-    printM2Line("[ MISSION 2 COMPLETE — Network Basics passed. +100 XP awarded. ]", "m2-line--info");
+    printM2Line("[ ASSIGNMENT 2 COMPLETE — Network Exposure Review passed. +100 XP awarded. ]", "m2-line--info");
     return;
   }
   completeMission(newRank || QUIZ.newRank);
@@ -10438,7 +10499,7 @@ function playMissionCompleteCinema(missionId) {
     banner.className = "incident-cinema-banner";
     banner.setAttribute("aria-hidden", "true");
     banner.innerHTML =
-      '<span class="incident-cinema-banner-title">MISSION COMPLETE</span>' +
+      '<span class="incident-cinema-banner-title">ASSIGNMENT COMPLETE</span>' +
       '<span class="incident-cinema-banner-sub">Threat Contained</span>';
     document.body.appendChild(banner);
   }

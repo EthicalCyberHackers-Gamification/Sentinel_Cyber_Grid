@@ -30,7 +30,7 @@
          never resets progress. -->
     <div id="focusControlBar" class="focus-control-bar" style="display:none;">
       <span class="focus-status">
-        <span class="focus-status-dot" aria-hidden="true"></span>MISSION ACTIVE
+        <span class="focus-status-dot" aria-hidden="true"></span>ASSIGNMENT ACTIVE
       </span>
       <button id="focusToggleBtn" type="button" class="focus-toggle-btn">Exit Focus Mode</button>
     </div>
@@ -52,7 +52,7 @@
       </div>
 
       <nav class="header-nav">
-        <a href="#" class="nav-link nav-link--active">Missions</a>
+        <a href="#" class="nav-link nav-link--active">Assignments</a>
         <a href="#" class="nav-link">Academy</a>
         <a href="#" class="nav-link">Leaderboard</a>
       </nav>
@@ -212,11 +212,11 @@
               </div>
               <div class="ops-panel-body">
                 <ul class="ops-threat-list">
-                  <li class="ops-threat-row ops-threat-row--watch"><span class="ops-threat-dot" aria-hidden="true"></span>Credential phishing activity detected</li>
-                  <li class="ops-threat-row ops-threat-row--watch"><span class="ops-threat-dot" aria-hidden="true"></span>External probing activity monitored</li>
-                  <li class="ops-threat-row ops-threat-row--info"><span class="ops-threat-dot" aria-hidden="true"></span>Reconnaissance activity under observation</li>
+                  <li class="ops-threat-row ops-threat-row--watch" id="opsThreatPhishing"><span class="ops-threat-dot" aria-hidden="true"></span>Credential phishing activity detected</li>
+                  <li class="ops-threat-row ops-threat-row--watch" id="opsThreatProbing"><span class="ops-threat-dot" aria-hidden="true"></span>External probing activity monitored</li>
+                  <li class="ops-threat-row ops-threat-row--info" id="opsThreatRecon"><span class="ops-threat-dot" aria-hidden="true"></span>Reconnaissance activity under observation</li>
                   <li class="ops-threat-row ops-threat-row--ok"><span class="ops-threat-dot" aria-hidden="true"></span>Containment status: <strong id="opsContainStatus">Stable</strong></li>
-                  <li class="ops-threat-row ops-threat-row--info"><span class="ops-threat-dot" aria-hidden="true"></span>Red Team Activity: Monitored</li>
+                  <li class="ops-threat-row ops-threat-row--info" id="opsThreatRedTeam"><span class="ops-threat-dot" aria-hidden="true"></span>Red Team Activity: <strong id="opsRedTeamStatus">Monitored</strong></li>
                   <li class="ops-threat-row ops-threat-row--ok" id="opsReadinessRow" style="display:none;"><span class="ops-threat-dot" aria-hidden="true"></span>Blue Team readiness improving</li>
                 </ul>
                 <div class="ops-analyst-mini">
@@ -250,6 +250,7 @@
                 <span class="ops-mini-label">Operational Reputation</span>
                 <span class="ops-rep-standing" id="opsRepStanding">Awaiting First Assignment</span>
                 <div class="ops-rep-traits" id="opsRepTraits"></div>
+                <span class="ops-rep-readiness" id="opsRepReadiness">Career Readiness: Onboarding</span>
               </div>
               <ul class="ops-rating-list">
                 <li class="ops-rating"><span class="ops-rating-key">Containment Rating</span><strong class="ops-rating-val" id="opsRatingContainment">Developing</strong></li>
@@ -309,7 +310,7 @@
          and a Sarah Reyes transmission panel. Selection only — launching a
          mission hands off to the existing M1 / M2 flow. Hidden by default;
          toggled by showMissionsMap() in script.js. -->
-    <section id="missionsMap" class="missions-map-screen" aria-label="Cyber Missions Map" style="display:none;">
+    <section id="missionsMap" class="missions-map-screen" aria-label="Cyber Operations Map" style="display:none;">
       <div class="missions-map-gridbg" aria-hidden="true"></div>
       <div class="missions-map-scanline" aria-hidden="true"></div>
 
@@ -337,14 +338,14 @@
             <button class="mission-node mission-node--available" id="mapNode1"
                     data-mission="mission-001" type="button"
                     style="--node-x:22%; --node-y:20%;"
-                    aria-label="Mission 1 — Suspicious Workstation">
+                    aria-label="Assignment 1 — Credential Phishing Investigation">
               <span class="mission-node-ring" aria-hidden="true"></span>
               <span class="mission-node-core">
                 <span class="mission-node-num">01</span>
                 <span class="mission-node-check" aria-hidden="true">✓</span>
               </span>
               <span class="mission-node-meta">
-                <span class="mission-node-label">Suspicious Workstation</span>
+                <span class="mission-node-label">Credential Phishing Investigation</span>
                 <span class="mission-node-status" id="mapNode1Status">Available</span>
               </span>
             </button>
@@ -352,14 +353,14 @@
             <button class="mission-node mission-node--locked" id="mapNode2"
                     data-mission="mission-002" type="button"
                     style="--node-x:50%; --node-y:50%;"
-                    aria-label="Mission 2 — Network Basics">
+                    aria-label="Assignment 2 — Network Exposure Review">
               <span class="mission-node-ring" aria-hidden="true"></span>
               <span class="mission-node-core">
                 <span class="mission-node-num">02</span>
                 <span class="mission-node-check" aria-hidden="true">✓</span>
               </span>
               <span class="mission-node-meta">
-                <span class="mission-node-label">Network Basics</span>
+                <span class="mission-node-label">Network Exposure Review</span>
                 <span class="mission-node-status" id="mapNode2Status">Locked</span>
               </span>
             </button>
@@ -367,15 +368,15 @@
             <button class="mission-node mission-node--locked" id="mapNode3"
                     data-mission="mission-003" type="button"
                     style="--node-x:78%; --node-y:80%;"
-                    aria-label="Mission 3 — Reconnaissance &amp; Discovery">
+                    aria-label="Assignment 3 — Reconnaissance Detection">
               <span class="mission-node-ring" aria-hidden="true"></span>
               <span class="mission-node-core">
                 <span class="mission-node-num">03</span>
                 <span class="mission-node-check" aria-hidden="true">✓</span>
               </span>
               <span class="mission-node-meta">
-                <span class="mission-node-label">Reconnaissance &amp; Discovery</span>
-                <span class="mission-node-status" id="mapNode3Status">Coming Soon</span>
+                <span class="mission-node-label">Reconnaissance Detection</span>
+                <span class="mission-node-status" id="mapNode3Status">Coming Next</span>
               </span>
             </button>
           </div>
@@ -413,14 +414,14 @@
       <div class="module-landing-card">
 
         <div class="module-eyebrow">
-          <span class="module-eyebrow-label">MISSION 02</span>
+          <span class="module-eyebrow-label">ASSIGNMENT 02</span>
           <span class="module-eyebrow-value">
             Cybersecurity Internship Simulator <span class="module-eyebrow-sep">—</span> Network Track
           </span>
         </div>
 
         <h1 class="module-title">
-          Network Basics
+          Network Exposure Review
         </h1>
 
         <div class="module-meta-row">
@@ -433,13 +434,13 @@
             <span class="module-meta-value m2-status">PREVIEW</span>
           </div>
           <div class="module-meta-item">
-            <span class="module-meta-label">MISSION</span>
+            <span class="module-meta-label">ASSIGNMENT</span>
             <span class="module-meta-value">02 of 02</span>
           </div>
         </div>
 
         <section class="module-section">
-          <h2 class="module-section-title">MISSION BRIEFING</h2>
+          <h2 class="module-section-title">ASSIGNMENT BRIEFING</h2>
           <p class="module-section-text">
             Your cybersecurity manager has assigned you to inspect a small
             company network. Your job is to identify connected devices and
@@ -502,7 +503,7 @@
             <div class="unified-eyebrow">
               <span class="unified-eyebrow-label">MISSION 02</span>
               <span class="unified-eyebrow-sep">·</span>
-              <span class="unified-eyebrow-value">Network Basics</span>
+              <span class="unified-eyebrow-value">Network Exposure Review</span>
             </div>
             <span class="unified-back-group">
               <button id="m2MapBackBtn" class="unified-back-link" type="button">
