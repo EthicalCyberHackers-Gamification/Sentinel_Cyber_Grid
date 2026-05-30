@@ -625,6 +625,10 @@
                  renderM2AnalystReview() after the student clicks
                  `review services`. Reuses the .quiz-panel chrome
                  from Mission 1 for visual consistency. -->
+            <!-- Milestone 31A — per-step reasoning prompt host (Mission 2).
+                 Populated by renderM2Reasoning() after each network command. -->
+            <div id="m2Reasoning" class="m2-reasoning-host" style="display:none;"></div>
+
             <!-- Investigation Board — pin/classify prompt host (Mission 2).
                  Populated by showPinPrompt/showClassificationPrompt. -->
             <div id="m2PinPanel" class="pin-panel-host" style="display:none;"></div>
@@ -699,6 +703,21 @@
               </div>
               <p class="confidence-caption">
                 Confidence rises as you gather network evidence.
+              </p>
+            </div>
+
+            <!-- Milestone 31A — Analyst Confidence (separate Low → Ready track).
+                 Climbs as the student correctly interprets each network step. -->
+            <div id="m2AnalystConfidence" class="analyst-confidence">
+              <h3 class="objectives-title">
+                Analyst Confidence
+                <span class="analyst-conf-pill">Low</span>
+              </h3>
+              <div class="analyst-conf-bar">
+                <div class="analyst-conf-bar-fill" style="width: 0%;"></div>
+              </div>
+              <p class="analyst-conf-caption">
+                Interpret each finding to build confidence.
               </p>
             </div>
 

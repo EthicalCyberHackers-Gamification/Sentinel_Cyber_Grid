@@ -1,0 +1,416 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Mission 1 has received major gameplay and immersion upgrades.
+* Mission 2 works, but may not yet match Mission 1’s newer interaction quality.
+* Mission engine exists.
+* Mission map exists.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 31A — Apply Mission 1 Gameplay Pattern to Mission 2
+
+Purpose:
+Review all major gameplay, UX, immersion, pacing, and operational simulation improvements added to Mission 1, then apply the same design pattern to Mission 2 where appropriate so both missions feel consistent.
+
+Important:
+Do NOT redesign the full app.
+Do NOT add Mission 3.
+Do NOT remove existing Mission 2 content.
+Do NOT break Mission 1.
+Do NOT add backend, AI, authentication, multiplayer, or real scanning.
+
+---
+
+1. REVIEW MISSION 1 SYSTEMS
+
+---
+
+Review Mission 1 and identify these implemented systems:
+
+* guided step-by-step investigation pacing
+* one item/action at a time
+* reduced clutter during active investigation
+* reasoning prompts
+* analyst confidence
+* delayed validation
+* evidence prioritization
+* investigation board
+* Blue Team decision moments
+* containment progress
+* reactive incident evolution
+* cinematic incident emphasis
+* persistent adversary presence
+* current objective updates
+* manager reactions
+* event toasts
+* mission outcome variations
+* next-step guidance after completion
+* any other changes implemented in Mission 1 that are not currently included in Mission 2
+
+Apply those systems to Mission 2 where appropriate while preserving Mission 2’s network investigation identity.
+
+---
+
+2. APPLY CONSISTENT PATTERN TO MISSION 2
+
+---
+
+Mission 2 should keep its topic:
+
+Network Basics / Network Exposure Investigation
+
+But its interaction pattern should now feel similar to Mission 1.
+
+Mission 2 should become:
+
+investigate
+→ interpret network result
+→ classify importance
+→ make Blue Team decision
+→ see consequence
+→ contain/recommend action
+→ complete mission
+
+---
+
+3. MISSION 2 GUIDED NETWORK PACING
+
+---
+
+Do not show all network commands at once.
+
+Reveal one step at a time:
+
+Step 1:
+ip addr
+
+Student identifies local network position.
+
+Step 2:
+ping 10.0.0.8
+
+Shows unreachable host.
+
+Student interprets it as not currently actionable.
+
+Step 3:
+ping 10.0.0.5
+
+Shows reachable host.
+
+Student interprets it as active target.
+
+Step 4:
+nmap 10.0.0.5
+
+Shows open services.
+
+Step 5:
+review services
+
+Student interprets exposed services.
+
+Each step should:
+
+* show only the current required action
+* update Current Objective
+* update manager response
+* update evidence/analyst confidence when appropriate
+
+---
+
+4. MISSION 2 REASONING PROMPTS
+
+---
+
+After each major output, ask a short reasoning question.
+
+Examples:
+
+After ip addr:
+“What does this tell you?”
+Correct:
+“This identifies the student workstation’s local network address.”
+
+After ping 10.0.0.8:
+“What does this result suggest?”
+Correct:
+“The host is not reachable right now.”
+
+After ping 10.0.0.5:
+“What does this result suggest?”
+Correct:
+“The host is reachable and can be investigated further.”
+
+After nmap:
+“What is the main security concern?”
+Correct:
+“The host exposes network services that should be reviewed.”
+
+After review services:
+“What should Blue Team do next?”
+Correct:
+“Recommend security review of exposed services.”
+
+---
+
+5. MISSION 2 ANALYST CONFIDENCE
+
+---
+
+Apply Analyst Confidence to Mission 2.
+
+Rules:
+
+* starts Low
+* correct interpretation of local IP: small increase
+* correctly identifying unreachable host: small increase
+* correctly identifying reachable host: moderate increase
+* correctly interpreting open services: strong increase
+* correct analyst review: reaches Ready
+
+Keep separate from Evidence Confidence.
+
+---
+
+6. MISSION 2 EVIDENCE PRIORITIZATION
+
+---
+
+Add or refine Mission 2 evidence items:
+
+local_ip_identified:
+Helpful Supporting Evidence
+
+unreachable_host:
+Normal Activity / Low Relevance
+
+reachable_host:
+Helpful Supporting Evidence
+
+open_services:
+Critical Network Exposure Evidence
+
+service_review:
+Helpful Supporting Evidence
+
+Student should classify/pin relevant evidence similarly to Mission 1.
+
+Do not require overclassification of every tiny result if it creates clutter.
+Keep it focused.
+
+---
+
+7. MISSION 2 BLUE TEAM DECISION MOMENT
+
+---
+
+After open services are discovered and interpreted, show:
+
+BLUE TEAM RESPONSE REQUIRED
+
+Text:
+“A reachable host is exposing SSH, HTTP, and HTTPS. What should Blue Team do next?”
+
+Options:
+A. Recommend security review of exposed services
+B. Ignore the services because open ports are always safe
+C. Shut down the entire network immediately
+D. Continue scanning unrelated hosts
+
+Correct/best:
+A. Recommend security review of exposed services
+
+Consequences:
+
+A:
+
+* Trust increases
+* Threat level stabilizes
+* Containment progress increases
+* Manager:
+  “Good recommendation. Exposed services should be reviewed before attackers can abuse misconfigurations.”
+
+B:
+
+* Trust decreases slightly
+* Threat level remains elevated
+* Manager:
+  “Open services should not be ignored. They define attack surface.”
+
+C:
+
+* Manager warns this is excessive
+* Trust does not increase
+* Threat level stabilizes only slightly
+* Message:
+  “Containment should be proportional to evidence.”
+
+D:
+
+* Incident pressure rises slightly
+* Manager:
+  “Stay focused on the active target before expanding scope.”
+
+---
+
+8. MISSION 2 REACTIVE INCIDENT EVOLUTION
+
+---
+
+Add lightweight incident reactions based on decision.
+
+If correct recommendation:
+[BLUE TEAM UPDATE]
+Service review request submitted.
+
+If ignored:
+[RED TEAM ACTIVITY]
+External probing activity continues against exposed services.
+
+If excessive shutdown:
+[OPERATIONS IMPACT]
+Unnecessary disruption risk detected.
+
+If unrelated scanning:
+[MANAGER WARNING]
+Scope drift detected. Refocus on current target.
+
+Do not overdo alerts.
+
+---
+
+9. MISSION 2 PERSISTENT ADVERSARY PRESENCE
+
+---
+
+Add Red Team flavor appropriate for Mission 2.
+
+Red Team states:
+
+* Recon Activity Detected
+* External Probing Observed
+* Exposed Services Targeted
+* Attack Surface Pressure Rising
+* Activity Stabilized
+
+Possible Adversary Goal:
+
+* Service Enumeration
+* Misconfiguration Discovery
+* Initial Access Preparation
+
+Keep it beginner-friendly.
+
+---
+
+10. MISSION 2 CINEMATIC EMPHASIS
+
+---
+
+Use existing cinematic emphasis system for major Mission 2 moments only:
+
+* reachable host found
+* open services discovered
+* poor decision selected
+* correct Blue Team recommendation
+* mission complete
+
+Do NOT change system alert location or timing.
+Preserve current tuned alert behavior.
+
+---
+
+11. MISSION 2 OUTCOME VARIATIONS
+
+---
+
+Mission 2 final outcome should vary slightly:
+
+Excellent Network Review:
+“Exposed services were identified and recommended for review before misuse.”
+
+Delayed Network Review:
+“Services were identified after some investigation drift.”
+
+Weak Network Response:
+“Open services were observed but not handled with enough priority.”
+
+Do not fail the student completely.
+
+---
+
+12. UPDATE MISSION 2 SCORECARD
+
+---
+
+Add:
+
+* Analyst Confidence Final Level
+* Critical Network Evidence Identified
+* Network Decision Taken
+* Operational Consequence
+* Red Team Activity State
+* Blue Team Recommendation
+* Final Threat Level
+* Trust Change
+* Containment Progress
+
+---
+
+13. PRESERVE LOW COGNITIVE LOAD
+
+---
+
+Mission 2 should NOT become cluttered.
+
+Rules:
+
+* one network action at a time
+* one reasoning question at a time
+* one decision moment at a time
+* no giant dashboards
+* no alert spam
+* no excessive panels
+
+---
+
+14. PRESERVE EXISTING SYSTEMS
+
+---
+
+Do not break:
+
+* Mission 1
+* Mission 2 launch
+* mission map
+* terminal commands
+* manual typed command sync
+* clickable command sync
+* event toasts
+* alert timing/location
+* manager reactions
+* XP
+* trust score
+* threat level
+* containment progress
+* scorecards
+* local progress save
+
+---
+
+## GOAL
+
+Mission 2 should feel like a consistent continuation of Mission 1’s improved gameplay formula:
+
+investigate
+→ interpret
+→ prioritize evidence
+→ decide
+→ see consequence
+→ complete with operational outcome
+
+while preserving Mission 2’s focus on network basics and exposed services.

@@ -218,6 +218,22 @@ let m2Confidence = 0;
 const m1ConfidenceContributors = new Set();
 const m2ConfidenceContributors = new Set();
 
+// Milestone 31A — Mission 2 ANALYST CONFIDENCE (separate from Evidence
+// Confidence above). This is the "Low → Ready" reasoning track that climbs as
+// the student correctly interprets each network step. m2ReasoningAnswered guards
+// one-time credit per step; m2DecisionDrift counts poor decision attempts (B/D)
+// for the outcome tier. All three are persisted + reset with the mission.
+let m2AnalystConfidence = 0;
+const m2ReasoningAnswered = new Set();
+let m2DecisionDrift = 0;
+// Pending reasoning UI timers (pin-offer / retry). Tracked so navigation/reset
+// can cancel them and a stale callback can't mutate the UI off-screen.
+let m2ReasoningTimers = [];
+function clearM2ReasoningTimers() {
+  m2ReasoningTimers.forEach((t) => window.clearTimeout(t));
+  m2ReasoningTimers = [];
+}
+
 // Challenge Layer 1 — Mission 1 investigation tracking (for the scorecard).
 const m1FilesReviewed     = new Set();
 const m1FalseLeadsChecked = new Set();
@@ -330,7 +346,12 @@ const EVIDENCE_RATINGS = {
   "mission-002": {
     "ping-bad": { title: "Unreachable Host (10.0.0.8)",        correct: "normal"   },
     "ip-addr":  { title: "Local IP Address (10.0.0.12)",      correct: "helpful"  },
+    // Milestone 31A — reachable host + service review become pinnable too, so the
+    // M2 evidence taxonomy mirrors Mission 1 (offered one at a time after the
+    // matching reasoning step, to keep cognitive load low).
+    "ping":     { title: "Reachable Host (10.0.0.5)",         correct: "helpful"  },
     "nmap":     { title: "Open Services (SSH / HTTP / HTTPS)", correct: "critical" },
+    "review":   { title: "Service Review Required",           correct: "helpful"  },
   },
 };
 
@@ -2460,20 +2481,25 @@ const DECISION_ACTIONS = {
     advance: false,
   },
 
-  /* ---------- Mission 2 ---------- */
+  /* ---------- Mission 2 (Milestone 31A — Blue Team network response) ----------
+     Four options, presented A/B/C/D to mirror Mission 1's decision moment:
+       A recommend  — correct (decisive, rewarded)
+       B ignore     — poor    (no advance; re-decide)
+       C shut-down  — acceptable (advances but blunt/over-reactive, not rewarded)
+       D continue   — poor    (scope drift; no advance; re-decide)                */
   "m2-recommend": {
     missionId: "mission-002",
-    label:     "Recommend Security Review",
+    label:     "Recommend a security review of the exposed services",
     kind:      "correct",
     trustDelta: +10,
     threatLevel: "Medium",
     managerMsg: "Good recommendation. Exposed services should be reviewed for secure configuration.",
-    consequence: "Security review queued for the exposed services.",
+    consequence: "Security review queued for the exposed services; the right teams were engaged proportionately.",
     advance: true,
   },
   "m2-ignore": {
     missionId: "mission-002",
-    label:     "Ignore Open Services",
+    label:     "Ignore the open services for now",
     kind:      "poor",
     trustDelta: -10,
     threatLevel: "High",
@@ -2481,15 +2507,25 @@ const DECISION_ACTIONS = {
     consequence: "Manager flagged the dismissal as risky. Try a safer action before continuing.",
     advance: false,
   },
-  "m2-continue": {
+  "m2-shutdown": {
     missionId: "mission-002",
-    label:     "Continue Investigation",
+    label:     "Shut down all services on the host immediately",
     kind:      "acceptable",
     trustDelta: 0,
     threatLevel: "Medium",
-    managerMsg: "Continue reviewing the network findings before finalizing your report.",
-    consequence: "Investigation continues; report will follow once findings are confirmed.",
+    managerMsg: "That stops the exposure, but pulling every service offline is heavy-handed and disrupts the business. A targeted review is usually better.",
+    consequence: "All services were taken offline — the exposure stopped, but the blunt response caused avoidable disruption.",
     advance: true,
+  },
+  "m2-continue": {
+    missionId: "mission-002",
+    label:     "Continue scanning unrelated hosts",
+    kind:      "poor",
+    trustDelta: -6,
+    threatLevel: "High",
+    managerMsg: "Stay focused — the exposed host in front of you needs a recommendation before you widen the scan.",
+    consequence: "Scope drifted to unrelated hosts while the exposed services sat unaddressed.",
+    advance: false,
   },
 };
 
@@ -2531,15 +2567,17 @@ function showDecisionActions(missionId) {
   const actions = Object.entries(DECISION_ACTIONS)
     .filter(([, def]) => def.missionId === missionId);
 
-  // Milestone 28A — Mission 1 uses the Blue Team operational framing; Mission 2
-  // keeps the original generic decision wording.
+  // Milestone 28A / 31A — both missions now use the Blue Team operational
+  // framing with lettered (A/B/C/D) options.
   const isM1 = missionId === "mission-001";
-  const panelClass    = isM1 ? "decision-panel decision-panel--blueteam" : "decision-panel";
-  const decisionLabel = isM1 ? "BLUE TEAM RESPONSE REQUIRED" : "Decision Actions";
-  const decisionBadge = isM1 ? "Act now" : "Choose carefully";
+  const panelClass    = "decision-panel decision-panel--blueteam";
+  const decisionLabel = "BLUE TEAM RESPONSE REQUIRED";
+  const decisionBadge = "Act now";
   const decisionQ     = isM1
     ? "A workstation appears to be involved in a credential harvesting attempt. What should Blue Team do next?"
-    : "Evidence is in. What's your next move?";
+    : "A target host is exposing multiple network services. What should Blue Team do next?";
+
+  const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
   host.style.display = "";
   host.innerHTML = `
@@ -2552,11 +2590,12 @@ function showDecisionActions(missionId) {
         ${escapeHtml(decisionQ)}
       </p>
       <div class="decision-buttons">
-        ${actions.map(([id, def]) => `
+        ${actions.map(([id, def], i) => `
           <button class="decision-btn decision-btn--${def.kind}"
                   type="button"
                   data-decision="${id}">
-            ${escapeHtml(def.label)}
+            <span class="decision-letter">${LETTERS[i] || ""}</span>
+            <span class="decision-btn-label">${escapeHtml(def.label)}</span>
           </button>
         `).join("")}
       </div>
@@ -2752,7 +2791,24 @@ function resolveDecisionAction(actionId) {
         showBlueTeamUpdate("mission-002", "Incident escalated to lead analyst.", { toast: true });
         // Stage 3 — a correct, decisive call interrupts the adversary's spread.
         containThreatActivity("mission-002");
+        // Milestone 31A — cinematic beat for the correct recommendation.
+        showIncidentInterruption("containment-success", { force: true });
       }
+    }
+
+    // Milestone 31A (Mission 2) — the "shut down all services" option is
+    // ACCEPTABLE: it advances and stops the exposure, but bluntly (no trust
+    // reward) and with some containment credit.
+    if (def.kind === "acceptable" && def.missionId === "mission-002") {
+      updateContainmentProgress("mission-002", 20, {
+        stepId: "m2-shutdown",
+        incident: "Containing",
+        assignment: "Services taken offline",
+        caption: "All services taken offline — exposure stopped.",
+      });
+      showBlueTeamUpdate("mission-002", "All services taken offline — exposure stopped.", { toast: true });
+      containThreatActivity("mission-002");
+      showIncidentInterruption("containment-success", { force: true });
     }
 
     // Milestone 28B — record a decision-specific Incident Timeline entry and
@@ -2808,6 +2864,9 @@ function resolveDecisionAction(actionId) {
       addTimelineEvent("mission-001", "Threat dismissed — re-evaluating");
       triggerIncidentEvolution("m1-ignore");
     } else if (def.missionId === "mission-002") {
+      // Milestone 31A — count poor M2 decision attempts for the outcome tier.
+      m2DecisionDrift++;
+      try { saveProgress(); } catch (_) { /* non-fatal */ }
       // Stage 2 (Mission 2) — a poor call slows network containment.
       updateContainmentProgress("mission-002", -10, {
         stepId: "poor-" + actionId,
@@ -2816,6 +2875,8 @@ function resolveDecisionAction(actionId) {
       showBlueTeamUpdate("mission-002", "Hold position — re-evaluating the threat.");
       // Stage 3 — a poor decision lets the adversary escalate the incident.
       triggerEscalationEvent("mission-002");
+      // Milestone 31A — cinematic beat for a poor network decision.
+      showIncidentInterruption("additional-targeting", { force: true });
     }
   }
 }
@@ -3213,6 +3274,10 @@ function saveProgress() {
       m2Confidence,
       m1ConfidenceContributors: Array.from(m1ConfidenceContributors),
       m2ConfidenceContributors: Array.from(m2ConfidenceContributors),
+      // Milestone 31A — Mission 2 Analyst Confidence + reasoning + decision drift.
+      m2AnalystConfidence,
+      m2ReasoningAnswered: Array.from(m2ReasoningAnswered),
+      m2DecisionDrift,
       m1FilesReviewed:     Array.from(m1FilesReviewed),
       m1FalseLeadsChecked: Array.from(m1FalseLeadsChecked),
       m1BonusFound,
@@ -3507,6 +3572,20 @@ function restoreSavedProgress() {
       if (typeof k === "string") m2ConfidenceContributors.add(k);
     });
   }
+  // Milestone 31A — restore Mission 2 Analyst Confidence + reasoning + drift,
+  // clamped/validated so corrupt storage cannot break the meter or tier.
+  if (typeof data.m2AnalystConfidence === "number" && isFinite(data.m2AnalystConfidence)) {
+    m2AnalystConfidence = Math.max(0, Math.min(100, data.m2AnalystConfidence));
+  }
+  m2ReasoningAnswered.clear();
+  if (Array.isArray(data.m2ReasoningAnswered)) {
+    data.m2ReasoningAnswered.forEach((k) => {
+      if (typeof k === "string" && M2_REASONING[k]) m2ReasoningAnswered.add(k);
+    });
+  }
+  if (typeof data.m2DecisionDrift === "number" && isFinite(data.m2DecisionDrift)) {
+    m2DecisionDrift = Math.max(0, data.m2DecisionDrift);
+  }
   m1FilesReviewed.clear();
   if (Array.isArray(data.m1FilesReviewed)) {
     data.m1FilesReviewed.forEach((k) => {
@@ -3596,6 +3675,7 @@ function restoreSavedProgress() {
   // Mission 1 confidence is pin-driven — recompute it as the source of truth.
   recomputeConfidenceFromPins("mission-001");
   renderConfidenceMeter("mission-002");
+  renderM2AnalystConfidence(); // Milestone 31A — restore Analyst Confidence meter.
   renderInvestigationBoard("mission-001");
   renderInvestigationBoard("mission-002");
 
@@ -6649,6 +6729,84 @@ const M2_ANALYST_REVIEW = {
   summary:    "Open services increase functionality, but every exposed service can increase attack surface if not secured properly.",
 };
 
+/* ============================================================
+   Milestone 31A — Mission 2 PER-STEP REASONING PROMPTS
+   ------------------------------------------------------------
+   After each major network command runs, the student answers ONE short
+   "what does this mean?" question before moving on — mirroring Mission 1's
+   one-clue-at-a-time investigative reasoning. A correct answer raises the
+   ANALYST CONFIDENCE track and then offers the matching evidence pin.
+   The 5th step ("what should Blue Team do") is intentionally MERGED into the
+   Blue Team decision moment (the decision IS that reasoning), so there is no
+   separate prompt for `review` — keeping cognitive load low.
+
+   `conf` = one-time Analyst Confidence gain for a correct interpretation.
+   ============================================================ */
+const M2_REASONING = {
+  "ip-addr": {
+    title: "Local Network Identity",
+    question: "What does this output tell you?",
+    answers: [
+      { letter: "A", text: "This identifies the student workstation's local network address." },
+      { letter: "B", text: "This is the address of the attacker's machine." },
+      { letter: "C", text: "This proves the network has already been breached." },
+    ],
+    correct: "A",
+    conf: 15,
+    correctMsg: "Right — knowing your own host address is the baseline for mapping a network.",
+    wrongMsg:   "Not quite. `ip addr` shows YOUR workstation's local address — your starting point.",
+  },
+  "ping-bad": {
+    title: "Unreachable Host",
+    question: "What does this result suggest?",
+    answers: [
+      { letter: "A", text: "The host is reachable and exposing services." },
+      { letter: "B", text: "The host is not reachable right now." },
+      { letter: "C", text: "The host is definitely compromised." },
+    ],
+    correct: "B",
+    conf: 15,
+    correctMsg: "Correct — no reply means this host isn't reachable. A useful negative result.",
+    wrongMsg:   "Look again — the request timed out, which means the host did not respond.",
+  },
+  "ping": {
+    title: "Reachable Host",
+    question: "What does this result suggest?",
+    answers: [
+      { letter: "A", text: "The host is offline and can be ignored." },
+      { letter: "B", text: "The host is reachable and can be investigated further." },
+      { letter: "C", text: "The host has no open services." },
+    ],
+    correct: "B",
+    conf: 25,
+    correctMsg: "Correct — a reply confirms the host is live, so it's worth scanning.",
+    wrongMsg:   "Re-read the output — the host replied, so it IS reachable and worth a closer look.",
+  },
+  "nmap": {
+    title: "Open Services",
+    question: "What is the main security concern here?",
+    answers: [
+      { letter: "A", text: "The host exposes network services that should be reviewed." },
+      { letter: "B", text: "Open ports mean the host is automatically hacked." },
+      { letter: "C", text: "Open ports are always completely safe." },
+    ],
+    correct: "A",
+    conf: 35,
+    correctMsg: "Exactly — exposed services are attack surface and must be assessed for risk.",
+    wrongMsg:   "Not quite. Open services aren't auto-hacked, but each one is attack surface to review.",
+  },
+};
+
+// Five Analyst Confidence tiers (Low → Ready). The label is derived from the
+// numeric value; reaching Ready (100) requires the correct analyst review.
+const M2_ANALYST_CONF_TIERS = [
+  { min: 100, label: "Ready",      caption: "You're ready to make a recommendation." },
+  { min: 70,  label: "Strong",     caption: "Your read on the network is strong." },
+  { min: 40,  label: "Developing", caption: "Your assessment is taking shape." },
+  { min: 20,  label: "Building",   caption: "You're starting to understand the network." },
+  { min: 0,   label: "Low",        caption: "Interpret each finding to build confidence." },
+];
+
 let m2AnalystAnswered = false;
 
 function setM2ManagerMessage(text) {
@@ -6713,6 +6871,7 @@ function beginMission2() {
   m2UnlockedCmds.add("ping");
   syncM2Buttons();
   renderConfidenceMeter("mission-002");
+  renderM2AnalystConfidence(); // Milestone 31A — show Analyst Confidence meter.
 
   // Status + opening hint + supervisor briefing
   markM2Status("started");
@@ -6858,11 +7017,30 @@ function runM2Command(key) {
     setActiveTool("m2-service-scanner");
   }
 
-  // Evidence Prioritization (M2 light version) — after revealing a
-  // pinnable finding, offer the student the choice to pin + classify it
-  // on the Investigation Board.
-  if (EVIDENCE_RATINGS["mission-002"][key]) {
+  // Milestone 31A — per-step REASONING gate. After a major command runs, the
+  // student must interpret the result before the matching evidence pin is
+  // offered (one-thing-at-a-time flow). The pin offer is DEFERRED to
+  // handleM2Reasoning() on a correct answer. `review` has no reasoning prompt
+  // (its reasoning IS the Blue Team decision below), so it offers its pin
+  // immediately, then proceeds to the decision.
+  if (M2_REASONING[key]) {
+    renderM2Reasoning(key);
+  } else if (EVIDENCE_RATINGS["mission-002"][key]) {
     showPinPrompt("mission-002", key);
+  }
+
+  // Milestone 31A — cinematic emphasis at key network beats.
+  if (firstPing) {
+    showIncidentInterruption("m2-reachable", {
+      title: "HOST RESPONDING",
+      line:  "Target 10.0.0.5 is live on the network.",
+    });
+  }
+  if (firstNmap) {
+    showIncidentInterruption("m2-services", {
+      title: "EXPOSED SERVICES DETECTED",
+      line:  "SSH, HTTP, and HTTPS are open on the target host.",
+    });
   }
 
   // Milestone 21/24D — after `review services`, gate the Analyst Review
@@ -6877,6 +7055,147 @@ function runM2Command(key) {
       showDecisionActions("mission-002");
     }
   }
+}
+
+/* ============================================================
+   Milestone 31A — Mission 2 per-step reasoning + Analyst Confidence
+   ============================================================ */
+
+/** Render the multiple-choice reasoning prompt for a network command. */
+function renderM2Reasoning(key) {
+  const def = M2_REASONING[key];
+  const host = document.getElementById("m2Reasoning");
+  if (!def || !host) return;
+  // Already answered correctly — keep it collapsed, just (re-)offer the pin.
+  if (m2ReasoningAnswered.has(key)) {
+    host.style.display = "none";
+    host.innerHTML = "";
+    if (EVIDENCE_RATINGS["mission-002"][key]) showPinPrompt("mission-002", key);
+    return;
+  }
+  host.style.display = "";
+  host.innerHTML = `
+    <div class="m2-reasoning" data-key="${escapeHtml(key)}">
+      <div class="m2-reasoning-head">
+        <span class="m2-reasoning-label">Analyst Reasoning</span>
+        <span class="m2-reasoning-topic">${escapeHtml(def.title)}</span>
+      </div>
+      <p class="m2-reasoning-q">${escapeHtml(def.question)}</p>
+      <div class="m2-reasoning-answers">
+        ${def.answers.map((a) => `
+          <button class="m2-reasoning-btn" type="button"
+                  data-reasoning-key="${escapeHtml(key)}"
+                  data-reasoning-letter="${escapeHtml(a.letter)}">
+            <span class="m2-reasoning-letter">${escapeHtml(a.letter)}</span>
+            <span class="m2-reasoning-text">${escapeHtml(a.text)}</span>
+          </button>
+        `).join("")}
+      </div>
+      <div class="m2-reasoning-feedback" data-reasoning-feedback style="display:none;"></div>
+    </div>
+  `;
+  host.querySelectorAll(".m2-reasoning-btn").forEach((btn) => {
+    btn.addEventListener("click", () =>
+      handleM2Reasoning(
+        btn.getAttribute("data-reasoning-key"),
+        btn.getAttribute("data-reasoning-letter")
+      )
+    );
+  });
+}
+
+/** Handle a reasoning answer. Correct → confidence + manager confirm + pin
+ *  offer + next objective. Wrong → gentle retry (no penalty). */
+function handleM2Reasoning(key, letter) {
+  const def = M2_REASONING[key];
+  const host = document.getElementById("m2Reasoning");
+  if (!def || !host) return;
+  if (m2ReasoningAnswered.has(key)) return;
+
+  const isCorrect = letter === def.correct;
+  const fb = host.querySelector("[data-reasoning-feedback]");
+  const answersWrap = host.querySelector(".m2-reasoning-answers");
+
+  if (answersWrap) {
+    answersWrap.querySelectorAll(".m2-reasoning-btn").forEach((b) => {
+      const l = b.getAttribute("data-reasoning-letter");
+      if (l === def.correct) {
+        b.classList.add(isCorrect ? "m2-reasoning-btn--correct" : "m2-reasoning-btn--reveal");
+      } else if (l === letter) {
+        b.classList.add("m2-reasoning-btn--wrong");
+      }
+      if (isCorrect || l === letter) b.disabled = true;
+    });
+  }
+  if (fb) {
+    fb.style.display = "";
+    fb.textContent   = isCorrect ? def.correctMsg : def.wrongMsg;
+    fb.classList.toggle("m2-reasoning-feedback--correct", isCorrect);
+    fb.classList.toggle("m2-reasoning-feedback--wrong",  !isCorrect);
+  }
+
+  if (!isCorrect) {
+    // Gentle retry — re-enable the not-yet-tried options after a beat.
+    m2ReasoningTimers.push(setTimeout(() => {
+      if (!answersWrap) return;
+      answersWrap.querySelectorAll(".m2-reasoning-btn").forEach((b) => {
+        const l = b.getAttribute("data-reasoning-letter");
+        if (l === letter) return;
+        b.disabled = false;
+        b.classList.remove("m2-reasoning-btn--reveal");
+      });
+    }, 600));
+    return;
+  }
+
+  // Correct — mark answered, raise Analyst Confidence, manager confirm, persist.
+  m2ReasoningAnswered.add(key);
+  addM2AnalystConfidence(def.conf || 0);
+  setM2ManagerMessage(def.correctMsg);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+
+  // Offer the matching evidence pin (one-thing-at-a-time flow), then point the
+  // student at the next step.
+  m2ReasoningTimers.push(setTimeout(() => {
+    host.style.display = "none";
+    host.innerHTML = "";
+    if (EVIDENCE_RATINGS["mission-002"][key]) showPinPrompt("mission-002", key);
+    const nextDef = M2_COMMANDS[key];
+    if (nextDef && nextDef.nextHint) setCurrentObjective("mission-002", nextDef.nextHint);
+  }, 700));
+}
+
+/** Derive the Analyst Confidence tier (label + caption) for a numeric value. */
+function m2AnalystConfTier(val) {
+  return M2_ANALYST_CONF_TIERS.find((t) => val >= t.min) ||
+         M2_ANALYST_CONF_TIERS[M2_ANALYST_CONF_TIERS.length - 1];
+}
+
+/** Add to the Analyst Confidence track (clamped 0–100) and re-render. */
+function addM2AnalystConfidence(amount) {
+  m2AnalystConfidence = Math.max(0, Math.min(100, m2AnalystConfidence + (amount || 0)));
+  renderM2AnalystConfidence();
+  fxPulse("m2AnalystConfidence");
+}
+
+/** Set the Analyst Confidence track to an absolute value (clamped) + render. */
+function setM2AnalystConfidence(val) {
+  m2AnalystConfidence = Math.max(0, Math.min(100, val || 0));
+  renderM2AnalystConfidence();
+}
+
+/** Paint the Analyst Confidence meter from m2AnalystConfidence. */
+function renderM2AnalystConfidence() {
+  const wrap = document.getElementById("m2AnalystConfidence");
+  if (!wrap) return;
+  const tier = m2AnalystConfTier(m2AnalystConfidence);
+  const pill = wrap.querySelector(".analyst-conf-pill");
+  const fill = wrap.querySelector(".analyst-conf-bar-fill");
+  const cap  = wrap.querySelector(".analyst-conf-caption");
+  if (pill) pill.textContent = tier.label;
+  if (fill) fill.style.width = `${m2AnalystConfidence}%`;
+  if (cap)  cap.textContent = tier.caption;
+  wrap.className = "analyst-confidence analyst-confidence--" + tier.label.toLowerCase();
 }
 
 /* ============================================================
@@ -6976,6 +7295,10 @@ function handleM2AnalystAnswer(letter) {
   setActiveTool("m2-quiz");
   markM2Status("analyst-review");
   markM2Status("threat-assessment");
+  // Milestone 31A — a correct analyst review means the student is ready to
+  // make a recommendation → Analyst Confidence reaches "Ready" (100).
+  setM2AnalystConfidence(100);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
   // Stage 2 — Blue Team (Mission 2): a documented threat assessment advances containment.
   updateContainmentProgress("mission-002", 20, { stepId: "m2-analyst", caption: "Threat assessment documented." });
   showBlueTeamUpdate("mission-002", "Threat assessment confirmed and documented.");
@@ -7149,6 +7472,9 @@ function handleM2QuizAnswer(letter) {
   // FIX 4 — pulse the Mission Map buttons until the student opens the map.
   setMapButtonsAttention("mission-002", true);
 
+  // Milestone 31A — cinematic emphasis on mission completion (parity with M1).
+  showIncidentInterruption("mission-complete", { force: true });
+
   // Replace the analyst review host content with the completion + scorecard
   // (keeps everything inside the COMMANDS panel — same pattern as M1).
   setTimeout(() => renderM2Scorecard(), 1200);
@@ -7157,10 +7483,81 @@ function handleM2QuizAnswer(letter) {
   printM2Line("[ MISSION 2 COMPLETE — Network Basics passed. +100 XP awarded. ]", "m2-line--info");
 }
 
+/* Milestone 31A — Mission 2 outcome tier (never a fail). Mirrors M1's notion of
+   a graded outcome: the strongest result needs the correct Blue Team
+   recommendation, no scope drift, and high analyst confidence; otherwise it is
+   "Delayed" (got there but with detours) or "Weak" (acceptable-but-not-ideal). */
+function m2OutcomeTier() {
+  const correct = decisionTaken["mission-002"] === "m2-recommend";
+  if (correct && m2DecisionDrift === 0 && m2AnalystConfidence >= 70) {
+    return { label: "Excellent", tone: "green",
+      note: "Correct recommendation, no scope drift, strong analyst confidence." };
+  }
+  if (correct) {
+    return { label: "Delayed", tone: "yellow",
+      note: "Right call reached, but after detours or with lower confidence." };
+  }
+  return { label: "Weak", tone: "yellow",
+    note: "Network contained, but the ideal Blue Team recommendation was missed." };
+}
+
+/* Milestone 31A — network-themed scorecard rows summarizing the M2 run. */
+function renderM2NetworkScorecardRows() {
+  const tier = m2OutcomeTier();
+  const confTier = m2AnalystConfTier(m2AnalystConfidence);
+  const critPins = (pinnableFindings["mission-002"]
+    ? Array.from(pinnableFindings["mission-002"]) : [])
+    .filter((k) => {
+      const pin = investigationPins["mission-002"] && investigationPins["mission-002"][k];
+      return pin && pin.critical === true;
+    }).length;
+  const redState = redTeamStatesFor("mission-002")[computeRedTeamState("mission-002")]
+    || redTeamStatesFor("mission-002").recon;
+  const recLabel = {
+    "m2-recommend": "Recommend service restriction (correct)",
+    "m2-shutdown":  "Shut down all services (acceptable)",
+    "m2-ignore":    "No action taken",
+    "m2-continue":  "Continued unrelated scanning",
+  }[decisionTaken["mission-002"]] || "Not recorded";
+  const contain = (typeof blueTeamContainment === "object" && blueTeamContainment
+    && typeof blueTeamContainment["mission-002"] === "number")
+    ? Math.max(0, Math.min(100, blueTeamContainment["mission-002"])) : null;
+  let rows = `
+    <li class="scorecard-row">
+      <span class="scorecard-key">Operational Outcome</span>
+      <span class="scorecard-val scorecard-val--${tier.tone}">${escapeHtml(tier.label)}</span>
+    </li>
+    <li class="scorecard-row">
+      <span class="scorecard-key">Analyst Confidence (Final)</span>
+      <span class="scorecard-val scorecard-val--cyan">${escapeHtml(confTier.label)} (${m2AnalystConfidence}%)</span>
+    </li>
+    <li class="scorecard-row">
+      <span class="scorecard-key">Critical Network Evidence</span>
+      <span class="scorecard-val">${critPins} pinned</span>
+    </li>
+    <li class="scorecard-row">
+      <span class="scorecard-key">Red Team State</span>
+      <span class="scorecard-val">${escapeHtml(redState.label)}</span>
+    </li>
+    <li class="scorecard-row">
+      <span class="scorecard-key">Blue Team Recommendation</span>
+      <span class="scorecard-val">${escapeHtml(recLabel)}</span>
+    </li>`;
+  if (contain !== null) {
+    rows += `
+    <li class="scorecard-row">
+      <span class="scorecard-key">Containment Progress</span>
+      <span class="scorecard-val scorecard-val--green">${contain}%</span>
+    </li>`;
+  }
+  return rows;
+}
+
 function renderM2Scorecard() {
   const host = document.getElementById("m2AnalystReview");
   if (!host) return;
   const currentRank = rankNameEl ? rankNameEl.textContent : M2_QUIZ.newRank;
+  const m2Tier = m2OutcomeTier();
   // Mirrors M1's buildCompletionHTML() exactly — same .completion-screen
   // / .scorecard / .certificate-preview chrome so M1 and M2 look identical.
   host.innerHTML = `
@@ -7171,7 +7568,10 @@ function renderM2Scorecard() {
         <span class="completion-icon">🏆</span>
         <div class="completion-titles">
           <h2 class="completion-title">Mission 2 Complete</h2>
-          <p class="completion-subtitle">${escapeHtml(M2_SCORECARD.subtitle)}</p>
+          <p class="completion-subtitle">
+            <span class="m2-outcome-tier m2-outcome-tier--${m2Tier.tone}">${escapeHtml(m2Tier.label)}</span>
+            — ${escapeHtml(m2Tier.note)}
+          </p>
         </div>
       </div>
 
@@ -7215,6 +7615,7 @@ function renderM2Scorecard() {
             <span class="scorecard-key">Trust Score</span>
             <span class="scorecard-val scorecard-val--cyan">${getTrustScore()} / 100</span>
           </li>
+          ${renderM2NetworkScorecardRows()}
           ${renderDecisionScorecardRows("mission-002")}
           ${renderAlertScorecardRows("mission-002")}
         </ul>
@@ -7398,6 +7799,15 @@ function resetMission2() {
   m2Confidence = 0;
   m2ConfidenceContributors.clear();
   renderConfidenceMeter("mission-002");
+
+  // Milestone 31A — reset Mission 2 Analyst Confidence + reasoning + drift.
+  clearM2ReasoningTimers();
+  m2AnalystConfidence = 0;
+  m2ReasoningAnswered.clear();
+  m2DecisionDrift = 0;
+  renderM2AnalystConfidence();
+  const reasoningHost = document.getElementById("m2Reasoning");
+  if (reasoningHost) { reasoningHost.innerHTML = ""; reasoningHost.style.display = "none"; }
 
   // Investigation Board — clear Mission 2 pins + pin UI on restart.
   investigationPins["mission-002"] = {};
@@ -9941,6 +10351,9 @@ function endGuidedRun() {
   // Milestone 27A — cancel a pending "Submitting analysis..." delay so a stale
   // reasoning/classification callback can't mutate pins/XP/UI after the exit.
   clearM1AnalysisTimer();
+  // Milestone 31A — cancel pending M2 reasoning pin-offer / retry timers so a
+  // stale callback can't open a pin prompt off-screen after navigation.
+  clearM2ReasoningTimers();
   // Milestone 28A — cancel a pending Blue Team decision submit / delayed red-team
   // event, and clear the decision-focus dim, on every mission-exit.
   clearM1DecisionTimers();
@@ -10620,6 +11033,30 @@ const RED_TEAM_ADAPT = {
   contained: "Threat activity partially stabilized.",
 };
 
+/* Milestone 31A — Mission 2 (Network Exposure) Red Team flavor. Same derived
+   state machine as Mission 1, but network-themed labels/goals/movement so the
+   adversary panel reads as a network intrusion rather than phishing. */
+const RED_TEAM_STATES_M2 = {
+  recon:      { label: "Network Recon Detected",        tone: "watch"  },
+  harvest:    { label: "External Probing Observed",     tone: "warn"   },
+  outbound:   { label: "Service Enumeration Underway",  tone: "warn"   },
+  expanding:  { label: "Exposed Services Targeted",     tone: "danger" },
+  pressure:   { label: "Attack Surface Pressure Rising",tone: "danger" },
+  stabilized: { label: "Activity Stabilized",           tone: "calm"   },
+};
+const ADVERSARY_GOALS_M2 = [
+  "Service Enumeration",
+  "Misconfiguration Discovery",
+  "Initial Access Preparation",
+];
+const RED_TEAM_MOVEMENT_LINES_M2 = [
+  "Sweeping the host for additional open ports.",
+  "Fingerprinting exposed service versions.",
+  "Probing the web service for weak configuration.",
+  "Testing SSH for default or reused credentials.",
+  "Mapping reachable hosts on the subnet.",
+];
+
 // Transient only — NOT persisted (resting state + goals are derived on render).
 const adversaryMovement = { "mission-001": "", "mission-002": "" };
 let redTeamMoveIndex = 0;
@@ -10679,14 +11116,21 @@ function computeRedTeamState(missionId) {
   return "recon";
 }
 
+/* Milestone 31A — pick the Red Team flavor set per mission. Mission 2 reads as
+   a network intrusion; Mission 1 keeps the original phishing flavor. */
+function redTeamStatesFor(mid)   { return mid === "mission-002" ? RED_TEAM_STATES_M2 : RED_TEAM_STATES; }
+function adversaryGoalsFor(mid)   { return mid === "mission-002" ? ADVERSARY_GOALS_M2 : ADVERSARY_GOALS; }
+function redTeamMovementFor(mid)  { return mid === "mission-002" ? RED_TEAM_MOVEMENT_LINES_M2 : RED_TEAM_MOVEMENT_LINES; }
+
 /** How many adversary goals have been uncovered (gradual, via real progress). */
 function adversaryGoalsRevealed(missionId) {
   const mid = btMissionId(missionId);
+  const goals = adversaryGoalsFor(mid);
   const complete = mid === "mission-002" ? mission2Complete : missionComplete;
-  if (complete) return ADVERSARY_GOALS.length;
+  if (complete) return goals.length;
   let n = (blueTeamSteps && blueTeamSteps[mid]) ? blueTeamSteps[mid].size : 0;
   if (n < 1 && blueTeamRedActive && blueTeamRedActive[mid]) n = 1;
-  return Math.max(0, Math.min(ADVERSARY_GOALS.length, n));
+  return Math.max(0, Math.min(goals.length, n));
 }
 
 /** Render the compact panel from derived state + the transient movement line.
@@ -10696,8 +11140,9 @@ function renderAdversaryStatus(missionId) {
   const panel = redTeamPanelEl(mid);
   if (!panel) return;
 
+  const states = redTeamStatesFor(mid);
   const stId = computeRedTeamState(mid);
-  const st = RED_TEAM_STATES[stId] || RED_TEAM_STATES.recon;
+  const st = states[stId] || states.recon;
   panel.className = "red-team-panel red-team-panel--" + st.tone;
 
   const stEl = panel.querySelector('[data-rt="state"]');
@@ -10720,7 +11165,7 @@ function renderAdversaryStatus(missionId) {
     } else {
       goalsWrap.style.display = "";
       goalsEl.innerHTML = "";
-      ADVERSARY_GOALS.slice(0, n).forEach((g) => {
+      adversaryGoalsFor(mid).slice(0, n).forEach((g) => {
         const chip = document.createElement("span");
         chip.className = "rt-goal-chip";
         chip.textContent = g;
@@ -10768,7 +11213,8 @@ function triggerRedTeamMovement(missionId) {
   const mid = btMissionId(missionId || getActiveMissionId());
   const complete = mid === "mission-002" ? mission2Complete : missionComplete;
   if (complete) return;
-  adversaryMovement[mid] = RED_TEAM_MOVEMENT_LINES[redTeamMoveIndex % RED_TEAM_MOVEMENT_LINES.length];
+  const moves = redTeamMovementFor(mid);
+  adversaryMovement[mid] = moves[redTeamMoveIndex % moves.length];
   redTeamMoveIndex++;
   renderAdversaryStatus(mid);
   pulseRedTeamPanel(mid, "alert");

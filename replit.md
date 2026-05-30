@@ -846,6 +846,52 @@ beginner-friendly (no punitive mechanics). The 30A module lives at the bottom of
 - Verified: `node --check` clean; e2e reached active M1 with "Red Team Activity" + "Possible
   Adversary Goal" visible above the threat meter, no console errors; architect review PASSED.
 
+### Mission 2 Pattern Parity (Milestone 31A)
+Applies Mission 1's per-step "reason → pin" gameplay/UX to Mission 2 (Network Exposure) for
+consistency while preserving M2's network identity. ADDITIVE only — no backend, no Mission 3,
+no removal of M2 content. M1 untouched.
+- **Per-step sequencing (one thing at a time)**: `runM2Command` shows command output + unlocks
+  the next command, then defers to `renderM2Reasoning(key)` instead of immediately offering the
+  pin. `M2_REASONING` (keyed `ip-addr`/`ping-bad`/`ping`/`nmap`) holds a 3-option MC question +
+  `correctMsg` + analyst-confidence delta. `handleM2Reasoning(key, letter)`: wrong → gentle
+  retry (no penalty, re-enables untried options after a beat); correct → mark answered
+  (`m2ReasoningAnswered` Set, one-time credit), bump Analyst Confidence, manager confirm,
+  persist, THEN `showPinPrompt("mission-002", key)` + set next objective. The 5th reasoning
+  ("what should Blue Team do") is MERGED into the Blue Team decision moment (the decision IS
+  that reasoning), so `review` has no reasoning prompt and keeps the decision trigger.
+- **Analyst Confidence (separate track from Evidence Confidence)**: `m2AnalystConfidence` (0)
+  with `M2_ANALYST_CONF_TIERS` (Low/Building/Developing/Strong/Ready). `renderM2AnalystConfidence`
+  draws the `#m2AnalystConfidence` bar (in M2 live-status). Climbs via reasoning deltas
+  (`addM2AnalystConfidence`); a correct analyst review forces `setM2AnalystConfidence(100)`
+  ("Ready"). Re-rendered on restore + `beginMission2` entry.
+- **Blue Team decision = 4 options** (M2 DECISION_ACTIONS): A recommend service restriction
+  (correct, completes well), B ignore (poor, no-advance, re-decide), C shut down all (acceptable,
+  completes weakly, not rewarded), D continue unrelated (poor scope-drift, no-advance). Poor
+  attempts increment `m2DecisionDrift`. M2 framing = "BLUE TEAM RESPONSE REQUIRED" + A/B/C/D.
+- **Red Team M2 sets**: `RED_TEAM_STATES_M2` / `ADVERSARY_GOALS_M2` (cap 3) /
+  `RED_TEAM_MOVEMENT_LINES_M2` selected via `redTeamStatesFor`/`adversaryGoalsFor`/
+  `redTeamMovementFor("mission-002")`; `renderAdversaryStatus`/`adversaryGoalsRevealed`/
+  `triggerRedTeamMovement` pick per mission. Network-themed states/goals on the M2 panel.
+- **Cinematic beats**: `showIncidentInterruption` fires on reachable host, open services, poor
+  decision, correct recommendation, and mission complete (`{force:true}`).
+- **Outcome + scorecard**: `m2OutcomeTier()` → Excellent/Delayed/Weak (never fail), shown as a
+  subtitle badge + "Operational Outcome" row. `renderM2NetworkScorecardRows()` adds Analyst
+  Confidence (Final), Critical Network Evidence (count uses `pin.critical === true` — pins store
+  `level`/`critical`, NOT `suspicion`), Red Team State, Blue Team Recommendation, Trust Change,
+  Containment Progress. These rows live INSIDE the collapsed "MISSION SCORECARD" section (same as
+  Trust Score / Result) — expand it to see them (an e2e text search misses them while collapsed).
+- **Persistence + cancel-safety**: `m2AnalystConfidence`/`m2ReasoningAnswered`/`m2DecisionDrift`
+  saved (~3271), restored with clamp + allowlist (~3570), cleared in `resetMission2`. Pending
+  reasoning timers (pin-offer 700ms / retry 600ms) are tracked in `m2ReasoningTimers` and
+  cancelled by `clearM2ReasoningTimers()` in `resetMission2` and `endGuidedRun` so a stale
+  callback can't open a pin prompt off-screen after navigation/reset.
+- **DELIBERATE DEVIATION (documented)**: reasoning gates the PIN offer, not command-button
+  unlocking. M2 keeps its pre-existing progressive command unlock (each command unlocks the
+  next on run) — tightening that to a hard reasoning-unlock gate is out of 31A scope and risks
+  soft-locks. Acceptance ("pin offered only after correct answer") is met.
+- Verified: `node --check` clean; workflow restarts clean; full M2 e2e (map → launch → commands
+  → reasoning → pins → decision → analyst review → quiz → scorecard) succeeded.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
