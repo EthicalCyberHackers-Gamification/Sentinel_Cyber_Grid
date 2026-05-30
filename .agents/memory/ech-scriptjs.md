@@ -39,6 +39,16 @@ large file loaded as `<script type="module">`.
   and re-assert the guard inside the callback, not just at schedule time. Reactive/ephemeral
   state like this is intentionally NOT persisted in save/restore.
 
+- **`endGuidedRun()` is NOT a complete mission-exit hook by itself.** `showMission2Overview()`
+  (the M1→M2 "Continue to Mission 2" CTA target) does NOT call `endGuidedRun()` — so any timer
+  teardown wired ONLY into `endGuidedRun` leaks across that transition and can fire off-screen
+  on M2. (`hideMission2Overview` DOES call it; `showMission2Overview` does not.)
+  **Why:** a teardown registered only in `endGuidedRun` survives the M1→M2 Continue
+  transition and lets a deferred timer fire on the M2 screen.
+  **How to apply:** when a side-effect must die on EVERY exit, hook its clear fn into BOTH
+  `endGuidedRun()` AND the top of `showMission2Overview()` (and audit any other screen-show fn
+  that doesn't route through `endGuidedRun`).
+
 - **One-time credit:** containment/trust grants that could be replayed use
   `updateContainmentProgress(..., { stepId })` with a unique stepId; the engine dedupes by
   stepId so the credit can't be farmed.

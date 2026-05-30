@@ -736,6 +736,49 @@ A UX/sync layer (M1 focus; M2 untouched; no flow/system changes).
 - Verified: typecheck clean, clean boot/HMR with no console errors, architect review (it caught
   the two cd-branch bugs above — both fixed).
 
+### Cinematic Incident Interruptions (Milestone 28C)
+A thin "emotional emphasis" layer that briefly dramatises MAJOR incident moments and renders
+AROUND the existing 26A event-toast system — its position/timing/queue/durations are UNCHANGED.
+The 28C JS module sits after `fxPulseXP` (`script.js` ~9368); the CSS is appended at the END of
+`style.css`.
+- **Public API**: `showIncidentInterruption(eventType, opts)`. Severities: `info | caution |
+  threat | containment | mission`. `eventType` resolves through `INCIDENT_INTERRUPTIONS`
+  (semantic name → severity + optional short manager follow-up) or accepts a raw severity.
+  `opts.force` bypasses the cooldown (mission-complete only); `opts.severity`/`opts.manager`
+  override the config.
+- **Effects layered AROUND the alert** (never instead of it): a brief background dim/vignette
+  (`#incidentCinemaLayer`, `pointer-events:none`, z-index 8000 — BELOW the toast host 9500 so
+  alerts stay readable), an active mission-node pulse (`pulseActiveMissionNode`), the
+  severity-appropriate meter/panel pulse (`fxPulseThreat` for threat/caution;
+  `pulseContainmentPanel` for containment/mission; `fxPulseConfidence` for info), a transmission
+  pulse (`pulseTransmissionIndicator` on the manager panel), a terminal flicker
+  (`terminal--cinema-flicker` on the active terminal output), and dramatic typing pacing — a
+  module-level `terminalPaceMultiplier` (default 1) that `typeCommandIntoTerminal` multiplies
+  `TERMINAL_TYPE_MS` by; the cinematic bumps it to 1.8 (2.4 for mission) for ~1.1s then restores.
+- **Guards**: bails on `demoRunning` (never intrudes on the teaching demo); only ONE cinematic
+  at a time (`incidentCinemaActive`) + a 1200ms cooldown (`INCIDENT_CINEMA_COOLDOWN_MS`). The
+  short, operational manager follow-up fires ~1.1s later via `pushManagerMessage` (its built-in
+  consecutive-dedupe naturally prevents spam when the same line repeats).
+- **Hooks (MAJOR events only — never per command/file/XP/evidence)**: `triggerEscalationEvent`
+  → `"escalation"` (threat); `triggerAdversaryEvent` → `"red-team-movement"` (threat);
+  `containThreatActivity` → `"containment-success"` (containment); `completeMission` →
+  `playMissionCompleteCinema("mission-001")`.
+- **Mission-complete transition**: `playMissionCompleteCinema` adds a BRIEF, auto-dismiss
+  centered caption ("MISSION COMPLETE / Threat Contained", `#incidentCinemaBanner`,
+  `pointer-events:none`, z-index 8500 — NOT a popup/modal, no buttons) + a Mission 2 node unlock
+  glow (`glowNextMissionNode` on mini-maps + the full `#missionsMap` node), layered around the
+  existing completion alerts/objective (which are unchanged).
+- **Teardown (every mission-exit)**: all timers (fade, manager follow-up, glow) are tracked in
+  `incidentCinemaTimers` via `cinemaTimer()`; `clearIncidentCinema()` cancels them, restores
+  `terminalPaceMultiplier`, clears the dim layer, and removes the banner. It is called from
+  `endGuidedRun()` (covers map/overview/back/reset/resume) AND explicitly at the top of
+  `showMission2Overview()` — the M1→M2 "Continue" path lands there WITHOUT routing through
+  `endGuidedRun`, so a delayed cinematic callback could otherwise fire on M2 (architect-caught).
+- **Accessibility**: a `prefers-reduced-motion` block disables the flicker/glow/keyframe
+  animations and shortens the fades.
+- Verified: typecheck clean, clean boot with no console errors, architect review (it caught the
+  `showMission2Overview` teardown gap above — fixed).
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

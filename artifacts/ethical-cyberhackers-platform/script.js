@@ -5114,6 +5114,11 @@ function completeMission(newRank) {
 
   // Milestone 18 — persist completion + new rank + unlock state
   saveProgress();
+
+  // Milestone 28C — cinematic mission-complete transition: a BRIEF "MISSION
+  // COMPLETE / Threat Contained" caption + Mission 2 node unlock glow, layered
+  // AROUND the existing completion alerts/objective (timing/location unchanged).
+  playMissionCompleteCinema("mission-001");
 }
 
 /* ============================================================
@@ -5718,6 +5723,9 @@ function runCommand(command, buttonKey = "") {
    ============================================================ */
 const TERMINAL_TYPE_SPEED = 40;            // FIX 1 — per-character command typing speed (25–40ms)
 const TERMINAL_TYPE_MS = TERMINAL_TYPE_SPEED; // alias kept for existing references below
+// Milestone 28C — dramatic pacing: a cinematic interruption may briefly bump
+// this multiplier so command typing slows for a beat, then it restores to 1.
+let terminalPaceMultiplier = 1;
 let terminalTypeState = null;  // { command, onDone, timer } | null
 
 /** Stop any in-progress typing WITHOUT running its command. */
@@ -5754,7 +5762,7 @@ function typeCommandIntoTerminal(command, onDone) {
     if (terminalTypeState !== state) return; // superseded / cancelled
     if (i < text.length) {
       terminalInput.value += text.charAt(i++);
-      state.timer = setTimeout(step, TERMINAL_TYPE_MS);
+      state.timer = setTimeout(step, TERMINAL_TYPE_MS * terminalPaceMultiplier);
     } else {
       terminalTypeState = null;
       state.timer = null;
@@ -6476,6 +6484,10 @@ function showMission2Overview() {
   const overview = document.getElementById("mission2Overview");
   if (!overview) return;
   setMissionRunning(false); // Milestone 25A — overview is not an active dashboard.
+  // Milestone 28C — the M1→M2 "Continue" path lands here WITHOUT routing through
+  // endGuidedRun(), so tear down any live cinematic (cancels its fade/follow-up/
+  // glow timers) explicitly — otherwise a delayed callback could fire on M2.
+  clearIncidentCinema();
   if (dashboardEl)     dashboardEl.style.display     = "none";
   if (moduleLandingEl) moduleLandingEl.style.display = "none";
   // Milestone 25C — also hide the Missions Map when launching M2 from it, so
@@ -8609,6 +8621,8 @@ function triggerAdversaryEvent(eventText, severity, opts) {
   pulseActiveMissionNode();
   // Stage 2 — Blue Team identity: surface the "Red Team Activity Detected" flag.
   setRedTeamActive("mission-001", true);
+  // Milestone 28C — brief cinematic emphasis around major Red Team movement.
+  showIncidentInterruption("red-team-movement");
   return true;
 }
 
@@ -8985,6 +8999,9 @@ function triggerEscalationEvent(missionId, opts) {
   setContainmentCaption(missionId, "Pressure rising — act quickly to contain.");
   fxFlash(btDom(missionId, "panel"), "blue-team-panel--flash", 700);
 
+  // Milestone 28C — cinematic emphasis around mission escalation.
+  showIncidentInterruption("escalation");
+
   try { saveProgress(); } catch (_) { /* non-fatal */ }
   return true;
 }
@@ -9003,6 +9020,9 @@ function containThreatActivity(missionId, opts) {
   renderIncidentPressure(missionId);
 
   showBlueTeamUpdate(missionId, opts.text || "Threat spread interrupted.", { toast: true });
+
+  // Milestone 28C — cinematic stabilization glow around successful containment.
+  showIncidentInterruption("containment-success");
 
   if (incidentPressure[missionId] <= 0) {
     setIncidentStatus(missionId, blueTeamRedActive[missionId] ? "Active Threat" : "Monitoring");
@@ -9360,6 +9380,220 @@ function fxPulseXP() {
 }
 
 /* ============================================================
+   Milestone 28C — Cinematic Incident Interruptions
+   ------------------------------------------------------------
+   A thin "emotional emphasis" layer that briefly dramatises MAJOR
+   incident moments. It renders AROUND the existing event-toast system
+   (its position, timing, queue and durations are UNCHANGED) — never
+   instead of it. Every layer is pointer-events:none so it NEVER blocks
+   the terminal or buttons, only ONE emphasis runs at a time, and each
+   effect fades cleanly so the UI calmly returns to investigation mode.
+   - showIncidentInterruption(eventType, opts) — single reusable entry.
+   - severities: info | caution | threat | containment | mission.
+   - never intrudes on the teaching demo; fully torn down on every
+     mission-exit via endGuidedRun() → clearIncidentCinema().
+   ============================================================ */
+const INCIDENT_SEVERITIES = ["info", "caution", "threat", "containment", "mission"];
+
+// Semantic event name → severity (+ short, operational manager follow-up).
+// Callers may also pass a raw severity directly as the eventType.
+const INCIDENT_INTERRUPTIONS = {
+  "red-team-movement":    { severity: "threat" },
+  "escalation":           { severity: "threat",      manager: "We may be losing containment." },
+  "additional-targeting": { severity: "caution",     manager: "This may no longer be isolated to one employee." },
+  "containment-success":  { severity: "containment", manager: "Good response. Threat spread appears reduced." },
+  "workstation-isolated": { severity: "containment", manager: "Good response. Threat spread appears reduced." },
+  "mission-complete":     { severity: "mission" },
+  "assignment-unlocked":  { severity: "info" },
+};
+
+// How long the dim/glow emphasis dwells before it fades (ms). "mission" lingers
+// a touch longer for weight; everything else is a brief flourish.
+const INCIDENT_CINEMA_HOLD = { info: 700, caution: 800, threat: 950, containment: 950, mission: 1500 };
+const INCIDENT_CINEMA_FADE_MS = 520;      // matches the CSS fade-out
+const INCIDENT_CINEMA_COOLDOWN_MS = 1200; // ignore rapid re-triggers (anti-spam)
+
+let incidentCinemaLayer = null;
+let incidentCinemaActive = false;         // one cinematic emphasis at a time
+let lastIncidentCinemaAt = 0;
+let incidentCinemaTimers = [];            // all pending teardown/follow-up timers
+
+/** Track a timer so clearIncidentCinema() can cancel it on a mission-exit. */
+function cinemaTimer(fn, ms) {
+  const id = window.setTimeout(() => {
+    incidentCinemaTimers = incidentCinemaTimers.filter((t) => t !== id);
+    fn();
+  }, ms);
+  incidentCinemaTimers.push(id);
+  return id;
+}
+
+function ensureIncidentCinemaLayer() {
+  if (incidentCinemaLayer && document.body.contains(incidentCinemaLayer)) return incidentCinemaLayer;
+  incidentCinemaLayer = document.createElement("div");
+  incidentCinemaLayer.id = "incidentCinemaLayer";
+  incidentCinemaLayer.className = "incident-cinema";
+  incidentCinemaLayer.setAttribute("aria-hidden", "true");
+  document.body.appendChild(incidentCinemaLayer);
+  return incidentCinemaLayer;
+}
+
+/** The mission whose dashboard is currently on screen (M2 if visible, else M1). */
+function activeCinemaMission() {
+  const m2 = document.getElementById("mission2Dashboard");
+  return (m2 && m2.style.display !== "none") ? "mission-002" : "mission-001";
+}
+
+/** The active mission's terminal OUTPUT element (for the dramatic flicker). */
+function activeTerminalOutput() {
+  return document.getElementById(
+    activeCinemaMission() === "mission-002" ? "m2Terminal" : "terminalOutput"
+  );
+}
+
+/** Briefly slow command typing + flicker the terminal for dramatic pacing, then
+ *  cleanly restore. NEVER freezes input — it only paces the animation. */
+function applyTerminalDramaticPacing(severity) {
+  const term = activeTerminalOutput();
+  if (term) fxFlash(term, "terminal--cinema-flicker", 900);
+  terminalPaceMultiplier = severity === "mission" ? 2.4 : 1.8;
+  cinemaTimer(() => { terminalPaceMultiplier = 1; }, 1100);
+}
+
+/** Pulse the containment progress panel + fill for a mission (no-op safe). */
+function pulseContainmentPanel(missionId) {
+  const panel = btDom(missionId, "panel");
+  if (panel) fxFlash(panel, "blue-team-panel--cinema", 1100);
+  const fill = btDom(missionId, "fill");
+  if (fill) fxFlash(fill, "containment-fill--cinema", 1100);
+}
+
+/** Pulse the manager transmission indicator (no-op safe outside M1/M2). */
+function pulseTransmissionIndicator(missionId) {
+  const panel = document.getElementById(
+    missionId === "mission-002" ? "m2ManagerPanel" : "managerPanel"
+  );
+  if (panel) fxFlash(panel, "manager-panel--cinema", 1200);
+}
+
+/** Glow a mission node (mini-maps + full map) to signal a new assignment. */
+function glowNextMissionNode(missionId) {
+  const sel = `[data-mission="${missionId}"]`;
+  document
+    .querySelectorAll(`#m1MiniMap ${sel}, #m2MiniMap ${sel}`)
+    .forEach((n) => fxFlash(n, "mini-node--unlock-glow", 2900));
+  const mapNode = document.querySelector(`#missionsMap ${sel}`);
+  if (mapNode) fxFlash(mapNode, "mission-node--unlock-glow", 2900);
+}
+
+/** PUBLIC API — add brief cinematic emphasis around a MAJOR incident event.
+ *  Renders dim/glow/pulses AROUND the existing alerts (never changes them).
+ *  Returns true if an emphasis played. */
+function showIncidentInterruption(eventType, opts) {
+  opts = opts || {};
+  if (demoRunning) return false; // never intrude on the teaching demo
+
+  const cfg = INCIDENT_INTERRUPTIONS[eventType] || null;
+  const severity = INCIDENT_SEVERITIES.includes(opts.severity)
+    ? opts.severity
+    : (cfg ? cfg.severity
+           : (INCIDENT_SEVERITIES.includes(eventType) ? eventType : "info"));
+
+  // One emphasis at a time + a short cooldown so bursts never stack or spam.
+  const now = Date.now();
+  if (incidentCinemaActive) return false;
+  if (!opts.force && now - lastIncidentCinemaAt < INCIDENT_CINEMA_COOLDOWN_MS) return false;
+  lastIncidentCinemaAt = now;
+  incidentCinemaActive = true;
+
+  const mission = activeCinemaMission();
+
+  // 1) Background dim + brief severity tint (pointer-events:none — never blocks).
+  const layer = ensureIncidentCinemaLayer();
+  layer.className = "incident-cinema incident-cinema--" + severity;
+  void layer.offsetWidth;
+  layer.classList.add("incident-cinema--show");
+
+  // 2) Terminal dramatic pacing (flicker + brief typing slowdown).
+  applyTerminalDramaticPacing(severity);
+
+  // 3) Mission Control reactions — active node pulse + the relevant indicator.
+  if (typeof pulseActiveMissionNode === "function") pulseActiveMissionNode();
+  if (severity === "threat" || severity === "caution") {
+    fxPulseThreat(mission);
+  } else if (severity === "containment" || severity === "mission") {
+    pulseContainmentPanel(mission);
+  } else {
+    fxPulseConfidence(mission);
+  }
+  // 4) Manager transmission indicator reacts shortly afterward.
+  pulseTransmissionIndicator(mission);
+
+  // 5) Short, operational manager follow-up a beat later (deduped by
+  //    pushManagerMessage so repeats of the same line never spam the feed).
+  const managerLine = opts.manager || (cfg && cfg.manager) || "";
+  if (managerLine) cinemaTimer(() => pushManagerMessage(mission, managerLine), 1100);
+
+  // 6) Hold, then fade out and calmly return to investigation mode.
+  const hold = INCIDENT_CINEMA_HOLD[severity] || 800;
+  cinemaTimer(() => {
+    layer.classList.remove("incident-cinema--show");
+    layer.classList.add("incident-cinema--hide");
+    cinemaTimer(() => {
+      layer.classList.remove("incident-cinema--hide");
+      incidentCinemaActive = false;
+    }, INCIDENT_CINEMA_FADE_MS);
+  }, hold);
+  return true;
+}
+
+/** Mission-complete cinematic transition: a BRIEF, auto-dismiss centered caption
+ *  ("MISSION COMPLETE / Threat Contained") + the next mission node unlock glow.
+ *  Layered AROUND the existing completion alerts/objective — it changes none of
+ *  the alert timing/location and adds no persistent popup. */
+function playMissionCompleteCinema(missionId) {
+  if (demoRunning) return;
+  showIncidentInterruption("mission-complete", { force: true });
+
+  let banner = document.getElementById("incidentCinemaBanner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "incidentCinemaBanner";
+    banner.className = "incident-cinema-banner";
+    banner.setAttribute("aria-hidden", "true");
+    banner.innerHTML =
+      '<span class="incident-cinema-banner-title">MISSION COMPLETE</span>' +
+      '<span class="incident-cinema-banner-sub">Threat Contained</span>';
+    document.body.appendChild(banner);
+  }
+  banner.classList.remove("incident-cinema-banner--show");
+  void banner.offsetWidth;
+  banner.classList.add("incident-cinema-banner--show");
+  cinemaTimer(() => {
+    banner.classList.remove("incident-cinema-banner--show");
+    cinemaTimer(() => { if (banner.parentNode) banner.parentNode.removeChild(banner); }, 600);
+  }, 1900);
+
+  // The next assignment (Mission 2) node glows on the map shortly afterward.
+  cinemaTimer(() => glowNextMissionNode("mission-002"), 700);
+}
+
+/** Tear down all cinematic state/timers + clear the dim layer. Called from
+ *  endGuidedRun() so EVERY mission-exit fully resets the cinematic layer and a
+ *  pending fade/follow-up can never fire off-screen. */
+function clearIncidentCinema() {
+  incidentCinemaTimers.forEach((id) => clearTimeout(id));
+  incidentCinemaTimers = [];
+  terminalPaceMultiplier = 1;
+  incidentCinemaActive = false;
+  if (incidentCinemaLayer) {
+    incidentCinemaLayer.classList.remove("incident-cinema--show", "incident-cinema--hide");
+  }
+  const banner = document.getElementById("incidentCinemaBanner");
+  if (banner && banner.parentNode) banner.parentNode.removeChild(banner);
+}
+
+/* ============================================================
    Milestone 25B — Guided Spotlight Mission Flow
    ------------------------------------------------------------
    Turns the static left-panel Briefing Room into a guided,
@@ -9687,6 +9921,9 @@ function endGuidedRun() {
   // Stage 3 — stop the idle-escalation watch on every mission-exit so a pending
   // timer can never fire off-screen after the student navigates away.
   clearEscalationWatch();
+  // Milestone 28C — tear down any in-flight cinematic interruption (dim layer,
+  // banner, follow-up/fade timers, pacing) so nothing fires off-screen.
+  clearIncidentCinema();
   // If an opt-in demo is mid-flight, tear it down on ANY navigation exit so
   // its timers can't fire off-screen and `suppressSave` is never left stuck.
   if (demoRunning) abortDemo();

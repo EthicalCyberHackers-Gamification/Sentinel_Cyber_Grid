@@ -1,0 +1,318 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Reactive Incident Evolution exists.
+* Emotional Gameplay Decision Layer exists.
+* Guided investigative pacing exists.
+* Mission 1 now reacts dynamically to student decisions.
+* Mission Map, manager reactions, threat level, trust score, containment progress, and investigation systems work.
+* Current system alert positioning and timing have already been refined and MUST remain unchanged.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 28C — Cinematic Incident Interruptions
+
+Purpose:
+Make important cyber incident events feel emotionally impactful and attention-grabbing WITHOUT cluttering the interface or overwhelming the student.
+
+Important:
+Do NOT add giant popups.
+Do NOT add constant flashing.
+Do NOT redesign the entire app.
+Do NOT add backend, AI, multiplayer, or sound.
+
+CRITICAL:
+Do NOT change:
+
+* current system alert location
+* current alert timing
+* current alert queue behavior
+* current toast positioning
+* current alert durations
+
+The current alert placement and timing system has already been tuned for readability and student visibility and must remain intact.
+
+This milestone should ENHANCE the emotional feel of alerts using:
+
+* subtle environmental reactions
+* temporary cinematic emphasis
+* background dimming
+* mission pulses
+* terminal pacing
+* mission node reactions
+
+NOT by relocating or retiming alerts.
+
+Core Design Goal:
+Important events should briefly take over player attention, then disappear cleanly.
+
+The system should feel:
+alive,
+reactive,
+and cinematic.
+
+NOT:
+spammy or cluttered.
+
+---
+
+1. USE EXISTING ALERT SYSTEM
+
+---
+
+Do NOT replace the current alert/toast system.
+
+Instead:
+layer cinematic effects AROUND the existing alerts.
+
+Existing alerts should remain:
+
+* in the same position
+* same duration
+* same animation timing
+* same queue behavior
+
+---
+
+2. ADD CINEMATIC EMPHASIS LAYER
+
+---
+
+Create reusable function:
+
+showIncidentInterruption(eventType)
+
+Purpose:
+Temporarily increase emotional weight around important events.
+
+Behavior examples:
+
+* slight background dim
+* subtle terminal flicker
+* mission node pulse
+* threat indicator animation
+* containment progress animation
+* transmission pulse
+* temporary UI focus emphasis
+
+Do NOT create large new overlays.
+
+---
+
+3. INTERRUPTION SEVERITY TYPES
+
+---
+
+Severity types:
+
+* info
+* caution
+* threat
+* containment
+* mission
+
+Visual behavior only:
+Do NOT modify alert location or duration.
+
+info:
+subtle cyan pulse
+
+caution:
+small amber pulse
+
+threat:
+brief red environmental pulse
+
+containment:
+green/blue stabilization glow
+
+mission:
+stronger cinematic mission transition effect
+
+---
+
+4. IMPORTANT EVENTS ONLY
+
+---
+
+Only apply cinematic emphasis to:
+
+* major Red Team movement
+* successful containment
+* mission escalation
+* additional employee targeting
+* workstation isolation
+* mission complete
+* new assignment unlocked
+
+Do NOT trigger cinematic emphasis for:
+
+* every command
+* every file open
+* small XP changes
+* small evidence updates
+
+---
+
+5. TERMINAL DRAMATIC PACING
+
+---
+
+During major interruption events:
+
+* briefly slow terminal typing animation
+* slightly dim terminal background
+* then restore normal interaction
+
+Do NOT freeze the app.
+Do NOT interrupt gameplay for long.
+
+Purpose:
+Create dramatic pacing while preserving usability.
+
+---
+
+6. MISSION CONTROL REACTIONS
+
+---
+
+When major incident events occur:
+
+* current mission node pulses briefly
+* threat indicator animates
+* containment progress visibly updates
+* manager transmission indicator reacts shortly afterward
+
+This should make the Mission Control environment feel alive.
+
+---
+
+7. MANAGER FOLLOW-UP
+
+---
+
+After major incident reactions:
+manager should respond naturally.
+
+Examples:
+
+Threat escalation:
+“We may be losing containment.”
+
+Successful isolation:
+“Good response. Threat spread appears reduced.”
+
+Additional phishing:
+“This may no longer be isolated to one employee.”
+
+Keep responses:
+short,
+operational,
+and emotionally grounded.
+
+---
+
+8. KEEP UI CLEAN
+
+---
+
+Rules:
+
+* only ONE major cinematic emphasis event at a time
+* no giant persistent overlays
+* no alert spam
+* no stacked cinematic interruptions
+* no large dashboard growth
+
+After each event:
+the UI should calmly return to investigation mode.
+
+---
+
+9. LIGHT ENVIRONMENTAL MOTION
+
+---
+
+Add subtle environmental motion:
+
+* mission node pulse
+* transmission blink
+* containment bar animation
+* threat pulse
+* terminal flicker during major events
+
+Keep animations:
+professional,
+lightweight,
+and readable.
+
+---
+
+10. MISSION COMPLETE TRANSITION
+
+---
+
+When Mission 1 completes:
+brief cinematic transition:
+
+MISSION COMPLETE
+Threat Contained
+
+Then:
+Mission 2 node glows on Mission Map.
+
+Then:
+Current Objective updates:
+“Proceed to the next assignment.”
+
+Do NOT modify the existing alert timing/location behavior during this sequence.
+
+---
+
+11. PRESERVE EXISTING SYSTEMS
+
+---
+
+Do not break:
+
+* terminal commands
+* guided file reveal
+* reasoning prompts
+* investigation board
+* decision system
+* reactive incident evolution
+* manager reactions
+* hints
+* XP
+* trust score
+* threat level
+* containment progress
+* mission completion
+* scorecards
+* mission map
+* local progress save
+* Mission 2
+* existing alert placement
+* existing alert durations
+* existing toast queue system
+
+---
+
+## GOAL
+
+Important cyber incident moments should now feel:
+urgent,
+alive,
+and emotionally impactful.
+
+The student should feel:
+“I am responding to a live cyber incident.”
+
+WITHOUT:
+dashboard overload,
+constant interruptions,
+or gameplay confusion.
+
+The current readable alert positioning/timing system must remain preserved exactly as it currently exists.

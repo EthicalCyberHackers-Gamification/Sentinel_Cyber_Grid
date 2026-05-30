@@ -1,1 +1,1 @@
-- [Ethical CyberHackers — script.js conventions](ech-scriptjs.md) — ES-module (non-global fns), delayed-timer + teardown patterns, and duplicate-symbol pitfall.
+- [ECH script.js conventions](ech-scriptjs.md) — ES-module gotchas for the Ethical CyberHackers platform: not-global fns, teardown/timer patterns, duplicate-symbol crash, mission-exit paths.
