@@ -1,1 +1,1 @@
-- [ECH Platform architecture](ech-platform.md) — endGuidedRun central teardown hub; resetMission skips trustScore; audio autoplay gesture; @assets alias; session vs persisted flags; afterCommand needs a button key; guided overlays must out-rank floating fixed UI.
+- [ECH Platform architecture](ech-platform.md) — endGuidedRun teardown hub; resetMission skips trustScore; audio gesture; @assets alias; session-vs-persisted flags; afterCommand needs a button key; overlays out-rank floating UI; shared paced terminal reveal queue.

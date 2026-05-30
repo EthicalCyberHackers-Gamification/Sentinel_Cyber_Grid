@@ -60,3 +60,17 @@ these, so its Next button received no clicks (demo got "stuck").
 `body.demo-active` to CSS-hide them). Also clamp the coach's `top`/`left` inside the
 viewport (`positionCoach`) so its buttons never render off-screen when the target is
 scrolled to an edge.
+
+## One shared paced-reveal queue serves both M1 and M2 terminals
+The terminal "type-out" effect reveals OUTPUT lines one at a time from a single global
+queue (`outputRevealQueue`); both `#terminalOutput` (M1) and `#m2Terminal` (M2) feed it.
+Command ECHO lines must show instantly (flush the queue first), only OUTPUT/blank/info
+lines are paced.
+**Why:** M1 echoes via `printCommand` (always instant), but M2's `printM2Line` decides by
+CSS class — and the main M2 flow emits its echo with class `m2-line--prompt`, while the
+demo path uses `m2-line--cmd`. A naive `cls.includes("cmd")` check missed the real M2
+echoes and queued them as slow output.
+**How to apply:** treat BOTH `cmd` and `prompt` classes as instant command echoes in
+`printM2Line`. Any new terminal writer must flush before echoing a command, and clears
+(`clearTerminal`, `resetMission2`) must drop the queue (`clearTerminalOutputQueue`).
+Clicking either terminal flushes pending reveals (skip-to-end).

@@ -538,10 +538,16 @@ function handlePinClassification(missionId, key, level) {
 /** Scripted supervisor reaction text for a pin. */
 function pinReactionText(missionId, key, level, correct) {
   if (!correct) {
+    // FIX 2 — clearer guidance when the employee notes finding is misjudged.
+    if (missionId === "mission-001" && key === "employee_notes.txt") {
+      return "Re-check this note. It supports reporting suspicious files, but it is not the main threat.";
+    }
     return "This appears to be normal business activity. Focus on evidence involving credentials, external communication, or policy violations.";
   }
   if (missionId === "mission-001") {
     if (key === "suspicious_file.txt") return "Excellent. Requests for passwords through unknown email channels are a major phishing indicator.";
+    // FIX 2 — employee notes correctly tagged as Helpful Supporting Evidence.
+    if (key === "employee_notes.txt") return "Good. This note supports proper reporting behavior.";
     if (key === "security_policy.txt") return "Good supporting evidence. Company policy helps validate your conclusion.";
     if (level === "helpful") return "Good supporting evidence. That strengthens your case.";
     return "Good judgment. Not every file is suspicious.";
@@ -2933,7 +2939,59 @@ function updatePromptDisplay() {
    TERMINAL OUTPUT HELPERS
    ============================================================ */
 
+/* ============================================================
+   FIX 1 — Readable terminal OUTPUT pacing.
+   Command echoes still appear instantly (and are typed in for clicks),
+   but OUTPUT lines are revealed one at a time so beginners can read
+   them. Clicking the terminal body skips the reveal and shows
+   everything immediately.
+   ============================================================ */
+const TERMINAL_LINE_DELAY = 550;   // ms between revealed terminal OUTPUT lines
+let outputRevealQueue = [];        // hidden output <div>s awaiting reveal
+let outputRevealTimer = null;
+
+function queueTerminalReveal(el) {
+  el.classList.add("term-pending");
+  outputRevealQueue.push(el);
+  if (!outputRevealTimer) {
+    outputRevealTimer = setTimeout(revealNextTerminalLine, TERMINAL_LINE_DELAY);
+  }
+}
+
+function revealNextTerminalLine() {
+  outputRevealTimer = null;
+  const el = outputRevealQueue.shift();
+  if (el) {
+    el.classList.remove("term-pending");
+    const c = el.parentElement;
+    if (c) c.scrollTop = c.scrollHeight;
+  }
+  if (outputRevealQueue.length) {
+    outputRevealTimer = setTimeout(revealNextTerminalLine, TERMINAL_LINE_DELAY);
+  }
+}
+
+/** Skip the reveal animation — show every pending output line at once. */
+function flushTerminalOutput() {
+  if (outputRevealTimer) { clearTimeout(outputRevealTimer); outputRevealTimer = null; }
+  while (outputRevealQueue.length) {
+    outputRevealQueue.shift().classList.remove("term-pending");
+  }
+  ["terminalOutput", "m2Terminal"].forEach((id) => {
+    const c = document.getElementById(id);
+    if (c) c.scrollTop = c.scrollHeight;
+  });
+}
+
+/** Drop pending reveals without showing them (used when clearing). */
+function clearTerminalOutputQueue() {
+  if (outputRevealTimer) { clearTimeout(outputRevealTimer); outputRevealTimer = null; }
+  outputRevealQueue = [];
+}
+
 function printCommand(command) {
+  // A fresh command flushes any still-revealing output so order stays correct.
+  flushTerminalOutput();
   const line = document.createElement("div");
   line.className = "terminal-line terminal-line--new";
   line.innerHTML =
@@ -2950,7 +3008,7 @@ function printOutput(text, type = "default") {
     `<span class="terminal-prompt" style="opacity:0;user-select:none;">$</span>` +
     `<span class="terminal-text terminal-text--${type}">${text}</span>`;
   terminalOutput.appendChild(line);
-  scrollTerminal();
+  queueTerminalReveal(line); // FIX 1 — paced reveal
 }
 
 function printBlankLine() {
@@ -2958,7 +3016,7 @@ function printBlankLine() {
   line.className = "terminal-line";
   line.innerHTML = "&nbsp;";
   terminalOutput.appendChild(line);
-  scrollTerminal();
+  queueTerminalReveal(line); // FIX 1 — keep blank spacing in output order
 }
 
 function scrollTerminal() {
@@ -2979,11 +3037,16 @@ function printBootMessages() {
       `<span class="terminal-text">${msg.text}</span>`;
     terminalOutput.appendChild(line);
   });
-  printBlankLine();
+  // Boot lines stay instant (no paced reveal queue).
+  const blank = document.createElement("div");
+  blank.className = "terminal-line";
+  blank.innerHTML = "&nbsp;";
+  terminalOutput.appendChild(blank);
   scrollTerminal();
 }
 
 function clearTerminal() {
+  clearTerminalOutputQueue(); // FIX 1 — drop any pending reveals
   terminalOutput.innerHTML = "";
 }
 
@@ -3850,10 +3913,83 @@ function completeMission(newRank) {
     // Wire up the Restart Mission button
     const restartBtn = document.getElementById("restartMissionBtn");
     if (restartBtn) restartBtn.addEventListener("click", resetMission);
+
+    // FIX 3 — wire the Next Step panel buttons.
+    wireNextStepButtons("mission-001");
   }
+
+  // FIX 4 — pulse the Mission Map buttons until the student opens the map.
+  setMapButtonsAttention("mission-001", true);
+  // FIX 5 — completion-state clarity: point the objective + manager at the map.
+  setCurrentObjective("mission-001", COMPLETION_OBJECTIVE);
+  setManagerText("mission-001", COMPLETION_MANAGER);
 
   // Milestone 18 — persist completion + new rank + unlock state
   saveProgress();
+}
+
+/* ============================================================
+   FIX 3/4/5 — Post-completion "Next Step" guidance.
+   After a mission completes the student gets: a clear Next Step panel
+   (Open Mission Map / Review Scorecard) at the top of the completion
+   screen, pulsing Mission Map buttons with a "Next Step" badge, locked
+   command buttons, and a Current Objective + manager line that both
+   point back to the Mission Map.
+   ============================================================ */
+const NEXT_STEP_TEXT = {
+  "mission-001": "Mission 1 complete. Return to the Mission Map to unlock and start Mission 2.",
+  "mission-002": "Mission 2 complete. Return to the Mission Map to review your progress and see the next locked mission.",
+};
+const COMPLETION_OBJECTIVE = "Mission complete. Open the Mission Map to continue.";
+const COMPLETION_MANAGER   = "Good work. Return to the Mission Map to continue your training path.";
+
+function buildNextStepHTML(missionId) {
+  const text = NEXT_STEP_TEXT[missionId] || COMPLETION_OBJECTIVE;
+  const sfx  = missionId === "mission-002" ? "M2" : "M1";
+  return `
+    <div class="next-step-panel" id="nextStepPanel${sfx}">
+      <span class="next-step-label">NEXT STEP</span>
+      <p class="next-step-text">${escapeHtml(text)}</p>
+      <div class="next-step-actions">
+        <button type="button" class="next-step-btn next-step-btn--primary" id="nextStepMap${sfx}">
+          Open Mission Map
+        </button>
+        <button type="button" class="next-step-btn next-step-btn--secondary" id="nextStepScore${sfx}">
+          Review Scorecard
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function wireNextStepButtons(missionId) {
+  const sfx = missionId === "mission-002" ? "M2" : "M1";
+  const mapBtn = document.getElementById(`nextStepMap${sfx}`);
+  if (mapBtn) mapBtn.addEventListener("click", showMissionsMap);
+  const scoreBtn = document.getElementById(`nextStepScore${sfx}`);
+  if (scoreBtn) scoreBtn.addEventListener("click", () => {
+    const hostId = missionId === "mission-002" ? "m2AnalystReview" : "quizPanel";
+    const host = document.getElementById(hostId);
+    const card = host ? host.querySelector(".scorecard") : null;
+    if (card && card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+/** FIX 4 — pulse the Mission Map buttons + show a "Next Step" badge. */
+function setMapButtonsAttention(missionId, on) {
+  const ids = missionId === "mission-002"
+    ? ["m2MapBackBtn", "m2OpenFullMapBtn", "m2OverviewMapBackBtn"]
+    : ["m1MapBackBtn", "m1OpenFullMapBtn"];
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("map-cta-attention", !!on);
+  });
+}
+
+/** Clear the pulsing attention from every mission's map buttons. */
+function clearAllMapButtonsAttention() {
+  setMapButtonsAttention("mission-001", false);
+  setMapButtonsAttention("mission-002", false);
 }
 
 /**
@@ -3874,6 +4010,9 @@ function buildCompletionHTML(newRank) {
           <p class="completion-subtitle">You identified a phishing attempt.</p>
         </div>
       </div>
+
+      <!-- FIX 3 — clear Next Step guidance at the top of the screen. -->
+      ${buildNextStepHTML("mission-001")}
 
       <!-- ===== MISSION SCORECARD (Milestone 8) =====
            Replaces the old 3-row summary with a full training summary.
@@ -4145,6 +4284,7 @@ function resetMission() {
   // Stop any in-progress command typing so a pending command can't fire
   // into the terminal after we've reset.
   cancelTerminalTyping();
+  setMapButtonsAttention("mission-001", false); // FIX 4 — restart clears the prompt.
   // 1. Reset state variables — back to the pre-briefing state
   currentDir       = "~";
   currentXP        = INITIAL_XP;
@@ -4310,7 +4450,8 @@ function runCommand(command, buttonKey = "") {
    can SEE what is being sent to the command line, then it runs.
    Reused by the opt-in demo to mimic real, manual usage.
    ============================================================ */
-const TERMINAL_TYPE_MS = 38;   // per-character typing speed
+const TERMINAL_TYPE_SPEED = 40;            // FIX 1 — per-character command typing speed (25–40ms)
+const TERMINAL_TYPE_MS = TERMINAL_TYPE_SPEED; // alias kept for existing references below
 let terminalTypeState = null;  // { command, onDone, timer } | null
 
 /** Stop any in-progress typing WITHOUT running its command. */
@@ -4363,6 +4504,13 @@ function typeCommandIntoTerminal(command, onDone) {
    ============================================================ */
 
 function initTerminalInput() {
+  // FIX 1 — clicking anywhere in either terminal skips the paced output reveal.
+  ["terminalOutput", "m2Terminal"].forEach((id) => {
+    const c = document.getElementById(id);
+    if (c) c.addEventListener("click", () => {
+      if (outputRevealQueue.length) flushTerminalOutput();
+    });
+  });
   if (!terminalInput) return;
   terminalInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -4680,6 +4828,7 @@ function showMissionsMap() {
   // Leave any active mission UI cleanly (parity with backToModuleOverview).
   setMissionRunning(false);
   endGuidedRun();
+  clearAllMapButtonsAttention(); // FIX 4 — student followed the Next Step prompt.
   if (moduleLandingEl) moduleLandingEl.style.display = "none";
   if (dashboardEl)     dashboardEl.style.display     = "none";
   if (simLoaderEl)     simLoaderEl.style.display     = "none";
@@ -5648,6 +5797,13 @@ function handleM2QuizAnswer(letter) {
   // Milestone 24B — Mission 2 complete → network secured (Low).
   setThreatLevel("Low", "mission-002");
 
+  // FIX 5 — completion-state clarity for Mission 2.
+  syncM2Buttons(); // lock command buttons now that the mission is complete
+  setCurrentObjective("mission-002", COMPLETION_OBJECTIVE);
+  setM2ManagerMessage(COMPLETION_MANAGER);
+  // FIX 4 — pulse the Mission Map buttons until the student opens the map.
+  setMapButtonsAttention("mission-002", true);
+
   // Replace the analyst review host content with the completion + scorecard
   // (keeps everything inside the COMMANDS panel — same pattern as M1).
   setTimeout(() => renderM2Scorecard(), 1200);
@@ -5673,6 +5829,9 @@ function renderM2Scorecard() {
           <p class="completion-subtitle">${escapeHtml(M2_SCORECARD.subtitle)}</p>
         </div>
       </div>
+
+      <!-- FIX 3 — clear Next Step guidance at the top of the screen. -->
+      ${buildNextStepHTML("mission-002")}
 
       <!-- ===== MISSION SCORECARD ===== -->
       <div class="scorecard">
@@ -5819,13 +5978,16 @@ function renderM2Scorecard() {
     resetMission2();
     beginMission2();
   });
+
+  // FIX 3 — wire the Next Step panel buttons.
+  wireNextStepButtons("mission-002");
 }
 
 function syncM2Buttons() {
   document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
     const key = btn.getAttribute("data-m2cmd");
     const unlocked = m2UnlockedCmds.has(key);
-    btn.disabled = !unlocked;
+    btn.disabled = !unlocked || mission2Complete; // FIX 5 — lock commands after completion
     btn.classList.toggle("m2-cmd-btn--unlocked", unlocked);
     if (unlocked) btn.removeAttribute("title");
   });
@@ -5838,7 +6000,14 @@ function printM2Line(html, cls = "") {
   div.className = `m2-line ${cls}`.trim();
   div.innerHTML = html;
   term.appendChild(div);
-  term.scrollTop = term.scrollHeight;
+  // FIX 1 — command echoes (demo "cmd" + the main flow's "prompt" lines) show
+  // instantly; everything else (output/blank/info) reveals one line at a time.
+  if (cls.includes("cmd") || cls.includes("prompt")) {
+    flushTerminalOutput();          // command echo shows instantly
+    term.scrollTop = term.scrollHeight;
+  } else {
+    queueTerminalReveal(div);       // FIX 1 — paced output reveal
+  }
 }
 
 function setM2Hint(text) {
@@ -5911,6 +6080,8 @@ function resetMission2() {
   // Course progress reflects the regression (M2 back to "Unlocked")
   renderCourseProgress();
 
+  setMapButtonsAttention("mission-002", false); // FIX 4 — restart clears the prompt.
+  clearTerminalOutputQueue();                   // FIX 1 — drop any pending reveals.
   const term = document.getElementById("m2Terminal");
   if (term) term.innerHTML = "";
   setM2Hint("Start by identifying your local IP address.");

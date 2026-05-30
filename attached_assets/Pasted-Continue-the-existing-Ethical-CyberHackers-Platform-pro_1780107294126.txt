@@ -1,0 +1,172 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current issue:
+Several UX problems need correction after the latest interaction updates.
+
+Problems to fix:
+
+1. Terminal typing animation is too fast for students to follow.
+2. Employee Notes is being marked as requiring reclassification, which may be incorrect or confusing.
+3. After mission completion, students do not clearly know what to do next.
+4. “Mission Map” / “Open Full Map” should become more obvious after completion.
+
+Do not add new missions.
+Do not redesign the full platform.
+Do not remove existing systems.
+Do not break Mission 1 or Mission 2.
+
+---
+
+## FIX 1 — SLOW TERMINAL TYPING
+
+Reduce the terminal typing speed so beginner students can follow the output.
+
+Requirements:
+
+* Slow down command/output animation.
+* Use readable pacing.
+* Add a configurable constant such as:
+
+TERMINAL_TYPE_SPEED = 25 to 40 milliseconds per character
+
+or line-based pacing:
+
+TERMINAL_LINE_DELAY = 400 to 700 milliseconds
+
+* Make sure terminal output is not instant unless the user skips animation.
+* Add optional “Skip Animation” behavior if easy:
+
+  * clicking terminal while typing completes the current output immediately.
+
+Goal:
+Students should be able to read commands and outputs as they appear.
+
+---
+
+## FIX 2 — EMPLOYEE NOTES CLASSIFICATION
+
+Review the evidence classification logic for employee_notes.txt.
+
+Current problem:
+Employee Notes shows:
+“Your earlier call didn’t fit. Re-judge this finding.”
+
+This may be confusing because Employee Notes is likely supporting evidence, not a threat.
+
+Expected Mission 1 classification logic:
+
+employee_notes.txt:
+Correct classification:
+Helpful Supporting Evidence
+
+meeting_schedule.txt:
+Correct classification:
+Normal Activity
+
+finance_update.txt:
+Correct classification:
+Normal Activity
+
+security_policy.txt:
+Correct classification:
+Helpful Supporting Evidence
+
+suspicious_file.txt:
+Correct classification:
+Critical Threat Evidence
+
+Fix the classification validation so Employee Notes is accepted as Helpful Supporting Evidence.
+
+If the student classified Employee Notes correctly, show:
+“Good. This note supports proper reporting behavior.”
+
+If the student classified Employee Notes incorrectly, show:
+“Re-check this note. It supports reporting suspicious files, but it is not the main threat.”
+
+Do not make Employee Notes appear like an error if it was classified correctly.
+
+---
+
+## FIX 3 — CLEAR NEXT STEP AFTER MISSION COMPLETION
+
+After a mission is completed, show a clear next-step panel.
+
+Add a panel called:
+
+Next Step
+
+For Mission 1 completion:
+Text:
+“Mission 1 complete. Return to the Mission Map to unlock and start Mission 2.”
+
+Primary button:
+Open Mission Map
+
+Secondary button:
+Review Scorecard
+
+For Mission 2 completion:
+Text:
+“Mission 2 complete. Return to the Mission Map to review your progress and see the next locked mission.”
+
+Primary button:
+Open Mission Map
+
+Secondary button:
+Review Scorecard
+
+---
+
+## FIX 4 — FLASH / HIGHLIGHT MISSION MAP ACCESS
+
+After mission completion:
+
+* Flash or pulse the “Mission Map” or “Open Full Map” button.
+* Add a small badge:
+  Next Step
+
+Example:
+[Open Full Map]  ← pulsing with “Next Step” badge
+
+This should last until the student clicks it or restarts the mission.
+
+---
+
+## FIX 5 — COMPLETION STATE CLARITY
+
+After mission completion:
+
+* Disable unnecessary command buttons.
+* Keep scorecard visible.
+* Keep Next Step panel visible.
+* Current Objective should update to:
+  “Mission complete. Open the Mission Map to continue.”
+
+Manager message should update to:
+“Good work. Return to the Mission Map to continue your training path.”
+
+---
+
+## FIX 6 — DO NOT BREAK EXISTING FLOW
+
+Verify these still work:
+
+* Mission launch
+* terminal commands
+* typing animation
+* evidence classification
+* investigation board
+* hints
+* manager reactions
+* threat level
+* trust score
+* XP
+* mission completion
+* scorecard
+* local progress save
+* mission map navigation
+
+Keep everything frontend-only.
+
+Goal:
+The terminal should be readable, Employee Notes classification should behave correctly, and students should clearly know that the Mission Map is the next destination after completing a mission.

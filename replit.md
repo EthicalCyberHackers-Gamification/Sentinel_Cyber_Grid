@@ -351,6 +351,37 @@ elapses, then it restarts from `currentTime=0`, repeating for the whole session.
   `audio.muted` and its label "Music: On"/"Music: Off" (+`.is-muted`); unmuting also retries
   start if autoplay was blocked. CSS appended at the END of `style.css`.
 
+### Post-completion UX (terminal pacing + Next Step guidance)
+Six UX fixes (no flow/system changes). CSS appended at the END of `style.css`.
+- **Paced terminal output**: OUTPUT lines reveal one at a time from ONE shared queue
+  (`outputRevealQueue`, `TERMINAL_LINE_DELAY` 550ms) used by BOTH terminals.
+  `queueTerminalReveal`/`revealNextTerminalLine` hide lines via `.term-pending` then
+  unhide on a timer; `flushTerminalOutput` shows all pending at once;
+  `clearTerminalOutputQueue` drops them. `printOutput`/`printBlankLine` queue; `printCommand`
+  flushes first (M1 echoes instant). `printM2Line` treats `cmd` AND `prompt` classes as
+  instant command echoes (the main M2 flow echoes with `m2-line--prompt`, demo with
+  `m2-line--cmd`) and queues output/blank/info. Boot lines stay instant. Clicking either
+  terminal (`#terminalOutput`/`#m2Terminal`, wired in `initTerminalInput`) flushes the queue
+  (skip-to-end). `clearTerminal` + `resetMission2` clear the queue. `TERMINAL_TYPE_SPEED`=40
+  (alias `TERMINAL_TYPE_MS`) is the per-char command typing speed.
+- **employee_notes.txt feedback**: `pinReactionText` returns custom lines — correct (Helpful
+  Supporting Evidence) → "Good. This note supports proper reporting behavior."; wrong →
+  "Re-check this note. It supports reporting suspicious files, but it is not the main threat."
+- **Next Step panel**: `buildNextStepHTML(missionId)` (suffix `M1`/`M2`) renders a panel at
+  the TOP of each completion screen — "Open Mission Map" (primary, → `showMissionsMap`) +
+  "Review Scorecard" (secondary, scrolls to `.scorecard`). Injected into `buildCompletionHTML`
+  (M1) and the M2 scorecard; wired via `wireNextStepButtons` in `completeMission` /
+  `renderM2Scorecard`.
+- **Map button attention (FIX4)**: `setMapButtonsAttention(missionId,on)` toggles
+  `.map-cta-attention` (pulse + "Next Step" ::after badge, `prefers-reduced-motion` honored)
+  on the map back / "Open Full Map" buttons at completion; `clearAllMapButtonsAttention` clears
+  both. Cleared in `showMissionsMap` and `resetMission`/`resetMission2`.
+- **Completion clarity (FIX5)**: M2 `syncM2Buttons` disables command buttons when
+  `mission2Complete` (re-enabled on restart since `resetMission2` clears the flag + calls
+  `beginMission2`). On completion both missions set Current Objective `COMPLETION_OBJECTIVE`
+  ("Mission complete. Open the Mission Map to continue.") and manager `COMPLETION_MANAGER`
+  ("Good work. Return to the Mission Map to continue your training path.").
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
