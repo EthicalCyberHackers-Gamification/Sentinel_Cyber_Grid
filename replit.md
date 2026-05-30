@@ -272,6 +272,49 @@ appended at the END of `style.css` (replaced the 25D block, ~6224+).
   terminal, right Live Status visible under Focus Mode, pin→board/confidence update, Open
   Full Map back-nav).
 
+### Opt-in Guided Demo (Mission 1)
+An OPT-IN automated walkthrough offered on the M1 guided "Mission Ready" screen (a "Watch
+Demo First" button `#guidedDemoBtn`, M1 only — M2 unaffected). It launches a clean Mission 1,
+auto-runs REAL example commands (`ls` → `cd documents`/`ls` → `cat finance_update.txt` →
+`cat suspicious_file.txt`), auto-classifies the suspicious file as Critical, while a pop-out
+(`#demoCoach`, reuses `.ig-coach`/`.ig-dim`/`.ig-spotlight-target`) MOVES near each location
+(command center → terminal → board → decision), then fully resets and returns the student to
+the Mission Ready screen so they do it themselves. The demo module lives at the bottom of
+`script.js` (~7250+): `DEMO_STEPS`, `startDemo`, `runDemoStep`, `showDemoCoach`,
+`positionDemoCoach`, `teardownDemoCoach`, `abortDemo`, `endDemo`, `demoWait`/`clearDemoTimers`.
+- **Side-effect isolation**: `suppressSave=true` during the demo (reuses the clear-progress
+  flag) so nothing persists; `igEnabled=false` so the real spotlight never overlaps.
+  `startDemo` snapshots `demoTrustSnapshot = trustScore` BEFORE mutating (because
+  `resetMission()` does NOT reset trust — the auto-classify grants +5 trust that would
+  otherwise leak into the real run).
+- **Single teardown path**: `abortDemo()` (guarded by `if (!demoRunning) return`) is the only
+  silent teardown — stops timers, removes the pop-out, `resetMission()`, restores
+  `trustScore` from the snapshot, and sets `suppressSave=false` (fail-safe so persistence is
+  never left stuck off). It is hooked into the TOP of `endGuidedRun()` (`if (demoRunning)
+  abortDemo()`), so EVERY navigation/reset exit that already routes through `endGuidedRun`
+  (showMissionsMap, backToModuleOverview, hideMission2Overview, backToMission2Overview,
+  resetMission, resetMission2, enterModule resume) aborts the demo cleanly. `endDemo()` =
+  `abortDemo()` + re-show the guided Ready overlay (Skip/Finish buttons call it).
+- **No recursion**: `abortDemo` sets `demoRunning=false` BEFORE calling `resetMission()`, so
+  the nested `resetMission → endGuidedRun → abortDemo` is a no-op. **No self-cancel**:
+  `startDemo` calls `endGuidedRun()` (to tear down the briefing overlay) BEFORE setting
+  `demoRunning=true`, otherwise the new `endGuidedRun` guard would abort the demo at startup.
+
+### Background Soundtrack
+A looping background soundtrack across the whole game (`script.js` ~56-130). The MP3 is
+imported via Vite's `@assets` alias (`import soundtrackUrl from "@assets/…mp3"`) — resolves
+to a served URL. NOT a seamless loop: when the track ENDS, a `SOUNDTRACK_BREAK_MS` (4s) break
+elapses, then it restarts from `currentTime=0`, repeating for the whole session.
+- `initSoundtrack()` lazily creates `new Audio(url)` (NOT in the DOM), `loop=false`,
+  `volume=0.35`, with an `ended` listener that clears the prior break timer, schedules the
+  restart, nulls the timer, and on restart-`play()` rejection drops `soundtrackStarted` so a
+  later user gesture can recover playback. `startSoundtrack()` (guarded by `soundtrackStarted`)
+  is called from `enterModule()` — the `#enterModuleBtn` click is the user gesture that
+  satisfies browser autoplay policy.
+- A floating mute toggle (`#soundtrackToggle`, `.soundtrack-toggle`, created in JS) flips
+  `audio.muted` and its label "Music: On"/"Music: Off" (+`.is-muted`); unmuting also retries
+  start if autoplay was blocked. CSS appended at the END of `style.css`.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

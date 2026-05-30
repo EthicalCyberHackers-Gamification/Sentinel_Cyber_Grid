@@ -50,6 +50,90 @@ import {
   updateMissionStatus as setRegistryMissionStatus,
 } from "/missions.js";
 
+// Background soundtrack — bundled by Vite (returns a served URL string).
+import soundtrackUrl from "@assets/slower-2020-07-30_-_Conspiracy_Theory_-_David_Fesliyan_1780099440227.mp3";
+
+/* ============================================================
+   MISSION SOUNDTRACK
+   Background music that plays across the whole game, from the
+   moment the student enters the module through the end of all
+   missions. The track is NOT seamlessly looped: when it ends we
+   pause for a short break and then restart it from the beginning,
+   repeating for as long as the session lasts. Playback is kicked
+   off on the first real user gesture (the "Enter Module" click)
+   so it satisfies browser autoplay policies. A small mute toggle
+   lets the student silence it.
+   ============================================================ */
+const SOUNDTRACK_BREAK_MS = 4000; // quiet break between repeats
+const SOUNDTRACK_VOLUME   = 0.35; // gentle background level
+let soundtrackAudio       = null;
+let soundtrackBreakTimer  = null;
+let soundtrackStarted     = false;
+let soundtrackMuted       = false;
+
+function initSoundtrack() {
+  if (soundtrackAudio) return soundtrackAudio;
+  soundtrackAudio = new Audio(soundtrackUrl);
+  soundtrackAudio.preload = "auto";
+  soundtrackAudio.loop = false; // we restart manually after a break
+  soundtrackAudio.volume = SOUNDTRACK_VOLUME;
+  // When the track finishes, wait out the break, then start it over.
+  soundtrackAudio.addEventListener("ended", () => {
+    if (soundtrackBreakTimer) clearTimeout(soundtrackBreakTimer);
+    soundtrackBreakTimer = setTimeout(() => {
+      soundtrackBreakTimer = null;
+      if (!soundtrackAudio) return;
+      try { soundtrackAudio.currentTime = 0; } catch (_) {}
+      // If the restart is rejected (tab/device policy), drop the started
+      // flag so a later user gesture (e.g. the mute toggle) can recover
+      // playback and keep the session-long repeat alive.
+      soundtrackAudio.play().catch(() => { soundtrackStarted = false; });
+    }, SOUNDTRACK_BREAK_MS);
+  });
+  return soundtrackAudio;
+}
+
+function startSoundtrack() {
+  const audio = initSoundtrack();
+  ensureSoundtrackToggle();
+  if (soundtrackStarted) return;
+  soundtrackStarted = true;
+  audio.muted = soundtrackMuted;
+  // Autoplay can still be rejected; if so, allow a later gesture to retry.
+  audio.play().catch(() => { soundtrackStarted = false; });
+}
+
+function setSoundtrackMuted(muted) {
+  soundtrackMuted = !!muted;
+  if (soundtrackAudio) soundtrackAudio.muted = soundtrackMuted;
+  const btn = document.getElementById("soundtrackToggle");
+  if (btn) {
+    btn.textContent = soundtrackMuted ? "Music: Off" : "Music: On";
+    btn.classList.toggle("is-muted", soundtrackMuted);
+    btn.setAttribute("aria-pressed", String(soundtrackMuted));
+  }
+}
+
+function toggleSoundtrackMuted() {
+  setSoundtrackMuted(!soundtrackMuted);
+  // If music never managed to start (e.g. autoplay was blocked), unmuting
+  // here is a fresh user gesture — use it to kick playback off.
+  if (!soundtrackMuted && !soundtrackStarted) startSoundtrack();
+}
+
+function ensureSoundtrackToggle() {
+  if (document.getElementById("soundtrackToggle")) return;
+  const btn = document.createElement("button");
+  btn.id = "soundtrackToggle";
+  btn.type = "button";
+  btn.className = "soundtrack-toggle";
+  btn.textContent = soundtrackMuted ? "Music: Off" : "Music: On";
+  btn.setAttribute("aria-pressed", String(soundtrackMuted));
+  btn.setAttribute("aria-label", "Toggle background music");
+  btn.addEventListener("click", toggleSoundtrackMuted);
+  document.body.appendChild(btn);
+}
+
 
 /* ============================================================
    CONSTANTS
@@ -4251,6 +4335,10 @@ function enterModule() {
   const typed = nameInput ? nameInput.value.trim() : "";
   if (!typed) return;
   studentName = typed;
+
+  // Kick off the background soundtrack — this click is a user gesture, so
+  // browser autoplay policies allow playback to begin here.
+  startSoundtrack();
 
   // Render personalized greeting at the top of the mission panel
   const welcomeEl = document.getElementById("welcomeMessage");

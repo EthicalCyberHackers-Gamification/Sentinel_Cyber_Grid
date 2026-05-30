@@ -1,0 +1,1 @@
+- [ECH Platform architecture](ech-platform.md) — endGuidedRun is the central teardown hub; resetMission skips trustScore; audio autoplay needs a gesture; @assets Vite alias; session vs persisted flags.
