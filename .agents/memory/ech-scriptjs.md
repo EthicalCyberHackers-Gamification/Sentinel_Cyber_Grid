@@ -42,3 +42,19 @@ large file loaded as `<script type="module">`.
 - **One-time credit:** containment/trust grants that could be replayed use
   `updateContainmentProgress(..., { stepId })` with a unique stepId; the engine dedupes by
   stepId so the credit can't be farmed.
+
+- **Typed terminal commands sync to button progression via `processCommand`, NOT a separate
+  path.** A clicked command passes its `buttonKey`; a typed one arrives with empty key and
+  `afterCommand` early-returns (`if (!buttonKey) return`). To make manual typing drive the
+  same unlock/advance/objective/button-state, `processCommand` resolves the key only when
+  `manual = !buttonKey && missionStarted && !demoRunning`, via
+  `keyFor(k)=buttonKey?buttonKey:(manual?(k||""):"")`, then each branch calls
+  `afterCommand(keyFor(<resolvedKey>))`. ls resolves ls-home vs ls-documents by `currentDir`;
+  cat via `m1BtnKeyForFile`; cd→cd-documents.
+  **Why:** the `demoRunning` guard is essential — the teaching demo's `demoTypeCommand` relies
+  on typed read-only cmds staying keyless; M2 is isolated because `#terminalInput` only feeds
+  M1's `runCommand`/`processCommand` (M2 uses `runM2Command` + `#m2Terminal`).
+  **How to apply:** "already inside a folder" detection must compare the target to the current
+  folder's LEAF (`currentDir.split('/').pop()`), never to `${currentDir}/${target}` (that
+  yields `~/documents/documents` and fails). Keep `cd .`/empty target as a no-op that does NOT
+  advance progression; only `documents` gates M1.

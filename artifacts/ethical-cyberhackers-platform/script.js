@@ -4147,38 +4147,84 @@ function handleM1FileRead(filename) {
 }
 
 function processCommand(command, buttonKey) {
-  const cmd     = command.trim().toLowerCase();
+  // FIX 6 — normalize: collapse whitespace + lowercase for matching so
+  // `cd documents/`, `ls documents`, `cat ./File.txt`, mixed case all work.
+  const raw     = command.trim().replace(/\s+/g, " ");
+  const cmd     = raw.toLowerCase();
   const dirData = FILESYSTEM[currentDir];
+
+  // FIX 4/7 — a TYPED command (no buttonKey) during an active Mission 1 drives
+  // the SAME progression as clicking the matching button. We resolve the typed
+  // command to its button key so afterCommand() runs (unlock / advance /
+  // objective / button-state). Clicks pass their own key (unchanged). The
+  // teaching demo keeps read-only typed commands keyless, and Mission 2 has its
+  // own command system, so both are unaffected.
+  const manual = !buttonKey && missionStarted && !demoRunning;
+  const keyFor = (k) => (buttonKey ? buttonKey : (manual ? (k || "") : ""));
 
   // pwd
   if (cmd === "pwd") {
     printOutput(dirData.pwd);
     printBlankLine();
-    afterCommand(buttonKey);
+    afterCommand(keyFor("pwd"));
     return;
   }
 
-  // ls
+  // ls (current directory)
   if (cmd === "ls") {
     printOutput(dirData.ls.join("  "));
     printBlankLine();
-    afterCommand(buttonKey);
+    afterCommand(keyFor(currentDir === "~/documents" ? "ls-documents" : "ls-home"));
+    return;
+  }
+
+  // FIX 6 — ls <folder>: peek into a subdirectory without entering it.
+  if (cmd.startsWith("ls ")) {
+    const target = cmd.slice(3).trim().replace(/\/+$/, "");
+    const path   = `${currentDir}/${target}`.replace("~//", "~/");
+    if (dirData.subdirs.includes(target) && FILESYSTEM[path]) {
+      printOutput(FILESYSTEM[path].ls.join("  "));
+      printOutput(`Tip: type "cd ${target}" to enter the ${target} folder.`, "info");
+    } else {
+      printOutput(`There's no folder named "${target}" here. Type "ls" to see what's available.`, "warn");
+    }
+    printBlankLine();
     return;
   }
 
   // cd <folder>
   if (cmd.startsWith("cd ")) {
-    const target     = cmd.slice(3).trim();
-    const newPath    = `${currentDir}/${target}`;
-    const normalised = newPath.replace("~//", "~/");
+    const target = cmd.slice(3).trim().replace(/\/+$/, ""); // FIX 6 — drop trailing slash
 
-    if (dirData.subdirs.includes(target) && FILESYSTEM[normalised]) {
-      currentDir = normalised;
+    // "cd ." / "cd" (stay put) — no movement, and crucially NO progression.
+    if (target === "" || target === ".") {
+      printBlankLine();
+      return;
+    }
+
+    // FIX 5 — already inside the requested folder → friendly, state unchanged.
+    // Compare the target against the CURRENT folder's leaf name (not a nested
+    // path) so a repeated `cd documents` from ~/documents is recognised.
+    const currentLeaf = currentDir === "~" ? "~" : currentDir.split("/").pop();
+    if (target === currentLeaf) {
+      const label = currentDir === "~" ? "home" : currentLeaf;
+      printOutput(`Already inside ${label} folder.`, "info");
+      printBlankLine();
+      // Only the documents folder gates progression — keep its NEXT marker
+      // correct (idempotent). Never advance for any other already-here case.
+      if (target === "documents") afterCommand(keyFor("cd-documents"));
+      return;
+    }
+
+    const newPath = `${currentDir}/${target}`.replace("~//", "~/");
+    if (dirData.subdirs.includes(target) && FILESYSTEM[newPath]) {
+      currentDir = newPath;
       updatePromptDisplay();
       printBlankLine();
-      afterCommand(buttonKey);
+      afterCommand(keyFor(target === "documents" ? "cd-documents" : m1KeyForCommand(`cd ${target}`)));
     } else {
-      printOutput(`bash: cd: ${target}: No such file or directory`, "error");
+      // FIX 8 — guidance instead of a harsh bash error.
+      printOutput(`There's no folder named "${target}" here. Type "ls" to see the folders you can open.`, "warn");
       printBlankLine();
     }
     return;
@@ -4186,7 +4232,7 @@ function processCommand(command, buttonKey) {
 
   // cat <filename>
   if (cmd.startsWith("cat ")) {
-    const filename = command.trim().slice(4).trim();
+    const filename = cmd.slice(4).trim().replace(/^\.\//, ""); // FIX 6 — drop leading ./
     const files    = dirData.files;
 
     if (files[filename]) {
@@ -4200,14 +4246,13 @@ function processCommand(command, buttonKey) {
       // Challenge Layer 1 — apply confidence / bonus / false-lead logic for
       // EVERY successful file read, whether the command was typed or clicked.
       handleM1FileRead(filename);
+      printBlankLine();
+      afterCommand(keyFor(m1BtnKeyForFile(filename)));
     } else {
-      printOutput(
-        `cat: ${filename}: Access denied: file not found in current location.`,
-        "error"
-      );
+      // FIX 8 — guidance instead of a harsh access-denied error.
+      printOutput(`There's no file named "${filename}" in this folder. Type "ls" to see the files here.`, "warn");
+      printBlankLine();
     }
-    printBlankLine();
-    afterCommand(buttonKey);
     return;
   }
 
@@ -4218,8 +4263,8 @@ function processCommand(command, buttonKey) {
     return;
   }
 
-  // unknown
-  printOutput(`bash: ${cmd.split(" ")[0]}: command not found`, "error");
+  // unknown — FIX 8 — friendly guidance instead of "command not found".
+  printOutput(`"${cmd.split(" ")[0]}" isn't a command here. Try: pwd, ls, cd <folder>, or cat <file>.`, "warn");
   printBlankLine();
 }
 
@@ -4992,7 +5037,7 @@ function completeMission(newRank) {
   });
   showBlueTeamUpdate("mission-001", "Threat fully contained. Excellent work, Intern.");
   // Stage 4 — celebrate the win + lock the containment-action panel.
-  showEventToast("THREAT CONTAINED", "Mission 1 secured. The workstation is safe.", "blueteam", { duration: BLUE_TEAM_TOAST_MS });
+  showEventToast("THREAT CONTAINED", "Mission 1 secured. The workstation is safe.", "blueteam", { duration: 8000 }); // FIX 2 — mission complete dwells 8s
   renderContainmentActions("mission-001");
   // Milestone 28A — final Incident Timeline entry.
   addTimelineEvent("mission-001", "Threat contained");
@@ -7570,7 +7615,7 @@ function updateManagerReaction(eventType, context) {
     const m = context && context.missionId === "mission-002"
       ? "Mission 2 cleared. Network secured."
       : "Mission 1 cleared. Phishing threat handled.";
-    showEventToast("Mission Complete", m, "success");
+    showEventToast("Mission Complete", m, "success", { duration: 8000 }); // FIX 2 — mission complete dwells 8s
   }
   return text;
 }
@@ -8431,12 +8476,23 @@ function fxToast(text, tone) {
      slides in, auto-fades after ~3.5s, max 2 visible at once.
    ============================================================ */
 const EVENT_TOAST_TYPES = ["info", "success", "warning", "danger", "unlock", "adversary", "blueteam"];
-const EVENT_TOAST_MAX = 2;        // max simultaneously visible
-const EVENT_TOAST_MS = 3500;      // default visible duration (3–4s)
-const EVENT_TOAST_FADE_MS = 350;  // slide/fade-out duration
+const EVENT_TOAST_MAX = 1;        // FIX 3 — one major alert at a time; the rest queue
+const EVENT_TOAST_MS = 5000;      // FIX 2 — default visible duration
+const EVENT_TOAST_FADE_MS = 500;  // FIX 2 — slower slide/fade-out (matches CSS)
+// FIX 2 — per-type read time: info/success 5s, warning/threat/unlock 7s.
+// (Mission-complete callers pass duration: 8000 explicitly.)
+const EVENT_TOAST_DURATIONS = {
+  info:      5000,
+  success:   5000,
+  warning:   7000,
+  unlock:    7000,
+  danger:    7000,
+  adversary: 7000,
+  blueteam:  7000,
+};
 // Stage 2 — live-threat toasts (Red Team activity / Blue Team response) dwell
 // LONGER so a student can follow and absorb the context before they disappear.
-const ADVERSARY_TOAST_MS = 9000;
+const ADVERSARY_TOAST_MS = 7000; // FIX 2 — threat alerts read for 7s
 const BLUE_TEAM_TOAST_MS = 7000;
 let eventToastHost = null;
 let eventToastVisible = 0;        // currently on-screen count
@@ -8487,7 +8543,9 @@ function renderEventToast(item) {
   el.querySelector(".event-toast-msg").textContent = item.message;
   host.appendChild(el);
 
-  const visibleMs = item.duration && item.duration > 0 ? item.duration : EVENT_TOAST_MS;
+  const visibleMs = item.duration && item.duration > 0
+    ? item.duration
+    : (EVENT_TOAST_DURATIONS[item.type] || EVENT_TOAST_MS);
   requestAnimationFrame(() => el.classList.add("event-toast--show"));
   window.setTimeout(() => {
     el.classList.remove("event-toast--show");

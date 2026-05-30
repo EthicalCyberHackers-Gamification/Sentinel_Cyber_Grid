@@ -707,6 +707,35 @@ student feels their choice changed what happened next. Reuses existing primitive
   CSS appended at END of `style.css` (~7648+), incl. reduced-motion override. Verified:
   typecheck clean, boots with no console errors; architect review PASS.
 
+### Readable Alerts + Manual Command Sync (9-fix UX pass)
+A UX/sync layer (M1 focus; M2 untouched; no flow/system changes).
+- **Alerts**: `.event-toast-host` moved top-RIGHT → top-CENTER above the terminal (CSS
+  appended at END of `style.css` so it wins; slower in/hold/out fade). Per-type read time
+  via `EVENT_TOAST_DURATIONS` (info/success 5s; warning/unlock/danger/adversary/blueteam 7s;
+  mission-complete toasts pass explicit `duration:8000`). `ADVERSARY_TOAST_MS` 9000→7000.
+  One major alert at a time: `EVENT_TOAST_MAX` 2→1 (queue drains sequentially via
+  `pumpEventToasts`).
+- **Typed commands drive M1 progression** (parity with button clicks), all in `processCommand`
+  (~4152). A click passes its `buttonKey`; a typed command arrives keyless and `afterCommand`
+  early-returns. So when `manual = !buttonKey && missionStarted && !demoRunning`,
+  `keyFor(k)=buttonKey?buttonKey:(manual?(k||""):"")` resolves the equivalent key and each
+  branch calls `afterCommand(keyFor(...))` — unlock/advance/objective/button-state update
+  identically. `ls`→ls-home/ls-documents by `currentDir`; `cat`→`m1BtnKeyForFile`;
+  `cd`→cd-documents. Demo unaffected (`demoRunning` makes `manual` false → demo's
+  `demoTypeCommand` stays keyless); M2 unaffected (`#terminalInput` only feeds M1 — M2 uses
+  `runM2Command` + `#m2Terminal`).
+- **Normalization** (FIX 6): trailing slash on cd/ls targets, leading `./` on cat, collapsed
+  whitespace, lowercased matching; added `ls <folder>` peek.
+- **Repeated `cd` is friendly, not an error** (FIX 5): "already inside" compares the target to
+  the current folder's LEAF (`currentDir.split('/').pop()`), NOT `${currentDir}/${target}`
+  (which yields `~/documents/documents` and falsely fails). Repeated `cd documents` in
+  `~/documents` → "Already inside documents folder." + idempotent `afterCommand("cd-documents")`.
+  `cd .`/empty target is a NO-OP that never advances progression (only `documents` gates M1).
+- **Student-friendly errors** (FIX 8): warn-class guidance ("There's no folder named X here.
+  Type ls to see the folders you can open.") instead of harsh bash/cat errors.
+- Verified: typecheck clean, clean boot/HMR with no console errors, architect review (it caught
+  the two cd-branch bugs above — both fixed).
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._

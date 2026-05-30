@@ -7664,3 +7664,40 @@ body.m1-blueteam-decision::before {
   .decision-feedback--pending { animation: none; opacity: 1; }
   .incident-timeline-row--new { animation: none; }
 }
+
+/* ============================================================
+   FIX 1 & 2 — Event toast position + readability
+   Move alerts from the far top-right corner to TOP-CENTER above
+   the terminal (close to the student's line of sight, never over
+   the command buttons), and slow the fade in/hold/out so each
+   alert is easy to read. Appended last so these win the cascade.
+   ============================================================ */
+.event-toast-host {
+  top: 14px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  align-items: center;
+  max-width: min(440px, calc(100vw - 32px));
+}
+.event-toast {
+  transform: translateY(-18px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.event-toast--show { transform: translateY(0); }
+.event-toast--hide { opacity: 0; transform: translateY(-18px); }
+
+@media (max-width: 700px) {
+  .event-toast-host {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    transform: none;
+    max-width: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .event-toast { transition: opacity 0.35s ease; transform: none; }
+  .event-toast--show,
+  .event-toast--hide { transform: none; }
+}

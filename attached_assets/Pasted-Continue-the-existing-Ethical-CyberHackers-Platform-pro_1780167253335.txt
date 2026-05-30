@@ -1,0 +1,184 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current issues:
+
+1. System alerts/toasts appear too far from the student’s main line of sight.
+2. Alerts disappear too quickly to read.
+3. Typing commands manually can desynchronize the clickable command flow.
+4. Example: if the student manually types `cd documents`, the app still shows “Open Documents.” Clicking it again fails because the student is already inside the documents folder.
+
+Goal:
+Improve alert readability and make manual terminal commands synchronize with the clickable mission state.
+
+Do not redesign the app.
+Do not add new missions.
+Do not remove the terminal.
+Do not break Mission 1 or Mission 2.
+Keep everything frontend-only.
+
+---
+
+## FIX 1 — MOVE SYSTEM ALERTS CLOSER TO LINE OF SIGHT
+
+Move system alerts/toasts from the far top-right corner to a more visible position.
+
+Preferred placement:
+
+* top-center above the terminal
+  OR
+* upper-center-right near the terminal header
+
+The alert should appear close enough that the student sees it while watching the terminal.
+
+Do not cover command buttons.
+
+---
+
+## FIX 2 — INCREASE ALERT READ TIME
+
+Increase alert/toast duration.
+
+Use:
+
+* normal info/success: 5 seconds
+* warning/threat/unlock: 7 seconds
+* mission complete / major alert: 8 seconds
+
+Add CSS animation:
+
+* slower fade in
+* readable hold time
+* smooth fade out
+
+---
+
+## FIX 3 — ADD ALERT QUEUE LIMIT
+
+Only show one major alert at a time.
+
+If multiple alerts trigger quickly:
+
+* queue them
+* show sequentially
+* do not stack many alerts
+
+Goal:
+Prevent alert spam and make each event readable.
+
+---
+
+## FIX 4 — MANUAL COMMAND STATE SYNC
+
+Manual typed commands must update the same mission state as clickable buttons.
+
+If the student types:
+cd documents
+
+Then the app should:
+
+* update current path to ~/documents
+* mark “Open Documents” as completed
+* unlock/list the next expected command
+* update current objective to “List the contents of the documents folder.”
+* prevent clicking “Open Documents” again from causing a failure
+
+If the student types:
+ls
+while in ~/documents
+
+Then the app should:
+
+* display the documents list according to the guided reveal logic
+* unlock/reveal the first active file for inspection
+
+If the student types:
+cat employee_notes.txt
+
+Then the app should:
+
+* perform the same action as clicking the corresponding card
+* show terminal output
+* trigger reasoning/classification flow
+* update mission state
+
+---
+
+## FIX 5 — HANDLE REPEATED COMMANDS GRACEFULLY
+
+If student repeats a completed command, do not show confusing failure.
+
+Example:
+If already in documents and user clicks or types `cd documents`, show:
+
+student@cybercorp:~/documents$ cd documents
+Already inside documents folder.
+
+Then keep mission state unchanged.
+
+Do not block progress.
+
+---
+
+## FIX 6 — COMMAND NORMALIZATION
+
+Normalize command input so these all work:
+
+cd documents
+cd documents/
+ls
+ls documents
+cat employee_notes.txt
+cat ./employee_notes.txt
+
+Commands should match mission actions where appropriate.
+
+---
+
+## FIX 7 — UPDATE COMMAND BUTTON STATES
+
+Clickable command cards should reflect manual typed commands.
+
+If a user manually completes a step:
+
+* mark matching button as completed
+* unlock next button
+* move “NEXT” marker to the correct next action
+* do not keep old buttons highlighted as next
+
+---
+
+## FIX 8 — STUDENT-FRIENDLY ERROR HANDLING
+
+If command is not useful at the current step, show guidance instead of a harsh error.
+
+Example:
+Command not needed yet.
+Try listing the current folder first.
+
+or:
+That command is valid, but this mission wants you to inspect one file at a time.
+
+---
+
+## FIX 9 — DO NOT BREAK EXISTING SYSTEMS
+
+Verify:
+
+* clickable commands still work
+* manual typed commands work
+* terminal output still animates at readable speed
+* file reveal still happens one at a time
+* classification still works
+* alerts still show
+* mission map still works
+* evidence board still works
+* XP/trust/threat updates still work
+* Mission 2 still works
+
+---
+
+## GOAL
+
+Students should notice and understand system alerts.
+
+Students should also be able to type commands manually without breaking the guided clickable command sequence.
