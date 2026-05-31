@@ -1,0 +1,596 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Assignment 1: Credential Phishing Investigation works.
+* Assignment 2: Network Exposure Review works or is being aligned with Assignment 1.
+* Cyber Operations Center entry experience exists.
+* Operations Map exists.
+* Career Track framing exists.
+* Blue Team / Red Team dynamics exist.
+* Emotional gameplay systems exist.
+* Reactive incident evolution exists.
+* Cinematic incident emphasis exists.
+* Persistent adversary presence exists.
+* Analyst reputation and career progression systems exist.
+* Everything is frontend-only.
+
+Now implement:
+
+PHASE 2 — Assignment 3: Reconnaissance Detection
+
+Purpose:
+Create the third Cybersecurity Intern assignment as a thrilling beginner-friendly threat-hunting experience.
+
+This assignment should feel different from Assignment 1 and Assignment 2.
+
+Assignment 1:
+The player investigated a suspicious phishing file.
+
+Assignment 2:
+The player reviewed exposed network services.
+
+Assignment 3:
+The player detects signs that Red Team may be actively probing the organization before a larger attack.
+
+Core Design Goal:
+The student should feel:
+
+“I am threat hunting. I am connecting weak signals before the attacker moves further.”
+
+NOT:
+
+“I am clicking another sequence of commands.”
+
+---
+
+1. ASSIGNMENT IDENTITY
+
+---
+
+Assignment title:
+Reconnaissance Detection
+
+Career role:
+Cybersecurity Intern
+
+Operational type:
+Threat Hunting / Reconnaissance Monitoring
+
+Threat theme:
+External probing and early attacker discovery
+
+Assignment story:
+“Blue Team monitoring has detected unusual external activity around CyberCorp systems. No confirmed breach has occurred yet, but repeated connection attempts suggest Red Team may be mapping the environment. Your job is to investigate weak signals, identify whether reconnaissance is occurring, and recommend the correct Blue Team response.”
+
+---
+
+2. UNLOCK LOGIC
+
+---
+
+Assignment 3 should remain locked until Assignment 2 is completed.
+
+After Assignment 2 completion:
+
+* Assignment 3 unlocks
+* Operations Map node pulses subtly
+* Manager message:
+  “Reconnaissance activity has been detected. Your next assignment is ready.”
+
+Do not break Assignment 1 or Assignment 2.
+
+---
+
+3. MISSION MAP / OPERATIONS MAP UPDATE
+
+---
+
+Add Assignment 3 node:
+
+Reconnaissance Detection
+
+Before unlocked:
+Status:
+Monitoring
+
+After Assignment 2 completed:
+Status:
+Available
+
+When launched:
+Status:
+Active Threat Hunt
+
+After completed:
+Status:
+Completed
+
+Visual behavior:
+
+* locked/monitoring state should feel alive but not playable
+* available state should glow
+* active state should pulse
+* completed state should show checkmark
+
+---
+
+4. ASSIGNMENT 3 BRIEFING ROOM
+
+---
+
+Before investigation begins, show a briefing room with 3 short cards.
+
+Card 1:
+Reconnaissance
+
+Content:
+
+* Attackers often gather information before attacking.
+* Recon activity may look like scans, probes, or repeated connection attempts.
+* Early detection can prevent later compromise.
+
+Card 2:
+Weak Signals
+
+Content:
+
+* One event may not prove an attack.
+* Several related events can reveal a pattern.
+* Analysts look for repeated or unusual behavior.
+
+Card 3:
+Blue Team Response
+
+Content:
+
+* Gather evidence before escalating.
+* Do not overreact to one weak signal.
+* Recommend monitoring or hardening when patterns appear.
+
+Student must review all briefing cards before launching the investigation.
+
+Keep it brief and cinematic.
+
+---
+
+5. GUIDED THREAT-HUNTING FLOW
+
+---
+
+Assignment 3 should use guided pacing.
+
+Show one investigative step at a time.
+
+Do not display all commands at once.
+
+Student flow:
+
+Step 1:
+review alert
+
+Step 2:
+check recent connections
+
+Step 3:
+inspect source activity
+
+Step 4:
+review service probes
+
+Step 5:
+correlate findings
+
+Step 6:
+Blue Team decision
+
+Step 7:
+mission outcome
+
+---
+
+6. TERMINAL / ACTION COMMANDS
+
+---
+
+Use simulated commands or action buttons.
+
+Commands:
+
+review alert
+
+Output:
+Security monitoring detected repeated external connection attempts against CyberCorp services.
+
+check connections
+
+Output:
+Recent activity:
+203.0.113.77 -> web-portal:80
+203.0.113.77 -> web-portal:443
+203.0.113.77 -> vpn-gateway:443
+203.0.113.77 -> mail-gateway:25
+
+inspect source 203.0.113.77
+
+Output:
+Source 203.0.113.77 appears repeatedly across multiple service checks.
+No confirmed compromise detected.
+
+review service probes
+
+Output:
+Observed probes:
+HTTP access attempts
+HTTPS access attempts
+VPN gateway checks
+Mail gateway connection attempts
+
+correlate findings
+
+Output:
+Multiple services were contacted by the same external source.
+Pattern suggests possible reconnaissance activity.
+
+---
+
+7. ONE SIGNAL AT A TIME
+
+---
+
+Do not reveal all evidence immediately.
+
+Each output should unlock the next investigative step.
+
+The student should feel:
+“I am building a case.”
+
+NOT:
+“I am reading a data dump.”
+
+---
+
+8. REASONING PROMPTS
+
+---
+
+After each major step, ask a short reasoning question.
+
+After review alert:
+Question:
+“What does this alert suggest?”
+
+Correct:
+“Something unusual may be happening, but more evidence is needed.”
+
+After check connections:
+Question:
+“What pattern do you notice?”
+
+Correct:
+“The same external source is contacting multiple services.”
+
+After inspect source:
+Question:
+“Does this prove a breach?”
+
+Correct:
+“No. It suggests suspicious activity, but not confirmed compromise.”
+
+After review service probes:
+Question:
+“Why are multiple service checks important?”
+
+Correct:
+“They may indicate an attacker mapping available services.”
+
+After correlate findings:
+Question:
+“What is the strongest conclusion?”
+
+Correct:
+“This looks like possible reconnaissance activity.”
+
+---
+
+9. EVIDENCE PRIORITIZATION
+
+---
+
+Add evidence items:
+
+alert_detected:
+Helpful Supporting Evidence
+
+same_source_multiple_services:
+Critical Recon Evidence
+
+source_repetition:
+Helpful Supporting Evidence
+
+service_probe_pattern:
+Critical Recon Evidence
+
+no_confirmed_breach:
+Important Context
+
+Student should pin/classify evidence.
+
+Correct classifications:
+
+* alert_detected = Helpful Supporting Evidence
+* same_source_multiple_services = Critical Recon Evidence
+* source_repetition = Helpful Supporting Evidence
+* service_probe_pattern = Critical Recon Evidence
+* no_confirmed_breach = Important Context
+
+Do not overcomplicate.
+Use one active evidence prompt at a time.
+
+---
+
+10. ANALYST CONFIDENCE
+
+---
+
+Apply Analyst Confidence.
+
+Rules:
+
+* starts Low
+* correct alert interpretation: small increase
+* identifying repeated source: moderate increase
+* recognizing no confirmed breach: moderate increase
+* identifying probe pattern: strong increase
+* correlating findings correctly: reaches Ready
+
+Keep separate from Evidence Confidence.
+
+---
+
+11. RED TEAM PRESENCE
+
+---
+
+Red Team should feel proactive in Assignment 3.
+
+Red Team states:
+
+* Recon Activity Detected
+* External Probing Observed
+* Service Mapping Suspected
+* Attack Surface Review Underway
+* Activity Stabilized
+
+Adversary goal discovery:
+Possible Red Team Goal:
+
+* Map exposed services
+* Identify remote access paths
+* Prepare future intrusion
+* Locate weak entry points
+
+Reveal gradually.
+
+Do not dump all goals at once.
+
+---
+
+12. REACTIVE INCIDENT EVOLUTION
+
+---
+
+Assignment 3 should react to student decisions.
+
+If student investigates carefully:
+[BLUE TEAM UPDATE]
+Recon pattern documented early.
+
+If student overreacts:
+[OPERATIONS IMPACT]
+Response may be premature. Evidence is still developing.
+
+If student ignores:
+[RED TEAM ACTIVITY]
+External probing continues across exposed services.
+
+If student correctly escalates:
+[INCIDENT UPDATE]
+Reconnaissance activity flagged for continued monitoring and hardening review.
+
+---
+
+13. BLUE TEAM DECISION MOMENT
+
+---
+
+After correlate findings, show:
+
+BLUE TEAM RESPONSE REQUIRED
+
+Text:
+“The same external source contacted multiple CyberCorp services. No breach is confirmed, but reconnaissance is likely. What should Blue Team do next?”
+
+Options:
+A. Escalate as possible reconnaissance and recommend monitoring/hardening
+B. Ignore the activity because no breach is confirmed
+C. Shut down all external services immediately
+D. Delete the logs to reduce alert noise
+
+Best answer:
+A
+
+Consequences:
+
+A:
+
+* Trust increases
+* Analyst Confidence reaches Ready
+* Containment/Readiness Progress increases
+* Manager:
+  “Good judgment. Reconnaissance should be escalated without overreacting.”
+
+B:
+
+* Threat pressure increases
+* Manager:
+  “Lack of confirmed breach does not mean activity should be ignored.”
+
+C:
+
+* Manager warns:
+  “That response may be excessive without confirmed compromise.”
+
+D:
+
+* Strong warning:
+  “Logs must be preserved. They are evidence.”
+
+Do not fail the student completely.
+Use feedback as teaching.
+
+---
+
+14. CINEMATIC THREAT MOMENTS
+
+---
+
+Use existing cinematic emphasis system for major moments only.
+
+Trigger cinematic emphasis when:
+
+* repeated external source is identified
+* service probe pattern is discovered
+* Blue Team decision is made
+* assignment completes
+
+Do NOT change system alert location or timing.
+
+---
+
+15. THREAT-HUNTING FEEL
+
+---
+
+This assignment should feel more ambiguous than Assignment 1 and Assignment 2.
+
+The student should learn:
+
+* one signal is not enough
+* patterns matter
+* absence of breach does not mean absence of threat
+* reconnaissance often comes before attack
+* good analysts correlate evidence before responding
+
+---
+
+16. SCORECARD
+
+---
+
+Assignment 3 scorecard should include:
+
+Assignment:
+Reconnaissance Detection
+
+Result:
+Completed
+
+Threat Type:
+Possible External Reconnaissance
+
+Evidence Identified:
+
+* Repeated external source
+* Multiple service probes
+* No confirmed compromise
+* Recon pattern correlation
+
+Decision Taken:
+[student choice]
+
+Operational Outcome:
+based on choice
+
+Analyst Confidence:
+final level
+
+Red Team Activity State:
+final state
+
+Blue Team Recommendation:
+monitoring/hardening/escalation
+
+Career Impact:
+Progress toward Junior SOC Analyst
+
+---
+
+17. CAREER TRACK IMPACT
+
+---
+
+After Assignment 3 completion:
+
+* Cybersecurity Intern track should show complete or nearly complete
+* Promotion readiness toward Junior SOC Analyst should increase
+* Manager message:
+  “You are beginning to think like a SOC analyst. You connected weak signals into a meaningful threat pattern.”
+
+Do not fully unlock Junior SOC Analyst unless the system already supports it safely.
+
+---
+
+18. LOW COGNITIVE LOAD REQUIREMENT
+
+---
+
+Keep the mission beginner-friendly.
+
+Rules:
+
+* one action at a time
+* one reasoning prompt at a time
+* one decision moment at a time
+* short explanations
+* no giant logs
+* no excessive alerts
+* no complex dashboards
+
+---
+
+19. PRESERVE EXISTING SYSTEMS
+
+---
+
+Do not break:
+
+* Assignment 1
+* Assignment 2
+* Operations Map
+* Career Track
+* terminal commands
+* guided pacing
+* evidence classification
+* analyst confidence
+* emotional gameplay
+* reactive incident evolution
+* cinematic interruptions
+* persistent adversary presence
+* analyst profile
+* XP
+* trust score
+* threat level
+* containment/readiness progress
+* local progress save
+
+---
+
+## GOAL
+
+Assignment 3 should become the first true threat-hunting experience.
+
+The student should feel:
+“I identified early attacker behavior before a breach occurred.”
+
+This should complete the Cybersecurity Intern track foundation and prepare the player for the future Junior SOC Analyst tier.
