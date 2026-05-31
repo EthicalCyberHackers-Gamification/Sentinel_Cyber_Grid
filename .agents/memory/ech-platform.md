@@ -6,8 +6,19 @@ description: Non-obvious constraints for the frontend-only cyber training app (a
 # Ethical CyberHackers Platform
 
 A frontend-only Vite browser app at `artifacts/ethical-cyberhackers-platform/` (preview `/`).
-Single big `script.js` + `index.html` + `style.css`. Two missions: M1=mission-001
-(`#dashboard`), M2=mission-002 (`#mission2Dashboard`).
+Single big `script.js` + `index.html` + `style.css`. Three missions: M1=mission-001
+(`#dashboard`), M2=mission-002 (`#mission2Dashboard`), M3=mission-003 (`#mission3Dashboard`),
+all keyed `m1*`/`m2*`/`m3*`.
+
+## Adding a mission requires updating EVERY shared 3-way helper
+Many shared helpers branch only `mission-002` vs default(`mission-001`); a new mission added
+with `m3*` markup silently routes to the M1 element if its branch is missing — no error, just
+wrong panel / cross-mission state bleed. **How to apply:** when adding a mission, grep for
+`mission-002` and audit each: `pushManagerMessage`, `setCurrentObjective`, `renderAllMiniMaps`,
+`setMapButtonsAttention`/`clearAllMapButtonsAttention`, `activeCinemaMission`/`activeTerminalOutput`,
+`buildOperationalAssessmentHTML`, `updateOperationalReputation`, `calculateAnalystBehavior`, and
+`renderOperationsCenter` (promo math + assignment-status rows hardcode the mission count). An e2e
+play-through won't catch a missing manager/objective branch unless it asserts the panel is populated.
 
 ## script.js is an ES module — functions are NOT global
 Loaded via `<script type="module">`, so console-based test navigation does NOT work.

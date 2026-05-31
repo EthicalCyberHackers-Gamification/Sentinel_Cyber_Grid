@@ -5542,7 +5542,9 @@ function wireNextStepButtons(missionId) {
 
 /** FIX 4 — pulse the Mission Map buttons + show a "Next Step" badge. */
 function setMapButtonsAttention(missionId, on) {
-  const ids = missionId === "mission-002"
+  const ids = missionId === "mission-003"
+    ? ["m3MapBackBtn", "m3OpenFullMapBtn", "m3OverviewMapBackBtn"]
+    : missionId === "mission-002"
     ? ["m2MapBackBtn", "m2OpenFullMapBtn", "m2OverviewMapBackBtn"]
     : ["m1MapBackBtn", "m1OpenFullMapBtn"];
   ids.forEach((id) => {
@@ -5555,6 +5557,7 @@ function setMapButtonsAttention(missionId, on) {
 function clearAllMapButtonsAttention() {
   setMapButtonsAttention("mission-001", false);
   setMapButtonsAttention("mission-002", false);
+  setMapButtonsAttention("mission-003", false);
 }
 
 /**
@@ -6214,23 +6217,24 @@ function renderOperationsCenter() {
 
   const m1Done = !!missionComplete;
   const m2Done = !!mission2Complete;
-  const missionsDone = (m1Done ? 1 : 0) + (m2Done ? 1 : 0);
+  const m3Done = !!mission3Complete;
+  const missionsDone = (m1Done ? 1 : 0) + (m2Done ? 1 : 0) + (m3Done ? 1 : 0);
 
   // Promotion progress toward Junior SOC Analyst: completed assignments are the
   // primary driver, with XP contributing a smaller, smoother share. Clamped 0–100.
   const xpFrac = MAX_XP > 0 ? Math.min(1, Math.max(0, currentXP / MAX_XP)) : 0;
   const promo = Math.max(0, Math.min(100,
-    Math.round((missionsDone / 2) * 70 + xpFrac * 30)
+    Math.round((missionsDone / 3) * 70 + xpFrac * 30)
   ));
   const promoBar = document.getElementById("opsPromoBar");
   const promoPct = document.getElementById("opsPromoPct");
   if (promoBar) promoBar.style.width = `${promo}%`;
   if (promoPct) promoPct.textContent = `${promo}%`;
-  // Phase 2 — once both Intern assignments are cleared, the promotion line reads
+  // Phase 2 — once all Intern assignments are cleared, the promotion line reads
   // as readiness for the next role rather than progress toward it.
   const promoText = document.getElementById("opsPromoText");
   if (promoText) {
-    promoText.textContent = m2Done
+    promoText.textContent = m3Done
       ? "ready for Junior SOC Analyst review"
       : "toward Junior SOC Analyst";
   }
@@ -6242,8 +6246,10 @@ function renderOperationsCenter() {
   setOpsAssignment("opsAssign2", "opsAssign2Status",
     m2Done ? "Completed" : (m1Done ? "Available" : "Locked"),
     m2Done ? "completed" : (m1Done ? "available" : "locked"));
-  // Assignment 3 (Mission 3) is a placeholder only — never launchable yet.
-  setOpsAssignment("opsAssign3", "opsAssign3Status", "Monitoring", "monitoring");
+  // Assignment 3 (Mission 3) — available once the network exposure review is done.
+  setOpsAssignment("opsAssign3", "opsAssign3Status",
+    m3Done ? "Completed" : (m2Done ? "Available" : "Locked"),
+    m3Done ? "completed" : (m2Done ? "available" : "locked"));
 
   // Manager direction (Sarah Reyes) adapts to progress. Milestone 33A — it now
   // also recognizes prior operations and reflects cumulative operational behavior
@@ -6260,11 +6266,14 @@ function renderOperationsCenter() {
     } else if (!m2Done) {
       next = "Your next assignment is Network Exposure Review.";
       recog = "Previous phishing incident successfully contained.";
-    } else {
-      // End-of-track direction: both Intern assignments cleared. Point the
-      // analyst toward promotion readiness and the upcoming recon work.
-      next = "You're approaching Junior SOC Analyst readiness — Reconnaissance Detection is being prepared as operational complexity increases.";
+    } else if (!m3Done) {
+      next = "Your next assignment is Reconnaissance Detection — operational complexity is increasing.";
       recog = "You handled the network exposure review well.";
+    } else {
+      // End-of-track direction: all Intern assignments cleared. Point the
+      // analyst toward promotion readiness.
+      next = "You're ready for Junior SOC Analyst review — strong work across all three assignments.";
+      recog = "Reconnaissance activity was detected and reported correctly.";
     }
     const evolution = managerTrustEvolutionMessage();
     mgr.textContent = [base, recog, evolution, next].filter(Boolean).join(" ");
@@ -6296,9 +6305,10 @@ function renderOperationsCenter() {
     m2Done ? "Exposed network services reviewed" : "External probing activity monitored",
     m2Done ? "ok" : "watch");
   setThreatRow("opsThreatRecon",
-    m2Done ? "Reconnaissance pressure increasing — detection assignment pending"
-           : "Reconnaissance activity under observation",
-    m2Done ? "watch" : "info");
+    m3Done ? "Reconnaissance activity detected and reported"
+           : (m2Done ? "Reconnaissance pressure increasing — detection assignment pending"
+                     : "Reconnaissance activity under observation"),
+    m3Done ? "ok" : (m2Done ? "watch" : "info"));
 
   // Red Team rhythm: monitored → active → escalating (recon) as Blue Team clears
   // assignments. Updates only the value/strong + the row tone (keeps the label).
@@ -6350,7 +6360,8 @@ function countCriticalPins(missionId) {
 function calculateAnalystBehavior() {
   const m1Done = !!missionComplete;
   const m2Done = !!mission2Complete;
-  const missionsDone = (m1Done ? 1 : 0) + (m2Done ? 1 : 0);
+  const m3Done = !!mission3Complete;
+  const missionsDone = (m1Done ? 1 : 0) + (m2Done ? 1 : 0) + (m3Done ? 1 : 0);
 
   // Manager trust (0..100 → 0..1).
   const trust = clampTrust(typeof trustScore === "number" ? trustScore : DEFAULT_TRUST_SCORE);
@@ -6359,6 +6370,7 @@ function calculateAnalystBehavior() {
   let containSum = 0, containN = 0;
   if (m1Done) { containSum += Math.max(0, Math.min(100, blueTeamContainment["mission-001"] || 0)); containN++; }
   if (m2Done) { containSum += Math.max(0, Math.min(100, blueTeamContainment["mission-002"] || 0)); containN++; }
+  if (m3Done) { containSum += Math.max(0, Math.min(100, blueTeamContainment["mission-003"] || 0)); containN++; }
   const containment = containN ? (containSum / containN) / 100 : 0;
 
   // Escalation timing (M1) — a low adversary peak means a fast, clean response.
@@ -6366,17 +6378,20 @@ function calculateAnalystBehavior() {
   const escBad = ESCALATION_MAX > 0 ? Math.min(1, peak1 / ESCALATION_MAX) : 0;
   const escalationTiming = m1Done ? (1 - escBad) : 0;
 
-  // Reasoning accuracy — correct M1 reasoning + M2 analyst confidence.
+  // Reasoning accuracy — correct M1 reasoning + M2/M3 analyst confidence.
   const m1Reason = m1ReasoningCorrect ? m1ReasoningCorrect.size : 0;
   const m2Conf = Math.max(0, Math.min(100, m2AnalystConfidence || 0));
+  const m3Conf = Math.max(0, Math.min(100, m3AnalystConfidence || 0));
   let reasonSum = 0, reasonN = 0;
   if (m1Done) { reasonSum += Math.min(1, m1Reason / 2); reasonN++; }
   if (m2Done) { reasonSum += m2Conf / 100; reasonN++; }
+  if (m3Done) { reasonSum += m3Conf / 100; reasonN++; }
   const reasoning = reasonN ? reasonSum / reasonN : 0;
 
   // Evidence discipline — avoided distractions (M1 false leads) + critical pins.
   const falseLeads = m1FalseLeadsChecked ? m1FalseLeadsChecked.size : 0;
-  const critPins = countCriticalPins("mission-001") + countCriticalPins("mission-002");
+  const critPins = countCriticalPins("mission-001") + countCriticalPins("mission-002")
+    + countCriticalPins("mission-003");
   let evidence = 0;
   if (missionsDone > 0) {
     const cleanM1 = m1Done ? (falseLeads === 0 ? 1 : 0.5) : 0.5;
@@ -6384,10 +6399,11 @@ function calculateAnalystBehavior() {
     evidence = (cleanM1 + pinScore) / 2;
   }
 
-  // Decision quality — outcome tiers + M2 scope drift.
+  // Decision quality — outcome tiers + M2/M3 scope drift.
   const m1Out = m1Done ? m1OutcomeVariation().key : null;     // excellent|reactive|delayed|weak
   const m2Out = m2Done ? m2OutcomeTier().label : null;        // Excellent|Delayed|Weak
-  const drift = Math.max(0, m2DecisionDrift || 0);
+  const m3Out = m3Done ? m3OutcomeTier().label : null;        // Excellent|Delayed|Weak
+  const drift = Math.max(0, m2DecisionDrift || 0) + Math.max(0, m3DecisionDrift || 0);
   let decisionSum = 0, decisionN = 0;
   if (m1Out) {
     decisionSum += (m1Out === "excellent") ? 1 : (m1Out === "reactive") ? 0.8
@@ -6398,15 +6414,19 @@ function calculateAnalystBehavior() {
     decisionSum += (m2Out === "Excellent") ? 1 : (m2Out === "Delayed") ? 0.6 : 0.4;
     decisionN++;
   }
+  if (m3Out) {
+    decisionSum += (m3Out === "Excellent") ? 1 : (m3Out === "Delayed") ? 0.6 : 0.4;
+    decisionN++;
+  }
   let decisionQuality = decisionN ? decisionSum / decisionN : 0;
   if (drift > 0) decisionQuality = Math.max(0, decisionQuality - Math.min(0.3, drift * 0.1));
 
   return {
-    m1Done, m2Done, missionsDone,
+    m1Done, m2Done, m3Done, missionsDone,
     trust: trust / 100,
     containment, escalationTiming, reasoning, evidence, decisionQuality,
     falseLeads, critPins, drift,
-    m1Out, m2Out,
+    m1Out, m2Out, m3Out,
   };
 }
 
@@ -6523,6 +6543,13 @@ function updateOperationalReputation(missionId) {
     add("op-m2-outcome",
       good ? "Network Threat Stabilized" : "Exposure Review — Recommendation Missed",
       good ? "success" : "warn");
+  } else if (missionId === "mission-003") {
+    const tier = m3OutcomeTier().label; // Excellent|Delayed|Weak
+    const good = (tier === "Excellent" || tier === "Delayed");
+    add("op-m3", "Reconnaissance Detection", good ? "success" : "warn");
+    add("op-m3-outcome",
+      good ? "Reconnaissance Detected & Reported" : "Recon Review — Recommendation Missed",
+      good ? "success" : "warn");
   }
 
   if (operationalHistory.length > OPERATIONAL_HISTORY_MAX) {
@@ -6609,6 +6636,16 @@ function buildOperationalAssessmentHTML(missionId) {
     else watch("Analyst confidence developing");
 
     if (countCriticalPins("mission-002") >= 1) pos("Reliable network evidence handling");
+    else watch("Investigation thoroughness improving");
+  } else if (missionId === "mission-003") {
+    if (decisionTaken["mission-003"] === "m3-recommend" && b.drift === 0) pos("Correct Blue Team recommendation");
+    else if (decisionTaken["mission-003"] === "m3-recommend") watch("Escalation timing needs refinement");
+    else watch("Ideal Blue Team recommendation missed");
+
+    if ((m3AnalystConfidence || 0) >= 70) pos("Strong analyst confidence");
+    else watch("Analyst confidence developing");
+
+    if (countCriticalPins("mission-003") >= 1) pos("Reliable reconnaissance evidence handling");
     else watch("Investigation thoroughness improving");
   }
 
@@ -6833,6 +6870,7 @@ function renderMiniMap(rootId, activeMissionId) {
 function renderAllMiniMaps() {
   renderMiniMap("m1MiniMap", "mission-001");
   renderMiniMap("m2MiniMap", "mission-002");
+  renderMiniMap("m3MiniMap", "mission-003");
 }
 
 /** Select a node: highlight it + render its details + transmission. */
@@ -7212,8 +7250,12 @@ function syncRegistryFromState() {
   else                       m2 = MISSION_STATUS.LOCKED;
   setRegistryMissionStatus("mission2", m2);
 
-  // Mission 3 — Locked for the duration of Phase A
-  setRegistryMissionStatus("mission3", MISSION_STATUS.LOCKED);
+  // Mission 3 — Locked → Unlocked (after M2) → Completed
+  let m3;
+  if (mission3Complete)      m3 = MISSION_STATUS.COMPLETED;
+  else if (mission2Complete) m3 = MISSION_STATUS.UNLOCKED;
+  else                       m3 = MISSION_STATUS.LOCKED;
+  setRegistryMissionStatus("mission3", m3);
 }
 
 /** Capitalizes the first letter of a status string for display. */
@@ -10918,9 +10960,12 @@ function initCollapsibleSections() {
    of the most recent line, trims to the last 5, slides the bubble in,
    and flashes the panel so the change is noticed. */
 function pushManagerMessage(missionId, text) {
-  const isM2  = missionId === "mission-002";
-  const feed  = document.getElementById(isM2 ? "m2ManagerText" : "managerText");
-  const panel = document.getElementById(isM2 ? "m2ManagerPanel" : "managerPanel");
+  const feedId  = missionId === "mission-003" ? "m3ManagerText"
+                : missionId === "mission-002" ? "m2ManagerText" : "managerText";
+  const panelId = missionId === "mission-003" ? "m3ManagerPanel"
+                : missionId === "mission-002" ? "m2ManagerPanel" : "managerPanel";
+  const feed  = document.getElementById(feedId);
+  const panel = document.getElementById(panelId);
   if (!feed) return;
   const msg = String(text == null ? "" : text).trim();
   if (!msg) return;
@@ -10945,8 +10990,9 @@ function pushManagerMessage(missionId, text) {
    area so the student never loses sight of the immediate next action.
    Mirrors the active hint text (kept in sync via setHint / setM2Hint). */
 function setCurrentObjective(missionId, text) {
-  const isM2 = missionId === "mission-002";
-  const el = document.getElementById(isM2 ? "m2CurrentObjective" : "currentObjective");
+  const objId = missionId === "mission-003" ? "m3CurrentObjective"
+              : missionId === "mission-002" ? "m2CurrentObjective" : "currentObjective";
+  const el = document.getElementById(objId);
   if (!el) return;
   const t = String(text == null ? "" : text).trim();
   if (!t) return;
@@ -12046,16 +12092,19 @@ function ensureIncidentCinemaLayer() {
   return incidentCinemaLayer;
 }
 
-/** The mission whose dashboard is currently on screen (M2 if visible, else M1). */
+/** The mission whose dashboard is currently on screen (M3/M2 if visible, else M1). */
 function activeCinemaMission() {
+  const m3 = document.getElementById("mission3Dashboard");
+  if (m3 && m3.style.display !== "none") return "mission-003";
   const m2 = document.getElementById("mission2Dashboard");
   return (m2 && m2.style.display !== "none") ? "mission-002" : "mission-001";
 }
 
 /** The active mission's terminal OUTPUT element (for the dramatic flicker). */
 function activeTerminalOutput() {
+  const m = activeCinemaMission();
   return document.getElementById(
-    activeCinemaMission() === "mission-002" ? "m2Terminal" : "terminalOutput"
+    m === "mission-003" ? "m3Terminal" : m === "mission-002" ? "m2Terminal" : "terminalOutput"
   );
 }
 

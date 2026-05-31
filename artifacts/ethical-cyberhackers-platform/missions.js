@@ -894,13 +894,13 @@ export const missionRegistry = [
   },
   {
     missionId:           "mission3",
-    title:               "Reconnaissance & Discovery",
-    description:         "Mission 3 Locked: Reconnaissance & Discovery coming next.",
+    title:               "Reconnaissance Detection",
+    description:         "Detect and report external reconnaissance against the network.",
     order:               3,
-    status:              "locked",        // Stays locked in Phase A
-    placeholderOnly:     true,            // No gameplay yet — locked teaser only
+    status:              "locked",        // Becomes "unlocked" after Mission 2
+    placeholderOnly:     true,            // Surfaced in the course list once M2 is complete
     prerequisiteId:      "mission2",
-    engineMissionDataId: null,            // No engine data yet
+    engineMissionDataId: "mission-003",   // Links to the live M3 engine
   },
 ];
 

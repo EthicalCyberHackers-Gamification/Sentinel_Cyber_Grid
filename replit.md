@@ -1010,6 +1010,40 @@ career inside a living SOC. NO new missions/architecture; all internal IDs prese
   workflow restarts clean, fresh home renders the assignment terminology + living board with no
   console errors.
 
+### Assignment 3 — Reconnaissance Detection (mission-003)
+A FULL playable, beginner-friendly threat-hunting assignment that MIRRORS Assignment 2's
+machinery, keyed everywhere by `mission-003` / `m3*`. Frontend-only, localStorage only.
+Theme: `netstat -an` → `whois 203.0.113.77` (the repeated recon source) → `grep access.log`,
+with a CDN false lead at `198.51.100.20` (the `ping-bad` command — no unlock). Reuses the
+shared `SUSPICION_LEVELS` (normal/low/helpful/critical) — NO 5th level.
+- **Markup**: `#mission3Overview` + `#mission3Dashboard` in `index.html` (after the M2
+  dashboard `</main>`), mirroring M2 with `m3*` IDs (m3Terminal, m3BeginBtn, m3CmdGrid with
+  `data-m3cmd` buttons ip-addr/ping-bad/ping/nmap/review, m3ManagerText/Panel,
+  m3CurrentObjective, m3AnalystConfidence, m3InvestigationBoard, m3StatusList, etc.).
+- **Engine** (`script.js`): `showMission3Overview` / `beginMission3` / `runM3Command` /
+  `completeMission3` / `resetMission3`, plus `M3_STATUS` / `M3_QUIZ` / `M3_REASONING` /
+  `M3_SCORECARD`, `m3OutcomeTier()` (Excellent/Delayed/Weak, mirrors M2), `syncM3Buttons`,
+  `renderM3Status`, `renderM3AnalystConfidence`. `m3Started` is session-only;
+  `missionLaunched["mission-003"]` is the durable resume flag (mirrors M1/M2).
+- **Map**: `missionMapStatus("mission-003")` returns `available` once `mission2Complete`;
+  `renderMissionDetails` shows the Launch button (placeholder "Coming Soon" removed);
+  `launchMissionFromMap` + `showMissionsMap` handle M3.
+- **Shared 3-way helpers** — when adding a new mission, these MUST get the new branch or
+  M3 silently routes to M1: `pushManagerMessage`, `setCurrentObjective`, `renderAllMiniMaps`,
+  `setMapButtonsAttention` / `clearAllMapButtonsAttention`, `activeCinemaMission` /
+  `activeTerminalOutput`, `buildOperationalAssessmentHTML`, `updateOperationalReputation`,
+  and `calculateAnalystBehavior` (missionsDone/containment/reasoning/critPins/decision now
+  count all three missions).
+- **Operations Center** (`renderOperationsCenter`, home `#moduleLanding`): A3 is no longer a
+  "Monitoring" placeholder — `opsAssign3` reflects Locked/Available/Completed, the promo math
+  divides by 3 (`(missionsDone/3)*70 + xpFrac*30`), the recon threat row flips to "detected and
+  reported" on `m3Done`, the manager direction adds an "next: Reconnaissance Detection" branch
+  (m2Done && !m3Done) and an all-three-done readiness branch, and `#opsPromoText` flips to
+  "ready for Junior SOC Analyst review" once `m3Done`.
+- **Persistence**: `mission3Complete`, `m3AnalystConfidence`, `m3DecisionDrift`,
+  `missionLaunched["mission-003"]`, m3 pins/board all save/restore/reset (mirrors M2).
+  `blueTeamContainment["mission-003"]=100` on completion.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
