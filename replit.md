@@ -1044,6 +1044,33 @@ shared `SUSPICION_LEVELS` (normal/low/helpful/critical) — NO 5th level.
   `missionLaunched["mission-003"]`, m3 pins/board all save/restore/reset (mirrors M2).
   `blueTeamContainment["mission-003"]=100` on completion.
 
+### Active Assignment Layout Fix (no-zoom playable dashboards)
+A layout-only fix so students can play any assignment (A1/A2/A3) at 100% browser zoom
+without the terminal/command line disappearing. NO flow/logic/progress changes.
+- **Root cause**: during active play `body.mission-running .dashboard` set
+  `grid-template-rows:auto 1fr` on a `.dashboard` that has base `overflow:hidden; min-height:0`,
+  viewport-locking the columns and CLIPPING reasoning/decision/board/scorecard/Next-Step
+  content — forcing zoom-out (which shrank the terminal and hid the command input).
+- **Fix** (CSS appended at END of `style.css`, wins on ties): `body.mission-running .dashboard
+  {overflow:visible; min-height:auto}` lets the PAGE scroll (the `1fr` row's implicit min is
+  `auto`, so short content still fills the viewport); `.terminal-body{min-height:260px;
+  max-height:42vh}` keeps the terminal bounded with internal output scroll so the command
+  input is never pushed off-screen; `body.mission-running .commands-panel` + its `.panel-body`
+  are `overflow:visible` so the action column joins the page scroll AND the sticky objective
+  anchors to the viewport; `body.mission-running .current-objective--center` is
+  `position:sticky` (top:6px); `@media (max-height:720px)` releases the terminal cap
+  (`max-height:none`) for high-zoom/short viewports.
+- **Jump to Next Action**: a button in the Current Objective card of all 3 dashboards
+  (`#jumpNextBtn` M1, `#m2JumpNextBtn` M2, `#m3JumpNextBtn` M3, in an `.objective-head` flex
+  row, wired in `boot()` via a forEach to `jumpToNextAction()`). `jumpToNextAction()`
+  (`script.js`, near the next-step helpers) is READ-ONLY (scroll only, never mutates progress):
+  finds the visible active dashboard, then `scrollIntoView` the LOWEST visible interactive
+  prompt among `.pin-panel-host/.m2-reasoning-host/.finding-panel/.decision-actions-host/
+  .quiz-panel/.scorecard/.next-step-panel`, falling back to the command grid
+  (`.command-buttons, .m2-cmd-grid, .m3-cmd-grid`) so it never no-ops in early states.
+- NOTE: `jumpToNextAction` is a top-level function declaration (hoisted) — its boot wiring
+  must not be deployed without the definition, or boot throws `ReferenceError` in the forEach.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
