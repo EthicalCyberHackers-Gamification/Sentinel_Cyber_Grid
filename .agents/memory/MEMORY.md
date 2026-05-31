@@ -1,2 +1,2 @@
-- [Operations Center home re-render](ech-landing-render.md) — every path that reveals `#moduleLanding` (boot/restore/clear AND back-nav) must call `renderOperationsCenter()` or it shows stale progress.
+- [Operations Center home re-render](ech-landing-render.md) — every path that reveals `#moduleLanding` must call `renderOperationsCenter()` or it shows stale progress.
 - [e2e localStorage frame mismatch](ech-e2e-localstorage-frame.md) — can't prime localStorage from the harness (top frame ≠ app iframe); test restore by driving the app UI then reloading.

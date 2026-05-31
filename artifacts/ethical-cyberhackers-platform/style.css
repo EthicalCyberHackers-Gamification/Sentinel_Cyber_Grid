@@ -8587,3 +8587,16 @@ body.mission-running .xp-panel .live-status > * { box-shadow: none; }
 @media (max-width: 900px) {
   .ops-profile-grid { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   Phase 2 — Intern career-readiness line in the Analyst Profile.
+   Subtle derived status under the operational-reputation traits.
+   ============================================================ */
+.ops-rep-readiness {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--color-text-dim);
+}

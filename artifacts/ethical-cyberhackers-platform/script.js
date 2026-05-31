@@ -5156,7 +5156,7 @@ function completeMission(newRank) {
   });
   showBlueTeamUpdate("mission-001", "Threat fully contained. Excellent work, Intern.");
   // Stage 4 — celebrate the win + lock the containment-action panel.
-  showEventToast("THREAT CONTAINED", "Mission 1 secured. The workstation is safe.", "blueteam", { duration: 8000 }); // FIX 2 — mission complete dwells 8s
+  showEventToast("THREAT CONTAINED", "Assignment 1 secured. The workstation is safe.", "blueteam", { duration: 8000 }); // FIX 2 — assignment complete dwells 8s
   renderContainmentActions("mission-001");
   // Milestone 28A — final Incident Timeline entry.
   addTimelineEvent("mission-001", "Threat contained");
@@ -5254,8 +5254,8 @@ function completeMission(newRank) {
    point back to the Mission Map.
    ============================================================ */
 const NEXT_STEP_TEXT = {
-  "mission-001": "Mission 1 complete. Return to the Mission Map to unlock and start Mission 2.",
-  "mission-002": "Mission 2 complete. Return to the Mission Map to review your progress and see the next locked mission.",
+  "mission-001": "Assignment 1 complete. Return to the Operations Map to unlock and start Assignment 2.",
+  "mission-002": "Assignment 2 complete. Return to the Operations Map to review your progress and see the next locked assignment.",
 };
 const COMPLETION_OBJECTIVE = "Assignment complete. Open the Operations Map to continue.";
 const COMPLETION_MANAGER   = "Good work. Return to the Mission Map to continue your training path.";
@@ -5461,7 +5461,7 @@ function buildCompletionHTML(newRank) {
 
             <div class="certificate-field">
               <span class="certificate-label">For completing</span>
-              <span class="certificate-value">Mission 1 — New Cybersecurity Intern</span>
+              <span class="certificate-value">Assignment 1 — New Cybersecurity Intern</span>
             </div>
 
             <div class="certificate-field">
@@ -5476,16 +5476,16 @@ function buildCompletionHTML(newRank) {
 
             <div class="certificate-field">
               <span class="certificate-label">Status</span>
-              <span class="certificate-value certificate-value--status">Mission 1 Completed</span>
+              <span class="certificate-value certificate-value--status">Assignment 1 Completed</span>
             </div>
           </div>
 
           <div class="certificate-footer">
             <p class="certificate-note">
-              Full certificate unlocks after completing all missions in the course.
+              Full certificate unlocks after completing all assignments in the course.
             </p>
             <button class="certificate-download-btn" type="button" disabled
-                    title="Locked until all missions are complete">
+                    title="Locked until all assignments are complete">
               🔒&nbsp; Download Certificate — Locked
             </button>
           </div>
@@ -5517,7 +5517,7 @@ function updateMission1CTA() {
   if (!btn) return;
   if (missionComplete) {
     btn.setAttribute("data-mode", "continue");
-    btn.innerHTML = "\u25B6&nbsp; Continue to Mission 2 \u2192";
+    btn.innerHTML = "\u25B6&nbsp; Continue to Assignment 2 \u2192";
     if (link) link.style.display = "";
   } else {
     btn.setAttribute("data-mode", "begin");
@@ -7367,14 +7367,14 @@ function beginMission2() {
   // Status + opening hint + supervisor briefing
   markM2Status("started");
   setM2Hint("Start by identifying your local IP address.");
-  setM2ManagerMessage("Welcome to Mission 2, Agent. Let's map this network — start by identifying your local IP address.");
+  setM2ManagerMessage("Welcome to your next assignment, Agent. Let's map this network — start by identifying your local IP address.");
   // Milestone 24F — dynamic manager reaction for mission start (M2).
   updateManagerReaction("mission_started", { missionId: "mission-002" });
   // Milestone 26A — event toast: investigation begins.
   showEventToast("Investigation Started", "Map the network and assess the target host.", "info");
 
   // Print a small system line in the terminal so it's not empty
-  printM2Line("[ Mission 2 environment ready ]", "m2-line--info");
+  printM2Line("[ Assignment 2 environment ready ]", "m2-line--info");
 
   // Milestone 24B — mission starts at baseline threat. resetThreatLevel..()
   // already runs on a fresh page, but call it explicitly here so a returning
@@ -7793,7 +7793,7 @@ function handleM2AnalystAnswer(letter) {
   // Stage 2 — Blue Team (Mission 2): a documented threat assessment advances containment.
   updateContainmentProgress("mission-002", 20, { stepId: "m2-analyst", caption: "Threat assessment documented." });
   showBlueTeamUpdate("mission-002", "Threat assessment confirmed and documented.");
-  setM2Hint("Mission 2 threat assessment complete. Final assessment incoming.");
+  setM2Hint("Assignment 2 threat assessment complete. Final assessment incoming.");
   setM2ManagerMessage("Excellent reasoning, Agent. You're starting to think like an analyst — one final question to confirm your understanding.");
 
   const outcome = document.getElementById("m2AnalystOutcome");
@@ -7932,8 +7932,8 @@ function handleM2QuizAnswer(letter) {
 
   // Mark final status + update course progress
   markM2Status("m2-complete");
-  setM2Hint("Mission 2 complete. See your scorecard below.");
-  setM2ManagerMessage("Outstanding, Agent. You've completed Mission 2. Review your scorecard and prepare for Mission 3.");
+  setM2Hint("Assignment 2 complete. See your scorecard below.");
+  setM2ManagerMessage("Outstanding, Agent. You've completed Assignment 2. Review your scorecard — Reconnaissance Detection is being prepared as your next assignment.");
   // Milestone 24F — dynamic manager reaction for mission completion (M2).
   // Fires after the closing briefing so the scripted reaction is the
   // final line the student sees in the Supervisor panel.
@@ -8187,16 +8187,16 @@ function renderM2Scorecard() {
 
             <div class="certificate-field">
               <span class="certificate-label">Status</span>
-              <span class="certificate-value certificate-value--status">Mission 2 Completed</span>
+              <span class="certificate-value certificate-value--status">Assignment 2 Completed</span>
             </div>
           </div>
 
           <div class="certificate-footer">
             <p class="certificate-note">
-              Full certificate unlocks after completing all missions in the course.
+              Full certificate unlocks after completing all assignments in the course.
             </p>
             <button class="certificate-download-btn" type="button" disabled
-                    title="Locked until all missions are complete">
+                    title="Locked until all assignments are complete">
               🔒&nbsp; Download Certificate — Locked
             </button>
           </div>
@@ -8338,7 +8338,7 @@ function resetMission2() {
   const term = document.getElementById("m2Terminal");
   if (term) term.innerHTML = "";
   setM2Hint("Start by identifying your local IP address.");
-  setM2ManagerMessage("Welcome back. Mission 2 is a network reconnaissance exercise. Click any unlocked command to begin.");
+  setM2ManagerMessage("Welcome back. This assignment is a network reconnaissance exercise. Click any unlocked command to begin.");
   renderM2Status();
 
   // Milestone 21 — clear and hide the Analyst Review panel on reset
@@ -8537,8 +8537,8 @@ function updateManagerReaction(eventType, context) {
   // Milestone 25A / 26A — event toast on mission completion (M1 + M2).
   if (eventType === "mission_completed") {
     const m = context && context.missionId === "mission-002"
-      ? "Mission 2 cleared. Network secured."
-      : "Mission 1 cleared. Phishing threat handled.";
+      ? "Assignment 2 cleared. Network secured."
+      : "Assignment 1 cleared. Phishing threat handled.";
     showEventToast("Assignment Complete", m, "success", { duration: 8000 }); // FIX 2 — assignment complete dwells 8s
   }
   return text;
@@ -8627,8 +8627,8 @@ function completeMissionEngine(newRank) {
     saveProgress();
     syncM2XPPanel();
     markM2Status("m2-complete");
-    setM2Hint("Mission 2 complete. See your scorecard below.");
-    setM2ManagerMessage("Outstanding, Agent. You've completed Mission 2. Review your scorecard and prepare for Mission 3.");
+    setM2Hint("Assignment 2 complete. See your scorecard below.");
+    setM2ManagerMessage("Outstanding, Agent. You've completed Assignment 2. Review your scorecard — Reconnaissance Detection is being prepared as your next assignment.");
     renderCourseProgress();
 
     // Render the scorecard so engine-driven completion produces the

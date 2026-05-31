@@ -976,6 +976,40 @@ outcomes, evidence pins, etc.
   CANNOT prime localStorage for restore tests — `page.evaluate` writes to the proxy-shell frame, but
   the app reads its OWN nested-iframe localStorage; drive persistence THROUGH the app UI instead.
 
+### Intern Career Vertical Slice (Phase 2)
+Additive/presentation-only polish so the two-assignment Intern track reads as ONE coherent
+career inside a living SOC. NO new missions/architecture; all internal IDs preserved
+(`mission-001/002/003`, element IDs, fn/var names, CSS classes).
+- **Terminology**: career-facing copy says "Assignment"/"Operation" instead of "Mission".
+  Covered surfaces: nav ("ASSIGNMENTS"), focus bar, Operations Map node labels/aria-labels +
+  details header + launch button, M2 overview, completion headings/subtitles, certificates
+  ("Assignment 1/2 …", "all assignments"), toasts ("Assignment Complete", "New Assignment"),
+  terminal lines, scorecard "NEXT ASSIGNMENT PREVIEW", M2 manager/hint dialogue, next-step copy,
+  cinema banner ("ASSIGNMENT COMPLETE"). A2 DISPLAY name "Network Basics" → "Network Exposure
+  Review" (the `M2_SCORECARD.missionName`, certificate, module title, eyebrow, unlock lines).
+  Internal labels NOT changed: progress-tracker step labels ("Mission 2 Started/Complete"),
+  engine self-test registry checks, deep "Begin/Restart Mission" CTA, and the footer "Run Mission
+  Engine Check" dev button (internal system names, intentionally left).
+- **Continuity** (`MANAGER_MESSAGES.missionComplete`, `MANAGER_REACTIONS`): M1 completion
+  forward-refs A2; M2 `mission_started` references the contained phishing incident + elevated
+  monitoring; M2 `mission_completed` references BOTH assignments + recon prep. `MISSION_MAP`
+  transmissions/briefings carry the same thread (done earlier in Phase 2).
+- **Living SOC board** (`renderOperationsCenter`, threat rows now ID'd `#opsThreatPhishing/
+  Probing/Recon/RedTeam` + `#opsRedTeamStatus`): rows react to progress — phishing detected→
+  contained (m1Done), probing monitored→reviewed (m2Done), recon observation→"pressure
+  increasing" (m2Done), Red Team Monitored→Active→Escalating(Recon) by `missionsDone`
+  (Blue/Red rhythm). End-of-track manager line points toward Junior SOC Analyst readiness +
+  Reconnaissance Detection prep. All derived-at-render from existing flags; NO new persisted state.
+  Rows rebuilt via `escapeHtml` before `innerHTML`.
+- **Progression**: `#opsPromoText` flips to "ready for Junior SOC Analyst review" once `m2Done`.
+  New `analystCareerReadiness()` (derived from `missionComplete`/`mission2Complete` only) drives
+  `#opsRepReadiness` in the Analyst Profile (Onboarding → Building → Promotion-Ready).
+- **A3 anticipation**: reuses the existing Milestone 29A `.mission-node--monitoring` /
+  `.mini-node--monitoring` pulse (NO new pulse CSS added); copy + ops board build the anticipation.
+- CSS: `.ops-rep-readiness` appended at END of `style.css`. Verified `node --check` clean,
+  workflow restarts clean, fresh home renders the assignment terminology + living board with no
+  console errors.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
