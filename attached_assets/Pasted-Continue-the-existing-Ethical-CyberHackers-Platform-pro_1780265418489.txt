@@ -1,0 +1,233 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current issue:
+The active assignment interface is difficult to use because the main working area is not stable, not properly scrollable, and forces the user to zoom out to see lower sections such as reasoning prompts, investigation board actions, scorecards, and next-step buttons. When zooming out, the terminal becomes too small and the command line can disappear.
+
+Goal:
+Fix the active assignment layout so the student can interact comfortably without browser zooming.
+
+Do not redesign the full app.
+Do not remove existing gameplay systems.
+Do not break Assignment 1, Assignment 2, or Assignment 3.
+Do not add backend, AI, authentication, or new pages.
+
+---
+
+1. CREATE STABLE ACTIVE ASSIGNMENT LAYOUT
+
+---
+
+During active assignment mode, use a stable viewport layout:
+
+Top:
+
+* app header / operations strip
+
+Middle:
+
+* main active workspace
+
+Bottom:
+
+* fixed or sticky command input area if applicable
+
+The page should not require zooming out.
+
+---
+
+2. MAKE MAIN WORKSPACE SCROLLABLE
+
+---
+
+The main active workspace should scroll vertically.
+
+Requirements:
+
+* body/page can scroll normally OR
+* active assignment workspace has its own vertical scroll
+* bottom content must be reachable without zooming
+* no important panel should be cut off
+
+Avoid:
+
+* fixed heights that trap content
+* overflow hidden on parent containers
+* giant panels pushing command input off-screen
+
+---
+
+3. KEEP TERMINAL USABLE
+
+---
+
+Terminal should have a reasonable fixed/minimum height.
+
+Recommended:
+
+* min-height: 260px
+* max-height: 40–45vh
+* overflow-y: auto
+
+Terminal should not consume the entire page when content below it exists.
+
+Terminal output should scroll internally if it grows.
+
+---
+
+4. KEEP COMMAND INPUT VISIBLE
+
+---
+
+The terminal input line should remain visible.
+
+Options:
+
+* sticky at bottom of terminal
+  OR
+* always rendered below terminal output inside terminal container
+  OR
+* fixed command input bar at bottom of active workspace
+
+Do not allow command input to disappear when terminal output grows or when the browser is zoomed.
+
+---
+
+5. MAKE COMMAND/ACTION AREA SCROLLABLE AND ACCESSIBLE
+
+---
+
+The command/action section should be visible without zooming.
+
+If many commands or prompts exist:
+
+* use collapsible groups
+* use vertical scrolling inside the command panel
+* keep Current Objective visible above commands
+
+Do not show completed or inactive commands as large clutter if not needed.
+
+---
+
+6. PRIORITIZE ACTIVE INTERACTION
+
+---
+
+Only the current active interaction should be expanded.
+
+Examples:
+
+* current command group
+* current reasoning prompt
+* current evidence pinning action
+* current decision panel
+* current next-step card after completion
+
+Completed sections should collapse or compact automatically.
+
+---
+
+7. ADD STICKY CURRENT OBJECTIVE
+
+---
+
+Current Objective should remain visible near the top of the command/action area while scrolling.
+
+Use sticky positioning if possible.
+
+This prevents students from losing track of what to do next.
+
+---
+
+8. ADD “JUMP TO NEXT ACTION” BUTTON
+
+---
+
+Add a small button:
+
+Jump to Next Action
+
+Behavior:
+
+* scrolls to the current active prompt, command, evidence board action, or next-step panel
+* useful when content gets long
+* should not reset progress
+
+Place it near Current Objective.
+
+---
+
+9. FIX POST-COMPLETION VIEW
+
+---
+
+After assignment completion:
+
+* scorecard should be reachable without zooming
+* Next Step panel should be clearly visible
+* Open Operations Map button should be reachable
+* terminal should not dominate the screen after completion
+
+If assignment is complete:
+collapse command groups and bring Next Step panel closer to view.
+
+---
+
+10. RESPONSIVE DESIGN
+
+---
+
+For desktop:
+
+* terminal and active work area should remain readable at 100% browser zoom
+
+For smaller screens:
+
+* stack panels vertically
+* keep terminal first
+* command input visible
+* allow normal scrolling
+
+---
+
+11. REMOVE PROBLEMATIC CSS CONSTRAINTS
+
+---
+
+Inspect CSS for:
+
+* overflow: hidden
+* height: 100vh on containers with overflowing content
+* fixed panels that prevent scrolling
+* terminal areas with excessive height
+* command containers without overflow handling
+
+Adjust safely.
+
+---
+
+12. DO NOT BREAK EXISTING SYSTEMS
+
+---
+
+Verify:
+
+* Assignment 1 full flow
+* Assignment 2 full flow
+* Assignment 3 full flow
+* terminal typing and manual commands
+* clickable command cards
+* command input visibility
+* guided pacing
+* reasoning prompts
+* evidence pinning
+* decisions
+* scorecards
+* next-step panels
+* Operations Map navigation
+* local progress save
+
+---
+
+## GOAL
+
+The student should be able to complete any assignment at normal browser zoom without losing the command line, without needing to zoom out, and without important content being cut off.

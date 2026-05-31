@@ -701,7 +701,10 @@
             <!-- Milestone 25E — Current Objective sits directly above the
                  command buttons in the center column (one short sentence). -->
             <div id="m2CurrentObjective" class="current-objective current-objective--center">
-              <span class="current-objective-label">Current Objective</span>
+              <div class="objective-head">
+                <span class="current-objective-label">Current Objective</span>
+                <button type="button" id="m2JumpNextBtn" class="jump-next-btn" title="Scroll to the current action">↓ Jump to Next Action</button>
+              </div>
               <span id="m2CurrentObjectiveText" class="current-objective-text">
                 Start by identifying your local IP address.
               </span>
@@ -1242,7 +1245,10 @@
           </div>
           <div class="panel-body">
             <div id="m3CurrentObjective" class="current-objective current-objective--center">
-              <span class="current-objective-label">Current Objective</span>
+              <div class="objective-head">
+                <span class="current-objective-label">Current Objective</span>
+                <button type="button" id="m3JumpNextBtn" class="jump-next-btn" title="Scroll to the current action">↓ Jump to Next Action</button>
+              </div>
               <span id="m3CurrentObjectiveText" class="current-objective-text">
                 Start by reviewing the active network connections.
               </span>
@@ -1807,7 +1813,10 @@
                  command buttons in the center column (one short sentence).
                  Mirrors the active hint via setCurrentObjective(). -->
             <div id="currentObjective" class="current-objective current-objective--center">
-              <span class="current-objective-label">Current Objective</span>
+              <div class="objective-head">
+                <span class="current-objective-label">Current Objective</span>
+                <button type="button" id="jumpNextBtn" class="jump-next-btn" title="Scroll to the current action">↓ Jump to Next Action</button>
+              </div>
               <span id="currentObjectiveText" class="current-objective-text">
                 Read the briefing, then click Begin Mission.
               </span>

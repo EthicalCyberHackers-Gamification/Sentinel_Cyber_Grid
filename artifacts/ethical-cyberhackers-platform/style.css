@@ -8600,3 +8600,87 @@ body.mission-running .xp-panel .live-status > * { box-shadow: none; }
   letter-spacing: 0.5px;
   color: var(--color-text-dim);
 }
+
+/* ============================================================
+   ACTIVE ASSIGNMENT LAYOUT FIX
+   The active dashboard was viewport-locked: body.mission-running
+   set grid-template-rows: auto 1fr on a .dashboard with
+   overflow:hidden + min-height:0, so reasoning prompts, the
+   investigation board, decision panels, scorecards and the
+   completion "Next Step" CTA got clipped — forcing students to
+   zoom out (which shrank the terminal and hid the command line).
+   This block lets the PAGE scroll during an active mission while
+   keeping the terminal a sensible height and the command input
+   pinned directly under the terminal output. Appended at END so
+   it wins on specificity ties.
+   ============================================================ */
+
+/* Un-trap the active dashboard: allow it to grow with content and
+   let the document scroll instead of clipping. The 1fr row's
+   implicit minimum is `auto`, so it still fills the viewport when
+   content is short but expands (page scrolls) when content is tall. */
+body.mission-running .dashboard {
+  overflow: visible;
+  min-height: auto;
+}
+
+/* Terminal keeps a usable, bounded height; output scrolls inside the
+   panel so it never pushes the command input off-screen. */
+.terminal-body {
+  min-height: 260px;
+  max-height: 42vh;
+}
+
+/* The command / action column flows into the page scroll (no internal
+   clipping), so every prompt, board action, decision, scorecard and
+   the Next Step button is reachable without zooming. Overflow must be
+   visible here for the sticky Current Objective below to anchor to the
+   viewport rather than this panel. */
+body.mission-running .commands-panel,
+body.mission-running .commands-panel .panel-body {
+  overflow: visible;
+}
+
+/* Current Objective (with its Jump button) sticks to the top of the
+   viewport while the action area scrolls, so students never lose track
+   of what to do next. */
+body.mission-running .current-objective--center {
+  position: sticky;
+  top: 6px;
+  z-index: 5;
+  background: var(--color-bg-panel);
+  box-shadow: 0 8px 16px -10px rgba(0, 0, 0, 0.85);
+}
+
+/* Objective header row holds the label + the Jump to Next Action button. */
+.objective-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-sm);
+}
+.jump-next-btn {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-cyan);
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: background var(--transition), box-shadow var(--transition);
+}
+.jump-next-btn:hover {
+  background: rgba(0, 229, 255, 0.18);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.25);
+}
+.jump-next-btn:active { transform: translateY(1px); }
+
+/* Short viewports (common at high browser zoom): release the terminal
+   height cap so the page simply scrolls and nothing is hidden. */
+@media (max-height: 720px) {
+  .terminal-body { min-height: 200px; max-height: none; }
+}

@@ -5540,6 +5540,45 @@ function wireNextStepButtons(missionId) {
   });
 }
 
+/**
+ * Active-layout fix — scroll to the student's current action.
+ * Finds the visible interactive prompt lowest in the active dashboard
+ * (board pin/classify, reasoning, decision, quiz, scorecard, or the
+ * post-completion Next Step panel) and brings it into view. Falls back to
+ * the command buttons. Never mutates progress — purely a scroll helper.
+ */
+function jumpToNextAction() {
+  const dash = ["dashboard", "mission2Dashboard", "mission3Dashboard"]
+    .map((id) => document.getElementById(id))
+    .find((el) => el && el.offsetParent !== null);
+  if (!dash) return;
+
+  const SELECTORS = [
+    ".pin-panel-host",
+    ".m2-reasoning-host",
+    ".finding-panel",
+    ".decision-actions-host",
+    ".quiz-panel",
+    ".scorecard",
+    ".next-step-panel",
+  ].join(",");
+
+  const isVisible = (el) =>
+    el && el.offsetParent !== null && el.getClientRects().length > 0;
+
+  const candidates = Array.from(dash.querySelectorAll(SELECTORS)).filter(isVisible);
+  // The current action is the lowest visible prompt (flow appends downward).
+  // Fall back to the command grid (M1 .command-buttons, M2/M3 cmd grids) so the
+  // Jump button always scrolls somewhere useful in early mission states.
+  const target = candidates.length
+    ? candidates[candidates.length - 1]
+    : dash.querySelector(".command-buttons, .m2-cmd-grid, .m3-cmd-grid");
+
+  if (target && target.scrollIntoView) {
+    try { target.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
+  }
+}
+
 /** FIX 4 — pulse the Mission Map buttons + show a "Next Step" badge. */
 function setMapButtonsAttention(missionId, on) {
   const ids = missionId === "mission-003"
@@ -10752,6 +10791,12 @@ function boot() {
   if (m2OpenFullMap) m2OpenFullMap.addEventListener("click", showMissionsMap);
   const m3OpenFullMap = document.getElementById("m3OpenFullMapBtn");
   if (m3OpenFullMap) m3OpenFullMap.addEventListener("click", showMissionsMap);
+  // Active-layout fix — "Jump to Next Action" buttons scroll to the current
+  // interactive prompt (board action, decision, scorecard, Next Step).
+  ["jumpNextBtn", "m2JumpNextBtn", "m3JumpNextBtn"].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.addEventListener("click", jumpToNextAction);
+  });
   renderAllMiniMaps(); // Milestone 25D — initial compact route map render.
   initOpsStrips();     // Milestone 29A — inject the persistent operations strip.
   initRedTeamPanels(); // Milestone 30A — inject the RED TEAM ACTIVITY panel.
