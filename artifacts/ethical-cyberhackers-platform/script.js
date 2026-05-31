@@ -190,6 +190,7 @@ const STORAGE_KEY = "ech.progress.v1";
 const evidenceLog = {
   "mission-001": [],
   "mission-002": [],
+  "mission-003": [],
 };
 
 /* ============================================================
@@ -215,8 +216,10 @@ const evidenceLog = {
 const CONFIDENCE_CAP = 100;
 let m1Confidence = 0;
 let m2Confidence = 0;
+let m3Confidence = 0;
 const m1ConfidenceContributors = new Set();
 const m2ConfidenceContributors = new Set();
+const m3ConfidenceContributors = new Set();
 
 // Milestone 31A — Mission 2 ANALYST CONFIDENCE (separate from Evidence
 // Confidence above). This is the "Low → Ready" reasoning track that climbs as
@@ -224,11 +227,15 @@ const m2ConfidenceContributors = new Set();
 // one-time credit per step; m2DecisionDrift counts poor decision attempts (B/D)
 // for the outcome tier. All three are persisted + reset with the mission.
 let m2AnalystConfidence = 0;
+let m3AnalystConfidence = 0;
 const m2ReasoningAnswered = new Set();
+const m3ReasoningAnswered = new Set();
 let m2DecisionDrift = 0;
+let m3DecisionDrift = 0;
 // Pending reasoning UI timers (pin-offer / retry). Tracked so navigation/reset
 // can cancel them and a stale callback can't mutate the UI off-screen.
 let m2ReasoningTimers = [];
+let m3ReasoningTimers = [];
 function clearM2ReasoningTimers() {
   m2ReasoningTimers.forEach((t) => window.clearTimeout(t));
   m2ReasoningTimers = [];
@@ -282,17 +289,21 @@ const M1_PROGRESSIVE_HINTS = [
 
 /** Returns the live confidence value for a mission. */
 function getConfidence(missionId) {
-  return missionId === "mission-002" ? m2Confidence : m1Confidence;
+  return missionId === "mission-003" ? m3Confidence : missionId === "mission-002" ? m2Confidence : m1Confidence;
 }
 
 /** Add a one-time confidence contribution for a mission. */
 function addConfidence(missionId, contributorKey, amount) {
-  const set = missionId === "mission-002"
+  const set = missionId === "mission-003"
+    ? m3ConfidenceContributors
+    : missionId === "mission-002"
     ? m2ConfidenceContributors
     : m1ConfidenceContributors;
   if (set.has(contributorKey)) return;
   set.add(contributorKey);
-  if (missionId === "mission-002") {
+  if (missionId === "mission-003") {
+    m3Confidence = Math.min(CONFIDENCE_CAP, m3Confidence + amount);
+  } else if (missionId === "mission-002") {
     m2Confidence = Math.min(CONFIDENCE_CAP, m2Confidence + amount);
   } else {
     m1Confidence = Math.min(CONFIDENCE_CAP, m1Confidence + amount);
@@ -303,7 +314,7 @@ function addConfidence(missionId, contributorKey, amount) {
 /** Render the "Evidence Confidence" meter for the given mission id. */
 function renderConfidenceMeter(missionId) {
   const mid    = missionId || getActiveMissionId();
-  const hostId = mid === "mission-002" ? "m2ConfidenceMeter" : "confidenceMeter";
+  const hostId = mid === "mission-003" ? "m3ConfidenceMeter" : mid === "mission-002" ? "m2ConfidenceMeter" : "confidenceMeter";
   const host   = document.getElementById(hostId);
   if (!host) return;
   const pct = Math.max(0, Math.min(CONFIDENCE_CAP, getConfidence(mid)));
@@ -361,17 +372,30 @@ const EVIDENCE_RATINGS = {
     "nmap":     { title: "Open Services (SSH / HTTP / HTTPS)", correct: "critical" },
     "review":   { title: "Service Review Required",           correct: "helpful"  },
   },
+  // Assignment 3 — Reconnaissance Detection. Keys mirror M3_COMMANDS keys.
+  // The repeated CONNECTIONS and the unknown SOURCE are helpful supporting
+  // signals; the systematic PROBE PATTERN is the critical recon evidence; the
+  // known CDN is a benign false lead (normal).
+  "mission-003": {
+    "ping-bad": { title: "Known CDN Source (198.51.100.20)",   correct: "normal"   },
+    "ip-addr":  { title: "Repeated External Connections",      correct: "helpful"  },
+    "ping":     { title: "Unknown Source (203.0.113.77)",      correct: "helpful"  },
+    "nmap":     { title: "Service-Probe Pattern",              correct: "critical" },
+    "review":   { title: "Reconnaissance Correlation",         correct: "helpful"  },
+  },
 };
 
 // Pinned findings per mission: key -> { title, level, levelLabel, correct, useful, critical }
 const investigationPins = {
   "mission-001": {},
   "mission-002": {},
+  "mission-003": {},
 };
 // Findings reviewed and therefore available to pin (key set per mission).
 const pinnableFindings = {
   "mission-001": new Set(),
   "mission-002": new Set(),
+  "mission-003": new Set(),
 };
 // One-time XP guard keyed by `${missionId}:${key}` so re-classifying can't farm XP.
 const pinXpAwarded = new Set();
@@ -1051,7 +1075,8 @@ function recomputeConfidenceFromPins(missionId) {
     total += pinConfidenceAmount(pins[key].correct, pins[key].level);
   });
   total = Math.max(0, Math.min(CONFIDENCE_CAP, total));
-  if (missionId === "mission-002") m2Confidence = total;
+  if (missionId === "mission-003") m3Confidence = total;
+  else if (missionId === "mission-002") m2Confidence = total;
   else m1Confidence = total;
   renderConfidenceMeter(missionId);
   return total;
@@ -1065,17 +1090,17 @@ function canCompleteM1() {
 
 /** DOM host id for a mission's pin-action area. */
 function pinHostId(missionId) {
-  return missionId === "mission-002" ? "m2PinPanel" : "pinPanel";
+  return missionId === "mission-003" ? "m3PinPanel" : missionId === "mission-002" ? "m2PinPanel" : "pinPanel";
 }
 /** DOM host id for a mission's Investigation Board. */
 function boardHostId(missionId) {
-  return missionId === "mission-002" ? "m2InvestigationBoard" : "investigationBoard";
+  return missionId === "mission-003" ? "m3InvestigationBoard" : missionId === "mission-002" ? "m2InvestigationBoard" : "investigationBoard";
 }
 
 /** Set the supervisor message for the active mission using raw text. */
 function setManagerText(missionId, text) {
   // Milestone 25A — route through the supervisor chat feed.
-  pushManagerMessage(missionId === "mission-002" ? "mission-002" : "mission-001", text);
+  pushManagerMessage(missionId, text);
 }
 
 /** Show the "Pin to Investigation Board" action for a reviewed finding. */
@@ -1216,8 +1241,8 @@ function handlePinClassification(missionId, key, level) {
   //  - Mission 1 is driven entirely by pins (robust to re-classification).
   //  - Mission 2 keeps its existing command-based confidence and adds the
   //    pin contribution lightly on top (one-time per finding).
-  if (missionId === "mission-002") {
-    addConfidence("mission-002", `pin-${key}`, pinConfidenceAmount(correct, level));
+  if (missionId === "mission-002" || missionId === "mission-003") {
+    addConfidence(missionId, `pin-${key}`, pinConfidenceAmount(correct, level));
   } else {
     recomputeConfidenceFromPins("mission-001");
     // Milestone 27A — Analyst Confidence is derived from reasoning + correct
@@ -1285,9 +1310,9 @@ function handlePinClassification(missionId, key, level) {
 
   // Stage 2 — Blue Team (Mission 2): correctly classifying an exposed-services
   // finding as Critical advances network containment (one-time).
-  if (missionId === "mission-002" && correct && meta.critical) {
-    updateContainmentProgress("mission-002", 25, { stepId: "m2-critical", caption: "Critical evidence logged." });
-    showBlueTeamUpdate("mission-002", "Evidence logged.");
+  if ((missionId === "mission-002" || missionId === "mission-003") && correct && meta.critical) {
+    updateContainmentProgress(missionId, 25, { stepId: (missionId === "mission-003" ? "m3-critical" : "m2-critical"), caption: "Critical evidence logged." });
+    showBlueTeamUpdate(missionId, "Evidence logged.");
   }
 
   // Refresh the pin action area.
@@ -1501,18 +1526,53 @@ const MISSION_BRIEFINGS = {
       },
     ],
   },
+  "mission-003": {
+    assignment:
+      "Network monitoring flagged unusual activity from an external source. " +
+      "Review the briefing materials before hunting for reconnaissance.",
+    cards: [
+      {
+        id: "recon",
+        title: "Reconnaissance",
+        points: [
+          "Attackers gather information before attacking",
+          "Probing services is an early warning sign",
+        ],
+        reaction: "Good. Catching reconnaissance early lets the Blue Team respond before a breach.",
+      },
+      {
+        id: "weak-signals",
+        title: "Weak Signals",
+        points: [
+          "A single connection can look harmless",
+          "Repeated activity from one source is the real clue",
+        ],
+        reaction: "Good. Analysts correlate small signals into one bigger picture.",
+      },
+      {
+        id: "blue-team",
+        title: "Blue Team Response",
+        points: [
+          "Defenders watch for unknown external sources",
+          "Reporting recon early prevents the next stage",
+        ],
+        reaction: "Good. Knowing how the Blue Team responds shapes your recommendation.",
+      },
+    ],
+  },
 };
 
 // Reviewed-card ids per mission, and a one-time XP guard per mission.
 const briefingReviewed = {
   "mission-001": new Set(),
   "mission-002": new Set(),
+  "mission-003": new Set(),
 };
 const briefingXpAwarded = new Set();
 
 /** DOM host id for a mission's Briefing Room. */
 function briefingHostId(missionId) {
-  return missionId === "mission-002" ? "m2BriefingRoom" : "briefingRoom";
+  return missionId === "mission-003" ? "m3BriefingRoom" : missionId === "mission-002" ? "m2BriefingRoom" : "briefingRoom";
 }
 /** Total briefing cards defined for a mission. */
 function briefingCardCount(missionId) {
@@ -1646,6 +1706,14 @@ function updateBriefingGate(missionId) {
         ? "\u25B6&nbsp; Begin Investigation"
         : "\u25B6&nbsp; Begin Investigation \uD83D\uDD12";
     }
+  } else if (missionId === "mission-003") {
+    const btn = document.getElementById("m3BeginBtn");
+    if (btn) {
+      btn.classList.toggle("begin-locked", !complete);
+      btn.innerHTML = complete
+        ? "\u25B6&nbsp; Begin Investigation"
+        : "\u25B6&nbsp; Begin Investigation \uD83D\uDD12";
+    }
   } else {
     const btn = document.getElementById("beginMissionBtn");
     // Only gate the fresh-start ("begin") CTA — returning students on the
@@ -1740,6 +1808,10 @@ function buildBriefingSummaryHTML(missionId) {
  *  string, which is falsy), so an inline-string check would mis-report
  *  Mission 2 as Mission 1 and misroute things like manager reactions. */
 function getActiveMissionId() {
+  const m3 = document.getElementById("mission3Dashboard");
+  if (m3 && getComputedStyle(m3).display !== "none") {
+    return "mission-003";
+  }
   const m2 = document.getElementById("mission2Dashboard");
   if (m2 && getComputedStyle(m2).display !== "none") {
     return "mission-002";
@@ -1801,7 +1873,7 @@ function clearEvidenceForMission(missionId) {
 /** Render the "Evidence Collected" panel for the given mission id. */
 function renderEvidencePanel(missionId) {
   const mid    = missionId || getActiveMissionId();
-  const hostId = mid === "mission-002" ? "m2EvidencePanel" : "evidencePanel";
+  const hostId = mid === "mission-003" ? "m3EvidencePanel" : mid === "mission-002" ? "m2EvidencePanel" : "evidencePanel";
   const host   = document.getElementById(hostId);
   if (!host) return;
   const list = evidenceLog[mid] || [];
@@ -1919,6 +1991,38 @@ const TOOL_DEFINITIONS = {
       initial: "locked",
     },
   ],
+  "mission-003": [
+    {
+      id: "m3-network-identity",
+      name: "Connection Monitor",
+      description: "Review the host's active network connections.",
+      initial: "available",
+    },
+    {
+      id: "m3-reachability",
+      name: "Source Lookup",
+      description: "Look up who an external source belongs to.",
+      initial: "available",
+    },
+    {
+      id: "m3-service-scanner",
+      name: "Log Analyzer",
+      description: "Search the access log for a source's activity.",
+      initial: "locked",
+    },
+    {
+      id: "m3-analyst-review",
+      name: "Analyst Review",
+      description: "Correlate the signals and identify the activity.",
+      initial: "locked",
+    },
+    {
+      id: "m3-quiz",
+      name: "Quiz",
+      description: "Confirm your understanding of reconnaissance.",
+      initial: "locked",
+    },
+  ],
 };
 
 /* Build a quick toolId → missionId lookup so the reusable functions
@@ -1937,6 +2041,7 @@ const TOOL_MISSION_BY_ID = (() => {
 const toolStateByMission = {
   "mission-001": {},
   "mission-002": {},
+  "mission-003": {},
 };
 
 /** Returns the human-readable label for a tool state (for the panel pill). */
@@ -1970,7 +2075,7 @@ function unlockTool(toolId) {
     state[toolId] = "available";
     renderAvailableTools(mid);
     // Milestone 25A — glow the tool panel + toast when a tool unlocks.
-    fxFlash(document.getElementById(mid === "mission-002" ? "m2ToolsPanel" : "toolsPanel"), "fx-glow", 1100);
+    fxFlash(document.getElementById(mid === "mission-003" ? "m3ToolsPanel" : mid === "mission-002" ? "m2ToolsPanel" : "toolsPanel"), "fx-glow", 1100);
     fxToast("Tool Unlocked", "info");
   }
 }
@@ -2095,7 +2200,9 @@ function buildOutcomeSummaryHTML(missionId) {
   const trustNow = getTrustScore();
 
   // --- XP Earned (per-mission quiz reward) ---
-  const xp = missionId === "mission-002"
+  const xp = missionId === "mission-003"
+    ? (typeof M3_QUIZ === "object" && M3_QUIZ ? M3_QUIZ.xpReward : 0)
+    : missionId === "mission-002"
     ? (typeof M2_QUIZ === "object" && M2_QUIZ ? M2_QUIZ.xpReward : 0)
     : (typeof QUIZ === "object" && QUIZ ? QUIZ.xpReward : 0);
 
@@ -2204,7 +2311,7 @@ ${buildBriefingSummaryHTML(missionId)}
 /** Render the "Available Tools" panel for the given mission id. */
 function renderAvailableTools(missionId) {
   const mid    = missionId || getActiveMissionId();
-  const hostId = mid === "mission-002" ? "m2ToolsPanel" : "toolsPanel";
+  const hostId = mid === "mission-003" ? "m3ToolsPanel" : mid === "mission-002" ? "m2ToolsPanel" : "toolsPanel";
   const host   = document.getElementById(hostId);
   if (!host) return;
   const defs  = TOOL_DEFINITIONS[mid] || [];
@@ -2252,6 +2359,7 @@ const DEFAULT_THREAT_LEVEL = "Medium";
 const threatLevelByMission = {
   "mission-001": DEFAULT_THREAT_LEVEL,
   "mission-002": DEFAULT_THREAT_LEVEL,
+  "mission-003": DEFAULT_THREAT_LEVEL,
 };
 
 /** Returns true if the given string is a recognized threat level. */
@@ -2302,7 +2410,7 @@ function resetThreatLevelForMission(missionId) {
 /** Render the threat-level panel for the given mission id. */
 function renderThreatLevel(missionId) {
   const mid    = missionId || getActiveMissionId();
-  const hostId = mid === "mission-002" ? "m2ThreatMeter" : "threatMeter";
+  const hostId = mid === "mission-003" ? "m3ThreatMeter" : mid === "mission-002" ? "m2ThreatMeter" : "threatMeter";
   const host   = document.getElementById(hostId);
   if (!host) return;
   const level    = getThreatLevel(mid);
@@ -2535,6 +2643,53 @@ const DECISION_ACTIONS = {
     consequence: "Scope drifted to unrelated hosts while the exposed services sat unaddressed.",
     advance: false,
   },
+
+  /* ---------- Mission 3 (Reconnaissance Detection — Blue Team response) -------
+     Four options, A/B/C/D, mirroring Mission 2's decision moment:
+       A recommend  — correct (report & monitor the scanning source)
+       B ignore     — poor    (no advance; re-decide)
+       C shutdown   — acceptable (block the source — stops it, but blunt)
+       D continue   — poor    (dismiss as normal traffic; no advance)            */
+  "m3-recommend": {
+    missionId: "mission-003",
+    label:     "Report the source and recommend heightened monitoring",
+    kind:      "correct",
+    trustDelta: +10,
+    threatLevel: "Medium",
+    managerMsg: "Exactly right. Reconnaissance is an early warning — reporting the source and watching it closely is the proportionate call.",
+    consequence: "The scanning source was reported and monitoring was increased; the team is ready before any follow-on attack.",
+    advance: true,
+  },
+  "m3-ignore": {
+    missionId: "mission-003",
+    label:     "Ignore the scanning activity for now",
+    kind:      "poor",
+    trustDelta: -10,
+    threatLevel: "High",
+    managerMsg: "Reconnaissance should never be ignored — it is often the first stage of a real attack.",
+    consequence: "Manager flagged the dismissal as risky. Try a safer action before continuing.",
+    advance: false,
+  },
+  "m3-shutdown": {
+    missionId: "mission-003",
+    label:     "Block the source IP at the firewall immediately",
+    kind:      "acceptable",
+    trustDelta: 0,
+    threatLevel: "Medium",
+    managerMsg: "Blocking stops this source, but a determined attacker just switches IPs. Reporting and monitoring usually teaches you more.",
+    consequence: "The source IP was blocked at the firewall — the probing stopped, but the blunt response gave up visibility into the attacker.",
+    advance: true,
+  },
+  "m3-continue": {
+    missionId: "mission-003",
+    label:     "Dismiss it as normal internet background traffic",
+    kind:      "poor",
+    trustDelta: -6,
+    threatLevel: "High",
+    managerMsg: "A repeated, targeted scan against your own host is not background noise. Look again before you dismiss it.",
+    consequence: "The repeated scan was written off as noise while the source kept mapping the network.",
+    advance: false,
+  },
 };
 
 /** Final committed decision per mission (the one that advanced the flow). */
@@ -2544,7 +2699,7 @@ let decisionAdvanced = {};   // { "mission-001": true, ... }
 
 /** Map missionId → host DOM id for the decision panel. */
 function decisionHostId(missionId) {
-  return missionId === "mission-002" ? "m2DecisionActions" : "decisionActions";
+  return missionId === "mission-003" ? "m3DecisionActions" : missionId === "mission-002" ? "m2DecisionActions" : "decisionActions";
 }
 
 /**
@@ -2655,7 +2810,7 @@ function applyDecisionConsequence(actionId) {
   //    legacy setManagerMessage only accepts MANAGER_MESSAGES keys);
   //    M2 has a raw-text helper.
   // Milestone 25A — route through the supervisor chat feed.
-  pushManagerMessage(def.missionId === "mission-002" ? "mission-002" : "mission-001", def.managerMsg);
+  pushManagerMessage(def.missionId, def.managerMsg);
 
   return def;
 }
@@ -2788,17 +2943,26 @@ function resolveDecisionAction(actionId) {
           // Stage 3 — a correct, decisive call interrupts the adversary's spread.
           containThreatActivity("mission-001");
         }
-      } else if (def.missionId === "mission-002") {
-        // Stage 2 (Mission 2) — escalation is the decisive containment step.
-        updateContainmentProgress("mission-002", 30, {
-          stepId: "m2-escalate",
+      } else if (def.missionId === "mission-002" || def.missionId === "mission-003") {
+        // Stage 2 (Mission 2 / Mission 3) — escalation is the decisive containment step.
+        const isM3 = def.missionId === "mission-003";
+        updateContainmentProgress(def.missionId, 30, {
+          stepId: isM3 ? "m3-escalate" : "m2-escalate",
           incident: "Escalating",
-          assignment: "Escalate to lead analyst",
-          caption: "Incident escalated to the lead analyst.",
+          assignment: isM3 ? "Recommend security review" : "Escalate to lead analyst",
+          caption: isM3
+            ? "Reconnaissance escalated for security review."
+            : "Incident escalated to the lead analyst.",
         });
-        showBlueTeamUpdate("mission-002", "Incident escalated to lead analyst.", { toast: true });
+        showBlueTeamUpdate(
+          def.missionId,
+          isM3
+            ? "Reconnaissance escalated for security review."
+            : "Incident escalated to lead analyst.",
+          { toast: true }
+        );
         // Stage 3 — a correct, decisive call interrupts the adversary's spread.
-        containThreatActivity("mission-002");
+        containThreatActivity(def.missionId);
         // Milestone 31A — cinematic beat for the correct recommendation.
         showIncidentInterruption("containment-success", { force: true });
       }
@@ -2807,15 +2971,24 @@ function resolveDecisionAction(actionId) {
     // Milestone 31A (Mission 2) — the "shut down all services" option is
     // ACCEPTABLE: it advances and stops the exposure, but bluntly (no trust
     // reward) and with some containment credit.
-    if (def.kind === "acceptable" && def.missionId === "mission-002") {
-      updateContainmentProgress("mission-002", 20, {
-        stepId: "m2-shutdown",
+    if (def.kind === "acceptable" && (def.missionId === "mission-002" || def.missionId === "mission-003")) {
+      const isM3 = def.missionId === "mission-003";
+      updateContainmentProgress(def.missionId, 20, {
+        stepId: isM3 ? "m3-block" : "m2-shutdown",
         incident: "Containing",
-        assignment: "Services taken offline",
-        caption: "All services taken offline — exposure stopped.",
+        assignment: isM3 ? "Source IP blocked" : "Services taken offline",
+        caption: isM3
+          ? "Source IP blocked at the firewall — probing stopped."
+          : "All services taken offline — exposure stopped.",
       });
-      showBlueTeamUpdate("mission-002", "All services taken offline — exposure stopped.", { toast: true });
-      containThreatActivity("mission-002");
+      showBlueTeamUpdate(
+        def.missionId,
+        isM3
+          ? "Source IP blocked at the firewall — probing stopped."
+          : "All services taken offline — exposure stopped.",
+        { toast: true }
+      );
+      containThreatActivity(def.missionId);
       showIncidentInterruption("containment-success", { force: true });
     }
 
@@ -2839,7 +3012,9 @@ function resolveDecisionAction(actionId) {
     // Brief pause so the student reads the feedback, then advance.
     setTimeout(() => {
       hideDecisionActions(def.missionId);
-      if (def.missionId === "mission-002") {
+      if (def.missionId === "mission-003") {
+        renderM3AnalystReview();
+      } else if (def.missionId === "mission-002") {
         renderM2AnalystReview();
       } else {
         showFindingPanel();
@@ -2871,18 +3046,19 @@ function resolveDecisionAction(actionId) {
       // student still re-decides, so this nudges rather than punishes.
       addTimelineEvent("mission-001", "Threat dismissed — re-evaluating");
       triggerIncidentEvolution("m1-ignore");
-    } else if (def.missionId === "mission-002") {
-      // Milestone 31A — count poor M2 decision attempts for the outcome tier.
-      m2DecisionDrift++;
+    } else if (def.missionId === "mission-002" || def.missionId === "mission-003") {
+      // Milestone 31A — count poor M2/M3 decision attempts for the outcome tier.
+      if (def.missionId === "mission-003") m3DecisionDrift++;
+      else m2DecisionDrift++;
       try { saveProgress(); } catch (_) { /* non-fatal */ }
-      // Stage 2 (Mission 2) — a poor call slows network containment.
-      updateContainmentProgress("mission-002", -10, {
+      // Stage 2 (Mission 2 / Mission 3) — a poor call slows network containment.
+      updateContainmentProgress(def.missionId, -10, {
         stepId: "poor-" + actionId,
         caption: "Containment slowed — the attacker gained ground.",
       });
-      showBlueTeamUpdate("mission-002", "Hold position — re-evaluating the threat.");
+      showBlueTeamUpdate(def.missionId, "Hold position — re-evaluating the threat.");
       // Stage 3 — a poor decision lets the adversary escalate the incident.
-      triggerEscalationEvent("mission-002");
+      triggerEscalationEvent(def.missionId);
       // Milestone 31A — cinematic beat for a poor network decision.
       showIncidentInterruption("additional-targeting", { force: true });
     }
@@ -2948,6 +3124,11 @@ const ALERT_DEFINITIONS = {
     message:  "A target host is exposing multiple network services that require review.",
     severity: "Medium",
   },
+  "mission-003": {
+    title:    "Suspicious External Activity",
+    message:  "An unknown external source is repeatedly contacting internal services. Investigate for reconnaissance.",
+    severity: "Medium",
+  },
 };
 
 /** Per-mission alert objects: { title, message, severity, state }. */
@@ -2955,7 +3136,7 @@ let alertByMission = {};
 
 /** Map missionId → DOM host id for the Alert Center panel. */
 function alertHostId(missionId) {
-  return missionId === "mission-002" ? "m2AlertCenter" : "alertCenter";
+  return missionId === "mission-003" ? "m3AlertCenter" : missionId === "mission-002" ? "m2AlertCenter" : "alertCenter";
 }
 
 /**
@@ -3280,12 +3461,18 @@ function saveProgress() {
       // so it survives reload. Sets are serialized to arrays.
       m1Confidence,
       m2Confidence,
+      m3Confidence,
       m1ConfidenceContributors: Array.from(m1ConfidenceContributors),
       m2ConfidenceContributors: Array.from(m2ConfidenceContributors),
+      m3ConfidenceContributors: Array.from(m3ConfidenceContributors),
       // Milestone 31A — Mission 2 Analyst Confidence + reasoning + decision drift.
       m2AnalystConfidence,
       m2ReasoningAnswered: Array.from(m2ReasoningAnswered),
       m2DecisionDrift,
+      // Assignment 3 — Analyst Confidence + reasoning + decision drift.
+      m3AnalystConfidence,
+      m3ReasoningAnswered: Array.from(m3ReasoningAnswered),
+      m3DecisionDrift,
       m1FilesReviewed:     Array.from(m1FilesReviewed),
       m1FalseLeadsChecked: Array.from(m1FalseLeadsChecked),
       m1BonusFound,
@@ -3301,12 +3488,14 @@ function saveProgress() {
       pinnableFindings: {
         "mission-001": Array.from(pinnableFindings["mission-001"]),
         "mission-002": Array.from(pinnableFindings["mission-002"]),
+        "mission-003": Array.from(pinnableFindings["mission-003"]),
       },
       pinXpAwarded: Array.from(pinXpAwarded),
       // Milestone 24I — persist Briefing Room state + one-time XP guard.
       briefingReviewed: {
         "mission-001": Array.from(briefingReviewed["mission-001"]),
         "mission-002": Array.from(briefingReviewed["mission-002"]),
+        "mission-003": Array.from(briefingReviewed["mission-003"]),
       },
       briefingXpAwarded: Array.from(briefingXpAwarded),
       // Milestone 25B (resume-safe) — persist per-mission "investigation launched"
@@ -3317,11 +3506,13 @@ function saveProgress() {
       blueTeamSteps: {
         "mission-001": Array.from(blueTeamSteps["mission-001"]),
         "mission-002": Array.from(blueTeamSteps["mission-002"]),
+        "mission-003": Array.from(blueTeamSteps["mission-003"]),
       },
       blueTeamRedActive: { ...blueTeamRedActive },
       blueTeamFeeds: {
         "mission-001": blueTeamFeeds["mission-001"].slice(-BLUE_TEAM_FEED_MAX),
         "mission-002": blueTeamFeeds["mission-002"].slice(-BLUE_TEAM_FEED_MAX),
+        "mission-003": blueTeamFeeds["mission-003"].slice(-BLUE_TEAM_FEED_MAX),
       },
       // Stage 3 — Adversary Escalation: incident pressure + idle-escalation cap.
       incidentPressure: { ...incidentPressure },
@@ -3428,11 +3619,19 @@ function restoreSavedProgress() {
     renderCourseProgress();
   }
 
+  // Assignment 3 completion — mirror M2 so the map shows A3 as completed and
+  // re-entering the A3 dashboard shows its full status checklist.
+  if (data.mission3Complete) {
+    mission3Complete = true;
+    M3_STATUS.forEach((s) => m3CompletedStatus.add(s.id));
+    renderCourseProgress();
+  }
+
   // 6. Milestone 24A — restore evidence collected during prior sessions.
   //    Filtered to known mission ids so a corrupted/older save can't
   //    inject arbitrary keys into evidenceLog.
   if (data.evidence && typeof data.evidence === "object") {
-    ["mission-001", "mission-002"].forEach((mid) => {
+    ["mission-001", "mission-002", "mission-003"].forEach((mid) => {
       const arr = data.evidence[mid];
       if (Array.isArray(arr)) {
         evidenceLog[mid] = arr
@@ -3442,16 +3641,18 @@ function restoreSavedProgress() {
     });
     renderEvidencePanel("mission-001");
     renderEvidencePanel("mission-002");
+    renderEvidencePanel("mission-003");
   }
 
   // 7. Milestone 24B — restore threat levels (validated against THREAT_LEVELS).
   if (data.threatLevels && typeof data.threatLevels === "object") {
-    ["mission-001", "mission-002"].forEach((mid) => {
+    ["mission-001", "mission-002", "mission-003"].forEach((mid) => {
       const lvl = data.threatLevels[mid];
       if (isValidThreatLevel(lvl)) threatLevelByMission[mid] = lvl;
     });
     renderThreatLevel("mission-001");
     renderThreatLevel("mission-002");
+    renderThreatLevel("mission-003");
   }
 
   // 8. Milestone 24C — restore trust score (clamped to 0–100).
@@ -3470,13 +3671,15 @@ function restoreSavedProgress() {
     feed: data.m1BlueFeed,
   });
   restoreBlueTeamMission(data, "mission-002", null);
+  restoreBlueTeamMission(data, "mission-003", null);
   // Backward-compat: a completed mission is, by definition, fully contained.
   if (missionComplete)  blueTeamContainment["mission-001"] = 100;
   if (mission2Complete) blueTeamContainment["mission-002"] = 100;
+  if (mission3Complete) blueTeamContainment["mission-003"] = 100;
 
   // Stage 3 — restore Adversary Escalation state (incident pressure + idle cap),
   // validated and clamped. A completed mission has zero residual pressure.
-  ["mission-001", "mission-002"].forEach((mid) => {
+  ["mission-001", "mission-002", "mission-003"].forEach((mid) => {
     const p = data.incidentPressure && data.incidentPressure[mid];
     if (typeof p === "number" && isFinite(p)) {
       incidentPressure[mid] = Math.max(0, Math.min(ESCALATION_MAX, Math.round(p)));
@@ -3488,9 +3691,10 @@ function restoreSavedProgress() {
   });
   if (missionComplete)  incidentPressure["mission-001"] = 0;
   if (mission2Complete) incidentPressure["mission-002"] = 0;
+  if (mission3Complete) incidentPressure["mission-003"] = 0;
 
   // Stage 3 — restore escalation peak (clamped); used by the M1 end summary.
-  ["mission-001", "mission-002"].forEach((mid) => {
+  ["mission-001", "mission-002", "mission-003"].forEach((mid) => {
     const pk = data.escalationPeak && data.escalationPeak[mid];
     if (typeof pk === "number" && isFinite(pk)) {
       escalationPeak[mid] = Math.max(0, Math.min(ESCALATION_MAX, Math.round(pk)));
@@ -3524,6 +3728,7 @@ function restoreSavedProgress() {
 
   renderBlueTeamPanel("mission-001");
   renderBlueTeamPanel("mission-002");
+  renderBlueTeamPanel("mission-003");
   renderContainmentActions("mission-001"); // Stage 4 — restore action panel.
 
   // 9. Milestone 24D — restore decision system state. Only known
@@ -3538,7 +3743,7 @@ function restoreSavedProgress() {
     });
   }
   if (data.decisionAdvanced && typeof data.decisionAdvanced === "object") {
-    ["mission-001", "mission-002"].forEach((mid) => {
+    ["mission-001", "mission-002", "mission-003"].forEach((mid) => {
       if (data.decisionAdvanced[mid] === true) decisionAdvanced[mid] = true;
     });
   }
@@ -3548,7 +3753,7 @@ function restoreSavedProgress() {
   //     else is ignored so corrupt storage cannot crash the loop.
   alertByMission = {};
   if (data.alertByMission && typeof data.alertByMission === "object") {
-    ["mission-001", "mission-002"].forEach((mid) => {
+    ["mission-001", "mission-002", "mission-003"].forEach((mid) => {
       const a   = data.alertByMission[mid];
       const def = ALERT_DEFINITIONS[mid];
       if (!a || typeof a !== "object" || !def) return;
@@ -3571,6 +3776,9 @@ function restoreSavedProgress() {
   if (typeof data.m2Confidence === "number" && isFinite(data.m2Confidence)) {
     m2Confidence = Math.max(0, Math.min(CONFIDENCE_CAP, data.m2Confidence));
   }
+  if (typeof data.m3Confidence === "number" && isFinite(data.m3Confidence)) {
+    m3Confidence = Math.max(0, Math.min(CONFIDENCE_CAP, data.m3Confidence));
+  }
   m1ConfidenceContributors.clear();
   if (Array.isArray(data.m1ConfidenceContributors)) {
     data.m1ConfidenceContributors.forEach((k) => {
@@ -3581,6 +3789,12 @@ function restoreSavedProgress() {
   if (Array.isArray(data.m2ConfidenceContributors)) {
     data.m2ConfidenceContributors.forEach((k) => {
       if (typeof k === "string") m2ConfidenceContributors.add(k);
+    });
+  }
+  m3ConfidenceContributors.clear();
+  if (Array.isArray(data.m3ConfidenceContributors)) {
+    data.m3ConfidenceContributors.forEach((k) => {
+      if (typeof k === "string") m3ConfidenceContributors.add(k);
     });
   }
   // Milestone 31A — restore Mission 2 Analyst Confidence + reasoning + drift,
@@ -3596,6 +3810,19 @@ function restoreSavedProgress() {
   }
   if (typeof data.m2DecisionDrift === "number" && isFinite(data.m2DecisionDrift)) {
     m2DecisionDrift = Math.max(0, data.m2DecisionDrift);
+  }
+  // Assignment 3 — restore Analyst Confidence + reasoning + drift.
+  if (typeof data.m3AnalystConfidence === "number" && isFinite(data.m3AnalystConfidence)) {
+    m3AnalystConfidence = Math.max(0, Math.min(100, data.m3AnalystConfidence));
+  }
+  m3ReasoningAnswered.clear();
+  if (Array.isArray(data.m3ReasoningAnswered)) {
+    data.m3ReasoningAnswered.forEach((k) => {
+      if (typeof k === "string" && M3_REASONING[k]) m3ReasoningAnswered.add(k);
+    });
+  }
+  if (typeof data.m3DecisionDrift === "number" && isFinite(data.m3DecisionDrift)) {
+    m3DecisionDrift = Math.max(0, data.m3DecisionDrift);
   }
   m1FilesReviewed.clear();
   if (Array.isArray(data.m1FilesReviewed)) {
@@ -3645,8 +3872,9 @@ function restoreSavedProgress() {
   // Investigation Board — restore pins, pinnable findings, and XP guards.
   investigationPins["mission-001"] = {};
   investigationPins["mission-002"] = {};
+  investigationPins["mission-003"] = {};
   if (data.investigationPins && typeof data.investigationPins === "object") {
-    ["mission-001", "mission-002"].forEach((mid) => {
+    ["mission-001", "mission-002", "mission-003"].forEach((mid) => {
       const saved = data.investigationPins[mid];
       if (saved && typeof saved === "object") {
         Object.keys(saved).forEach((key) => {
@@ -3658,8 +3886,9 @@ function restoreSavedProgress() {
   }
   pinnableFindings["mission-001"].clear();
   pinnableFindings["mission-002"].clear();
+  pinnableFindings["mission-003"].clear();
   if (data.pinnableFindings && typeof data.pinnableFindings === "object") {
-    ["mission-001", "mission-002"].forEach((mid) => {
+    ["mission-001", "mission-002", "mission-003"].forEach((mid) => {
       if (Array.isArray(data.pinnableFindings[mid])) {
         data.pinnableFindings[mid].forEach((k) => {
           if (typeof k === "string") pinnableFindings[mid].add(k);
@@ -3677,8 +3906,9 @@ function restoreSavedProgress() {
   // Milestone 24I — restore Briefing Room state + one-time XP guard.
   briefingReviewed["mission-001"].clear();
   briefingReviewed["mission-002"].clear();
+  briefingReviewed["mission-003"].clear();
   if (data.briefingReviewed && typeof data.briefingReviewed === "object") {
-    ["mission-001", "mission-002"].forEach((mid) => {
+    ["mission-001", "mission-002", "mission-003"].forEach((mid) => {
       if (Array.isArray(data.briefingReviewed[mid])) {
         // Only accept card IDs that actually exist in this mission's briefing,
         // so corrupt/tampered save state can't inflate readiness past 100%
@@ -3701,15 +3931,20 @@ function restoreSavedProgress() {
   if (data.missionLaunched && typeof data.missionLaunched === "object") {
     missionLaunched["mission-001"] = !!data.missionLaunched["mission-001"];
     missionLaunched["mission-002"] = !!data.missionLaunched["mission-002"];
+    missionLaunched["mission-003"] = !!data.missionLaunched["mission-003"];
   }
   renderBriefingRoom("mission-001");
   renderBriefingRoom("mission-002");
+  renderBriefingRoom("mission-003");
   // Mission 1 confidence is pin-driven — recompute it as the source of truth.
   recomputeConfidenceFromPins("mission-001");
   renderConfidenceMeter("mission-002");
   renderM2AnalystConfidence(); // Milestone 31A — restore Analyst Confidence meter.
+  renderConfidenceMeter("mission-003");
+  renderM3AnalystConfidence(); // Assignment 3 — restore Analyst Confidence meter.
   renderInvestigationBoard("mission-001");
   renderInvestigationBoard("mission-002");
+  renderInvestigationBoard("mission-003");
 
   updateSaveIndicator(true);
   // Milestone 32A — reflect restored progress onto the Operations Center home.
@@ -3745,6 +3980,8 @@ function clearSavedProgress() {
     resetMission();
     // Milestone 20 — also reset Mission 2 state + UI.
     resetMission2();
+    // Assignment 3 — also reset Mission 3 state + UI.
+    resetMission3();
     // Milestone 24C — Clear Saved Progress zeroes the trust score back to 50
     // (spec #12). Mission-restart does NOT reset it (spec #11).
     resetTrustScoreForDemo();
@@ -3871,6 +4108,17 @@ const MANAGER_REACTIONS = {
     quiz_correct:      "You understand that open services can accept network connections and require assessment.",
     quiz_incorrect:    "Review the scan output again. Focus on what the open service list means.",
     mission_completed: "Assignment complete. You contained a phishing incident and reviewed network exposure — solid intern work. Reconnaissance Detection is being prepared next as operational complexity increases.",
+  },
+  "mission-003": {
+    mission_started:   "Network monitoring flagged unusual activity. Review the active connections, then find out who that repeated external source is.",
+    evidence_found:    "Good. A repeated unknown source probing services is exactly the kind of signal we watch for.",
+    threat_increased:  "Systematic probing across services suggests an attacker is mapping our environment.",
+    decision_correct:  "Good call. Reporting reconnaissance early gives the Blue Team time to respond.",
+    decision_poor:     "Ignoring reconnaissance lets an attacker quietly map the network before striking.",
+    decision_neutral:  "Keep correlating the signals until your recommendation is well supported.",
+    quiz_correct:      "You understand reconnaissance — the quiet information-gathering stage before an attack.",
+    quiz_incorrect:    "Review the activity again. Focus on what systematic probing from an unknown source means.",
+    mission_completed: "Assignment complete. You detected reconnaissance before it became a breach. You're learning to think like a SOC analyst.",
   },
 };
 
@@ -4021,7 +4269,7 @@ let missionStarted   = false;   // false until student clicks "Begin Mission"
 // Milestone 25B (resume-safe) — DURABLE per-mission "investigation launched"
 // flag. Unlike session-only missionStarted/m2Started, this is persisted so a
 // mid-mission reload can skip the guided onboarding overlay and resume directly.
-let missionLaunched  = { "mission-001": false, "mission-002": false };
+let missionLaunched  = { "mission-001": false, "mission-002": false, "mission-003": false };
 let furthestSeqIndex = -1;      // tracks how far along HINT_SEQUENCE the student is
 
 // Which button keys are currently visible to the student
@@ -5262,7 +5510,7 @@ const COMPLETION_MANAGER   = "Good work. Return to the Mission Map to continue y
 
 function buildNextStepHTML(missionId) {
   const text = NEXT_STEP_TEXT[missionId] || COMPLETION_OBJECTIVE;
-  const sfx  = missionId === "mission-002" ? "M2" : "M1";
+  const sfx  = missionId === "mission-003" ? "M3" : missionId === "mission-002" ? "M2" : "M1";
   return `
     <div class="next-step-panel" id="nextStepPanel${sfx}">
       <span class="next-step-label">NEXT STEP</span>
@@ -5280,12 +5528,12 @@ function buildNextStepHTML(missionId) {
 }
 
 function wireNextStepButtons(missionId) {
-  const sfx = missionId === "mission-002" ? "M2" : "M1";
+  const sfx = missionId === "mission-003" ? "M3" : missionId === "mission-002" ? "M2" : "M1";
   const mapBtn = document.getElementById(`nextStepMap${sfx}`);
   if (mapBtn) mapBtn.addEventListener("click", showMissionsMap);
   const scoreBtn = document.getElementById(`nextStepScore${sfx}`);
   if (scoreBtn) scoreBtn.addEventListener("click", () => {
-    const hostId = missionId === "mission-002" ? "m2AnalystReview" : "quizPanel";
+    const hostId = missionId === "mission-003" ? "m3AnalystReview" : missionId === "mission-002" ? "m2AnalystReview" : "quizPanel";
     const host = document.getElementById(hostId);
     const card = host ? host.querySelector(".scorecard") : null;
     if (card && card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -6475,16 +6723,19 @@ const MISSION_MAP = {
     role: "Cybersecurity Intern",
     threat: "Early-Stage Reconnaissance",
     briefing:
-      "Red Team reconnaissance pressure is building against external services. " +
-      "This assignment will train you to detect early-stage adversary recon. It " +
-      "is being prepared and will open as your operational complexity increases.",
-    skills: [],
-    locked: true,
-    comingSoon: true,
+      "Network monitoring has flagged unusual activity from an external source. " +
+      "Review the active connections, identify the unknown source that keeps " +
+      "appearing, search the logs for what it has been doing, and correlate the " +
+      "signals to confirm reconnaissance before it becomes a breach.",
+    skills: [
+      "Reviewing active connections",
+      "Identifying an unknown source",
+      "Recognizing a probe pattern",
+      "Correlating reconnaissance signals",
+    ],
     transmission:
-      "Recon activity continues externally and the threat-intelligence team is " +
-      "reviewing suspicious outbound traffic. A reconnaissance-detection " +
-      "assignment is pending — stay ready.",
+      "An unknown external source is repeatedly contacting internal services. " +
+      "Review the assignment brief, then launch the investigation.",
   },
 };
 
@@ -6504,6 +6755,10 @@ function missionMapStatus(missionId) {
   if (missionId === "mission-002") {
     if (mission2Complete) return "completed";
     return missionComplete ? "available" : "locked";
+  }
+  if (missionId === "mission-003") {
+    if (mission3Complete) return "completed";
+    return mission2Complete ? "available" : "locked";
   }
   return "locked";
 }
@@ -6668,6 +6923,8 @@ function launchMissionFromMap(missionId) {
     openMission1Dashboard();
   } else if (missionId === "mission-002") {
     showMission2Overview();
+  } else if (missionId === "mission-003") {
+    showMission3Overview();
   }
 }
 
@@ -6684,6 +6941,10 @@ function showMissionsMap() {
   if (m2o) m2o.style.display = "none";
   const m2d = document.getElementById("mission2Dashboard");
   if (m2d) m2d.style.display = "none";
+  const m3o = document.getElementById("mission3Overview");
+  if (m3o) m3o.style.display = "none";
+  const m3d = document.getElementById("mission3Dashboard");
+  if (m3d) m3d.style.display = "none";
   const map = document.getElementById("missionsMap");
   if (map) {
     map.style.display = "";
@@ -8363,6 +8624,1330 @@ function resetMission2() {
   if (dashboard) dashboard.style.display = "none";
 }
 
+/* ============================================================
+   MISSION 3 ENGINE  (Assignment 3 — Reconnaissance Detection)
+   Mirror of the Mission 2 engine, renamed m2->m3 and themed for
+   network reconnaissance detection. Keyed by "mission-003".
+   ============================================================ */
+function showMission3Overview() {
+  const overview = document.getElementById("mission3Overview");
+  if (!overview) return;
+  setMissionRunning(false); // Milestone 25A — overview is not an active dashboard.
+  // Milestone 28C — the M1→M3 "Continue" path lands here WITHOUT routing through
+  // endGuidedRun(), so tear down any live cinematic (cancels its fade/follow-up/
+  // glow timers) explicitly — otherwise a delayed callback could fire on M3.
+  clearIncidentCinema();
+  if (dashboardEl)     dashboardEl.style.display     = "none";
+  if (moduleLandingEl) moduleLandingEl.style.display = "none";
+  // Milestone 25C — also hide the Missions Map when launching M3 from it, so
+  // screens never stack (parity with openMission1Dashboard()).
+  const mapEl = document.getElementById("missionsMap");
+  if (mapEl) mapEl.style.display = "none";
+  overview.style.display = "";
+  overview.scrollTop = 0;
+  // Milestone 24I — render the Mission 3 Briefing Room on entry.
+  renderBriefingRoom("mission-003");
+  renderAllMiniMaps();
+  window.scrollTo({ top: 0, behavior: "instant" });
+  // Milestone 25B fix — auto-open the guided briefing overlay for a FRESH M3
+  // start (parity with Mission 1). Skipped once M3 has started OR is complete
+  // (m3Started is session-only, so the completion guard covers reload-after-finish).
+  if (!m3Started && !mission3Complete) startGuidedBriefing("mission-003", beginMission3);
+}
+
+function hideMission3Overview() {
+  setMissionRunning(false); // Milestone 25A — leave Focus Mode / hide bar.
+  endGuidedRun(); // Milestone 25B — end any guided spotlight tour.
+  const overview = document.getElementById("mission3Overview");
+  if (overview) overview.style.display = "none";
+  if (moduleLandingEl) {
+    moduleLandingEl.style.display = "";
+    moduleLandingEl.scrollTop = 0;
+  }
+  // Milestone 32A — keep the Operations Center home in sync on return.
+  renderOperationsCenter();
+}
+
+/* ============================================================
+   MISSION 2 GAMEPLAY  (Milestone 20)
+   Guided 4-command sequence on the Mission 3 Overview screen.
+   Self-contained — does not touch Mission 1 state.
+   ============================================================ */
+
+// Ordered status entries. Each is marked complete as the student progresses.
+const M3_STATUS = [
+  { id: "started",            label: "Mission 3 Started" },
+  { id: "ip-addr",            label: "Connections Reviewed" },
+  { id: "ping",               label: "Suspicious Source Identified" },
+  { id: "nmap",               label: "Probe Pattern Found" },
+  { id: "review",             label: "Recon Activity Confirmed" },
+  // Milestone 21 — Analyst Review + Threat Assessment
+  { id: "analyst-review",     label: "Analyst Review Completed" },
+  { id: "threat-assessment",  label: "Threat Assessment Complete" },
+  // Milestone 22 — Mission 3 final completion (quiz passed)
+  { id: "m3-complete",        label: "Mission 3 Complete" },
+];
+
+// Milestone 22 — Mission 3 quiz, XP reward, and scorecard data.
+const M3_QUIZ = {
+  question: "What is reconnaissance in a cyber attack?",
+  answers: [
+    { letter: "A", text: "A type of computer virus." },
+    { letter: "B", text: "When an attacker gathers information about a target before attacking." },
+    { letter: "C", text: "A setting on a firewall." },
+    { letter: "D", text: "A way to make the network faster." },
+  ],
+  correct:    "B",
+  correctMsg: "Correct. Reconnaissance is the quiet information-gathering stage attackers use before an attack.",
+  wrongMsg:   "Review the activity again. Reconnaissance is when an attacker quietly gathers information about a target before striking.",
+  xpReward:   100,
+  newRank:    "Cyber Analyst Trainee",
+};
+
+const M3_SCORECARD = {
+  missionName:     "Reconnaissance Detection",
+  subtitle:        "You detected and analyzed early-stage reconnaissance activity.",
+  skills: [
+    "Reviewing active connections",
+    "Spotting a repeated external source",
+    "Identifying an unknown source",
+    "Recognizing a service-probe pattern",
+    "Correlating reconnaissance signals",
+  ],
+  threatAssessment: "An unknown external host (203.0.113.77) was systematically probing internal services — classic early-stage reconnaissance.",
+  whatYouLearned: "You learned how analysts detect reconnaissance by reviewing connections, identifying an unknown repeated source, recognizing a service-probe pattern, and correlating weak signals into one conclusion.",
+  nextMissionTitle: "Threat Containment",
+  nextMissionDesc:  "Go deeper into how Blue Teams respond once an active threat is confirmed.",
+  certSkills: [
+    "Connection analysis",
+    "Source attribution",
+    "Probe-pattern recognition",
+    "Reconnaissance reasoning",
+  ],
+};
+
+let mission3Complete    = false;
+let m3QuizAnswered      = false;
+
+// Per-command: terminal output lines + hint shown AFTER the command runs +
+// commands this one unlocks next + supervisor message fired after the run.
+const M3_COMMANDS = {
+  "ip-addr": {
+    cmd:    "netstat -an",
+    output: [
+      "Active connections:",
+      "203.0.113.77:443   ESTABLISHED",
+      "203.0.113.77:80    TIME_WAIT",
+      "203.0.113.77:22    SYN_SENT",
+    ],
+    nextHint: "One external address keeps appearing. Look it up to see who it is.",
+    unlocks: [],
+    managerMsg: "Good — you've reviewed the active connections. One external address keeps appearing. Find out who it is.",
+  },
+  // Challenge Layer 1 (M3) — false lead: a benign known source. Provides a
+  // little confidence for checking, but does NOT unlock the next step.
+  "ping-bad": {
+    cmd:    "whois 198.51.100.20",
+    output: [
+      "OrgName: Global CDN Services",
+      "Status:  Known content-delivery network",
+    ],
+    nextHint: "That address is a known CDN — normal traffic. Check the address that keeps repeating.",
+    unlocks: [],
+    managerMsg: "That's a known content-delivery network — legitimate traffic. Focus on the address that keeps repeating.",
+  },
+  "ping": {
+    cmd:    "whois 203.0.113.77",
+    output: [
+      "OrgName: Unknown / Unregistered",
+      "Country: --",
+      "Status:  No abuse contact on file",
+    ],
+    nextHint: "An unknown external source. Check the logs to see what it's been doing.",
+    unlocks: ["nmap"],
+    managerMsg: "An unknown, unregistered source — that's a red flag. Check the logs to see what it's been doing.",
+  },
+  "nmap": {
+    cmd:    "grep 203.0.113.77 access.log",
+    output: [
+      "203.0.113.77 -> port 22 (ssh)    probe",
+      "203.0.113.77 -> port 80 (http)   probe",
+      "203.0.113.77 -> port 443 (https) probe",
+      "203.0.113.77 -> port 3306 (mysql) probe",
+    ],
+    nextHint: "Review this pattern and think about what it means.",
+    unlocks: ["review"],
+    managerMsg: "It's probing one service after another — that's a scanning pattern. Review what this tells us.",
+  },
+  "review": {
+    cmd:    "review recon",
+    output: ["One unknown external host is systematically probing multiple services."],
+    nextHint: "Now think like an analyst — answer the Analyst Review question below.",
+    unlocks: [],
+    managerMsg: "Good. You've correlated the signals. Now think like an analyst — what stage of an attack is this?",
+  },
+};
+
+// Milestone 21 — Analyst Review question shown after `review recon`.
+const M3_ANALYST_REVIEW = {
+  question: "What does this activity represent?",
+  answers: [
+    { letter: "A", text: "An active data breach in progress." },
+    { letter: "B", text: "A denial-of-service attack." },
+    { letter: "C", text: "A normal software update." },
+    { letter: "D", text: "Reconnaissance — an attacker gathering information before an attack." },
+  ],
+  correct: "D",
+  correctMsg: "Correct. Systematic probing from an unknown source is reconnaissance — the information-gathering stage before an attack.",
+  wrongMsg:   "Not quite. Nothing is being stolen or overwhelmed yet — this is quiet information-gathering, i.e. reconnaissance.",
+  finding:    "An unknown external host (203.0.113.77) is performing systematic reconnaissance against internal services.",
+  summary:    "Reconnaissance is an early warning. Detecting it lets the Blue Team respond before an attacker finds a way in.",
+};
+
+/* ============================================================
+   Milestone 31A — Mission 3 PER-STEP REASONING PROMPTS
+   ------------------------------------------------------------
+   After each major network command runs, the student answers ONE short
+   "what does this mean?" question before moving on — mirroring Mission 1's
+   one-clue-at-a-time investigative reasoning. A correct answer raises the
+   ANALYST CONFIDENCE track and then offers the matching evidence pin.
+   The 5th step ("what should Blue Team do") is intentionally MERGED into the
+   Blue Team decision moment (the decision IS that reasoning), so there is no
+   separate prompt for `review` — keeping cognitive load low.
+
+   `conf` = one-time Analyst Confidence gain for a correct interpretation.
+   ============================================================ */
+const M3_REASONING = {
+  "ip-addr": {
+    title: "Active Connections",
+    question: "What stands out in these connections?",
+    answers: [
+      { letter: "A", text: "One external address is connecting repeatedly." },
+      { letter: "B", text: "All connections are internal and normal." },
+      { letter: "C", text: "The workstation is offline." },
+    ],
+    correct: "A",
+    conf: 15,
+    correctMsg: "Right — one external address keeps reappearing. That repetition is worth investigating.",
+    wrongMsg:   "Look again — the same external address (203.0.113.77) appears on several connections.",
+  },
+  "ping-bad": {
+    title: "Known Source",
+    question: "What does this lookup tell you?",
+    answers: [
+      { letter: "A", text: "This source is an unknown attacker." },
+      { letter: "B", text: "This source is a known, legitimate CDN." },
+      { letter: "C", text: "This proves the network is breached." },
+    ],
+    correct: "B",
+    conf: 15,
+    correctMsg: "Correct — a known CDN is normal traffic. Ruling a source out is useful too.",
+    wrongMsg:   "Re-read it — this is a registered content-delivery network, i.e. legitimate traffic.",
+  },
+  "ping": {
+    title: "Unknown Source",
+    question: "Why is this source concerning?",
+    answers: [
+      { letter: "A", text: "It is a trusted internal server." },
+      { letter: "B", text: "It is unknown and unregistered, with no abuse contact." },
+      { letter: "C", text: "It has no open services." },
+    ],
+    correct: "B",
+    conf: 25,
+    correctMsg: "Correct — an unregistered, unknown source connecting repeatedly is a real red flag.",
+    wrongMsg:   "Look again — the lookup shows an unknown, unregistered source with no abuse contact.",
+  },
+  "nmap": {
+    title: "Probe Pattern",
+    question: "What does this log pattern show?",
+    answers: [
+      { letter: "A", text: "The source is systematically probing many services." },
+      { letter: "B", text: "The source downloaded one file by accident." },
+      { letter: "C", text: "The log is empty." },
+    ],
+    correct: "A",
+    conf: 35,
+    correctMsg: "Exactly — probing one service after another is a classic reconnaissance scan.",
+    wrongMsg:   "Not quite. The same source is hitting many different services in sequence — a scanning pattern.",
+  },
+};
+
+// Five Analyst Confidence tiers (Low → Ready). The label is derived from the
+// numeric value; reaching Ready (100) requires the correct analyst review.
+const M3_ANALYST_CONF_TIERS = [
+  { min: 100, label: "Ready",      caption: "You're ready to make a recommendation." },
+  { min: 70,  label: "Strong",     caption: "Your read on the activity is strong." },
+  { min: 40,  label: "Developing", caption: "Your assessment is taking shape." },
+  { min: 20,  label: "Building",   caption: "You're starting to understand the activity." },
+  { min: 0,   label: "Low",        caption: "Interpret each finding to build confidence." },
+];
+
+let m3AnalystAnswered = false;
+
+function setM3ManagerMessage(text) {
+  // Milestone 25A — route through the supervisor chat feed.
+  pushManagerMessage("mission-003", text);
+}
+
+/** Mirror current XP/Rank/stats from M1 elements into the M3 dashboard's
+ *  AGENT PROFILE panel. Single source of truth is the M1 element values
+ *  (and the currentXP / MAX_XP / mission1Complete state vars). Called on
+ *  every M3 dashboard entry plus after XP changes. */
+function syncM3XPPanel() {
+  // XP value + bar
+  const m3Cur  = document.getElementById("m3CurrentXP");
+  const m3Max  = document.getElementById("m3MaxXP");
+  const m3Bar  = document.getElementById("m3XpBar");
+  if (m3Cur) m3Cur.textContent = currentXPEl ? currentXPEl.textContent : currentXP;
+  if (m3Max) m3Max.textContent = maxXPEl    ? maxXPEl.textContent    : MAX_XP;
+  if (m3Bar) {
+    const pct = Math.round((currentXP / MAX_XP) * 100);
+    m3Bar.style.width = `${pct}%`;
+  }
+  // Rank name
+  const m3Rank = document.getElementById("m3RankName");
+  if (m3Rank && rankNameEl) m3Rank.textContent = rankNameEl.textContent;
+  // Missions completed (M1 only awards; M3 doesn't yet)
+  const m3Stat = document.getElementById("m3StatMissions");
+  const m1Stat = document.getElementById("statMissions");
+  if (m3Stat && m1Stat) m3Stat.textContent = m1Stat.textContent;
+}
+
+let m3Started = false;
+const m3UnlockedCmds = new Set();
+const m3CompletedStatus = new Set();
+
+function beginMission3() {
+  // Navigate from the Mission 3 Overview to the Mission 3 Dashboard.
+  // (Idempotent — re-clicking just re-shows the dashboard.)
+  const overview  = document.getElementById("mission3Overview");
+  const dashboard = document.getElementById("mission3Dashboard");
+  if (overview)  overview.style.display  = "none";
+  if (dashboard) dashboard.style.display = "";
+  syncM3XPPanel();
+  window.scrollTo({ top: 0, behavior: "instant" });
+
+  // Milestone 25A — the M3 dashboard is active; show the control bar and
+  // (re)enter Focus Mode. Done BEFORE the resume early-return so resuming an
+  // in-progress Mission 3 never leaves a stale/missing control bar.
+  setMissionRunning(true);
+  enterFocusMode();
+  // Stage 3 — (re)arm the idle escalation watch BEFORE the resume early-return,
+  // so resuming an in-progress Mission 3 keeps the adversary watch alive.
+  startEscalationWatch("mission-003");
+
+  if (m3Started) return;
+  m3Started = true;
+
+  // Unlock the starting commands (ip addr + both ping targets — the
+  // unreachable host is a Challenge Layer 1 false lead).
+  m3UnlockedCmds.add("ip-addr");
+  m3UnlockedCmds.add("ping-bad");
+  m3UnlockedCmds.add("ping");
+  syncM3Buttons();
+  renderConfidenceMeter("mission-003");
+  renderM3AnalystConfidence(); // Milestone 31A — show Analyst Confidence meter.
+
+  // Status + opening hint + supervisor briefing
+  markM3Status("started");
+  setM3Hint("Start by reviewing the active network connections.");
+  setM3ManagerMessage("Welcome to your next assignment, Agent. We've flagged unusual traffic — start by reviewing the active connections.");
+  // Milestone 24F — dynamic manager reaction for mission start (M3).
+  updateManagerReaction("mission_started", { missionId: "mission-003" });
+  // Milestone 26A — event toast: investigation begins.
+  showEventToast("Investigation Started", "Review the traffic and identify the suspicious source.", "info");
+
+  // Print a small system line in the terminal so it's not empty
+  printM3Line("[ Assignment 3 environment ready ]", "m3-line--info");
+
+  // Milestone 24B — mission starts at baseline threat. resetThreatLevel..()
+  // already runs on a fresh page, but call it explicitly here so a returning
+  // student who left Mission 3 mid-way starts the replay from Medium too.
+  setThreatLevel("Medium", "mission-003");
+
+  // Milestone 24E / 24E-2 — same forced-acknowledgement modal for M3.
+  if (!alertByMission["mission-003"]) createMissionAlert("mission-003");
+  showAlertModal("mission-003");
+
+  // Milestone 25A — entering the investigation activates Focus Mode.
+  setMissionRunning(true);
+  enterFocusMode();
+
+  // Milestone 25B (resume-safe) — persist that M3's investigation has launched.
+  missionLaunched["mission-003"] = true;
+  saveProgress();
+
+  // Stage 3 — begin watching for investigation delays (idle escalation).
+  startEscalationWatch("mission-003");
+}
+
+/** Return from the Mission 3 Dashboard back to the Mission 3 Overview.
+ *  Mission 3 progress (m3Started, unlocks, status) is preserved so the
+ *  student can resume by clicking Begin Mission 3 again. */
+function backToMission3Overview() {
+  setMissionRunning(false); // Milestone 25A — leave Focus Mode / hide bar.
+  endGuidedRun(); // Milestone 25B — end any guided spotlight tour.
+  const overview  = document.getElementById("mission3Overview");
+  const dashboard = document.getElementById("mission3Dashboard");
+  if (dashboard) dashboard.style.display = "none";
+  if (overview)  overview.style.display  = "";
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+function runM3Command(key) {
+  if (!m3Started) return;
+  if (!m3UnlockedCmds.has(key)) return;
+  const def = M3_COMMANDS[key];
+  if (!def) return;
+
+  // Stage 3 — real investigation progress resets the idle-escalation clock.
+  noteInvestigationActivity();
+
+  // Milestone 26A — capture "first run" BEFORE the unlock chain below adds the
+  // next command, so event toasts fire once (not on every re-click).
+  const firstPing = key === "ping" && !m3UnlockedCmds.has("nmap");
+  const firstNmap = key === "nmap" && !m3UnlockedCmds.has("review");
+
+  // Print prompt line + each output line
+  printM3Line(`<span class="m3-prompt">student@cybercorp:~$</span> ${escapeHtml(def.cmd)}`, "m3-line--prompt");
+  def.output.forEach((line) => printM3Line(escapeHtml(line), "m3-line--output"));
+  printM3Line("", "m3-line--blank");
+
+  // Mark this status step complete + unlock next commands
+  markM3Status(key);
+  def.unlocks.forEach((next) => m3UnlockedCmds.add(next));
+  syncM3Buttons();
+  setM3Hint(def.nextHint);
+  if (def.managerMsg) setM3ManagerMessage(def.managerMsg);
+
+  // Challenge Layer 1 (M3) — raise evidence confidence per command (once each).
+  const M3_CONFIDENCE = {
+    "ip-addr":  20,
+    "ping-bad":  5,
+    "ping":     30,
+    "nmap":     30,
+    "review":   20,
+  };
+  if (M3_CONFIDENCE[key]) {
+    addConfidence("mission-003", `m3-${key}`, M3_CONFIDENCE[key]);
+  }
+
+  // Milestone 24A — Evidence Collection (Mission 3).
+  // `nmap` reveals the open services; `review services` is the analyst
+  // step that flags those services as needing follow-up. addEvidence is
+  // idempotent, so re-clicking either command will not duplicate items.
+  if (firstPing) {
+    // Milestone 26A — event toast: suspicious source identified.
+    showEventToast("Suspicious Source", "Unknown external host 203.0.113.77 identified.", "info");
+  }
+  if (key === "nmap") {
+    addEvidence(
+      "m3-open-ports",
+      "Unknown source 203.0.113.77 is systematically probing multiple services",
+      "mission-003"
+    );
+    // Milestone 26A — event toast: probe pattern discovered (first scan only).
+    if (firstNmap) {
+      showEventToast("Probe Pattern Found", "Sequential service probes detected.", "info");
+      // Stage 2 — Blue Team (Mission 3): active reconnaissance = red-team activity
+      // → raise the Red Team flag and advance containment.
+      setRedTeamActive("mission-003", true);
+      updateContainmentProgress("mission-003", 15, {
+        stepId: "m3-recon",
+        incident: "Active Threat",
+        assignment: "Assess reconnaissance scope",
+        caption: "Reconnaissance activity identified.",
+      });
+      showBlueTeamUpdate("mission-003", "Reconnaissance activity identified.", { toast: true });
+    }
+    // Milestone 24B — active reconnaissance discovered → threat rises.
+    setThreatLevel("High", "mission-003");
+    // Milestone 24F — threat just rose to High → manager reacts.
+    updateManagerReaction("threat_increased", { missionId: "mission-003" });
+    // Milestone 24G — service scan done; service evidence collected →
+    // Service Scanner complete, Analyst Review unlocks.
+    markToolCompleted("m3-service-scanner");
+    unlockTool("m3-analyst-review");
+  }
+  if (key === "review") {
+    addEvidence(
+      "m3-services-review",
+      "Correlated signals confirm reconnaissance against internal services",
+      "mission-003"
+    );
+    // Milestone 24B — analyst has correlated and reported the activity → threat eases.
+    setThreatLevel("Medium", "mission-003");
+    // Milestone 24G — student opened the analyst review step → make it active.
+    setActiveTool("m3-analyst-review");
+  }
+  // Milestone 24G — per-command tool transitions for the early M3 steps.
+  if (key === "ip-addr") {
+    // Connections reviewed → Connection Review work is done.
+    markToolCompleted("m3-network-identity");
+  }
+  if (key === "ping") {
+    // Suspicious source identified → Source Lookup done; Log Scanner unlocks.
+    markToolCompleted("m3-reachability");
+    unlockTool("m3-service-scanner");
+    setActiveTool("m3-service-scanner");
+  }
+
+  // Milestone 31A — per-step REASONING gate. After a major command runs, the
+  // student must interpret the result before the matching evidence pin is
+  // offered (one-thing-at-a-time flow). The pin offer is DEFERRED to
+  // handleM3Reasoning() on a correct answer. `review` has no reasoning prompt
+  // (its reasoning IS the Blue Team decision below), so it offers its pin
+  // immediately, then proceeds to the decision.
+  if (M3_REASONING[key]) {
+    renderM3Reasoning(key);
+  } else if (EVIDENCE_RATINGS["mission-003"][key]) {
+    showPinPrompt("mission-003", key);
+  }
+
+  // Milestone 31A — cinematic emphasis at key network beats.
+  if (firstPing) {
+    showIncidentInterruption("m3-reachable", {
+      title: "UNKNOWN SOURCE IDENTIFIED",
+      line:  "External host 203.0.113.77 is unregistered.",
+    });
+  }
+  if (firstNmap) {
+    showIncidentInterruption("m3-services", {
+      title: "RECON PATTERN DETECTED",
+      line:  "203.0.113.77 is probing one service after another.",
+    });
+  }
+
+  // Milestone 21/24D — after `review services`, gate the Analyst Review
+  // behind the Decision Actions panel. Only a correct/acceptable
+  // decision advances to renderM3AnalystReview(). If the student has
+  // already passed the decision earlier in this session,
+  // showDecisionActions is a no-op and we go straight to the review.
+  if (key === "review") {
+    if (decisionAdvanced["mission-003"]) {
+      renderM3AnalystReview();
+    } else {
+      showDecisionActions("mission-003");
+    }
+  }
+}
+
+/* ============================================================
+   Milestone 31A — Mission 3 per-step reasoning + Analyst Confidence
+   ============================================================ */
+
+/** Render the multiple-choice reasoning prompt for a network command. */
+function renderM3Reasoning(key) {
+  const def = M3_REASONING[key];
+  const host = document.getElementById("m3Reasoning");
+  if (!def || !host) return;
+  // Already answered correctly — keep it collapsed, just (re-)offer the pin.
+  if (m3ReasoningAnswered.has(key)) {
+    host.style.display = "none";
+    host.innerHTML = "";
+    if (EVIDENCE_RATINGS["mission-003"][key]) showPinPrompt("mission-003", key);
+    return;
+  }
+  host.style.display = "";
+  host.innerHTML = `
+    <div class="m3-reasoning" data-key="${escapeHtml(key)}">
+      <div class="m3-reasoning-head">
+        <span class="m3-reasoning-label">Analyst Reasoning</span>
+        <span class="m3-reasoning-topic">${escapeHtml(def.title)}</span>
+      </div>
+      <p class="m3-reasoning-q">${escapeHtml(def.question)}</p>
+      <div class="m3-reasoning-answers">
+        ${def.answers.map((a) => `
+          <button class="m3-reasoning-btn" type="button"
+                  data-reasoning-key="${escapeHtml(key)}"
+                  data-reasoning-letter="${escapeHtml(a.letter)}">
+            <span class="m3-reasoning-letter">${escapeHtml(a.letter)}</span>
+            <span class="m3-reasoning-text">${escapeHtml(a.text)}</span>
+          </button>
+        `).join("")}
+      </div>
+      <div class="m3-reasoning-feedback" data-reasoning-feedback style="display:none;"></div>
+    </div>
+  `;
+  host.querySelectorAll(".m3-reasoning-btn").forEach((btn) => {
+    btn.addEventListener("click", () =>
+      handleM3Reasoning(
+        btn.getAttribute("data-reasoning-key"),
+        btn.getAttribute("data-reasoning-letter")
+      )
+    );
+  });
+}
+
+/** Handle a reasoning answer. Correct → confidence + manager confirm + pin
+ *  offer + next objective. Wrong → gentle retry (no penalty). */
+function handleM3Reasoning(key, letter) {
+  const def = M3_REASONING[key];
+  const host = document.getElementById("m3Reasoning");
+  if (!def || !host) return;
+  if (m3ReasoningAnswered.has(key)) return;
+
+  const isCorrect = letter === def.correct;
+  const fb = host.querySelector("[data-reasoning-feedback]");
+  const answersWrap = host.querySelector(".m3-reasoning-answers");
+
+  if (answersWrap) {
+    answersWrap.querySelectorAll(".m3-reasoning-btn").forEach((b) => {
+      const l = b.getAttribute("data-reasoning-letter");
+      if (l === def.correct) {
+        b.classList.add(isCorrect ? "m3-reasoning-btn--correct" : "m3-reasoning-btn--reveal");
+      } else if (l === letter) {
+        b.classList.add("m3-reasoning-btn--wrong");
+      }
+      if (isCorrect || l === letter) b.disabled = true;
+    });
+  }
+  if (fb) {
+    fb.style.display = "";
+    fb.textContent   = isCorrect ? def.correctMsg : def.wrongMsg;
+    fb.classList.toggle("m3-reasoning-feedback--correct", isCorrect);
+    fb.classList.toggle("m3-reasoning-feedback--wrong",  !isCorrect);
+  }
+
+  if (!isCorrect) {
+    // Gentle retry — re-enable the not-yet-tried options after a beat.
+    m3ReasoningTimers.push(setTimeout(() => {
+      if (!answersWrap) return;
+      answersWrap.querySelectorAll(".m3-reasoning-btn").forEach((b) => {
+        const l = b.getAttribute("data-reasoning-letter");
+        if (l === letter) return;
+        b.disabled = false;
+        b.classList.remove("m3-reasoning-btn--reveal");
+      });
+    }, 600));
+    return;
+  }
+
+  // Correct — mark answered, raise Analyst Confidence, manager confirm, persist.
+  m3ReasoningAnswered.add(key);
+  addM3AnalystConfidence(def.conf || 0);
+  setM3ManagerMessage(def.correctMsg);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+
+  // Offer the matching evidence pin (one-thing-at-a-time flow), then point the
+  // student at the next step.
+  m3ReasoningTimers.push(setTimeout(() => {
+    host.style.display = "none";
+    host.innerHTML = "";
+    if (EVIDENCE_RATINGS["mission-003"][key]) showPinPrompt("mission-003", key);
+    const nextDef = M3_COMMANDS[key];
+    if (nextDef && nextDef.nextHint) setCurrentObjective("mission-003", nextDef.nextHint);
+  }, 700));
+}
+
+/** Derive the Analyst Confidence tier (label + caption) for a numeric value. */
+function m3AnalystConfTier(val) {
+  return M3_ANALYST_CONF_TIERS.find((t) => val >= t.min) ||
+         M3_ANALYST_CONF_TIERS[M3_ANALYST_CONF_TIERS.length - 1];
+}
+
+/** Add to the Analyst Confidence track (clamped 0–100) and re-render. */
+function addM3AnalystConfidence(amount) {
+  m3AnalystConfidence = Math.max(0, Math.min(100, m3AnalystConfidence + (amount || 0)));
+  renderM3AnalystConfidence();
+  fxPulse("m3AnalystConfidence");
+}
+
+/** Set the Analyst Confidence track to an absolute value (clamped) + render. */
+function setM3AnalystConfidence(val) {
+  m3AnalystConfidence = Math.max(0, Math.min(100, val || 0));
+  renderM3AnalystConfidence();
+}
+
+/** Paint the Analyst Confidence meter from m3AnalystConfidence. */
+function renderM3AnalystConfidence() {
+  const wrap = document.getElementById("m3AnalystConfidence");
+  if (!wrap) return;
+  const tier = m3AnalystConfTier(m3AnalystConfidence);
+  const pill = wrap.querySelector(".analyst-conf-pill");
+  const fill = wrap.querySelector(".analyst-conf-bar-fill");
+  const cap  = wrap.querySelector(".analyst-conf-caption");
+  if (pill) pill.textContent = tier.label;
+  if (fill) fill.style.width = `${m3AnalystConfidence}%`;
+  if (cap)  cap.textContent = tier.caption;
+  wrap.className = "analyst-confidence analyst-confidence--" + tier.label.toLowerCase();
+}
+
+/* ============================================================
+   Milestone 21 — Analyst Review (Mission 3)
+   ============================================================ */
+
+function renderM3AnalystReview() {
+  const host = document.getElementById("m3AnalystReview");
+  if (!host) return;
+  // Milestone 24C idempotency — once the analyst review has been answered
+  // correctly (or the mission is complete), do NOT re-render. Re-rendering
+  // would wipe host.innerHTML (removing the #m3QuizPanel below it) and
+  // reset m3AnalystAnswered/m3QuizAnswered to false, letting the student
+  // farm trust/XP by re-clicking `review services`.
+  if (m3AnalystAnswered || mission3Complete) return;
+  // Reuse Mission 1's .quiz-panel chrome for visual consistency.
+  host.style.display = "";
+  host.innerHTML = `
+    <div class="quiz-panel quiz-panel--m3" style="display:block;">
+      <div class="quiz-header">
+        <span class="quiz-label">Analyst Review</span>
+        <span class="quiz-badge">Threat Assessment</span>
+      </div>
+      <p class="quiz-question">${M3_ANALYST_REVIEW.question}</p>
+      <div class="quiz-answers" id="m3AnalystAnswers">
+        ${M3_ANALYST_REVIEW.answers.map((a) => `
+          <button class="quiz-answer-btn" type="button" data-m3letter="${a.letter}">
+            <span class="quiz-answer-letter">${a.letter}</span>
+            <span class="quiz-answer-text">${escapeHtml(a.text)}</span>
+          </button>
+        `).join("")}
+      </div>
+      <div id="m3AnalystFeedback" class="quiz-feedback" style="display:none;"></div>
+      <div id="m3AnalystOutcome" style="display:none;"></div>
+    </div>
+  `;
+  // Wire up answer buttons
+  host.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+    btn.addEventListener("click", () => handleM3AnalystAnswer(btn.getAttribute("data-m3letter")));
+  });
+  m3AnalystAnswered = false;
+}
+
+function handleM3AnalystAnswer(letter) {
+  if (m3AnalystAnswered) return;
+  const isCorrect = letter === M3_ANALYST_REVIEW.correct;
+
+  const answersWrap = document.getElementById("m3AnalystAnswers");
+  if (answersWrap) {
+    answersWrap.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+      const l = btn.getAttribute("data-m3letter");
+      btn.disabled = true;
+      if (l === M3_ANALYST_REVIEW.correct) {
+        btn.classList.add(isCorrect ? "quiz-answer--correct" : "quiz-answer--reveal");
+      } else if (l === letter) {
+        btn.classList.add("quiz-answer--wrong");
+      }
+    });
+  }
+
+  const fb = document.getElementById("m3AnalystFeedback");
+  if (fb) {
+    fb.style.display = "";
+    fb.textContent   = isCorrect ? M3_ANALYST_REVIEW.correctMsg : M3_ANALYST_REVIEW.wrongMsg;
+    fb.classList.toggle("quiz-feedback--correct", isCorrect);
+    fb.classList.toggle("quiz-feedback--wrong",  !isCorrect);
+  }
+
+  if (!isCorrect) {
+    // Allow retry — re-enable the non-correct buttons (except the one tried)
+    setTimeout(() => {
+      if (!answersWrap) return;
+      answersWrap.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+        const l = btn.getAttribute("data-m3letter");
+        if (l === letter || l === M3_ANALYST_REVIEW.correct) return;
+        btn.disabled = false;
+      });
+      // Allow retry of the correct (in case the student wants to re-pick D)
+      const correctBtn = answersWrap.querySelector(`.quiz-answer-btn[data-m3letter="${M3_ANALYST_REVIEW.correct}"]`);
+      if (correctBtn) {
+        correctBtn.disabled = false;
+        correctBtn.classList.remove("quiz-answer--reveal");
+      }
+    }, 600);
+    return;
+  }
+
+  // Correct path — finalize
+  m3AnalystAnswered = true;
+  // Milestone 26A — event toast: correct analyst review.
+  showEventToast("Analysis Correct", "Threat assessment recorded.", "success");
+  // Milestone 24C — correct M3 analyst review → +10 trust.
+  increaseTrustScore(10);
+  // Milestone 24G — analyst review answered → Analyst Review done; Quiz unlocks.
+  markToolCompleted("m3-analyst-review");
+  unlockTool("m3-quiz");
+  setActiveTool("m3-quiz");
+  markM3Status("analyst-review");
+  markM3Status("threat-assessment");
+  // Milestone 31A — a correct analyst review means the student is ready to
+  // make a recommendation → Analyst Confidence reaches "Ready" (100).
+  setM3AnalystConfidence(100);
+  try { saveProgress(); } catch (_) { /* non-fatal */ }
+  // Stage 2 — Blue Team (Mission 3): a documented threat assessment advances containment.
+  updateContainmentProgress("mission-003", 20, { stepId: "m3-analyst", caption: "Threat assessment documented." });
+  showBlueTeamUpdate("mission-003", "Threat assessment confirmed and documented.");
+  setM3Hint("Assignment 3 threat assessment complete. Final assessment incoming.");
+  setM3ManagerMessage("Excellent reasoning, Agent. You're starting to think like an analyst — one final question to confirm your understanding.");
+
+  const outcome = document.getElementById("m3AnalystOutcome");
+  if (outcome) {
+    outcome.style.display = "";
+    outcome.innerHTML = `
+      <div class="m3-finding-block">
+        <div class="m3-finding-label">Reconnaissance Analyst Finding</div>
+        <p class="m3-finding-text">${M3_ANALYST_REVIEW.finding}</p>
+      </div>
+      <div class="m3-summary-block">
+        <div class="m3-summary-label">Learning Summary</div>
+        <p class="m3-summary-text">${M3_ANALYST_REVIEW.summary}</p>
+      </div>
+    `;
+  }
+
+  // Terminal confirmation
+  printM3Line("[ ANALYST REVIEW COMPLETE — Threat assessment recorded. ]", "m3-line--info");
+
+  // Milestone 22 — reveal the Mission 3 final quiz after the outcome blocks.
+  renderM3Quiz();
+}
+
+/* ============================================================
+   Milestone 22 — Mission 3 Quiz, XP Reward, Completion
+   ============================================================ */
+
+function renderM3Quiz() {
+  // Append a second .quiz-panel into the same #m3AnalystReview host.
+  const host = document.getElementById("m3AnalystReview");
+  if (!host) return;
+  // Avoid duplicating if already rendered
+  if (host.querySelector("#m3QuizPanel")) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.id = "m3QuizPanel";
+  wrapper.innerHTML = `
+    <div class="quiz-panel quiz-panel--m3" style="display:block; margin-top: 16px;">
+      <div class="quiz-header">
+        <span class="quiz-label">Final Assessment</span>
+        <span class="quiz-badge">Mission 3 Quiz</span>
+      </div>
+      <p class="quiz-question">${M3_QUIZ.question}</p>
+      <div class="quiz-answers" id="m3QuizAnswers">
+        ${M3_QUIZ.answers.map((a) => `
+          <button class="quiz-answer-btn" type="button" data-m3quiz="${a.letter}">
+            <span class="quiz-answer-letter">${a.letter}</span>
+            <span class="quiz-answer-text">${escapeHtml(a.text)}</span>
+          </button>
+        `).join("")}
+      </div>
+      <div id="m3QuizFeedback" class="quiz-feedback" style="display:none;"></div>
+    </div>
+  `;
+  host.appendChild(wrapper);
+  wrapper.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+    btn.addEventListener("click", () => handleM3QuizAnswer(btn.getAttribute("data-m3quiz")));
+  });
+  m3QuizAnswered = false;
+}
+
+function handleM3QuizAnswer(letter) {
+  if (m3QuizAnswered) return;
+  const isCorrect = letter === M3_QUIZ.correct;
+
+  const answersWrap = document.getElementById("m3QuizAnswers");
+  if (answersWrap) {
+    answersWrap.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+      const l = btn.getAttribute("data-m3quiz");
+      btn.disabled = true;
+      if (l === M3_QUIZ.correct) {
+        btn.classList.add(isCorrect ? "quiz-answer--correct" : "quiz-answer--reveal");
+      } else if (l === letter) {
+        btn.classList.add("quiz-answer--wrong");
+      }
+    });
+  }
+
+  const fb = document.getElementById("m3QuizFeedback");
+  if (fb) {
+    fb.style.display = "";
+    fb.textContent   = isCorrect ? M3_QUIZ.correctMsg : M3_QUIZ.wrongMsg;
+    fb.classList.toggle("quiz-feedback--correct", isCorrect);
+    fb.classList.toggle("quiz-feedback--wrong",  !isCorrect);
+  }
+
+  if (!isCorrect) {
+    // Milestone 24F — dynamic manager reaction for a wrong M3 quiz answer.
+    updateManagerReaction("quiz_incorrect", { missionId: "mission-003" });
+    // Allow retry on wrong answers, same pattern as analyst review.
+    setTimeout(() => {
+      if (!answersWrap) return;
+      answersWrap.querySelectorAll(".quiz-answer-btn").forEach((btn) => {
+        const l = btn.getAttribute("data-m3quiz");
+        if (l === letter) return;
+        btn.disabled = false;
+        btn.classList.remove("quiz-answer--reveal");
+      });
+    }, 600);
+    return;
+  }
+
+  // Milestone 24F — dynamic manager reaction for a correct M3 quiz answer.
+  updateManagerReaction("quiz_correct", { missionId: "mission-003" });
+
+  // Correct path — complete Mission 3
+  m3QuizAnswered   = true;
+  mission3Complete = true;
+  renderAllMiniMaps(); // Milestone 25D — M3 node flips to completed.
+
+  // Milestone 24C — correct M3 quiz (+10) AND M3 completion (+10) → +20 trust.
+  increaseTrustScore(10);
+  increaseTrustScore(10);
+
+  // Milestone 24E — M3 complete ⇒ alert moves to Resolved.
+  markAlertResolved("mission-003");
+
+  // Milestone 24G — mission complete → every M3 tool is marked completed.
+  markAllToolsCompleted("mission-003");
+
+  // Award XP (uses the existing M1 XP system — M3 shares the global bar)
+  awardXP(M3_QUIZ.xpReward);
+
+  // Rank bump (only if it's a forward move — don't downgrade if already higher)
+  if (rankNameEl && rankNameEl.textContent !== M3_QUIZ.newRank) {
+    rankNameEl.textContent = M3_QUIZ.newRank;
+    rankNameEl.classList.add("rank-name--upgraded");
+  }
+
+  // Persist + sync the M3 dashboard's mirrored profile panel
+  saveProgress();
+  // Milestone 33A — record this operation in the persistent career history.
+  updateOperationalReputation("mission-003");
+  syncM3XPPanel();
+
+  // Mark final status + update course progress
+  markM3Status("m3-complete");
+  setM3Hint("Assignment 3 complete. See your scorecard below.");
+  setM3ManagerMessage("Outstanding, Agent. You've completed Assignment 3. You're learning to think like a SOC analyst — that instinct for spotting reconnaissance is exactly what we need.");
+  // Milestone 24F — dynamic manager reaction for mission completion (M3).
+  // Fires after the closing briefing so the scripted reaction is the
+  // final line the student sees in the Supervisor panel.
+  updateManagerReaction("mission_completed", { missionId: "mission-003" });
+  renderCourseProgress();
+
+  // Milestone 24B — Mission 3 complete → network secured (Low).
+  setThreatLevel("Low", "mission-003");
+
+  // Stage 3 — incident resolved: clear escalation pressure + stop the watch.
+  clearEscalationWatch();
+  incidentPressure["mission-003"] = 0;
+  renderIncidentPressure("mission-003");
+
+  // Stage 2 — Blue Team (Mission 3): threat fully contained on completion.
+  setRedTeamActive("mission-003", false);
+  updateContainmentProgress("mission-003", 0, {
+    set: 100,
+    incident: "Contained",
+    assignment: "Incident contained — stand down",
+    caption: "Reconnaissance detected and reported to the Blue Team.",
+  });
+  showBlueTeamUpdate("mission-003", "Reconnaissance reported and source flagged. Excellent work, Agent.");
+
+  // FIX 5 — completion-state clarity for Mission 3.
+  syncM3Buttons(); // lock command buttons now that the mission is complete
+  setCurrentObjective("mission-003", COMPLETION_OBJECTIVE);
+  setM3ManagerMessage(COMPLETION_MANAGER);
+  // FIX 4 — pulse the Mission Map buttons until the student opens the map.
+  setMapButtonsAttention("mission-003", true);
+
+  // Milestone 31A — cinematic emphasis on mission completion (parity with M1).
+  showIncidentInterruption("mission-complete", { force: true });
+
+  // Replace the analyst review host content with the completion + scorecard
+  // (keeps everything inside the COMMANDS panel — same pattern as M1).
+  setTimeout(() => renderM3Scorecard(), 1200);
+
+  // Terminal confirmation
+  printM3Line("[ ASSIGNMENT 3 COMPLETE — Reconnaissance Detection passed. +100 XP awarded. ]", "m3-line--info");
+}
+
+/* Milestone 31A — Mission 3 outcome tier (never a fail). Mirrors M1's notion of
+   a graded outcome: the strongest result needs the correct Blue Team
+   recommendation, no scope drift, and high analyst confidence; otherwise it is
+   "Delayed" (got there but with detours) or "Weak" (acceptable-but-not-ideal). */
+function m3OutcomeTier() {
+  const correct = decisionTaken["mission-003"] === "m3-recommend";
+  if (correct && m3DecisionDrift === 0 && m3AnalystConfidence >= 70) {
+    return { label: "Excellent", tone: "green",
+      note: "Correct Blue Team recommendation, no scope drift, strong analyst confidence." };
+  }
+  if (correct) {
+    return { label: "Delayed", tone: "yellow",
+      note: "Right call reached, but after detours or with lower confidence." };
+  }
+  return { label: "Weak", tone: "yellow",
+    note: "Reconnaissance reported, but the ideal Blue Team recommendation was missed." };
+}
+
+/* Milestone 31A — network-themed scorecard rows summarizing the M3 run. */
+function renderM3NetworkScorecardRows() {
+  const tier = m3OutcomeTier();
+  const confTier = m3AnalystConfTier(m3AnalystConfidence);
+  const critPins = (pinnableFindings["mission-003"]
+    ? Array.from(pinnableFindings["mission-003"]) : [])
+    .filter((k) => {
+      const pin = investigationPins["mission-003"] && investigationPins["mission-003"][k];
+      return pin && pin.critical === true;
+    }).length;
+  const redState = redTeamStatesFor("mission-003")[computeRedTeamState("mission-003")]
+    || redTeamStatesFor("mission-003").recon;
+  const recLabel = {
+    "m3-recommend": "Report & monitor the source (correct)",
+    "m3-shutdown":  "Block the source at the firewall (acceptable)",
+    "m3-ignore":    "No action taken",
+    "m3-continue":  "Dismissed as normal traffic",
+  }[decisionTaken["mission-003"]] || "Not recorded";
+  const contain = (typeof blueTeamContainment === "object" && blueTeamContainment
+    && typeof blueTeamContainment["mission-003"] === "number")
+    ? Math.max(0, Math.min(100, blueTeamContainment["mission-003"])) : null;
+  let rows = `
+    <li class="scorecard-row">
+      <span class="scorecard-key">Operational Outcome</span>
+      <span class="scorecard-val scorecard-val--${tier.tone}">${escapeHtml(tier.label)}</span>
+    </li>
+    <li class="scorecard-row">
+      <span class="scorecard-key">Analyst Confidence (Final)</span>
+      <span class="scorecard-val scorecard-val--cyan">${escapeHtml(confTier.label)} (${m3AnalystConfidence}%)</span>
+    </li>
+    <li class="scorecard-row">
+      <span class="scorecard-key">Critical Recon Evidence</span>
+      <span class="scorecard-val">${critPins} pinned</span>
+    </li>
+    <li class="scorecard-row">
+      <span class="scorecard-key">Red Team State</span>
+      <span class="scorecard-val">${escapeHtml(redState.label)}</span>
+    </li>
+    <li class="scorecard-row">
+      <span class="scorecard-key">Blue Team Recommendation</span>
+      <span class="scorecard-val">${escapeHtml(recLabel)}</span>
+    </li>`;
+  if (contain !== null) {
+    rows += `
+    <li class="scorecard-row">
+      <span class="scorecard-key">Containment Progress</span>
+      <span class="scorecard-val scorecard-val--green">${contain}%</span>
+    </li>`;
+  }
+  return rows;
+}
+
+function renderM3Scorecard() {
+  const host = document.getElementById("m3AnalystReview");
+  if (!host) return;
+  const currentRank = rankNameEl ? rankNameEl.textContent : M3_QUIZ.newRank;
+  const m3Tier = m3OutcomeTier();
+  // Mirrors M1's buildCompletionHTML() exactly — same .completion-screen
+  // / .scorecard / .certificate-preview chrome so M1 and M3 look identical.
+  host.innerHTML = `
+    <div class="completion-screen">
+
+      <!-- ===== Header ===== -->
+      <div class="completion-header">
+        <span class="completion-icon">🏆</span>
+        <div class="completion-titles">
+          <h2 class="completion-title">Assignment 3 Complete</h2>
+          <p class="completion-subtitle">
+            <span class="m3-outcome-tier m3-outcome-tier--${m3Tier.tone}">${escapeHtml(m3Tier.label)}</span>
+            — ${escapeHtml(m3Tier.note)}
+          </p>
+        </div>
+      </div>
+
+      <!-- FIX 3 — clear Next Step guidance at the top of the screen. -->
+      ${buildNextStepHTML("mission-003")}
+
+      <!-- ===== MISSION SCORECARD ===== -->
+      <div class="scorecard">
+
+        <div class="scorecard-section scorecard-section--collapsed">
+          <span class="scorecard-section-label">MISSION SCORECARD</span>
+
+        <ul class="scorecard-rows">
+          <li class="scorecard-row">
+            <span class="scorecard-key">Mission</span>
+            <span class="scorecard-val">${M3_SCORECARD.missionName}</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">Result</span>
+            <span class="scorecard-val scorecard-val--green">Completed</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">Threat Assessment</span>
+            <span class="scorecard-val">${escapeHtml(M3_SCORECARD.threatAssessment)}</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">XP Earned</span>
+            <span class="scorecard-val scorecard-val--cyan">+${M3_QUIZ.xpReward} XP</span>
+          </li>
+          <li class="scorecard-row">
+            <span class="scorecard-key">Rank</span>
+            <span class="scorecard-val scorecard-val--yellow">${escapeHtml(currentRank)}</span>
+          </li>
+          <!-- Milestone 24B — final threat level recorded for this mission. -->
+          <li class="scorecard-row">
+            <span class="scorecard-key">Final Threat Level</span>
+            <span class="scorecard-val scorecard-val--threat scorecard-val--threat-${getThreatLevel("mission-003").toLowerCase()}">${escapeHtml(getThreatLevel("mission-003"))}</span>
+          </li>
+          <!-- Milestone 24C — manager trust score at end of mission. -->
+          <li class="scorecard-row">
+            <span class="scorecard-key">Trust Score</span>
+            <span class="scorecard-val scorecard-val--cyan">${getTrustScore()} / 100</span>
+          </li>
+          ${renderM3NetworkScorecardRows()}
+          ${renderDecisionScorecardRows("mission-003")}
+          ${renderAlertScorecardRows("mission-003")}
+        </ul>
+        </div>
+
+        <!-- Milestone 24H — Mission Outcome Summary (Mission 3).
+             Restates the full Alert → Investigation → Evidence →
+             Decision → Consequence → Reward loop the student completed. -->
+        ${buildOutcomeSummaryHTML("mission-003")}
+        ${buildOperationalAssessmentHTML("mission-003")}
+
+        <!-- Skills Practiced -->
+        <div class="scorecard-section scorecard-section--collapsed">
+          <span class="scorecard-section-label">SKILLS PRACTICED</span>
+          <ul class="scorecard-skills">
+            ${M3_SCORECARD.skills.map((s) =>
+              `<li><span class="scorecard-bullet">▹</span>${escapeHtml(s)}</li>`).join("")}
+          </ul>
+        </div>
+
+        <!-- Milestone 24G — Tools Used (Mission 3 scorecard) -->
+        ${buildToolsScorecardHTML("mission-003")}
+
+        <!-- Milestone 24A — Evidence Collected (Mission 3 scorecard) -->
+        ${buildEvidenceScorecardHTML("mission-003")}
+
+        <!-- What You Learned -->
+        <div class="scorecard-section scorecard-learned scorecard-section--collapsed">
+          <span class="scorecard-section-label">WHAT YOU LEARNED</span>
+          <p class="scorecard-learned-text">
+            ${escapeHtml(M3_SCORECARD.whatYouLearned)}
+          </p>
+        </div>
+
+        <!-- Next Assignment Preview -->
+        <div class="scorecard-section scorecard-next scorecard-section--collapsed">
+          <span class="scorecard-section-label">NEXT ASSIGNMENT PREVIEW</span>
+          <p class="scorecard-next-text">
+            <strong class="scorecard-next-title">${escapeHtml(M3_SCORECARD.nextMissionTitle)}</strong>
+            — ${escapeHtml(M3_SCORECARD.nextMissionDesc)}
+          </p>
+        </div>
+
+      </div>
+
+      <!-- ===== CERTIFICATE PREVIEW (parity with M1) ===== -->
+      <div class="certificate-preview" aria-label="Certificate of Completion Preview">
+
+        <div class="certificate-card">
+          <div class="certificate-watermark" aria-hidden="true">CYBERCORP</div>
+
+          <div class="certificate-header">
+            <span class="certificate-eyebrow">CyberCorp Training Academy</span>
+            <h3 class="certificate-title">Certificate of Completion Preview</h3>
+            <span class="certificate-seal" aria-hidden="true">★</span>
+          </div>
+
+          <div class="certificate-body">
+            <div class="certificate-field">
+              <span class="certificate-label">Awarded to</span>
+              <span class="certificate-value certificate-value--name">${escapeHtml(studentName) || "Student Cyber Intern"}</span>
+            </div>
+
+            <div class="certificate-field">
+              <span class="certificate-label">For completing</span>
+              <span class="certificate-value">Assignment 3 — Reconnaissance Detection</span>
+            </div>
+
+            <div class="certificate-field">
+              <span class="certificate-label">Skills Demonstrated</span>
+              <ul class="certificate-skills">
+                ${M3_SCORECARD.certSkills.map((s) =>
+                  `<li><span class="certificate-bullet">▹</span>${escapeHtml(s)}</li>`).join("")}
+              </ul>
+            </div>
+
+            <div class="certificate-field">
+              <span class="certificate-label">Status</span>
+              <span class="certificate-value certificate-value--status">Assignment 3 Completed</span>
+            </div>
+          </div>
+
+          <div class="certificate-footer">
+            <p class="certificate-note">
+              Full certificate unlocks after completing all assignments in the course.
+            </p>
+            <button class="certificate-download-btn" type="button" disabled
+                    title="Locked until all assignments are complete">
+              🔒&nbsp; Download Certificate — Locked
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Restart button (matches M1's .restart-btn styling) -->
+      <button id="restartMission3Btn" class="restart-btn" type="button">
+        ↺ &nbsp;Restart Mission 3
+      </button>
+
+    </div>
+  `;
+  host.style.display = "";
+
+  const restartBtn = document.getElementById("restartMission3Btn");
+  if (restartBtn) restartBtn.addEventListener("click", () => {
+    // Restart Mission 3 only — does not touch Mission 1.
+    resetMission3();
+    beginMission3();
+  });
+
+  // FIX 3 — wire the Next Step panel buttons.
+  wireNextStepButtons("mission-003");
+}
+
+function syncM3Buttons() {
+  document.querySelectorAll(".m3-cmd-btn[data-m3cmd]").forEach((btn) => {
+    const key = btn.getAttribute("data-m3cmd");
+    const unlocked = m3UnlockedCmds.has(key);
+    btn.disabled = !unlocked || mission3Complete; // FIX 5 — lock commands after completion
+    btn.classList.toggle("m3-cmd-btn--unlocked", unlocked);
+    if (unlocked) btn.removeAttribute("title");
+  });
+}
+
+function printM3Line(html, cls = "") {
+  const term = document.getElementById("m3Terminal");
+  if (!term) return;
+  const div = document.createElement("div");
+  div.className = `m3-line ${cls}`.trim();
+  div.innerHTML = html;
+  term.appendChild(div);
+  // FIX 1 — command echoes (demo "cmd" + the main flow's "prompt" lines) show
+  // instantly; everything else (output/blank/info) reveals one line at a time.
+  if (cls.includes("cmd") || cls.includes("prompt")) {
+    flushTerminalOutput();          // command echo shows instantly
+    term.scrollTop = term.scrollHeight;
+  } else {
+    queueTerminalReveal(div);       // FIX 1 — paced output reveal
+  }
+}
+
+function setM3Hint(text) {
+  const el = document.getElementById("m3Hint");
+  if (el) el.textContent = text;
+  // Milestone 25A — keep the Current Objective card in sync with the hint.
+  setCurrentObjective("mission-003", text);
+}
+
+function markM3Status(id) {
+  if (m3CompletedStatus.has(id)) return;
+  m3CompletedStatus.add(id);
+  renderM3Status();
+}
+
+function renderM3Status() {
+  const list = document.getElementById("m3StatusList");
+  if (!list) return;
+  list.innerHTML = M3_STATUS.map((s) => {
+    const done = m3CompletedStatus.has(s.id);
+    return `
+      <li class="m3-status-item ${done ? "m3-status-item--done" : "m3-status-item--pending"}">
+        <span class="m3-status-icon">${done ? "✓" : "•"}</span>
+        <span class="m3-status-label">${s.label}</span>
+      </li>
+    `;
+  }).join("");
+}
+
+/** Resets Mission 3 in-memory state + dashboard UI back to a fresh state. */
+function resetMission3() {
+  setMissionRunning(false); // Milestone 25A — leave Focus Mode on restart.
+  endGuidedRun(); // Milestone 25B — end any guided spotlight tour.
+  m3Started = false;
+  missionLaunched["mission-003"] = false; // Milestone 25B — clear durable launch flag
+  m3UnlockedCmds.clear();
+  m3CompletedStatus.clear();
+  m3AnalystAnswered = false;
+  m3QuizAnswered    = false;
+  mission3Complete  = false;
+  renderAllMiniMaps(); // Milestone 25D — refresh AFTER mission3Complete cleared.
+  // Challenge Layer 1 — reset Mission 3 confidence.
+  m3Confidence = 0;
+  m3ConfidenceContributors.clear();
+  renderConfidenceMeter("mission-003");
+
+  // Milestone 31A — reset Mission 3 Analyst Confidence + reasoning + drift.
+  clearM3ReasoningTimers();
+  m3AnalystConfidence = 0;
+  m3ReasoningAnswered.clear();
+  m3DecisionDrift = 0;
+  renderM3AnalystConfidence();
+  const reasoningHost = document.getElementById("m3Reasoning");
+  if (reasoningHost) { reasoningHost.innerHTML = ""; reasoningHost.style.display = "none"; }
+
+  // Investigation Board — clear Mission 3 pins + pin UI on restart.
+  investigationPins["mission-003"] = {};
+  pinnableFindings["mission-003"].clear();
+  Array.from(pinXpAwarded).forEach((k) => {
+    if (k.startsWith("mission-003:")) pinXpAwarded.delete(k);
+  });
+  renderInvestigationBoard("mission-003");
+  const pinHostM3 = document.getElementById("m3PinPanel");
+  if (pinHostM3) { pinHostM3.innerHTML = ""; pinHostM3.style.display = "none"; }
+
+  // Milestone 24I — replaying clears Mission 3's Briefing Room state.
+  briefingReviewed["mission-003"].clear();
+  briefingXpAwarded.delete("mission-003");
+  renderBriefingRoom("mission-003");
+
+  // Milestone 24A — restarting Mission 3 clears only Mission 3's evidence.
+  clearEvidenceForMission("mission-003");
+  // Milestone 24B — restart resets Mission 3's threat level to baseline.
+  resetThreatLevelForMission("mission-003");
+  // Milestone 24G — restart resets Mission 3's tools to their start states.
+  resetToolsForMission("mission-003");
+  // Stage 2 — restart clears Mission 3's Blue Team containment state.
+  resetBlueTeam("mission-003");
+  // Stage 3 — restart clears Mission 3's Adversary Escalation state.
+  resetEscalation("mission-003");
+  // Persist — clears mission3Complete flag from localStorage too
+  saveProgress();
+  // Course progress reflects the regression (M3 back to "Unlocked")
+  renderCourseProgress();
+
+  setMapButtonsAttention("mission-003", false); // FIX 4 — restart clears the prompt.
+  clearTerminalOutputQueue();                   // FIX 1 — drop any pending reveals.
+  const term = document.getElementById("m3Terminal");
+  if (term) term.innerHTML = "";
+  setM3Hint("Start by identifying your local IP address.");
+  setM3ManagerMessage("Welcome back. This assignment is a network reconnaissance exercise. Click any unlocked command to begin.");
+  renderM3Status();
+
+  // Milestone 21 — clear and hide the Analyst Review panel on reset
+  const review = document.getElementById("m3AnalystReview");
+  if (review) { review.innerHTML = ""; review.style.display = "none"; }
+
+  // Milestone 24D — clear the Mission 3 decision state on restart.
+  resetDecisionForMission("mission-003");
+
+  // Milestone 24E — restarting Mission 3 resets its alert (spec #14).
+  clearAlert("mission-003");
+  createMissionAlert("mission-003");
+
+  // Buttons back to disabled
+  document.querySelectorAll(".m3-cmd-btn[data-m3cmd]").forEach((btn) => {
+    btn.disabled = true;
+    btn.classList.remove("m3-cmd-btn--unlocked");
+  });
+
+  // Hide the dashboard if it's currently showing
+  const dashboard = document.getElementById("mission3Dashboard");
+  if (dashboard) dashboard.style.display = "none";
+}
+
+
 
 /* ============================================================
    MISSION ENGINE  (Milestone 23A)
@@ -8412,7 +9997,9 @@ function loadMission(missionId) {
 
 /** Renders the mission briefing / overview screen for the active mission. */
 function renderMissionBriefing() {
-  if (currentMissionId === "mission-002") {
+  if (currentMissionId === "mission-003") {
+    showMission3Overview();
+  } else if (currentMissionId === "mission-002") {
     showMission2Overview();
   } else {
     // Mission 1's "briefing" lives in the Module Overview screen; the
@@ -8424,7 +10011,9 @@ function renderMissionBriefing() {
 
 /** Renders / refreshes the command-button panel for the active mission. */
 function renderCommandButtons() {
-  if (currentMissionId === "mission-002") {
+  if (currentMissionId === "mission-003") {
+    syncM3Buttons();
+  } else if (currentMissionId === "mission-002") {
     syncM2Buttons();
   } else {
     renderButtons();
@@ -8437,6 +10026,10 @@ function renderCommandButtons() {
  *   M2 keys are M2_COMMANDS keys      (e.g. "ip", "ping", "nmap", "review").
  */
 function handleCommandClick(commandId) {
+  if (currentMissionId === "mission-003") {
+    runM3Command(commandId);
+    return;
+  }
   if (currentMissionId === "mission-002") {
     runM2Command(commandId);
     return;
@@ -8451,7 +10044,10 @@ function handleCommandClick(commandId) {
 
 /** Appends a single command + its output to the active mission's terminal. */
 function appendTerminalOutput(commandText, outputText) {
-  if (currentMissionId === "mission-002") {
+  if (currentMissionId === "mission-003") {
+    if (commandText) printM3Line(`<span class="m3-prompt">$</span> ${escapeHtml(commandText)}`, "m3-line--cmd");
+    if (outputText)  printM3Line(escapeHtml(outputText));
+  } else if (currentMissionId === "mission-002") {
     if (commandText) printM2Line(`<span class="m2-prompt">$</span> ${escapeHtml(commandText)}`, "m2-line--cmd");
     if (outputText)  printM2Line(escapeHtml(outputText));
   } else {
@@ -8466,7 +10062,9 @@ function appendTerminalOutput(commandText, outputText) {
  * own checklists, so callers normally pass an id.
  */
 function updateMissionStatus(statusIdOrText) {
-  if (currentMissionId === "mission-002") {
+  if (currentMissionId === "mission-003") {
+    markM3Status(statusIdOrText);
+  } else if (currentMissionId === "mission-002") {
     markM2Status(statusIdOrText);
   } else {
     completeStep(statusIdOrText);
@@ -8475,7 +10073,9 @@ function updateMissionStatus(statusIdOrText) {
 
 /** Updates the hint-panel text for the active mission. */
 function updateHintPanel(hintText) {
-  if (currentMissionId === "mission-002") {
+  if (currentMissionId === "mission-003") {
+    setM3Hint(hintText);
+  } else if (currentMissionId === "mission-002") {
     setM2Hint(hintText);
   } else {
     setHint(hintText);
@@ -8490,7 +10090,7 @@ function updateHintPanel(hintText) {
  */
 function updateManagerMessage(messageText) {
   // Milestone 25A — route through the supervisor chat feed.
-  pushManagerMessage(currentMissionId === "mission-002" ? "mission-002" : "mission-001", messageText);
+  pushManagerMessage(currentMissionId, messageText);
 }
 
 /* ------------------------------------------------------------
@@ -8536,7 +10136,9 @@ function updateManagerReaction(eventType, context) {
   if (text) renderManagerReaction(text);
   // Milestone 25A / 26A — event toast on mission completion (M1 + M2).
   if (eventType === "mission_completed") {
-    const m = context && context.missionId === "mission-002"
+    const m = context && context.missionId === "mission-003"
+      ? "Assignment 3 cleared. Reconnaissance source reported."
+      : context && context.missionId === "mission-002"
       ? "Assignment 2 cleared. Network secured."
       : "Assignment 1 cleared. Phishing threat handled.";
     showEventToast("Assignment Complete", m, "success", { duration: 8000 }); // FIX 2 — assignment complete dwells 8s
@@ -8546,7 +10148,10 @@ function updateManagerReaction(eventType, context) {
 
 /** Unlocks a single command in the active mission's command panel. */
 function unlockCommand(commandId) {
-  if (currentMissionId === "mission-002") {
+  if (currentMissionId === "mission-003") {
+    m3UnlockedCmds.add(commandId);
+    syncM3Buttons();
+  } else if (currentMissionId === "mission-002") {
     m2UnlockedCmds.add(commandId);
     syncM2Buttons();
   } else {
@@ -8556,7 +10161,9 @@ function unlockCommand(commandId) {
 
 /** Reveals the finding-submission step (M1 finding panel / M2 analyst review). */
 function showFindingSubmission() {
-  if (currentMissionId === "mission-002") {
+  if (currentMissionId === "mission-003") {
+    renderM3AnalystReview();
+  } else if (currentMissionId === "mission-002") {
     renderM2AnalystReview();
   } else {
     showFindingPanel();
@@ -8569,7 +10176,9 @@ function showFindingSubmission() {
  * routes to its renderer (`renderM2Quiz`).
  */
 function showQuizEngine() {
-  if (currentMissionId === "mission-002") {
+  if (currentMissionId === "mission-003") {
+    renderM3Quiz();
+  } else if (currentMissionId === "mission-002") {
     renderM2Quiz();
   } else {
     showQuiz();
@@ -8581,7 +10190,7 @@ function showQuizEngine() {
  * in the current curriculum — this is a no-op there by design.
  */
 function showReflectionEngine() {
-  if (currentMissionId === "mission-002") return;
+  if (currentMissionId === "mission-002" || currentMissionId === "mission-003") return;
   showReflection();
 }
 
@@ -8595,6 +10204,38 @@ function showReflectionEngine() {
  * from M2_QUIZ.newRank.
  */
 function completeMissionEngine(newRank) {
+  if (currentMissionId === "mission-003") {
+    // Mirror ALL side-effects of the M3 quiz-driven completion so engine-driven
+    // completion is indistinguishable from the quiz path.
+    if (mission3Complete) return;
+
+    mission3Complete = true;
+    m3QuizAnswered   = true;
+    renderAllMiniMaps(); // M3 node flips to completed.
+
+    awardXP(M3_QUIZ.xpReward);
+
+    const rankToSet = newRank || M3_QUIZ.newRank;
+    if (rankNameEl && rankNameEl.textContent !== rankToSet) {
+      rankNameEl.textContent = rankToSet;
+      rankNameEl.classList.add("rank-name--upgraded");
+    }
+
+    markAlertResolved("mission-003");
+    markAllToolsCompleted("mission-003");
+
+    saveProgress();
+    syncM3XPPanel();
+    markM3Status("m3-complete");
+    setM3Hint("Assignment 3 complete. See your scorecard below.");
+    setM3ManagerMessage("Outstanding, Agent. You've completed Assignment 3. You're learning to think like a SOC analyst — that instinct for spotting reconnaissance is exactly what we need.");
+    renderCourseProgress();
+
+    updateOperationalReputation("mission-003");
+    renderM3Scorecard();
+    printM3Line("[ ASSIGNMENT 3 COMPLETE — Reconnaissance Detection passed. +100 XP awarded. ]", "m3-line--info");
+    return;
+  }
   if (currentMissionId === "mission-002") {
     // M2's normal completion runs inside handleM2QuizAnswer (quiz path).
     // Calling the engine directly must mirror ALL the side-effects of
@@ -8645,7 +10286,9 @@ function completeMissionEngine(newRank) {
 
 /** Renders the completion / scorecard screen for the active mission. */
 function showScorecard() {
-  if (currentMissionId === "mission-002") {
+  if (currentMissionId === "mission-003") {
+    renderM3Scorecard();
+  } else if (currentMissionId === "mission-002") {
     renderM2Scorecard();
   } else {
     // M1's scorecard is rendered inside the quiz panel via buildCompletionHTML.
@@ -8667,7 +10310,9 @@ function showScorecard() {
  */
 function resetMissionEngine(missionId) {
   const target = missionId || currentMissionId;
-  if (target === "mission-002") {
+  if (target === "mission-003") {
+    resetMission3();
+  } else if (target === "mission-002") {
     resetMission2();
   } else {
     resetMission();
@@ -9054,11 +10699,17 @@ function boot() {
   if (m2MapBack) m2MapBack.addEventListener("click", showMissionsMap);
   const m2OvMapBack = document.getElementById("m2OverviewMapBackBtn");
   if (m2OvMapBack) m2OvMapBack.addEventListener("click", showMissionsMap);
+  const m3MapBack = document.getElementById("m3MapBackBtn");
+  if (m3MapBack) m3MapBack.addEventListener("click", showMissionsMap);
+  const m3OvMapBack = document.getElementById("m3OverviewMapBackBtn");
+  if (m3OvMapBack) m3OvMapBack.addEventListener("click", showMissionsMap);
   // Milestone 25D — "Open Full Map" buttons in the right control panels.
   const m1OpenFullMap = document.getElementById("m1OpenFullMapBtn");
   if (m1OpenFullMap) m1OpenFullMap.addEventListener("click", showMissionsMap);
   const m2OpenFullMap = document.getElementById("m2OpenFullMapBtn");
   if (m2OpenFullMap) m2OpenFullMap.addEventListener("click", showMissionsMap);
+  const m3OpenFullMap = document.getElementById("m3OpenFullMapBtn");
+  if (m3OpenFullMap) m3OpenFullMap.addEventListener("click", showMissionsMap);
   renderAllMiniMaps(); // Milestone 25D — initial compact route map render.
   initOpsStrips();     // Milestone 29A — inject the persistent operations strip.
   initRedTeamPanels(); // Milestone 30A — inject the RED TEAM ACTIVITY panel.
@@ -9114,6 +10765,20 @@ function boot() {
     btn.addEventListener("click", () => runM2Command(btn.getAttribute("data-m2cmd")));
   });
   renderM2Status();
+
+  // Assignment 03 — Mission 3 gameplay wiring (mirrors Mission 2).
+  const m3BackBtn = document.getElementById("mission3BackBtn");
+  if (m3BackBtn) m3BackBtn.addEventListener("click", hideMission3Overview);
+  const m3BeginBtn = document.getElementById("m3BeginBtn");
+  if (m3BeginBtn) m3BeginBtn.addEventListener("click", () => {
+    startGuidedBriefing("mission-003", beginMission3);
+  });
+  const m3DashBackBtn = document.getElementById("m3DashBackBtn");
+  if (m3DashBackBtn) m3DashBackBtn.addEventListener("click", backToMission3Overview);
+  document.querySelectorAll(".m3-cmd-btn[data-m3cmd]").forEach((btn) => {
+    btn.addEventListener("click", () => runM3Command(btn.getAttribute("data-m3cmd")));
+  });
+  renderM3Status();
 
   // Challenge Layer 1 — progressive hint button for Mission 1. Each click
   // reveals the next hint (capped at the final, most direct hint).
@@ -9589,13 +11254,14 @@ function isValidContainmentStep(id) {
 // Blue Team state is keyed by mission so Mission 1 and Mission 2 each run the
 // SAME engine against their own panel. Mission 1 keeps the original DOM ids;
 // Mission 2 uses m2-prefixed ids — see BLUE_TEAM_DOM below.
-const blueTeamContainment = { "mission-001": 0, "mission-002": 0 };
+const blueTeamContainment = { "mission-001": 0, "mission-002": 0, "mission-003": 0 };
 const blueTeamSteps = {
   "mission-001": new Set(),
   "mission-002": new Set(),
+  "mission-003": new Set(),
 };
-const blueTeamRedActive = { "mission-001": false, "mission-002": false };
-let blueTeamFeeds = { "mission-001": [], "mission-002": [] };
+const blueTeamRedActive = { "mission-001": false, "mission-002": false, "mission-003": false };
+let blueTeamFeeds = { "mission-001": [], "mission-002": [], "mission-003": [] };
 
 // Per-mission DOM id map. Helpers resolve elements through this so one set of
 // functions drives both panels; all lookups no-op safely when ids are absent.
@@ -9610,9 +11276,14 @@ const BLUE_TEAM_DOM = {
     caption: "m2ContainmentCaption", incident: "m2BlueTeamIncident",
     assignment: "m2BlueTeamAssignment", flag: "m2RedTeamFlag", feed: "m2BlueTeamFeed",
   },
+  "mission-003": {
+    panel: "m3BlueTeamPanel", fill: "m3ContainmentFill", pct: "m3ContainmentPct",
+    caption: "m3ContainmentCaption", incident: "m3BlueTeamIncident",
+    assignment: "m3BlueTeamAssignment", flag: "m3RedTeamFlag", feed: "m3BlueTeamFeed",
+  },
 };
 function btMissionId(missionId) {
-  return missionId === "mission-002" ? "mission-002" : "mission-001";
+  return missionId === "mission-003" ? "mission-003" : missionId === "mission-002" ? "mission-002" : "mission-001";
 }
 function btDom(missionId, key) {
   const map = BLUE_TEAM_DOM[btMissionId(missionId)];
@@ -9842,11 +11513,11 @@ const ESCALATION_EVENTS = [
 
 // Per-mission incident pressure (0–ESCALATION_MAX). Keyed like the Blue Team
 // engine so Mission 1 and Mission 2 each run the SAME escalation logic.
-const incidentPressure = { "mission-001": 0, "mission-002": 0 };
-const escalationIdleCount = { "mission-001": 0, "mission-002": 0 };
+const incidentPressure = { "mission-001": 0, "mission-002": 0, "mission-003": 0 };
+const escalationIdleCount = { "mission-001": 0, "mission-002": 0, "mission-003": 0 };
 // Stage 4 — highest pressure ever reached this run (the live value is zeroed on
 // completion, so the mission-end "Threat Spread Prevented" summary reads the peak).
-const escalationPeak = { "mission-001": 0, "mission-002": 0 };
+const escalationPeak = { "mission-001": 0, "mission-002": 0, "mission-003": 0 };
 let escalationEventIndex = 0;       // rotates ESCALATION_EVENTS
 let escalationIdleTimer = null;     // single active idle timer
 let escalationIdleMission = null;   // the mission the idle timer watches
@@ -9988,7 +11659,7 @@ function onEscalationIdle() {
   const mid = escalationIdleMission;
   if (!mid) return;
   if (demoRunning) { scheduleEscalationIdle(); return; }
-  const complete = mid === "mission-002" ? mission2Complete : missionComplete;
+  const complete = mid === "mission-003" ? mission3Complete : mid === "mission-002" ? mission2Complete : missionComplete;
   if (complete || !document.body.classList.contains("mission-running")) {
     clearEscalationWatch();
     return;
@@ -10130,7 +11801,7 @@ function renderContainmentActions(missionId) {
   missionId = btMissionId(missionId);
   const defs = CONTAINMENT_ACTIONS[missionId];
   const host = document.getElementById(
-    missionId === "mission-002" ? "m2ContainmentActionsList" : "containmentActionsList"
+    missionId === "mission-003" ? "m3ContainmentActionsList" : missionId === "mission-002" ? "m2ContainmentActionsList" : "containmentActionsList"
   );
   if (!defs || !host) return;
 
@@ -10138,7 +11809,7 @@ function renderContainmentActions(missionId) {
   const used = containmentActionsUsed[missionId];
   // Once the mission is contained, the panel is read-only — no further
   // trust/threat/containment mutation is possible (post-completion lock).
-  const missionDone = missionId === "mission-002" ? mission2Complete : missionComplete;
+  const missionDone = missionId === "mission-003" ? mission3Complete : missionId === "mission-002" ? mission2Complete : missionComplete;
 
   host.innerHTML = CONTAINMENT_ACTION_ORDER
     .filter((id) => defs[id])
@@ -10177,7 +11848,7 @@ function renderContainmentActions(missionId) {
 
   // Status line summarizing how many responses are still available.
   const statusEl = document.getElementById(
-    missionId === "mission-002" ? "m2ContainmentActionsStatus" : "containmentActionsStatus"
+    missionId === "mission-003" ? "m3ContainmentActionsStatus" : missionId === "mission-002" ? "m2ContainmentActionsStatus" : "containmentActionsStatus"
   );
   if (statusEl) {
     statusEl.textContent = missionDone
@@ -10192,7 +11863,7 @@ function renderContainmentActions(missionId) {
 function handleContainmentAction(missionId, id) {
   missionId = btMissionId(missionId);
   if (demoRunning) return; // never intrude on the teaching demo
-  const missionDone = missionId === "mission-002" ? mission2Complete : missionComplete;
+  const missionDone = missionId === "mission-003" ? mission3Complete : missionId === "mission-002" ? mission2Complete : missionComplete;
   if (missionDone) return; // post-completion lock — panel is read-only
   const def = CONTAINMENT_ACTIONS[missionId] && CONTAINMENT_ACTIONS[missionId][id];
   if (!def) return;
@@ -10296,11 +11967,11 @@ function fxPulse(id) {
 }
 
 function fxPulseConfidence(missionId) {
-  fxPulse(missionId === "mission-002" ? "m2ConfidenceMeter" : "confidenceMeter");
+  fxPulse(missionId === "mission-003" ? "m3ConfidenceMeter" : missionId === "mission-002" ? "m2ConfidenceMeter" : "confidenceMeter");
 }
 
 function fxPulseThreat(missionId) {
-  fxPulse(missionId === "mission-002" ? "m2ThreatMeter" : "threatMeter");
+  fxPulse(missionId === "mission-003" ? "m3ThreatMeter" : missionId === "mission-002" ? "m2ThreatMeter" : "threatMeter");
 }
 
 function fxPulseBoard(missionId) {
@@ -10408,7 +12079,7 @@ function pulseContainmentPanel(missionId) {
 /** Pulse the manager transmission indicator (no-op safe outside M1/M2). */
 function pulseTransmissionIndicator(missionId) {
   const panel = document.getElementById(
-    missionId === "mission-002" ? "m2ManagerPanel" : "managerPanel"
+    missionId === "mission-003" ? "m3ManagerPanel" : missionId === "mission-002" ? "m2ManagerPanel" : "managerPanel"
   );
   if (panel) fxFlash(panel, "manager-panel--cinema", 1200);
 }
@@ -10562,6 +12233,11 @@ const GUIDED_BRIEFING_INTROS = {
     reachability: "Next, recall how reachability confirms which targets are worth investigating.",
     services:     "Finally, review open services — exposed services are exactly what we hunt for.",
   },
+  "mission-003": {
+    "recon":        "First, understand reconnaissance — attackers gather information before they attack.",
+    "weak-signals": "Next, remember that repeated activity from one source is the real clue.",
+    "blue-team":    "Finally, review how the Blue Team responds — reporting recon early prevents the next stage.",
+  },
 };
 
 let guidedState = null;
@@ -10589,7 +12265,7 @@ function hasMissionProgress(missionId) {
   // Durable "launched" flag covers the case where the investigation started but
   // no evidence/pins were collected yet before the reload.
   if (missionLaunched && missionLaunched[missionId]) return true;
-  const complete = missionId === "mission-002" ? mission2Complete : missionComplete;
+  const complete = missionId === "mission-003" ? mission3Complete : missionId === "mission-002" ? mission2Complete : missionComplete;
   if (complete) return true;
   const ev = (evidenceLog && evidenceLog[missionId]) || [];
   if (ev.length) return true;
@@ -10606,7 +12282,7 @@ function hasMissionProgress(missionId) {
 }
 
 function startGuidedBriefing(missionId, startFn) {
-  const alreadyStarted = missionId === "mission-002" ? m2Started : missionStarted;
+  const alreadyStarted = missionId === "mission-003" ? m3Started : missionId === "mission-002" ? m2Started : missionStarted;
   // Resume-safe: skip onboarding if the mission is already running this session
   // OR persisted progress shows an investigation is underway — resume directly.
   if (alreadyStarted || hasMissionProgress(missionId)) {
@@ -10795,7 +12471,7 @@ const igPending = new Set();
 
 const IG_PHASES = {
   commands: {
-    target: (m) => document.getElementById(m === "mission-002" ? "m2CurrentObjective" : "currentObjective"),
+    target: (m) => document.getElementById(m === "mission-003" ? "m3CurrentObjective" : m === "mission-002" ? "m2CurrentObjective" : "currentObjective"),
     text: "This is your command Center. Click or Type a command to run it in the terminal - new commands unlock as you progress.",
   },
   files: {
@@ -10803,11 +12479,11 @@ const IG_PHASES = {
     text: "New file-inspection commands unlocked. Open and read each file to gather evidence.",
   },
   board: {
-    target: (m) => document.getElementById(m === "mission-002" ? "m2InvestigationBoard" : "investigationBoard"),
+    target: (m) => document.getElementById(m === "mission-003" ? "m3InvestigationBoard" : m === "mission-002" ? "m2InvestigationBoard" : "investigationBoard"),
     text: "You found something worth keeping. Pin it to your Investigation Board, then classify how suspicious it is.",
   },
   decision: {
-    target: (m) => document.getElementById(m === "mission-002" ? "m2DecisionActions" : "decisionActions"),
+    target: (m) => document.getElementById(m === "mission-003" ? "m3DecisionActions" : m === "mission-002" ? "m2DecisionActions" : "decisionActions"),
     text: "Evidence is in. Choose your decision action carefully — it affects your trust score.",
   },
 };
@@ -11368,7 +13044,7 @@ function opsContainmentLabel(val) {
  *  until the strip exists; safe to call during restore. */
 function updateOpsStrip(missionId) {
   const mid = btMissionId(missionId);
-  const dash = document.getElementById(mid === "mission-002" ? "mission2Dashboard" : "dashboard");
+  const dash = document.getElementById(mid === "mission-003" ? "mission3Dashboard" : mid === "mission-002" ? "mission2Dashboard" : "dashboard");
   const strip = dash && dash.querySelector(".ops-strip");
   if (!strip) return;
 
@@ -11453,7 +13129,7 @@ function stopAmbientOps() {
 
 /* ---- Environmental density reactions (transient region cues) -------- */
 function opsRegionEl(missionId, selector) {
-  const dash = document.getElementById(missionId === "mission-002" ? "mission2Dashboard" : "dashboard");
+  const dash = document.getElementById(missionId === "mission-003" ? "mission3Dashboard" : missionId === "mission-002" ? "mission2Dashboard" : "dashboard");
   return dash ? dash.querySelector(selector) : null;
 }
 
@@ -11557,13 +13233,37 @@ const RED_TEAM_MOVEMENT_LINES_M2 = [
   "Mapping reachable hosts on the subnet.",
 ];
 
+/* Assignment 3 (Reconnaissance Detection) Red Team flavor — same derived state
+   machine, recon-themed labels so the adversary panel reads as early-stage
+   information gathering from an unknown external source. */
+const RED_TEAM_STATES_M3 = {
+  recon:      { label: "External Recon Detected",       tone: "watch"  },
+  harvest:    { label: "Unknown Source Probing",        tone: "warn"   },
+  outbound:   { label: "Service Scanning Underway",     tone: "warn"   },
+  expanding:  { label: "Probe Pattern Widening",        tone: "danger" },
+  pressure:   { label: "Reconnaissance Pressure Rising",tone: "danger" },
+  stabilized: { label: "Activity Stabilized",           tone: "calm"   },
+};
+const ADVERSARY_GOALS_M3 = [
+  "Network Mapping",
+  "Service Discovery",
+  "Vulnerability Identification",
+];
+const RED_TEAM_MOVEMENT_LINES_M3 = [
+  "Probing SSH on internal hosts.",
+  "Testing the web service for responses.",
+  "Enumerating exposed database ports.",
+  "Repeating connections from an unknown source.",
+  "Cataloguing which services answer.",
+];
+
 // Transient only — NOT persisted (resting state + goals are derived on render).
-const adversaryMovement = { "mission-001": "", "mission-002": "" };
+const adversaryMovement = { "mission-001": "", "mission-002": "", "mission-003": "" };
 let redTeamMoveIndex = 0;
 
 function redTeamPanelEl(missionId) {
   const mid = btMissionId(missionId);
-  return document.getElementById(mid === "mission-002" ? "m2RedTeamPanel" : "redTeamPanel");
+  return document.getElementById(mid === "mission-003" ? "m3RedTeamPanel" : mid === "mission-002" ? "m2RedTeamPanel" : "redTeamPanel");
 }
 
 /** Build the compact RED TEAM ACTIVITY panel (injected into .live-status). */
@@ -11602,7 +13302,7 @@ function initRedTeamPanels() {
 /** Resting Red Team state, DERIVED from existing mission state. */
 function computeRedTeamState(missionId) {
   const mid = btMissionId(missionId);
-  const complete = mid === "mission-002" ? mission2Complete : missionComplete;
+  const complete = mid === "mission-003" ? mission3Complete : mid === "mission-002" ? mission2Complete : missionComplete;
   const contain  = (blueTeamContainment && blueTeamContainment[mid]) || 0;
   if (complete || contain >= 60) return "stabilized";
   const threat   = getThreatLevel(mid);
@@ -11618,15 +13318,15 @@ function computeRedTeamState(missionId) {
 
 /* Milestone 31A — pick the Red Team flavor set per mission. Mission 2 reads as
    a network intrusion; Mission 1 keeps the original phishing flavor. */
-function redTeamStatesFor(mid)   { return mid === "mission-002" ? RED_TEAM_STATES_M2 : RED_TEAM_STATES; }
-function adversaryGoalsFor(mid)   { return mid === "mission-002" ? ADVERSARY_GOALS_M2 : ADVERSARY_GOALS; }
-function redTeamMovementFor(mid)  { return mid === "mission-002" ? RED_TEAM_MOVEMENT_LINES_M2 : RED_TEAM_MOVEMENT_LINES; }
+function redTeamStatesFor(mid)   { return mid === "mission-003" ? RED_TEAM_STATES_M3 : mid === "mission-002" ? RED_TEAM_STATES_M2 : RED_TEAM_STATES; }
+function adversaryGoalsFor(mid)   { return mid === "mission-003" ? ADVERSARY_GOALS_M3 : mid === "mission-002" ? ADVERSARY_GOALS_M2 : ADVERSARY_GOALS; }
+function redTeamMovementFor(mid)  { return mid === "mission-003" ? RED_TEAM_MOVEMENT_LINES_M3 : mid === "mission-002" ? RED_TEAM_MOVEMENT_LINES_M2 : RED_TEAM_MOVEMENT_LINES; }
 
 /** How many adversary goals have been uncovered (gradual, via real progress). */
 function adversaryGoalsRevealed(missionId) {
   const mid = btMissionId(missionId);
   const goals = adversaryGoalsFor(mid);
-  const complete = mid === "mission-002" ? mission2Complete : missionComplete;
+  const complete = mid === "mission-003" ? mission3Complete : mid === "mission-002" ? mission2Complete : missionComplete;
   if (complete) return goals.length;
   let n = (blueTeamSteps && blueTeamSteps[mid]) ? blueTeamSteps[mid].size : 0;
   if (n < 1 && blueTeamRedActive && blueTeamRedActive[mid]) n = 1;
@@ -11711,7 +13411,7 @@ function triggerRedTeamMovement(missionId) {
   if (demoRunning) return;
   if (!document.body.classList.contains("mission-running")) return;
   const mid = btMissionId(missionId || getActiveMissionId());
-  const complete = mid === "mission-002" ? mission2Complete : missionComplete;
+  const complete = mid === "mission-003" ? mission3Complete : mid === "mission-002" ? mission2Complete : missionComplete;
   if (complete) return;
   const moves = redTeamMovementFor(mid);
   adversaryMovement[mid] = moves[redTeamMoveIndex % moves.length];

@@ -964,6 +964,520 @@
       </aside>
     </main>
 
+    <!-- ===== MISSION 3 OVERVIEW ===== (Assignment 03 — Reconnaissance Detection)
+         Mirrors #mission2Overview with m3-prefixed ids/text. Populated by
+         renderBriefingRoom("mission-003"); the Begin button is gated until
+         all briefing cards are reviewed. -->
+    <section id="mission3Overview" class="module-landing" aria-label="Mission 3 Overview" style="display:none;">
+      <div class="module-landing-card">
+
+        <div class="module-eyebrow">
+          <span class="module-eyebrow-label">ASSIGNMENT 03</span>
+          <span class="module-eyebrow-value">
+            Cybersecurity Internship Simulator <span class="module-eyebrow-sep">—</span> Threat Hunting Track
+          </span>
+        </div>
+
+        <h1 class="module-title">
+          Reconnaissance Detection
+        </h1>
+
+        <div class="module-meta-row">
+          <div class="module-meta-item">
+            <span class="module-meta-label">DIFFICULTY</span>
+            <span class="module-meta-value difficulty--beginner">BEGINNER</span>
+          </div>
+          <div class="module-meta-item">
+            <span class="module-meta-label">STATUS</span>
+            <span class="module-meta-value m3-status">PREVIEW</span>
+          </div>
+          <div class="module-meta-item">
+            <span class="module-meta-label">ASSIGNMENT</span>
+            <span class="module-meta-value">03 of 03</span>
+          </div>
+        </div>
+
+        <section class="module-section">
+          <h2 class="module-section-title">ASSIGNMENT BRIEFING</h2>
+          <p class="module-section-text">
+            Your cybersecurity manager has flagged unusual traffic on the
+            company network. Your job is to investigate the connections, find
+            out who keeps reaching in, and decide whether it's an early sign of
+            an attack.
+          </p>
+        </section>
+
+        <section class="module-section">
+          <h2 class="module-section-title">LEARNING OBJECTIVE</h2>
+          <p class="module-section-text">
+            By the end of this mission, you will understand how analysts spot
+            reconnaissance — the quiet scanning that attackers do before they
+            strike — and how to respond to weak early signals.
+          </p>
+        </section>
+
+        <section class="module-section">
+          <h2 class="module-section-title">SKILLS PRACTICED</h2>
+          <ul class="module-skills">
+            <li><span class="module-skill-bullet">▹</span>Reading active network connections</li>
+            <li><span class="module-skill-bullet">▹</span>Looking up unknown IP addresses</li>
+            <li><span class="module-skill-bullet">▹</span>Spotting scanning &amp; probing patterns</li>
+            <li><span class="module-skill-bullet">▹</span>Separating real threats from false leads</li>
+            <li><span class="module-skill-bullet">▹</span>Thinking like a SOC analyst</li>
+          </ul>
+        </section>
+
+        <!-- Mission Briefing Room (Mission 3). Populated by
+             renderBriefingRoom("mission-003"). Gates the Begin button. -->
+        <div id="m3BriefingRoom" class="briefing-room"></div>
+
+        <button id="m3BeginBtn" class="enter-module-btn m3-begin-btn" type="button">
+          ▶&nbsp; Begin Mission 3
+        </button>
+
+        <button id="m3OverviewMapBackBtn" class="enter-module-btn enter-module-btn--secondary" type="button">
+          ←&nbsp; Back to Missions Map
+        </button>
+
+        <button id="mission3BackBtn" class="enter-module-btn enter-module-btn--secondary" type="button">
+          ←&nbsp; Back to Module Overview
+        </button>
+      </div>
+    </section>
+
+    <!-- ===== MISSION 3 DASHBOARD =====
+         Mirrors #mission2Dashboard's 3-column .dashboard layout exactly with
+         m3-prefixed ids. All chrome classes are reused from M1/M2. -->
+    <main id="mission3Dashboard" class="dashboard" aria-label="Mission 3 Dashboard" style="display:none;">
+
+      <!-- ===== LEFT: MISSION PANEL ===== -->
+      <section class="panel mission-panel" aria-label="Mission 3 Panel">
+        <header class="panel-header panel-header--mission">
+          <div class="unified-header-top">
+            <div class="unified-eyebrow">
+              <span class="unified-eyebrow-label">MISSION 03</span>
+              <span class="unified-eyebrow-sep">·</span>
+              <span class="unified-eyebrow-value">Reconnaissance Detection</span>
+            </div>
+            <span class="unified-back-group">
+              <button id="m3MapBackBtn" class="unified-back-link" type="button">
+                ← Missions Map
+              </button>
+              <button id="m3DashBackBtn" class="unified-back-link" type="button">
+                ← Mission 3 Overview
+              </button>
+            </span>
+          </div>
+          <h2 class="unified-title">
+            Detect reconnaissance against the network
+          </h2>
+          <p class="unified-subtitle">
+            Run the commands in order. Each one unlocks the next.
+          </p>
+        </header>
+
+        <div class="panel-body">
+
+          <!-- ===== MISSION CONTROL: COMPACT ROUTE MAP ===== -->
+          <div class="mini-map-panel">
+            <div class="mini-map-head">
+              <span class="mini-map-label">Mission Control</span>
+              <button id="m3OpenFullMapBtn" class="mini-map-open-btn" type="button">
+                Open Full Map
+              </button>
+            </div>
+            <div class="mini-map" id="m3MiniMap">
+              <div class="mini-node mini-node--completed" data-mission="mission-001">
+                <span class="mini-node-dot">
+                  <span class="mini-node-num">01</span>
+                  <span class="mini-node-check" aria-hidden="true">✓</span>
+                </span>
+                <span class="mini-node-name">Workstation</span>
+              </div>
+              <span class="mini-path" data-path="12" aria-hidden="true"></span>
+              <div class="mini-node mini-node--completed" data-mission="mission-002">
+                <span class="mini-node-dot">
+                  <span class="mini-node-num">02</span>
+                  <span class="mini-node-check" aria-hidden="true">✓</span>
+                </span>
+                <span class="mini-node-name">Network</span>
+              </div>
+              <span class="mini-path" data-path="23" aria-hidden="true"></span>
+              <div class="mini-node mini-node--available" data-mission="mission-003">
+                <span class="mini-node-dot">
+                  <span class="mini-node-num">03</span>
+                  <span class="mini-node-check" aria-hidden="true">✓</span>
+                </span>
+                <span class="mini-node-name">Recon</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Blue Team Status (Mission 3) -->
+          <div id="m3BlueTeamPanel" class="blue-team-panel">
+            <div class="blue-team-head">
+              <span class="blue-team-badge">BLUE TEAM</span>
+              <span class="blue-team-live"><span class="blue-team-live-dot" aria-hidden="true"></span>DEFENDING</span>
+            </div>
+            <div class="blue-team-id">
+              <div class="bt-row"><span class="bt-key">Team</span><span class="bt-val">Blue Team</span></div>
+              <div class="bt-row"><span class="bt-key">Role</span><span class="bt-val">Cybersecurity Intern</span></div>
+              <div class="bt-row"><span class="bt-key">Assignment</span><span class="bt-val" id="m3BlueTeamAssignment">Detect recon</span></div>
+              <div class="bt-row"><span class="bt-key">Incident</span><span class="bt-val bt-incident" id="m3BlueTeamIncident">Monitoring</span></div>
+            </div>
+            <div class="red-team-flag" id="m3RedTeamFlag" hidden>
+              <span class="red-team-flag-dot" aria-hidden="true"></span>Red Team Activity Detected
+            </div>
+            <div class="containment">
+              <div class="containment-head">
+                <span class="containment-label">Containment Progress</span>
+                <span class="containment-pct" id="m3ContainmentPct">0%</span>
+              </div>
+              <div class="containment-bar">
+                <div class="containment-bar-fill" id="m3ContainmentFill" style="width:0%;"></div>
+              </div>
+              <p class="containment-caption" id="m3ContainmentCaption">Awaiting connection review.</p>
+            </div>
+            <div class="incident-pressure" id="m3IncidentPressureWrap">
+              <div class="containment-head">
+                <span class="containment-label">Incident Pressure</span>
+                <span class="incident-pressure-level incident-pressure-level--stable" id="m3IncidentPressureLevel">Stable</span>
+              </div>
+              <div class="containment-bar">
+                <div class="containment-bar-fill incident-pressure-fill" id="m3IncidentPressureFill" style="width:0%;"></div>
+              </div>
+            </div>
+            <div class="blue-team-feed" id="m3BlueTeamFeed" aria-live="polite"></div>
+          </div>
+
+          <!-- Supervisor — Sarah Reyes (Mission 3 instance) -->
+          <div id="m3ManagerPanel" class="manager-panel" aria-live="polite">
+            <div class="manager-header">
+              <div class="manager-avatar" aria-hidden="true">SR</div>
+              <div class="manager-meta">
+                <span class="manager-name">Sarah Reyes</span>
+                <span class="manager-role">Lead Analyst · Your Supervisor</span>
+              </div>
+              <span class="manager-status">
+                <span class="manager-status-dot"></span>ONLINE
+              </span>
+            </div>
+            <div id="m3ManagerText" class="manager-feed">
+              <div class="manager-bubble" data-msg="Welcome back. Mission 3 is a threat-hunting exercise. Click any unlocked command to begin.">Welcome back. Mission 3 is a threat-hunting exercise. Click any unlocked command to begin.</div>
+            </div>
+          </div>
+
+          <!-- Briefing sections -->
+          <div class="mission-briefing">
+            <section class="briefing-section collapsible focus-collapse">
+              <button type="button" class="collapsible-head">Mission Briefing</button>
+              <div class="collapsible-body">
+                <p class="briefing-text">
+                  You're moving from mapping the network to hunting threats.
+                  Something keeps reaching into the network from outside. Review
+                  the connections, identify the source, and decide if it's recon.
+                </p>
+              </div>
+            </section>
+
+            <section class="briefing-section collapsible focus-collapse">
+              <button type="button" class="collapsible-head">Learning Objective</button>
+              <div class="collapsible-body">
+                <p class="briefing-text">
+                  By the end of this mission you'll know how to read active
+                  connections, look up an unknown IP, recognize a probing
+                  pattern in the logs, and tell a real threat from a false lead.
+                </p>
+              </div>
+            </section>
+
+            <section class="briefing-section collapsible focus-collapse">
+              <button type="button" class="collapsible-head">Skills Practiced</button>
+              <div class="collapsible-body">
+                <ul class="skills-list">
+                  <li><span class="skill-bullet">▹</span>Reading active network connections</li>
+                  <li><span class="skill-bullet">▹</span>Looking up unknown IP addresses</li>
+                  <li><span class="skill-bullet">▹</span>Spotting scanning &amp; probing patterns</li>
+                  <li><span class="skill-bullet">▹</span>Separating real threats from false leads</li>
+                </ul>
+              </div>
+            </section>
+          </div>
+
+          <div class="mission-objectives collapsible focus-collapse">
+            <button type="button" class="collapsible-head">Mission 3 Status</button>
+            <ul class="objectives-list collapsible-body" id="m3StatusList"></ul>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ===== CENTER: TERMINAL + COMMANDS ===== -->
+      <div class="center-column">
+
+        <section class="panel terminal-panel" aria-label="Terminal Panel">
+          <div class="panel-header panel-header--unified">
+            <span class="unified-panel-title">TERMINAL</span>
+            <span class="unified-panel-meta">student@cybercorp</span>
+          </div>
+          <div class="terminal-body m3-terminal" id="m3Terminal" role="log" aria-live="polite"></div>
+
+          <div class="terminal-input-row">
+            <span class="terminal-prompt-label">student@cybercorp:~$</span>
+            <span class="terminal-cursor" aria-hidden="true">▌</span>
+            <input
+              type="text"
+              class="terminal-input"
+              placeholder="Click an unlocked command button below..."
+              disabled
+              aria-hidden="true"
+            />
+          </div>
+        </section>
+
+        <section class="panel commands-panel" aria-label="Command Buttons Panel">
+          <div class="panel-header panel-header--unified">
+            <span class="unified-panel-title">COMMANDS</span>
+            <span class="unified-panel-meta">New commands unlock as you progress</span>
+          </div>
+          <div class="panel-body">
+            <div id="m3CurrentObjective" class="current-objective current-objective--center">
+              <span class="current-objective-label">Current Objective</span>
+              <span id="m3CurrentObjectiveText" class="current-objective-text">
+                Start by reviewing the active network connections.
+              </span>
+            </div>
+
+            <div class="hint-panel hint-panel--muted">
+              <span class="hint-icon">💡</span>
+              <span class="hint-label">HINT</span>
+              <span id="m3Hint" class="hint-text">Start by reviewing the active network connections.</span>
+            </div>
+
+            <p class="commands-hint">
+              Click an unlocked command to run it in the terminal.
+              More commands unlock as you progress.
+            </p>
+
+            <div class="m3-cmd-grid m2-cmd-grid m2-cmd-grid--stacked" id="m3CmdGrid">
+              <div class="cmd-group">
+                <span class="cmd-group-label">Review Connections</span>
+                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="ip-addr" disabled>
+                  <span class="m2-cmd-prompt">$</span> netstat -an
+                </button>
+              </div>
+              <div class="cmd-group">
+                <span class="cmd-group-label">Identify Source</span>
+                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="ping-bad" disabled>
+                  <span class="m2-cmd-prompt">$</span> whois 198.51.100.20
+                </button>
+                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="ping" disabled>
+                  <span class="m2-cmd-prompt">$</span> whois 203.0.113.77
+                </button>
+              </div>
+              <div class="cmd-group">
+                <span class="cmd-group-label">Search Logs</span>
+                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="nmap" disabled>
+                  <span class="m2-cmd-prompt">$</span> grep 203.0.113.77 access.log
+                </button>
+              </div>
+              <div class="cmd-group">
+                <span class="cmd-group-label">Correlate</span>
+                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="review" disabled>
+                  <span class="m2-cmd-prompt">$</span> review recon
+                </button>
+              </div>
+            </div>
+
+            <!-- Per-step reasoning prompt host (Mission 3). -->
+            <div id="m3Reasoning" class="m2-reasoning-host" style="display:none;"></div>
+
+            <!-- Investigation Board — pin/classify prompt host (Mission 3). -->
+            <div id="m3PinPanel" class="pin-panel-host" style="display:none;"></div>
+
+            <!-- Decision Actions panel for Mission 3. -->
+            <div id="m3DecisionActions" class="decision-actions-host" style="display:none;"></div>
+
+            <div id="m3AnalystReview" class="m2-analyst-host" style="display:none;"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ===== RIGHT: AGENT PROFILE (XP/Rank) + LIVE STATUS ===== -->
+      <aside class="panel xp-panel" aria-label="Agent Profile and Live Status Panel (Mission 3)">
+        <div class="panel-header panel-header--unified">
+          <span class="unified-panel-title xp-title-profile">AGENT PROFILE</span>
+          <span class="unified-panel-title xp-title-status">LIVE STATUS</span>
+        </div>
+
+        <div class="panel-body">
+
+          <!-- ===== LIVE STATUS — Mission 3 telemetry. ===== -->
+          <div class="live-status">
+            <div id="m3AlertCenter" class="alert-center-host" style="display:none;"></div>
+
+            <div id="m3ThreatMeter" class="threat-meter threat-meter--medium">
+              <h3 class="objectives-title">
+                Threat Level
+                <span class="threat-meter-pill">Medium</span>
+              </h3>
+              <div class="threat-meter-bar">
+                <span class="threat-meter-segment threat-meter-segment--on"></span>
+                <span class="threat-meter-segment threat-meter-segment--on"></span>
+                <span class="threat-meter-segment"></span>
+                <span class="threat-meter-segment"></span>
+              </div>
+              <p class="threat-meter-caption">
+                Threat level changes as the investigation develops.
+              </p>
+            </div>
+
+            <div id="m3TrustScore" class="trust-score trust-score--medium">
+              <h3 class="objectives-title">
+                Trust Score
+                <span class="trust-score-pill">50 / 100</span>
+              </h3>
+              <div class="trust-score-bar">
+                <div class="trust-score-bar-fill" style="width: 50%;"></div>
+              </div>
+              <p class="trust-score-caption">
+                Manager confidence in your investigation work.
+              </p>
+            </div>
+
+            <div id="m3ConfidenceMeter" class="confidence-meter">
+              <h3 class="objectives-title">
+                Evidence Confidence
+                <span class="confidence-pill">0%</span>
+              </h3>
+              <div class="confidence-bar">
+                <div class="confidence-bar-fill" style="width: 0%;"></div>
+              </div>
+              <p class="confidence-caption">
+                Confidence rises as you gather recon evidence.
+              </p>
+            </div>
+
+            <div id="m3AnalystConfidence" class="analyst-confidence">
+              <h3 class="objectives-title">
+                Analyst Confidence
+                <span class="analyst-conf-pill">Low</span>
+              </h3>
+              <div class="analyst-conf-bar">
+                <div class="analyst-conf-bar-fill" style="width: 0%;"></div>
+              </div>
+              <p class="analyst-conf-caption">
+                Interpret each finding to build confidence.
+              </p>
+            </div>
+
+            <div id="m3InvestigationBoard" class="board-panel">
+              <h3 class="objectives-title">Investigation Board</h3>
+              <p class="board-empty">No evidence pinned yet.</p>
+            </div>
+
+            <div class="collapsible focus-collapse">
+              <button type="button" class="collapsible-head">Evidence Details</button>
+              <div class="collapsible-body">
+                <div id="m3EvidencePanel" class="evidence-panel">
+                  <h3 class="objectives-title">Evidence Collected</h3>
+                  <p class="evidence-empty">No evidence collected yet.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="collapsible focus-collapse">
+              <button type="button" class="collapsible-head">Available Tools</button>
+              <div id="m3ToolsPanel" class="tools-panel collapsible-body">
+                <p class="tools-caption">Tools unlock as your investigation progresses.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== AGENT PROFILE (pre-mission view) ===== -->
+          <div class="agent-profile">
+          <div class="rank-badge-container">
+            <div class="rank-badge">
+              <span class="rank-icon">🛡️</span>
+              <span class="rank-name" id="m3RankName">Script Kiddie</span>
+            </div>
+            <div class="rank-subtitle">Current Rank</div>
+          </div>
+
+          <div class="xp-section">
+            <div class="xp-labels">
+              <span class="xp-label">XP</span>
+              <span class="xp-value"><span id="m3CurrentXP">0</span> / <span id="m3MaxXP">1000</span></span>
+            </div>
+            <div class="xp-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+              <div class="xp-bar-fill" id="m3XpBar" style="width: 0%"></div>
+            </div>
+            <div class="xp-next-rank">Next: <span class="xp-next-name">Packet Sniffer</span></div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-value" id="m3StatMissions">0</span>
+              <span class="stat-label">Missions Completed</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">5</span>
+              <span class="stat-label">Day Streak</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">87%</span>
+              <span class="stat-label">Accuracy</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value">2</span>
+              <span class="stat-label">Badges Earned</span>
+            </div>
+          </div>
+
+          <div class="badges-section">
+            <h3 class="badges-title">Badges</h3>
+            <div class="badges-list">
+              <div class="badge-item badge-item--earned" title="First blood — completed your first mission">
+                <span class="badge-icon">🩸</span>
+                <span class="badge-label">First Blood</span>
+              </div>
+              <div class="badge-item badge-item--earned" title="Recon Pro — scanned 10 hosts">
+                <span class="badge-icon">🔭</span>
+                <span class="badge-label">Recon Pro</span>
+              </div>
+              <div class="badge-item badge-item--locked" title="Ghost — complete a mission undetected">
+                <span class="badge-icon">👻</span>
+                <span class="badge-label">Ghost</span>
+              </div>
+              <div class="badge-item badge-item--locked" title="Cryptographer — crack your first cipher">
+                <span class="badge-icon">🔐</span>
+                <span class="badge-label">Cryptographer</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="activity-section">
+            <h3 class="activity-title">Recent Activity</h3>
+            <ul class="activity-list">
+              <li class="activity-item">
+                <span class="activity-dot activity-dot--success"></span>
+                <span class="activity-text">Completed "Intro to Recon" +100 XP</span>
+              </li>
+              <li class="activity-item">
+                <span class="activity-dot activity-dot--success"></span>
+                <span class="activity-text">Badge earned: Recon Pro</span>
+              </li>
+              <li class="activity-item">
+                <span class="activity-dot activity-dot--warn"></span>
+                <span class="activity-text">Attempted "Brute Force 101" — failed</span>
+              </li>
+            </ul>
+          </div>
+          </div><!-- /.agent-profile -->
+        </div>
+      </aside>
+    </main>
+
     <!-- ===== SIMULATION LOADING SCREEN (Milestone 11) =====
          Shown between "Enter Module" click and the dashboard.
          Pure visual — script.js types out a fake boot log and fills
