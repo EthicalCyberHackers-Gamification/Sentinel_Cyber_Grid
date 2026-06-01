@@ -1,190 +1,245 @@
-# Supabase Schema — Phase B0 (Backend Foundation)
+# Supabase Schema — Ethical CyberHackers
 
-> **Status:** foundation only. The game is **local-first** — `localStorage`
-> (key `ech.progress.v1`) remains the authoritative save. Supabase is a silent,
-> best-effort mirror + lightweight analytics layer. The game is **fully playable
-> with no Supabase project at all** (it logs `Running in local-only mode`).
->
-> There is **no authentication**. Players are identified by an anonymous id
-> (`anon_<hex>`) generated in the browser and stored in `localStorage`
-> (key `ech.anon_id`). All rows are keyed by this `anonymous_id`.
+Authoritative reference for the platform's PostgreSQL/Supabase database. The
+schema is defined as **SQL migrations** in [`/supabase/migrations`](../supabase/migrations);
+this document explains what those migrations create and why. To apply them, see
+[SUPABASE_MIGRATION_SETUP.md](./SUPABASE_MIGRATION_SETUP.md).
 
-## Connection
+> **Local-first philosophy (unchanged).** The game is fully playable with no
+> Supabase project at all. The browser's `localStorage` (key `ech.progress.v1`)
+> is the **authoritative** save; Supabase is a durable cloud **mirror** plus the
+> progression/analytics backbone. Every sync call is best-effort, non-blocking,
+> and never throws into gameplay (it logs `Running in local-only mode` when the
+> backend is absent). Cloud state never silently overwrites local state.
 
-The browser client reads two values, injected at build time by
-`artifacts/ethical-cyberhackers-platform/vite.config.ts` from the Replit
-secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY`:
+## Migration workflow (summary)
 
-- `import.meta.env.SUPABASE_URL`
-- `import.meta.env.SUPABASE_ANON_KEY`
+- Schema changes are **only** made through versioned SQL files in
+  `/supabase/migrations` — never by hand in the Supabase UI.
+- Files are numbered and applied in order. The first is
+  `001_initial_game_schema.sql`.
+- Migrations are written to be **additive and idempotent** (safe to re-run):
+  `create table if not exists`, `create index if not exists`,
+  `create or replace function/trigger`, and `drop policy if exists` + `create
+  policy`. They never drop/reset tables or destroy data.
+- Apply with the Supabase CLI (`supabase db push`). Full commands are in
+  [SUPABASE_MIGRATION_SETUP.md](./SUPABASE_MIGRATION_SETUP.md).
 
-The **anon key is public by design** (it is safe to ship to the browser); access
-must be constrained with Row Level Security (see the RLS note at the end).
+## Extensions
+
+- `pgcrypto` — provides `gen_random_uuid()` (UUID primary keys) and
+  `gen_random_bytes()` (certificate verification tokens). Enabled with
+  `create extension if not exists`.
+
+## Conventions
+
+- **UUID primary keys**, `default gen_random_uuid()`.
+- `created_at timestamptz default now()` everywhere; `updated_at timestamptz
+  default now()` on mutable tables, maintained by a shared
+  `set_updated_at()` trigger.
+- Foreign keys with `on delete cascade` (child rows) / `on delete set null`
+  (optional links).
+- `jsonb` for flexible/evolving payloads (`unlock_requirements`,
+  `scorecard_json`, `metadata`).
+- Indexes on every common lookup column (ids, codes, status, timestamps).
 
 ## Tables
 
-### `student_profiles`
+### 1. `profiles` — player identity & career progression
 
-One row per anonymous player. Also stores the full progress backup blob.
+One row per player. Supports **anonymous players now** (`anonymous_id`) and
+**authenticated accounts later** (`user_id` → `auth.users`), so no migration is
+needed when auth ships — an anonymous profile can simply be claimed by setting
+`user_id`.
 
-| Column          | Type          | Notes                                                            |
-| --------------- | ------------- | --------------------------------------------------------------- |
-| `anonymous_id`  | `text` **PK** | `anon_<hex>` from the browser.                                   |
-| `display_name`  | `text` null   | The student's chosen name (if any).                             |
-| `xp`            | `integer`     | Current total XP. Default `0`.                                  |
-| `rank`          | `text` null   | Current rank label (e.g. "Cyber Intern Level 1").              |
-| `progress`      | `jsonb` null  | Full mirror of the `localStorage` save object (cloud backup).  |
-| `last_seen_at`  | `timestamptz` | Updated on every sync.                                          |
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | `gen_random_uuid()`. |
+| `user_id` | `uuid` unique null | FK → `auth.users(id)`; null for anonymous players. |
+| `anonymous_id` | `text` unique null | `anon_<hex>` from the browser. |
+| `display_name` | `text` null | Chosen analyst name. |
+| `current_role` | `text` | Role-track tier (default `Cybersecurity Intern`). |
+| `xp_total` | `integer` | Lifetime XP. |
+| `trust_score` | `integer` | Cumulative trust. |
+| `analyst_reputation` | `text` null | Derived reputation tier label. |
+| `promotion_readiness` | `integer` | 0–100 percent. |
+| `missions_completed` | `integer` | Count of completed missions. |
+| `created_at` / `updated_at` | `timestamptz` | |
 
-```sql
-create table if not exists public.student_profiles (
-  anonymous_id text primary key,
-  display_name text,
-  xp           integer not null default 0,
-  rank         text,
-  progress     jsonb,
-  last_seen_at timestamptz not null default now()
-);
+**Role tracks** (`current_role`): Cybersecurity Intern → Junior SOC Analyst →
+SOC Analyst → Threat Hunter → Incident Responder → Red Team Operator → Security
+Engineer.
+
+### 2. `missions` — mission metadata & progression structure
+
+Read-mostly catalog describing each assignment and how the campaign unlocks.
+`unlock_requirements` (jsonb) is intentionally open-ended to support **branching
+mission trees** and role-gated progression without schema changes.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | |
+| `mission_code` | `text` unique | Stable external id, e.g. `mission-001`. |
+| `title` / `description` | `text` | |
+| `tier_level` | `integer` null | Difficulty/career tier. |
+| `role_track` | `text` null | Which role path this mission belongs to. |
+| `difficulty` | `text` null | |
+| `mission_order` | `integer` null | Ordering within a track. |
+| `xp_reward` | `integer` | |
+| `unlock_requirements` | `jsonb` | Prereqs (e.g. `{ "requires": ["mission-001"] }`). |
+| `estimated_duration_minutes` | `integer` null | |
+| `is_active` | `boolean` | Soft enable/disable. |
+| `created_at` / `updated_at` | `timestamptz` | |
+
+> The 3 shipped assignments (`mission-001` … `mission-003`) are **not** seeded by
+> the migration to keep it purely structural. Insert them with an idempotent
+> `insert ... on conflict (mission_code) do nothing` (or via the service role)
+> when you wire the app to this schema.
+
+### 3. `student_progress` — current/best state (not history)
+
+Exactly **one row per `(profile, mission)`** (enforced by a unique constraint),
+holding only the best/current snapshot. Full history lives in
+`mission_attempts`.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | |
+| `profile_id` | `uuid` | FK → `profiles(id)` cascade. |
+| `mission_id` | `uuid` | FK → `missions(id)` cascade. |
+| `status` | `text` | `not_started` \| `in_progress` \| `completed`. |
+| `best_score` | `integer` null | Best score achieved. |
+| `best_confidence` | `integer` null | Best analyst-confidence value. |
+| `best_trust_delta` | `integer` null | Best trust gain. |
+| `attempts_count` | `integer` | Total attempts so far. |
+| `highest_xp_earned` | `integer` | Best single-attempt XP. |
+| `completed_at` | `timestamptz` null | First/most-recent completion. |
+| `last_played_at` | `timestamptz` null | |
+| `created_at` / `updated_at` | `timestamptz` | |
+
+### 4. `mission_attempts` — immutable replay history
+
+**Replay architecture.** Every time a player plays a mission, a **new** row is
+inserted — rows are never updated or overwritten. This preserves a complete,
+auditable history of replays, and is the source from which `student_progress`
+best-values and `xp_events` are derived.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | |
+| `profile_id` | `uuid` | FK → `profiles(id)` cascade. |
+| `mission_id` | `uuid` | FK → `missions(id)` cascade. |
+| `attempt_number` | `integer` | 1-based per `(profile, mission)`. |
+| `outcome_status` | `text` null | e.g. `completed`, `abandoned`. |
+| `xp_earned` | `integer` | |
+| `trust_delta` | `integer` | |
+| `analyst_confidence` | `integer` null | |
+| `containment_score` | `integer` null | |
+| `evidence_score` | `integer` null | |
+| `reasoning_score` | `integer` null | |
+| `started_at` / `completed_at` | `timestamptz` | |
+| `scorecard_json` | `jsonb` | Full scorecard snapshot for the attempt. |
+| `created_at` | `timestamptz` | |
+
+### 5. `xp_events` — XP / reputation history
+
+Append-only audit trail of every XP/trust change (mission completion, reasoning
+success, threat containment, evidence correlation, bonus objectives …). Optional
+link back to the attempt that caused it.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | |
+| `profile_id` | `uuid` | FK → `profiles(id)` cascade. |
+| `mission_attempt_id` | `uuid` null | FK → `mission_attempts(id)` set null. |
+| `event_type` | `text` | e.g. `mission_completion`, `reasoning_success`. |
+| `xp_change` | `integer` | |
+| `trust_change` | `integer` | |
+| `description` | `text` null | |
+| `metadata` | `jsonb` | |
+| `created_at` | `timestamptz` | |
+
+### 6. `certificates` — earned certifications
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | |
+| `profile_id` | `uuid` | FK → `profiles(id)` cascade. |
+| `certificate_code` | `text` | Which credential. |
+| `title` | `text` null | |
+| `issued_at` | `timestamptz` | |
+| `expiration_date` | `timestamptz` null | |
+| `verification_token` | `text` unique | `gen_random_bytes(16)` hex; backs future downloadable certs & school verification. |
+| `metadata` | `jsonb` | |
+| `created_at` | `timestamptz` | |
+
+## Relationships
+
+```
+auth.users (future) ─1:1─ profiles
+profiles ─1:N─ student_progress ─N:1─ missions
+profiles ─1:N─ mission_attempts ─N:1─ missions
+profiles ─1:N─ xp_events ─N:1(optional)─ mission_attempts
+profiles ─1:N─ certificates
 ```
 
-### `assignment_progress`
+- `student_progress` is the **rollup** (one row per profile×mission).
+- `mission_attempts` is the **ledger** (many rows; immutable).
+- `xp_events` is the **reputation audit** (many rows; optionally tied to an attempt).
 
-One row per (player, assignment) summarising completion + analyst confidence.
-Mirrors the per-mission progress already held locally.
+## Future scalability intent
 
-| Column               | Type          | Notes                                            |
-| -------------------- | ------------- | ------------------------------------------------ |
-| `anonymous_id`       | `text`        | FK → `student_profiles.anonymous_id`.            |
-| `assignment_id`      | `text`        | `mission-001` \| `mission-002` \| `mission-003`. |
-| `completed`          | `boolean`     | Whether the assignment is complete.              |
-| `analyst_confidence` | `integer` null| Final analyst-confidence meter value (0–100).    |
-| `updated_at`         | `timestamptz` | Updated on every sync.                            |
+- **Auth without redesign:** `profiles.user_id` is already present; anonymous
+  profiles are claimable.
+- **Role/campaign progression:** `missions.role_track`, `tier_level`,
+  `mission_order`, and `unlock_requirements` (jsonb) support branching trees and
+  role tiers.
+- **Classrooms / teams / multiplayer:** add `classrooms`, `class_memberships`,
+  or `teams` tables in a future migration and reference `profiles.id` — no change
+  to existing tables required.
+- **Analytics:** the immutable `mission_attempts` + `xp_events` ledgers are the
+  raw material for later dashboards.
 
-Primary key: `(anonymous_id, assignment_id)`.
+## Row Level Security (RLS) strategy
 
-```sql
-create table if not exists public.assignment_progress (
-  anonymous_id       text not null,
-  assignment_id      text not null,
-  completed          boolean not null default false,
-  analyst_confidence integer,
-  updated_at         timestamptz not null default now(),
-  primary key (anonymous_id, assignment_id)
-);
-```
+RLS is **enabled on every table** (secure-by-default: nothing is reachable
+without an allowing policy). The starter policies in `001_initial_game_schema.sql`
+balance "don't block development" with "don't open a dangerous public door":
 
-### `assignment_attempts`
+- **`missions`** — public **read-only** catalog for `anon` + `authenticated`. No
+  client writes (seed via the service role).
+- **`profiles`, `student_progress`** — `anon` may `select` + `insert` only —
+  **never `update` or `delete`**. An anonymous client can create and read its
+  rows but cannot mutate existing ones (no cross-row tampering). `authenticated`
+  users get owner-scoped full access via `auth.uid()`.
+- **`mission_attempts`, `xp_events`, `certificates`** — append-only for clients:
+  `anon`/`authenticated` may `insert` + `select`, never `update`/`delete`.
+  `authenticated` access is owner-scoped through the row's `profile_id`.
 
-Append-only log supporting **replayable attempts**. A new attempt row is created
-each time a player starts an assignment fresh; restarting (Restart button)
-abandons the open attempt so the next start increments `attempt_number`.
-Resuming an in-progress assignment **reuses** the open attempt (it does not
-inflate the count).
+**Why this is safe-by-default and not "full public write":** there is no
+anonymous `UPDATE` or `DELETE` anywhere, immutable ledgers cannot be rewritten by
+clients, and the catalog is not client-writable. The data in this phase is
+anonymous, non-PII training telemetry, and anonymous `SELECT` is permissive only
+because there is no anon identity in the JWT to scope by.
 
-| Column          | Type            | Notes                                                  |
-| --------------- | --------------- | ----------------------------------------------------- |
-| `attempt_id`    | `uuid`/`text` PK| Unique per attempt (generated client-side).           |
-| `anonymous_id`  | `text`          | FK → `student_profiles.anonymous_id`.                 |
-| `assignment_id` | `text`          | `mission-001` \| `mission-002` \| `mission-003`.      |
-| `attempt_number`| `integer`       | 1-based, per (player, assignment).                    |
-| `started_at`    | `timestamptz`   | When the attempt began.                               |
-| `completed`     | `boolean`       | Whether it ended in completion.                       |
-| `completed_at`  | `timestamptz` n | Set when completed.                                   |
-| `abandoned_at`  | `timestamptz` n | Set when restarted before completion.                 |
-| `score`         | `integer` null  | Attempt score (analyst confidence at completion).     |
-| `xp_total`      | `integer` null  | Player XP at completion.                               |
+> **Mutating existing rows** (e.g. updating best/current progress or profile
+> totals) is intentionally **not** granted to `anon`. When the sync layer is
+> pointed at this schema, route those writes through an authenticated user, an
+> upsert behind a deliberately-scoped policy, or the service role — do **not**
+> re-add a blanket anon `UPDATE`.
 
-```sql
-create table if not exists public.assignment_attempts (
-  attempt_id     text primary key,
-  anonymous_id   text not null,
-  assignment_id  text not null,
-  attempt_number integer not null,
-  started_at     timestamptz not null default now(),
-  completed      boolean not null default false,
-  completed_at   timestamptz,
-  abandoned_at   timestamptz,
-  score          integer,
-  xp_total       integer
-);
-create index if not exists assignment_attempts_player_idx
-  on public.assignment_attempts (anonymous_id, assignment_id);
-```
+**Lockdown path when auth ships:** drop the `*_anon_*` policies; the
+`*_auth_owner` / `*_auth_insert` policies already scope every row to the
+signed-in user via `auth.uid()`, giving per-user isolation with no schema change.
 
-### `game_events`
+## Relationship to the current B0 sync layer
 
-Lightweight, batched analytics stream. Inserted in batches (flushed every ~4s or
-every 25 events) so frequent events never spam writes.
-
-| Column         | Type          | Notes                                                  |
-| -------------- | ------------- | ----------------------------------------------------- |
-| `id`           | `bigint` PK   | Identity / auto-increment.                            |
-| `anonymous_id` | `text`        | FK → `student_profiles.anonymous_id`.                 |
-| `event_type`   | `text`        | See "Event types" below.                              |
-| `payload`      | `jsonb`       | Small, event-specific context.                        |
-| `created_at`   | `timestamptz` | Client timestamp of the event.                        |
-
-```sql
-create table if not exists public.game_events (
-  id           bigint generated always as identity primary key,
-  anonymous_id text not null,
-  event_type   text not null,
-  payload      jsonb not null default '{}'::jsonb,
-  created_at   timestamptz not null default now()
-);
-create index if not exists game_events_player_idx
-  on public.game_events (anonymous_id, created_at);
-```
-
-#### Event types
-
-| `event_type`               | Emitted when                                           | Payload keys                                |
-| -------------------------- | ----------------------------------------------------- | ------------------------------------------- |
-| `assignment_started`       | A new attempt opens (begin / first launch).           | `assignment_id`, `attempt_number`           |
-| `assignment_completed`     | An attempt is completed.                               | `assignment_id`, `attempt_number`, `score`, `best_score` |
-| `assignment_restarted`     | The Restart button abandons the open attempt.         | `assignment_id`                             |
-| `command_loaded`           | A command card loads text into a terminal input.      | `command`                                   |
-| `command_executed`         | A command runs (M1/M2/M3).                             | `assignment_id`, `command`                  |
-| `reasoning_answer_selected`| A "what does this suggest?" answer is chosen.         | `assignment_id`, `key`, `answer`            |
-| `evidence_pinned`          | A finding is pinned to the evidence board.            | `assignment_id`, `finding`                  |
-| `evidence_classified`      | A pinned finding is classified by suspicion level.    | `assignment_id`, `finding`, `level`         |
-| `blue_team_decision_made`  | A containment / Blue-Team decision action is taken.   | `assignment_id`, `action`                   |
-| `mission_map_opened`       | The mission map is opened.                            | (none)                                       |
-
-> **Not tracked:** `hint_requested` — there is no single user-initiated hint
-> action in the current UI (hints surface contextually), so tracking it would be
-> noisy and ambiguous. Left out intentionally; revisit if a discrete "Hint"
-> button is added.
-
-## Row Level Security (RLS)
-
-Because the client uses the public anon key with no auth, enable RLS on every
-table before storing anything sensitive. For this anonymous, non-PII training
-data a permissive policy (anon may insert/select/update its own rows) is enough.
-Tighten as the product grows (e.g. when teacher dashboards arrive). Example:
-
-```sql
-alter table public.student_profiles    enable row level security;
-alter table public.assignment_progress enable row level security;
-alter table public.assignment_attempts enable row level security;
-alter table public.game_events         enable row level security;
-
--- Phase B0: anonymous training data, no PII. Allow anon full access.
--- Replace with per-id policies once identity/auth is introduced.
-create policy "anon all - profiles"  on public.student_profiles    for all to anon using (true) with check (true);
-create policy "anon all - progress"  on public.assignment_progress for all to anon using (true) with check (true);
-create policy "anon all - attempts"  on public.assignment_attempts for all to anon using (true) with check (true);
-create policy "anon all - events"    on public.game_events         for all to anon using (true) with check (true);
-```
-
-## Client integration map
-
-- `artifacts/ethical-cyberhackers-platform/lib/supabaseClient.js` — client,
-  anonymous id, backend status indicator.
-- `artifacts/ethical-cyberhackers-platform/lib/backendSync.js` — all 7 sync
-  functions (`syncPlayerProfile`, `syncAssignmentProgress`,
-  `startAssignmentAttempt`, `completeAssignmentAttempt`, `trackGameEvent`,
-  `saveCloudProgress`, `loadCloudProgress`) plus helpers
-  (`abandonAssignmentAttempt`, `getBestScore`, `queueCloudSync`).
-- `artifacts/ethical-cyberhackers-platform/script.js` — fire-and-forget hooks at
-  boot, save, mission begin/complete/restart, and gameplay events.
+The shipped browser sync layer
+(`artifacts/ethical-cyberhackers-platform/lib/backendSync.js`, Phase B0) was a
+foundation that wrote to a simpler set of mirror tables
+(`student_profiles`, `assignment_progress`, `assignment_attempts`,
+`game_events`). **This document and the migrations supersede that as the target
+production schema.** The app code is intentionally left unchanged by this
+migration work; pointing the sync layer at these richer tables (mapping
+`anonymous_id` → a `profiles` row, writing `mission_attempts`/`xp_events`, etc.)
+is the natural next step and can be done without further schema changes.

@@ -41,6 +41,23 @@ Anon key is public by design (guard real access with RLS). Replit secrets live i
 restart is required** for changed secrets to reach the browser bundle.
 
 ## State to expect
-Until the schema SQL in `docs/SUPABASE_SCHEMA.md` is run, the client connects but
-every op returns "table not found" → status shows "Sync Delayed" and a benign
-console warning. That is the correct foundation-phase state, not a bug.
+Until the schema is applied, the client connects but every op returns "table not
+found" → status shows "Sync Delayed" and a benign console warning. That is the
+correct foundation-phase state, not a bug.
+
+## Two schemas exist — don't confuse them
+- **B0 sync layer** (`lib/backendSync.js`, the *running app code*) writes to
+  simpler mirror tables: `student_profiles`, `assignment_progress`,
+  `assignment_attempts`, `game_events` (keyed by `anonymous_id` text).
+- **Production migration schema** (`supabase/migrations/001_initial_game_schema.sql`,
+  documented in `docs/SUPABASE_SCHEMA.md`) is the richer forward-looking design:
+  `profiles`, `missions`, `student_progress`, `mission_attempts`, `xp_events`,
+  `certificates` (uuid PKs, FKs, RLS, `auth.users` support).
+- **The migration schema does NOT match the app's table names**, so applying the
+  migration alone will NOT make B0 sync succeed. Wiring `backendSync.js` to the
+  production tables (map `anonymous_id` → a `profiles` row, etc.) is a deliberate
+  future step. **Why:** the migration task was scoped to "don't overwrite app
+  code" — schema + docs only.
+- Migrations are **migrations-only** (never edit tables in the Supabase UI) and
+  must stay additive/idempotent. Apply via `supabase db push`; see
+  `docs/SUPABASE_MIGRATION_SETUP.md`.

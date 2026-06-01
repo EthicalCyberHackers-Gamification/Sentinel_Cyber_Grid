@@ -55,6 +55,11 @@ Detailed docs live in [`/docs`](./docs):
   3-column, spatial), terminal behavior, alerts/animations/soundtrack, Operations
   Center home, CSS conventions.
 - [docs/roadmap.md](./docs/roadmap.md) — career arc and natural next steps.
+- [docs/SUPABASE_SCHEMA.md](./docs/SUPABASE_SCHEMA.md) — production database schema
+  (6 tables, relationships, replay architecture, RLS strategy) defined as SQL
+  migrations in [`/supabase/migrations`](./supabase/migrations).
+- [docs/SUPABASE_MIGRATION_SETUP.md](./docs/SUPABASE_MIGRATION_SETUP.md) — Supabase
+  CLI install/link/`db push`, schema verification, and future-migration workflow.
 - [docs/deployment.md](./docs/deployment.md) — build, run, publish, env, testing notes.
 - [docs/changelog.md](./docs/changelog.md) — compressed milestone history.
 

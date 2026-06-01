@@ -1,0 +1,386 @@
+Create a production-safe Supabase database migration system for the Ethical CyberHackers cybersecurity training platform.
+
+IMPORTANT:
+
+* Do NOT manually create tables through the Supabase UI.
+* Use SQL migration files only.
+* Do NOT overwrite existing app code.
+* Do NOT delete existing files.
+* Do NOT create fake local-only database layers.
+* The goal is to create REAL PostgreSQL/Supabase tables connected to the existing project.
+
+---
+
+## MIGRATION STRUCTURE
+
+If it does not exist, create:
+
+/supabase/migrations
+
+Create the first migration file:
+
+001_initial_game_schema.sql
+
+Migration must be idempotent and safe to rerun where possible.
+
+Use:
+
+* PostgreSQL syntax
+* Supabase-compatible syntax
+* create table if not exists
+* create index if not exists
+* alter table safeguards where appropriate
+
+Enable required extensions safely:
+
+* pgcrypto
+
+Use:
+gen_random_uuid()
+
+---
+
+## CORE DATABASE DESIGN GOALS
+
+The schema must support:
+
+* anonymous student gameplay
+* future authenticated student accounts
+* mission progression
+* replayable mission attempts
+* XP/reputation systems
+* certificates
+* analytics/event tracking later
+* future classroom/teacher systems
+* future role tiers:
+
+  * Cybersecurity Intern
+  * Junior SOC Analyst
+  * SOC Analyst
+  * Threat Hunter
+  * Incident Responder
+  * Red Team Operator
+  * Security Engineer
+
+Architecture must support:
+
+* local-first gameplay
+* Supabase sync layer
+* replayable assignments
+* persistent progression
+* future multiplayer/team systems without redesign
+
+---
+
+## TABLES TO CREATE
+
+Create these tables:
+
+1. profiles
+2. missions
+3. student_progress
+4. mission_attempts
+5. xp_events
+6. certificates
+
+---
+
+## TABLE REQUIREMENTS
+
+GENERAL REQUIREMENTS:
+
+* uuid primary keys
+* default gen_random_uuid()
+* created_at timestamptz default now()
+* updated_at timestamptz default now()
+* foreign key constraints
+* indexes for common lookups
+* nullable fields only where appropriate
+* use text/varchar conservatively
+* use jsonb where flexible payloads are needed
+
+---
+
+1. profiles
+
+---
+
+Purpose:
+Persistent player identity and career progression.
+
+Requirements:
+
+* id uuid primary key
+* auth.users reference support
+* anonymous_id unique
+* display_name
+* current_role
+* xp_total
+* trust_score
+* analyst_reputation
+* promotion_readiness
+* missions_completed
+* created_at
+* updated_at
+
+Support:
+
+* anonymous players now
+* authenticated users later
+
+---
+
+2. missions
+
+---
+
+Purpose:
+Mission metadata and progression structure.
+
+Requirements:
+
+* id uuid primary key
+* mission_code unique
+* title
+* description
+* tier_level
+* role_track
+* difficulty
+* mission_order
+* xp_reward
+* unlock_requirements jsonb
+* estimated_duration_minutes
+* is_active boolean
+* created_at
+* updated_at
+
+Support:
+
+* future campaign progression
+* role-based progression
+* branching mission trees
+
+---
+
+3. student_progress
+
+---
+
+Purpose:
+Stores CURRENT/BEST student progression state.
+
+Requirements:
+
+* id uuid primary key
+* profile_id foreign key
+* mission_id foreign key
+* status
+* best_score
+* best_confidence
+* best_trust_delta
+* attempts_count
+* highest_xp_earned
+* completed_at
+* last_played_at
+* created_at
+* updated_at
+
+IMPORTANT:
+This table stores:
+
+* best/current state only
+
+NOT:
+full historical attempts.
+
+---
+
+4. mission_attempts
+
+---
+
+Purpose:
+Immutable historical replay records.
+
+Requirements:
+
+* id uuid primary key
+* profile_id foreign key
+* mission_id foreign key
+* attempt_number
+* outcome_status
+* xp_earned
+* trust_delta
+* analyst_confidence
+* containment_score
+* evidence_score
+* reasoning_score
+* started_at
+* completed_at
+* scorecard_json jsonb
+* created_at
+
+IMPORTANT:
+Do NOT overwrite attempts.
+Each replay creates a NEW row.
+
+---
+
+5. xp_events
+
+---
+
+Purpose:
+Track XP/reputation history.
+
+Requirements:
+
+* id uuid primary key
+* profile_id foreign key
+* mission_attempt_id foreign key nullable
+* event_type
+* xp_change
+* trust_change
+* description
+* metadata jsonb
+* created_at
+
+Examples:
+
+* mission completion
+* reasoning success
+* threat containment
+* evidence correlation
+* bonus objectives
+
+---
+
+6. certificates
+
+---
+
+Purpose:
+Store earned certifications/completions.
+
+Requirements:
+
+* id uuid primary key
+* profile_id foreign key
+* certificate_code
+* title
+* issued_at
+* expiration_date nullable
+* verification_token unique
+* metadata jsonb
+* created_at
+
+Support:
+
+* future downloadable certificates
+* school verification systems
+
+---
+
+## INDEX REQUIREMENTS
+
+Create indexes for:
+
+* anonymous_id
+* profile_id
+* mission_id
+* created_at
+* mission_code
+* current_role
+* status
+* completed_at
+
+---
+
+## ROW LEVEL SECURITY (RLS)
+
+Enable RLS on all tables.
+
+Add starter policies appropriate for:
+
+* anonymous/local-first testing
+* future authenticated users
+
+Policies should:
+
+* avoid blocking development
+* remain secure-by-default
+* be clearly documented
+
+Do NOT create dangerous full public write access.
+
+---
+
+## UPDATED_AT TRIGGERS
+
+Create reusable trigger function for updated_at fields.
+
+Apply to:
+
+* profiles
+* missions
+* student_progress
+
+---
+
+## DOCUMENTATION
+
+Create:
+
+docs/SUPABASE_SCHEMA.md
+
+Document:
+
+* table purposes
+* relationships
+* future scalability intent
+* replay architecture
+* localStorage sync philosophy
+* migration workflow
+* RLS strategy
+
+---
+
+## MIGRATION APPLICATION DOCUMENTATION
+
+Create:
+
+docs/SUPABASE_MIGRATION_SETUP.md
+
+Include EXACT commands for:
+
+1. Installing Supabase CLI
+2. Logging into Supabase
+3. Linking project
+4. Running migrations
+5. Verifying schema
+6. Applying future migrations safely
+
+Include commands for:
+
+* supabase link
+* supabase db push
+* migration workflows
+
+---
+
+## SAFETY REQUIREMENTS
+
+Do NOT:
+
+* drop tables
+* reset schemas
+* destroy existing data
+* modify unrelated app systems
+
+Ensure migration is additive and production-safe.
+
+---
+
+## GOAL
+
+Create a scalable, production-ready Supabase database foundation for the Ethical CyberHackers cybersecurity operations training platform while preserving the existing local-first gameplay architecture.
