@@ -50,6 +50,22 @@ import {
   updateMissionStatus as setRegistryMissionStatus,
 } from "/missions.js";
 
+// Phase B0 — best-effort, local-first Supabase backend foundation. Every call
+// here is fire-and-forget and safe in "local-only mode"; gameplay never depends
+// on it (localStorage remains authoritative).
+import {
+  getOrCreateAnonymousId,
+  mountBackendStatusIndicator,
+} from "./lib/supabaseClient.js";
+import {
+  startAssignmentAttempt,
+  abandonAssignmentAttempt,
+  completeAssignmentAttempt,
+  trackGameEvent,
+  queueCloudSync,
+  loadCloudProgress,
+} from "./lib/backendSync.js";
+
 // Background soundtrack — bundled by Vite (returns a served URL string).
 import soundtrackUrl from "@assets/slower-2020-07-30_-_Conspiracy_Theory_-_David_Fesliyan_1780099440227.mp3";
 
@@ -954,6 +970,7 @@ function showM1ReasoningPrompt(key) {
 function handleM1Reasoning(key, answerId) {
   const prompt = M1_REASONING[key];
   if (!prompt) return;
+  try { trackGameEvent("reasoning_answer_selected", { assignment_id: "mission-001", key, answer: answerId }); } catch (_) { /* non-fatal */ }
   const chosen = prompt.options.find((o) => o.id === answerId);
   if (!chosen) return;
   const host = document.getElementById(pinHostId("mission-001"));
@@ -1134,7 +1151,10 @@ function showPinPrompt(missionId, key) {
     </div>
   `;
   const btn = host.querySelector(".pin-btn");
-  if (btn) btn.addEventListener("click", () => showClassificationPrompt(missionId, key));
+  if (btn) btn.addEventListener("click", () => {
+    try { trackGameEvent("evidence_pinned", { assignment_id: missionId, finding: key }); } catch (_) { /* non-fatal */ }
+    showClassificationPrompt(missionId, key);
+  });
 
   // Milestone 25B — when a finding first becomes pinnable during a live
   // guided run, spotlight the pin action (fires once per mission).
@@ -1226,6 +1246,7 @@ function handlePinClassification(missionId, key, level) {
   const rating = EVIDENCE_RATINGS[missionId] && EVIDENCE_RATINGS[missionId][key];
   const meta   = SUSPICION_LEVELS[level];
   if (!rating || !meta) return;
+  try { trackGameEvent("evidence_classified", { assignment_id: missionId, finding: key, level }); } catch (_) { /* non-fatal */ }
 
   const correct = level === rating.correct;
   investigationPins[missionId][key] = {
@@ -2826,6 +2847,7 @@ function handleDecisionAction(actionId) {
   const def = DECISION_ACTIONS[actionId];
   if (!def) return;
   if (decisionAdvanced[def.missionId]) return; // already resolved
+  try { trackGameEvent("blue_team_decision_made", { assignment_id: def.missionId, action: actionId }); } catch (_) { /* non-fatal */ }
 
   const host = document.getElementById(decisionHostId(def.missionId));
   if (!host) return;
@@ -3531,6 +3553,9 @@ function saveProgress() {
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
+    // Phase B0 — best-effort cloud mirror/backup (heavily debounced inside the
+    // backend layer). localStorage above is the authoritative save.
+    try { queueCloudSync(data); } catch (_) { /* non-fatal */ }
   } catch (e) {
     updateSaveIndicator(false);
   }
@@ -4518,6 +4543,7 @@ function handleM1FileRead(filename) {
 }
 
 function processCommand(command, buttonKey) {
+  try { trackGameEvent("command_executed", { assignment_id: "mission-001", command: String(command || "").trim() }); } catch (_) { /* non-fatal */ }
   // FIX 6 — normalize: collapse whitespace + lowercase for matching so
   // `cd documents/`, `ls documents`, `cat ./File.txt`, mixed case all work.
   const raw     = command.trim().replace(/\s+/g, " ");
@@ -5375,6 +5401,7 @@ function awardXP(amount) {
  */
 function completeMission(newRank) {
   missionComplete = true;
+  notifyAssignmentComplete("mission-001");
 
   // Milestone 13: supervisor's closing message
   setManagerMessage("missionComplete");
@@ -5830,6 +5857,7 @@ function updateMission1CTA() {
 
 function beginMission() {
   if (missionStarted) return;
+  try { startAssignmentAttempt("mission-001"); } catch (_) { /* non-fatal */ }
   // Stage 1 — only treat a genuinely fresh launch (not a mid-mission resume)
   // as the moment the adversary first appears.
   const freshStart = !missionLaunched["mission-001"];
@@ -5945,6 +5973,7 @@ function beginMission() {
  *  - Timer restarted
  */
 function resetMission() {
+  try { abandonAssignmentAttempt("mission-001"); trackGameEvent("assignment_restarted", { assignment_id: "mission-001" }); } catch (_) { /* non-fatal */ }
   // Stop any in-progress command typing so a pending command can't fire
   // into the terminal after we've reset.
   cancelTerminalTyping();
@@ -6206,6 +6235,7 @@ function typeCommandIntoTerminal(command, onDone) {
 function loadCommandToTerminal(commandText, inputEl) {
   const input = inputEl || terminalInput;
   if (!input) return;
+  try { trackGameEvent("command_loaded", { command: String(commandText || "").trim() }); } catch (_) { /* non-fatal */ }
   // Cancel any in-progress M1 typing animation so it can't overwrite us.
   cancelTerminalTyping();
   input.value = String(commandText);
@@ -7454,6 +7484,7 @@ function launchMissionFromMap(missionId) {
 
 /** Hide every other screen and show the Missions Map. Resume-safe. */
 function showMissionsMap() {
+  try { trackGameEvent("mission_map_opened", {}); } catch (_) { /* non-fatal */ }
   // Leave any active mission UI cleanly (parity with backToModuleOverview).
   setMissionRunning(false);
   endGuidedRun();
@@ -8123,6 +8154,7 @@ const m2UnlockedCmds = new Set();
 const m2CompletedStatus = new Set();
 
 function beginMission2() {
+  try { startAssignmentAttempt("mission-002"); } catch (_) { /* non-fatal */ }
   // Navigate from the Mission 2 Overview to the Mission 2 Dashboard.
   // (Idempotent — re-clicking just re-shows the dashboard.)
   const overview  = document.getElementById("mission2Overview");
@@ -8204,6 +8236,7 @@ function runM2Command(key) {
   if (!m2UnlockedCmds.has(key)) return;
   const def = M2_COMMANDS[key];
   if (!def) return;
+  try { trackGameEvent("command_executed", { assignment_id: "mission-002", command: key }); } catch (_) { /* non-fatal */ }
 
   // Stage 3 — real investigation progress resets the idle-escalation clock.
   noteInvestigationActivity();
@@ -8391,6 +8424,7 @@ function handleM2Reasoning(key, letter) {
   const host = document.getElementById("m2Reasoning");
   if (!def || !host) return;
   if (m2ReasoningAnswered.has(key)) return;
+  try { trackGameEvent("reasoning_answer_selected", { assignment_id: "mission-002", key, answer: letter }); } catch (_) { /* non-fatal */ }
 
   const isCorrect = letter === def.correct;
   const fb = host.querySelector("[data-reasoning-feedback]");
@@ -8692,6 +8726,7 @@ function handleM2QuizAnswer(letter) {
   // Correct path — complete Mission 2
   m2QuizAnswered   = true;
   mission2Complete = true;
+  notifyAssignmentComplete("mission-002");
   renderAllMiniMaps(); // Milestone 25D — M2 node flips to completed.
 
   // Milestone 24C — correct M2 quiz (+10) AND M2 completion (+10) → +20 trust.
@@ -9072,6 +9107,7 @@ function renderM2Status() {
 
 /** Resets Mission 2 in-memory state + dashboard UI back to a fresh state. */
 function resetMission2() {
+  try { abandonAssignmentAttempt("mission-002"); trackGameEvent("assignment_restarted", { assignment_id: "mission-002" }); } catch (_) { /* non-fatal */ }
   setMissionRunning(false); // Milestone 25A — leave Focus Mode on restart.
   endGuidedRun(); // Milestone 25B — end any guided spotlight tour.
   m2Started = false;
@@ -9450,6 +9486,7 @@ const m3UnlockedCmds = new Set();
 const m3CompletedStatus = new Set();
 
 function beginMission3() {
+  try { startAssignmentAttempt("mission-003"); } catch (_) { /* non-fatal */ }
   // Navigate from the Mission 3 Overview to the Mission 3 Dashboard.
   // (Idempotent — re-clicking just re-shows the dashboard.)
   const overview  = document.getElementById("mission3Overview");
@@ -9531,6 +9568,7 @@ function runM3Command(key) {
   if (!m3UnlockedCmds.has(key)) return;
   const def = M3_COMMANDS[key];
   if (!def) return;
+  try { trackGameEvent("command_executed", { assignment_id: "mission-003", command: key }); } catch (_) { /* non-fatal */ }
 
   // Stage 3 — real investigation progress resets the idle-escalation clock.
   noteInvestigationActivity();
@@ -9718,6 +9756,7 @@ function handleM3Reasoning(key, letter) {
   const host = document.getElementById("m3Reasoning");
   if (!def || !host) return;
   if (m3ReasoningAnswered.has(key)) return;
+  try { trackGameEvent("reasoning_answer_selected", { assignment_id: "mission-003", key, answer: letter }); } catch (_) { /* non-fatal */ }
 
   const isCorrect = letter === def.correct;
   const fb = host.querySelector("[data-reasoning-feedback]");
@@ -10019,6 +10058,7 @@ function handleM3QuizAnswer(letter) {
   // Correct path — complete Mission 3
   m3QuizAnswered   = true;
   mission3Complete = true;
+  notifyAssignmentComplete("mission-003");
   renderAllMiniMaps(); // Milestone 25D — M3 node flips to completed.
 
   // Milestone 24C — correct M3 quiz (+10) AND M3 completion (+10) → +20 trust.
@@ -10399,6 +10439,7 @@ function renderM3Status() {
 
 /** Resets Mission 3 in-memory state + dashboard UI back to a fresh state. */
 function resetMission3() {
+  try { abandonAssignmentAttempt("mission-003"); trackGameEvent("assignment_restarted", { assignment_id: "mission-003" }); } catch (_) { /* non-fatal */ }
   setMissionRunning(false); // Milestone 25A — leave Focus Mode on restart.
   endGuidedRun(); // Milestone 25B — end any guided spotlight tour.
   m3Started = false;
@@ -10747,6 +10788,7 @@ function completeMissionEngine(newRank) {
 
     mission3Complete = true;
     m3QuizAnswered   = true;
+    notifyAssignmentComplete("mission-003");
     renderAllMiniMaps(); // M3 node flips to completed.
 
     awardXP(M3_QUIZ.xpReward);
@@ -10781,6 +10823,7 @@ function completeMissionEngine(newRank) {
 
     mission2Complete = true;
     m2QuizAnswered   = true;
+    notifyAssignmentComplete("mission-002");
     renderAllMiniMaps(); // Milestone 25D — M2 node flips to completed.
 
     // XP award — was missing in 23A; fixed in 23B per architect review.
@@ -11167,7 +11210,35 @@ function wireMissionEngineHealthCheckButton() {
    BOOT — runs once on page load
    ============================================================ */
 
+/* Phase B0 — best-effort attempt "score" (analyst confidence when available),
+   used for best-score tracking on the cloud attempt record. */
+function backendMissionScore(missionId) {
+  if (missionId === "mission-002") return typeof m2AnalystConfidence === "number" ? m2AnalystConfidence : null;
+  if (missionId === "mission-003") return typeof m3AnalystConfidence === "number" ? m3AnalystConfidence : null;
+  return typeof m1Confidence === "number" ? m1Confidence : null;
+}
+
+/* Phase B0 — close the open cloud attempt as completed. Idempotent across the
+   game's multiple completion code paths (quiz path + engine path). Never throws. */
+function notifyAssignmentComplete(missionId) {
+  try {
+    completeAssignmentAttempt(missionId, {
+      score: backendMissionScore(missionId),
+      xp_total: currentXP,
+    });
+  } catch (_) { /* non-fatal */ }
+}
+
 function boot() {
+  // Phase B0 — initialize the local-first backend foundation (all best-effort):
+  // ensure an anonymous id exists, mount the subtle dev status indicator, and
+  // warm the connection. loadCloudProgress does NOT overwrite local state.
+  try {
+    getOrCreateAnonymousId();
+    mountBackendStatusIndicator();
+    void loadCloudProgress();
+  } catch (_) { /* non-fatal — game runs fully offline */ }
+
   // Pre-populate the starting buttons (stay hidden until Begin Mission)
   COMMAND_BUTTONS.forEach((btn) => {
     if (btn.unlockedAtStart) unlockedKeys.add(btn.key);

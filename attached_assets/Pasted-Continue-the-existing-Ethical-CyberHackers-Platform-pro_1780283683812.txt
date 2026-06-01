@@ -1,0 +1,255 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Assignments 1–3 exist and are functional.
+* localStorage currently stores gameplay state.
+* Replit Secrets now contain:
+
+  * SUPABASE_URL
+  * SUPABASE_ANON_KEY
+* The game must remain fully playable even if Supabase fails.
+
+Now implement:
+
+PHASE B0 — SUPABASE BACKEND FOUNDATION
+
+IMPORTANT RULES:
+
+* Keep the platform local-first.
+* localStorage remains the primary gameplay save system.
+* Supabase sync runs silently in the background.
+* If Supabase is unavailable, gameplay must continue normally.
+* Do NOT require login/authentication yet.
+* Do NOT add teacher dashboards, payments, certificates, or admin systems yet.
+* Do NOT break existing assignments or progression systems.
+
+---
+
+1. INSTALL SUPABASE CLIENT
+
+---
+
+Install and configure the Supabase JS client.
+
+Create:
+
+* lib/supabaseClient.ts
+  OR
+* src/lib/supabaseClient.ts
+
+Requirements:
+
+* initialize Supabase using:
+
+  * process.env.SUPABASE_URL
+  * process.env.SUPABASE_ANON_KEY
+* safely handle missing environment variables
+* console log:
+  "Running in local-only mode"
+  if variables are missing
+
+---
+
+2. CREATE ANONYMOUS PLAYER ID SYSTEM
+
+---
+
+Add a reusable anonymous player identity system.
+
+Requirements:
+
+* generate anonymous_id on first launch
+* store in localStorage
+* reuse on future sessions
+* do NOT regenerate every refresh
+
+Example:
+anon_7fd92a8b21
+
+Create helper:
+getOrCreateAnonymousId()
+
+---
+
+3. ADD BACKEND STATUS INDICATOR
+
+---
+
+Create small developer status indicator.
+
+States:
+
+* Backend: Local Only
+* Backend: Supabase Connected
+* Backend: Sync Delayed
+
+Requirements:
+
+* subtle UI
+* non-intrusive
+* developer-focused only
+* do not disrupt immersion
+
+---
+
+4. CREATE BACKEND SYNC LAYER
+
+---
+
+Create reusable sync functions.
+
+Functions:
+
+* syncPlayerProfile()
+* syncAssignmentProgress()
+* startAssignmentAttempt()
+* completeAssignmentAttempt()
+* trackGameEvent()
+* saveCloudProgress()
+* loadCloudProgress()
+
+Requirements:
+
+* safe async handling
+* debounce excessive writes
+* no gameplay blocking
+* retry lightly if sync fails
+* continue locally if backend fails
+
+---
+
+5. CREATE SUPABASE SCHEMA DOCUMENT
+
+---
+
+Create:
+
+docs/SUPABASE_SCHEMA.md
+
+Include recommended schemas for:
+
+student_profiles
+assignment_progress
+assignment_attempts
+game_events
+
+Document fields clearly.
+
+---
+
+6. ADD GAME EVENT TRACKING
+
+---
+
+Track lightweight gameplay analytics.
+
+Track:
+
+* assignment_started
+* assignment_completed
+* assignment_restarted
+* command_loaded
+* command_executed
+* reasoning_answer_selected
+* evidence_pinned
+* evidence_classified
+* hint_requested
+* mission_map_opened
+* blue_team_decision_made
+
+Requirements:
+
+* do not spam writes
+* lightweight payloads only
+* timestamp events
+
+---
+
+7. ADD ASSIGNMENT ATTEMPT SUPPORT
+
+---
+
+Support replayable assignments.
+
+Requirements:
+
+* Restart Assignment creates a NEW attempt
+* Preserve prior attempts
+* Store attempt_number
+* Preserve best score separately
+
+Do NOT overwrite old attempts.
+
+---
+
+8. KEEP LOCALSTORAGE AS PRIMARY
+
+---
+
+localStorage must remain:
+
+* authoritative
+* immediate
+* offline-capable
+
+Supabase should:
+
+* mirror
+* sync
+* backup
+* provide analytics foundation
+
+Do NOT make backend mandatory yet.
+
+---
+
+9. SAFE ERROR HANDLING
+
+---
+
+Requirements:
+
+* no scary student-facing errors
+* no crashes if backend unavailable
+* graceful fallbacks
+* console warnings acceptable
+
+---
+
+10. VERIFY SYSTEMS STILL WORK
+
+---
+
+Verify:
+
+* Assignment 1
+* Assignment 2
+* Assignment 3
+* Operations Map
+* XP
+* Trust Score
+* Analyst Confidence
+* Evidence Board
+* Terminal commands
+* Manual command execution
+* Hover learning system
+* Interpretation gates
+* Persistent player identity
+* Red/Blue Team systems
+* Mission progression
+* localStorage saves
+
+---
+
+## GOAL
+
+Create a stable backend foundation for:
+
+* future student accounts
+* classroom pilots
+* analytics
+* teacher dashboards
+* persistent progression
+
+WITHOUT disrupting the current immersive gameplay experience.

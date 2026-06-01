@@ -28,6 +28,16 @@ if (!basePath) {
 
 export default defineConfig({
   base: basePath,
+  // Phase B0 — expose the Supabase connection info (Replit secrets, which live in
+  // process.env, not VITE_-prefixed .env files) to the browser bundle. The anon key
+  // is public by design (protected by Row Level Security), so client exposure is safe.
+  // Falls back to empty strings so the app runs in local-only mode when unset.
+  define: {
+    "import.meta.env.SUPABASE_URL": JSON.stringify(process.env.SUPABASE_URL ?? ""),
+    "import.meta.env.SUPABASE_ANON_KEY": JSON.stringify(
+      process.env.SUPABASE_ANON_KEY ?? "",
+    ),
+  },
   plugins: [
     react(),
     tailwindcss(),

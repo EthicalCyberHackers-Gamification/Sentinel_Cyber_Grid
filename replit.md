@@ -8,13 +8,18 @@ assignments.
 
 - Lives at `artifacts/ethical-cyberhackers-platform/` (preview path `/`) inside a
   pnpm monorepo.
-- **Frontend-only** — no backend, database, AI, or auth. All progress is stored in
-  the browser's `localStorage` under the key `ech.progress.v1`.
+- **Local-first** — no auth/login. All progress is stored in the browser's
+  `localStorage` under the key `ech.progress.v1` (authoritative). An **optional**
+  Supabase backend (Phase B0) silently mirrors/syncs in the background and records
+  lightweight analytics; the game is **fully playable with Supabase absent or
+  down** (logs "Running in local-only mode"). See
+  [docs/SUPABASE_SCHEMA.md](./docs/SUPABASE_SCHEMA.md).
 - Three playable assignments: `mission-001` (Credential Phishing), `mission-002`
   (Network Exposure Review), `mission-003` (Reconnaissance Detection).
-- The app is four files: `index.html`, `script.js`, `style.css`, and
+- The app is four core files: `index.html`, `script.js`, `style.css`, and
   `missions.js` (mission data, imported by `script.js`). `script.js` is an **ES
-  module** — its functions are NOT global.
+  module** — its functions are NOT global. Phase B0 adds `lib/supabaseClient.js`
+  and `lib/backendSync.js` (best-effort, local-first cloud layer).
 
 ## Stack
 
