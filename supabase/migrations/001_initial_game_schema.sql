@@ -42,10 +42,10 @@ $$;
 -- =============================================================================
 create table if not exists public.profiles (
   id                  uuid primary key default gen_random_uuid(),
-  user_id             uuid unique references auth.users (id) on delete cascade,
+  user_id             uuid unique references auth.users(id) on delete cascade,
   anonymous_id        text unique,
   display_name        text,
-  current_role        text not null default 'Cybersecurity Intern',
+  "current_role"      text not null default 'Cybersecurity Intern',
   xp_total            integer not null default 0,
   trust_score         integer not null default 0,
   analyst_reputation  text,
@@ -57,7 +57,7 @@ create table if not exists public.profiles (
 
 comment on table public.profiles is
   'Persistent player identity & career progression. anonymous_id for local-first players; user_id links a future authenticated account.';
-comment on column public.profiles.current_role is
+comment on column public.profiles."current_role" is
   'Role-track label: Cybersecurity Intern, Junior SOC Analyst, SOC Analyst, Threat Hunter, Incident Responder, Red Team Operator, Security Engineer.';
 comment on column public.profiles.analyst_reputation is
   'Derived reputation tier label (mirrors the in-game reputation rendering).';
@@ -65,7 +65,7 @@ comment on column public.profiles.promotion_readiness is
   'Promotion readiness as a 0-100 percentage.';
 
 create index if not exists idx_profiles_anonymous_id on public.profiles (anonymous_id);
-create index if not exists idx_profiles_current_role  on public.profiles (current_role);
+create index if not exists idx_profiles_current_role  on public.profiles ("current_role");
 create index if not exists idx_profiles_created_at     on public.profiles (created_at);
 
 -- =============================================================================
