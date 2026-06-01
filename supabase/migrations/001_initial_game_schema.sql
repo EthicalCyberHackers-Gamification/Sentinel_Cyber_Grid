@@ -19,7 +19,7 @@
 -- ----------------------------------------------------------------------------
 -- Extensions (safe to re-run)
 -- ----------------------------------------------------------------------------
-create extension if not exists pgcrypto;   -- gen_random_uuid(), gen_random_bytes()
+create extension if not exists pgcrypto;   -- gen_random_uuid()
 
 -- ----------------------------------------------------------------------------
 -- Shared updated_at trigger function
@@ -193,7 +193,7 @@ create table if not exists public.certificates (
   title              text,
   issued_at          timestamptz not null default now(),
   expiration_date    timestamptz,
-  verification_token text unique not null default encode(gen_random_bytes(16), 'hex'),
+  verification_token text unique not null default replace(gen_random_uuid()::text, '-', ''),
   metadata           jsonb not null default '{}'::jsonb,
   created_at         timestamptz not null default now()
 );
