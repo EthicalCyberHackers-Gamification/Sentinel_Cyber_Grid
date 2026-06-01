@@ -720,7 +720,7 @@
 
             <p class="commands-hint">
               Click a command to load it into the terminal, then press Enter to run it.
-              More commands unlock as you progress.
+              More commands unlock as you progress. Hover or focus a command to learn what it does.
             </p>
 
             <!-- Milestone 25A — commands grouped by category with labels.
@@ -729,28 +729,28 @@
             <div class="m2-cmd-grid m2-cmd-grid--stacked" id="m2CmdGrid">
               <div class="cmd-group">
                 <span class="cmd-group-label">Identify Network</span>
-                <button class="m2-cmd-btn" type="button" data-m2cmd="ip-addr" disabled>
+                <button class="m2-cmd-btn" type="button" data-m2cmd="ip-addr" aria-disabled="true">
                   <span class="m2-cmd-prompt">$</span> ip addr
                 </button>
               </div>
               <div class="cmd-group">
                 <span class="cmd-group-label">Test Reachability</span>
-                <button class="m2-cmd-btn" type="button" data-m2cmd="ping-bad" disabled>
+                <button class="m2-cmd-btn" type="button" data-m2cmd="ping-bad" aria-disabled="true">
                   <span class="m2-cmd-prompt">$</span> ping 10.0.0.8
                 </button>
-                <button class="m2-cmd-btn" type="button" data-m2cmd="ping" disabled>
+                <button class="m2-cmd-btn" type="button" data-m2cmd="ping" aria-disabled="true">
                   <span class="m2-cmd-prompt">$</span> ping 10.0.0.5
                 </button>
               </div>
               <div class="cmd-group">
                 <span class="cmd-group-label">Scan Services</span>
-                <button class="m2-cmd-btn" type="button" data-m2cmd="nmap" disabled>
+                <button class="m2-cmd-btn" type="button" data-m2cmd="nmap" aria-disabled="true">
                   <span class="m2-cmd-prompt">$</span> nmap 10.0.0.5
                 </button>
               </div>
               <div class="cmd-group">
                 <span class="cmd-group-label">Review</span>
-                <button class="m2-cmd-btn" type="button" data-m2cmd="review" disabled>
+                <button class="m2-cmd-btn" type="button" data-m2cmd="review" aria-disabled="true">
                   <span class="m2-cmd-prompt">$</span> review services
                 </button>
               </div>
@@ -1267,34 +1267,34 @@
 
             <p class="commands-hint">
               Click a command to load it into the terminal, then press Enter to run it.
-              More commands unlock as you progress.
+              More commands unlock as you progress. Hover or focus a command to learn what it does.
             </p>
 
             <div class="m3-cmd-grid m2-cmd-grid m2-cmd-grid--stacked" id="m3CmdGrid">
               <div class="cmd-group">
                 <span class="cmd-group-label">Review Connections</span>
-                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="ip-addr" disabled>
+                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="ip-addr" aria-disabled="true">
                   <span class="m2-cmd-prompt">$</span> netstat -an
                 </button>
               </div>
               <div class="cmd-group">
                 <span class="cmd-group-label">Identify Source</span>
-                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="ping-bad" disabled>
+                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="ping-bad" aria-disabled="true">
                   <span class="m2-cmd-prompt">$</span> whois 198.51.100.20
                 </button>
-                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="ping" disabled>
+                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="ping" aria-disabled="true">
                   <span class="m2-cmd-prompt">$</span> whois 203.0.113.77
                 </button>
               </div>
               <div class="cmd-group">
                 <span class="cmd-group-label">Search Logs</span>
-                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="nmap" disabled>
+                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="nmap" aria-disabled="true">
                   <span class="m2-cmd-prompt">$</span> grep 203.0.113.77 access.log
                 </button>
               </div>
               <div class="cmd-group">
                 <span class="cmd-group-label">Correlate</span>
-                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="review" disabled>
+                <button class="m3-cmd-btn m2-cmd-btn" type="button" data-m3cmd="review" aria-disabled="true">
                   <span class="m2-cmd-prompt">$</span> review recon
                 </button>
               </div>
@@ -1861,7 +1861,7 @@
 
             <p class="commands-hint">
               Click a command to load it into the terminal, then press Enter to run it.
-              More commands will unlock as you investigate.
+              More commands will unlock as you investigate. Hover or focus a command to learn what it does.
             </p>
             <!-- JS dynamically renders buttons here from COMMAND_BUTTONS in missions.js -->
             <div id="commandButtonsContainer" class="command-buttons command-buttons--day2"></div>

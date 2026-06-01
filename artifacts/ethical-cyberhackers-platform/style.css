@@ -2400,7 +2400,10 @@ body.alert-modal-open { overflow: hidden; }
   opacity: 0.7;
   transition: none;
 }
-.m2-cmd-btn:disabled { pointer-events: none; }
+/* Milestone 35B — locked cards use aria-disabled (not the `disabled` attribute)
+   so they remain hoverable/focusable for their learning tooltip. Keep
+   pointer-events ON; the click handler ignores aria-disabled cards. */
+.m2-cmd-btn[aria-disabled="true"] { cursor: not-allowed; }
 .m2-cmd-prompt {
   color: var(--color-cyan);
   font-weight: 700;
@@ -8684,3 +8687,83 @@ body.mission-running .current-objective--center {
 @media (max-height: 720px) {
   .terminal-body { min-height: 200px; max-height: none; }
 }
+
+/* ============================================================
+   Milestone 35B — Command Knowledge hover/focus learning tooltip
+   A single shared, interactive tooltip positioned beside the hovered/focused
+   command card (so it never covers the terminal input above the cards).
+   ============================================================ */
+.has-cmd-tip { position: relative; }
+.cmd-tip {
+  position: fixed;
+  z-index: 9999;
+  width: 290px;
+  max-width: calc(100vw - 24px);
+  padding: 12px 14px;
+  background: rgba(8, 16, 22, 0.98);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.3);
+  color: var(--color-text);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 12.5px;
+  line-height: 1.5;
+  pointer-events: auto;
+  animation: cmdTipIn 0.12s ease-out;
+}
+@keyframes cmdTipIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.cmd-tip__cmd {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--color-cyan);
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin-bottom: 8px;
+}
+.cmd-tip__desc { margin: 0 0 8px 0; color: var(--color-text); font-weight: 600; }
+.cmd-tip__meta { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.cmd-tip__row { display: grid; grid-template-columns: 62px 1fr; gap: 8px; }
+.cmd-tip__row dt {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--color-cyan-dim);
+  opacity: 0.9;
+  padding-top: 1px;
+}
+.cmd-tip__row dd { margin: 0; color: var(--color-text-dim); }
+.cmd-tip__more {
+  margin-top: 10px;
+  background: transparent;
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  color: var(--color-cyan);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+.cmd-tip__more:hover { background: rgba(0, 229, 255, 0.12); }
+.cmd-tip__extra {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+}
+.cmd-tip__beginner { margin: 0 0 6px 0; color: var(--color-text-dim); }
+.cmd-tip__adv { margin: 0; color: var(--color-text-dim); }
+.cmd-tip__adv-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-purple);
+  margin-right: 4px;
+}
+.cmd-tip__adv code { font-family: var(--font-mono); color: var(--color-text); }
+@media (prefers-reduced-motion: reduce) { .cmd-tip { animation: none; } }

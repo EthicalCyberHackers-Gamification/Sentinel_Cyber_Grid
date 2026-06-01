@@ -4947,6 +4947,9 @@ function renderButtons(newlyUnlocked = []) {
       loadCommandToTerminal(btn.command, terminalInput);
     });
 
+    // Milestone 35B — hover/focus learning tooltip for this command card.
+    attachCommandTooltip(el, btn.command);
+
     ensureGroup(m1CommandCategory(btn.key)).appendChild(el);
   });
 
@@ -6293,6 +6296,326 @@ function submitM3TerminalInput(text) {
   runM3Command(key);
 }
 
+
+/* ============================================================
+   Milestone 35B — COMMAND KNOWLEDGE (hover/focus learning tooltips)
+   ------------------------------------------------------------
+   A reusable, frontend-only learning layer. Hovering or keyboard-focusing
+   ANY command card shows a concise explanation: what the command does, why a
+   SOC analyst uses it, and what to look for in the output — without leaving
+   the mission flow. Keyed by the literal command text so the SAME data set
+   serves Assignments 1, 2 and 3 (M1 cards use `command`; M2/M3 use `.cmd`).
+
+   Metadata fields per command:
+     commandText, shortDescription, socUse, whatToLookFor,
+     beginnerExplanation, advancedEquivalent (optional)
+   ============================================================ */
+const COMMAND_KNOWLEDGE = {
+  /* --- Assignment 1 — file investigation --- */
+  "pwd": {
+    shortDescription: "Shows the current folder.",
+    socUse: "Confirms where the analyst is working.",
+    whatToLookFor: "Whether you are in the expected directory.",
+    beginnerExplanation: "Every terminal session has a \u201ccurrent folder.\u201d pwd (print working directory) tells you exactly where you are so you don't run commands in the wrong place.",
+    advancedEquivalent: "pwd",
+  },
+  "ls": {
+    shortDescription: "Lists files and folders.",
+    socUse: "Shows which items are available to inspect.",
+    whatToLookFor: "Suspicious or unfamiliar filenames.",
+    beginnerExplanation: "ls (list) prints the names of everything in the current folder so you can decide what to open next.",
+    advancedEquivalent: "ls -la",
+  },
+  "cd documents": {
+    shortDescription: "Moves into the documents folder.",
+    socUse: "Lets the analyst inspect user files.",
+    whatToLookFor: "Files that may contain suspicious requests.",
+    beginnerExplanation: "cd (change directory) walks you into a folder so you can look at what's inside it.",
+    advancedEquivalent: "cd ./documents",
+  },
+  "cat suspicious_file.txt": {
+    shortDescription: "Displays the contents of a text file.",
+    socUse: "Lets the analyst review possible evidence.",
+    whatToLookFor: "Password requests, urgent language, unknown senders, external links.",
+    beginnerExplanation: "cat prints a text file straight to the screen so you can read it without opening an editor.",
+    advancedEquivalent: "cat suspicious_file.txt",
+  },
+
+  /* --- Assignment 2 — network exposure review --- */
+  "ip addr": {
+    shortDescription: "Shows network address information.",
+    socUse: "Helps identify the local workstation's network position.",
+    whatToLookFor: "Your IP address and network range.",
+    beginnerExplanation: "ip addr lists the network addresses assigned to this machine \u2014 your starting point for mapping the network.",
+    advancedEquivalent: "ip addr show / ifconfig",
+  },
+  "ping 10.0.0.8": {
+    shortDescription: "Tests whether a host is reachable.",
+    socUse: "Helps determine if a target system is active.",
+    whatToLookFor: "A timeout \u2014 meaning this host did not respond.",
+    beginnerExplanation: "ping sends a small probe and waits for a reply. No reply (a timeout) means the host is unreachable right now.",
+    advancedEquivalent: "ping -c 4 10.0.0.8",
+  },
+  "ping 10.0.0.5": {
+    shortDescription: "Tests whether a host is reachable.",
+    socUse: "Helps determine if a target system is active.",
+    whatToLookFor: "Successful replies or timeouts.",
+    beginnerExplanation: "ping sends a small probe and waits for a reply. Replies mean the host is online and worth investigating further.",
+    advancedEquivalent: "ping -c 4 10.0.0.5",
+  },
+  "nmap 10.0.0.5": {
+    shortDescription: "Simulates service discovery on a host.",
+    socUse: "Helps identify exposed services.",
+    whatToLookFor: "Open ports and service names.",
+    beginnerExplanation: "nmap scans a host to see which \u201cdoors\u201d (ports) are open and what's running behind them.",
+    advancedEquivalent: "nmap -sV 10.0.0.5",
+  },
+  "review services": {
+    shortDescription: "Summarizes the services you found.",
+    socUse: "Helps the analyst interpret what the exposed services mean.",
+    whatToLookFor: "Which services could be risky if poorly secured.",
+    beginnerExplanation: "This step pauses the investigation so you can think about what the discovered services mean before deciding what to do.",
+  },
+
+  /* --- Assignment 3 — reconnaissance detection --- */
+  "netstat -an": {
+    shortDescription: "Shows active network connections.",
+    socUse: "Helps review network activity and suspicious connections.",
+    whatToLookFor: "Repeated sources, external IPs, unusual states.",
+    beginnerExplanation: "netstat lists the live connections in and out of this machine, including the addresses on the other end.",
+    advancedEquivalent: "netstat -an / ss -an",
+  },
+  "whois 198.51.100.20": {
+    shortDescription: "Looks up information about an IP address.",
+    socUse: "Helps analysts understand source context.",
+    whatToLookFor: "Whether the owner is a known, legitimate organization.",
+    beginnerExplanation: "whois queries public registries to tell you who an IP address belongs to \u2014 a recognized owner usually means normal traffic.",
+    advancedEquivalent: "whois 198.51.100.20",
+  },
+  "whois 203.0.113.77": {
+    shortDescription: "Looks up information about an IP address.",
+    socUse: "Helps analysts understand source context.",
+    whatToLookFor: "Unfamiliar or external sources.",
+    beginnerExplanation: "whois queries public registries to tell you who an IP address belongs to \u2014 an unknown, unregistered owner is a red flag.",
+    advancedEquivalent: "whois 203.0.113.77",
+  },
+  "grep 203.0.113.77 access.log": {
+    shortDescription: "Searches logs for a specific IP address.",
+    socUse: "Helps find repeated activity from a source.",
+    whatToLookFor: "Repeated hits across services or over time.",
+    beginnerExplanation: "grep scans a file and prints only the lines that match what you searched for \u2014 here, one IP across the access log.",
+    advancedEquivalent: "grep 203.0.113.77 access.log",
+  },
+  "review recon": {
+    shortDescription: "Summarizes the signals you correlated.",
+    socUse: "Helps the analyst name the attacker's behavior.",
+    whatToLookFor: "Whether the pattern matches reconnaissance.",
+    beginnerExplanation: "This step pauses the investigation so you can think about what all the signals add up to before responding.",
+  },
+};
+
+// Generic fall-backs by command verb, so cards whose exact text isn't listed
+// (e.g. the other readable files in Assignment 1: cat employee_notes.txt,
+// cat meeting_schedule.txt, ...) still get a sensible, consistent tooltip.
+const COMMAND_KNOWLEDGE_FALLBACK = {
+  "cat": {
+    shortDescription: "Displays the contents of a text file.",
+    socUse: "Lets the analyst review a file as possible evidence.",
+    whatToLookFor: "Unusual requests, urgent language, or unfamiliar senders.",
+    beginnerExplanation: "cat prints a text file straight to the screen so you can read it without opening an editor.",
+  },
+  "ping": {
+    shortDescription: "Tests whether a host is reachable.",
+    socUse: "Helps determine if a target system is active.",
+    whatToLookFor: "Successful replies or timeouts.",
+    beginnerExplanation: "ping sends a small probe and waits for a reply. Replies mean the host is online; a timeout means it isn't responding.",
+  },
+  "whois": {
+    shortDescription: "Looks up information about an IP address.",
+    socUse: "Helps analysts understand source context.",
+    whatToLookFor: "Whether the source is known/legitimate or unfamiliar.",
+    beginnerExplanation: "whois queries public registries to tell you who an IP address belongs to.",
+  },
+  "grep": {
+    shortDescription: "Searches a file for matching text.",
+    socUse: "Helps find repeated activity from a source.",
+    whatToLookFor: "Repeated hits across services or over time.",
+    beginnerExplanation: "grep scans a file and prints only the lines that match what you searched for.",
+  },
+  "review": {
+    shortDescription: "Summarizes what you found so far.",
+    socUse: "Helps the analyst interpret the evidence before acting.",
+    whatToLookFor: "How the individual clues fit together.",
+    beginnerExplanation: "This step pauses the investigation so you can think about what your findings mean before deciding what to do.",
+  },
+};
+
+/** Normalize a command string for lookup (lowercase, single spaces). */
+function normalizeCommandText(text) {
+  return String(text || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Resolve the learning metadata for a command, by exact text then by verb. */
+function getCommandKnowledge(commandText) {
+  const norm = normalizeCommandText(commandText);
+  if (!norm) return null;
+  if (COMMAND_KNOWLEDGE[norm]) return COMMAND_KNOWLEDGE[norm];
+  const verb = norm.split(" ")[0];
+  return COMMAND_KNOWLEDGE_FALLBACK[verb] || null;
+}
+
+/* ------------------------------------------------------------
+   Reusable hover/focus tooltip UI for command cards.
+   A single shared tooltip node is positioned BESIDE the hovered card
+   (right, or left when there's no room) so it never covers the terminal
+   input, which sits above the command cards. The tooltip itself is
+   interactive so the optional "More detail" expansion is clickable.
+   ------------------------------------------------------------ */
+let _cmdTipEl = null;
+let _cmdTipAnchor = null;
+let _cmdTipHideTimer = null;
+let _cmdTipGlobalsBound = false;
+
+function ensureCommandTip() {
+  if (_cmdTipEl) return _cmdTipEl;
+  const tip = document.createElement("div");
+  tip.id = "commandKnowledgeTip";
+  tip.className = "cmd-tip";
+  tip.setAttribute("role", "tooltip");
+  tip.style.display = "none";
+  const cancelHide = () => {
+    if (_cmdTipHideTimer) { clearTimeout(_cmdTipHideTimer); _cmdTipHideTimer = null; }
+  };
+  tip.addEventListener("mouseenter", cancelHide);
+  tip.addEventListener("mouseleave", scheduleHideCommandTip);
+  // Keep the tooltip open while keyboard focus is inside it, so the optional
+  // "More detail" button is reachable for keyboard users (a11y).
+  tip.addEventListener("focusin", cancelHide);
+  tip.addEventListener("focusout", scheduleHideCommandTip);
+  document.body.appendChild(tip);
+  _cmdTipEl = tip;
+
+  if (!_cmdTipGlobalsBound) {
+    _cmdTipGlobalsBound = true;
+    const reflow = () => {
+      if (_cmdTipEl && _cmdTipEl.style.display !== "none" && _cmdTipAnchor) {
+        positionCommandTip(_cmdTipAnchor);
+      }
+    };
+    window.addEventListener("scroll", reflow, true);
+    window.addEventListener("resize", reflow);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") hideCommandTip();
+    });
+  }
+  return tip;
+}
+
+function buildCommandTipHTML(info, commandText) {
+  const rows = [];
+  rows.push(`<code class="cmd-tip__cmd">${escapeHtml(commandText)}</code>`);
+  rows.push(`<p class="cmd-tip__desc">${escapeHtml(info.shortDescription)}</p>`);
+  rows.push(`<dl class="cmd-tip__meta">`);
+  rows.push(`<div class="cmd-tip__row"><dt>SOC use</dt><dd>${escapeHtml(info.socUse)}</dd></div>`);
+  rows.push(`<div class="cmd-tip__row"><dt>Look for</dt><dd>${escapeHtml(info.whatToLookFor)}</dd></div>`);
+  rows.push(`</dl>`);
+  if (info.beginnerExplanation || info.advancedEquivalent) {
+    rows.push(`<button type="button" class="cmd-tip__more" aria-expanded="false">More detail</button>`);
+    rows.push(`<div class="cmd-tip__extra" hidden>`);
+    if (info.beginnerExplanation) {
+      rows.push(`<p class="cmd-tip__beginner">${escapeHtml(info.beginnerExplanation)}</p>`);
+    }
+    if (info.advancedEquivalent) {
+      rows.push(`<p class="cmd-tip__adv"><span class="cmd-tip__adv-label">Advanced</span> <code>${escapeHtml(info.advancedEquivalent)}</code></p>`);
+    }
+    rows.push(`</div>`);
+  }
+  return rows.join("");
+}
+
+function showCommandTip(anchor, commandText) {
+  const info = getCommandKnowledge(commandText);
+  if (!info) return;
+  const tip = ensureCommandTip();
+  if (_cmdTipHideTimer) { clearTimeout(_cmdTipHideTimer); _cmdTipHideTimer = null; }
+  _cmdTipAnchor = anchor;
+  tip.innerHTML = buildCommandTipHTML(info, commandText);
+
+  const moreBtn = tip.querySelector(".cmd-tip__more");
+  if (moreBtn) {
+    moreBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const extra = tip.querySelector(".cmd-tip__extra");
+      if (!extra) return;
+      const collapsed = extra.hasAttribute("hidden");
+      if (collapsed) {
+        extra.removeAttribute("hidden");
+        moreBtn.textContent = "Less detail";
+        moreBtn.setAttribute("aria-expanded", "true");
+      } else {
+        extra.setAttribute("hidden", "");
+        moreBtn.textContent = "More detail";
+        moreBtn.setAttribute("aria-expanded", "false");
+      }
+      positionCommandTip(anchor);
+    });
+  }
+
+  tip.style.display = "";
+  tip.style.visibility = "hidden"; // measure before placing
+  positionCommandTip(anchor);
+  tip.style.visibility = "";
+}
+
+function positionCommandTip(anchor) {
+  const tip = _cmdTipEl;
+  if (!tip || !anchor) return;
+  const r = anchor.getBoundingClientRect();
+  const tw = tip.offsetWidth;
+  const th = tip.offsetHeight;
+  const gap = 12;
+  const pad = 8;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // Prefer the right of the card; fall back to the left; clamp into view.
+  let left = r.right + gap;
+  if (left + tw > vw - pad) left = r.left - gap - tw;
+  if (left < pad) left = Math.min(Math.max(pad, r.left), Math.max(pad, vw - tw - pad));
+
+  // Align with the card top; keep fully on screen. Anchored to the card (which
+  // sits below the terminal), so the tooltip never covers the terminal input.
+  let top = r.top;
+  if (top + th > vh - pad) top = vh - th - pad;
+  if (top < pad) top = pad;
+
+  tip.style.left = `${Math.round(left)}px`;
+  tip.style.top = `${Math.round(top)}px`;
+}
+
+function scheduleHideCommandTip() {
+  if (_cmdTipHideTimer) clearTimeout(_cmdTipHideTimer);
+  _cmdTipHideTimer = setTimeout(hideCommandTip, 140);
+}
+
+function hideCommandTip() {
+  if (_cmdTipHideTimer) { clearTimeout(_cmdTipHideTimer); _cmdTipHideTimer = null; }
+  if (_cmdTipEl) _cmdTipEl.style.display = "none";
+  _cmdTipAnchor = null;
+}
+
+/** Attach hover + keyboard-focus learning tooltip to a command card. */
+function attachCommandTooltip(el, commandText) {
+  if (!el || !commandText) return;
+  if (!getCommandKnowledge(commandText)) return;
+  el.classList.add("has-cmd-tip");
+  el.setAttribute("aria-describedby", "commandKnowledgeTip");
+  el.addEventListener("mouseenter", () => showCommandTip(el, commandText));
+  el.addEventListener("mouseleave", scheduleHideCommandTip);
+  el.addEventListener("focus", () => showCommandTip(el, commandText));
+  el.addEventListener("blur", scheduleHideCommandTip);
+}
 
 /* ============================================================
    KEYBOARD INPUT (optional — typed commands bypass unlock logic)
@@ -8693,7 +9016,11 @@ function syncM2Buttons() {
   document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
     const key = btn.getAttribute("data-m2cmd");
     const unlocked = m2UnlockedCmds.has(key);
-    btn.disabled = !unlocked || mission2Complete; // FIX 5 — lock commands after completion
+    // Milestone 35B — lock via aria-disabled (not the `disabled` attribute) so
+    // locked cards stay hoverable/focusable for their learning tooltip. The
+    // click handler ignores aria-disabled cards, so they still can't be run.
+    const locked = !unlocked || mission2Complete; // FIX 5 — lock after completion
+    btn.setAttribute("aria-disabled", String(locked));
     btn.classList.toggle("m2-cmd-btn--unlocked", unlocked);
     if (unlocked) btn.removeAttribute("title");
   });
@@ -8820,7 +9147,7 @@ function resetMission2() {
 
   // Buttons back to disabled
   document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
-    btn.disabled = true;
+    btn.setAttribute("aria-disabled", "true"); // Milestone 35B — keep hoverable
     btn.classList.remove("m2-cmd-btn--unlocked");
   });
 
@@ -10016,7 +10343,11 @@ function syncM3Buttons() {
   document.querySelectorAll(".m3-cmd-btn[data-m3cmd]").forEach((btn) => {
     const key = btn.getAttribute("data-m3cmd");
     const unlocked = m3UnlockedCmds.has(key);
-    btn.disabled = !unlocked || mission3Complete; // FIX 5 — lock commands after completion
+    // Milestone 35B — lock via aria-disabled (not the `disabled` attribute) so
+    // locked cards stay hoverable/focusable for their learning tooltip. The
+    // click handler ignores aria-disabled cards, so they still can't be run.
+    const locked = !unlocked || mission3Complete; // FIX 5 — lock after completion
+    btn.setAttribute("aria-disabled", String(locked));
     btn.classList.toggle("m3-cmd-btn--unlocked", unlocked);
     if (unlocked) btn.removeAttribute("title");
   });
@@ -10143,7 +10474,7 @@ function resetMission3() {
 
   // Buttons back to disabled
   document.querySelectorAll(".m3-cmd-btn[data-m3cmd]").forEach((btn) => {
-    btn.disabled = true;
+    btn.setAttribute("aria-disabled", "true"); // Milestone 35B — keep hoverable
     btn.classList.remove("m3-cmd-btn--unlocked");
   });
 
@@ -10973,12 +11304,17 @@ function boot() {
   const m2DashBackBtn = document.getElementById("m2DashBackBtn");
   if (m2DashBackBtn) m2DashBackBtn.addEventListener("click", backToMission2Overview);
   document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
+    const def = M2_COMMANDS[btn.getAttribute("data-m2cmd")];
     // Milestone 35A — load the command into the M2 terminal; the student
     // presses Enter to run it (no instant execution on click).
     btn.addEventListener("click", () => {
-      const def = M2_COMMANDS[btn.getAttribute("data-m2cmd")];
+      // Milestone 35B — locked cards stay hoverable for their tooltip but must
+      // not load a command.
+      if (btn.getAttribute("aria-disabled") === "true") return;
       if (def) loadCommandToTerminal(def.cmd, m2TerminalInput);
     });
+    // Milestone 35B — hover/focus learning tooltip.
+    if (def) attachCommandTooltip(btn, def.cmd);
   });
   renderM2Status();
 
@@ -10992,12 +11328,17 @@ function boot() {
   const m3DashBackBtn = document.getElementById("m3DashBackBtn");
   if (m3DashBackBtn) m3DashBackBtn.addEventListener("click", backToMission3Overview);
   document.querySelectorAll(".m3-cmd-btn[data-m3cmd]").forEach((btn) => {
+    const def = M3_COMMANDS[btn.getAttribute("data-m3cmd")];
     // Milestone 35A — load the command into the M3 terminal; the student
     // presses Enter to run it (no instant execution on click).
     btn.addEventListener("click", () => {
-      const def = M3_COMMANDS[btn.getAttribute("data-m3cmd")];
+      // Milestone 35B — locked cards stay hoverable for their tooltip but must
+      // not load a command.
+      if (btn.getAttribute("aria-disabled") === "true") return;
       if (def) loadCommandToTerminal(def.cmd, m3TerminalInput);
     });
+    // Milestone 35B — hover/focus learning tooltip.
+    if (def) attachCommandTooltip(btn, def.cmd);
   });
   renderM3Status();
 

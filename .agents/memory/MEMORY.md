@@ -1,4 +1,5 @@
 - [Operations Center home re-render](ech-landing-render.md) — every path that reveals `#moduleLanding` must call `renderOperationsCenter()` or it shows stale progress.
 - [e2e localStorage frame mismatch](ech-e2e-localstorage-frame.md) — can't prime localStorage from the harness (top frame ≠ app iframe); test restore by driving the app UI then reloading.
 - [Active-dashboard viewport lock](ech-active-dashboard-viewport-lock.md) — `body.mission-running .dashboard` (overflow:hidden + grid auto 1fr) clips tall content/forces zoom; let the PAGE scroll during active play.
+- [Hoverable locked cards](ech-locked-card-tooltips.md) — `disabled` buttons fire no hover/focus events; lock M2/M3 command cards with `aria-disabled` + click guard so their tooltips still work.
 - [Command execution asymmetry](ech-command-runner-asymmetry.md) — M1 is text-parser-driven; M2/M3 are key-driven (`.cmd` per key). Typed-terminal features must reverse-map text→key, then call the existing key runner.

@@ -102,6 +102,18 @@ terminal cap for high-zoom/short viewports. (Durable rule recorded in agent memo
 - **The opt-in M1 demo** still auto-runs: `demoClickCommand` is decoupled from the
   card click and types + runs directly (`typeCommandIntoTerminal` → `runCommand`),
   so the watch-me walkthrough is unaffected by the load-on-click change.
+- **Command knowledge tooltips (35B, all 3 assignments)**: hovering OR keyboard-
+  focusing any command card shows a concise learning tooltip (what the command
+  does, why a SOC analyst uses it, what to look for, plus an optional "More
+  detail" expansion with a beginner explanation and advanced equivalent). One
+  shared, interactive tooltip node (`#commandKnowledgeTip`) is positioned BESIDE
+  the card (right, else left, clamped to the viewport) so it never covers the
+  terminal input above the cards. Metadata lives in `COMMAND_KNOWLEDGE` (keyed by
+  literal command text) with verb-level `COMMAND_KNOWLEDGE_FALLBACK`; cards wire
+  up via `attachCommandTooltip(el, commandText)`. **M2/M3 locked cards use
+  `aria-disabled="true"` (not the `disabled` attribute)** so they stay hoverable/
+  focusable for the tooltip; click handlers guard on `aria-disabled` so locked
+  cards still can't run.
 
 ## Alerts, animations, sound
 

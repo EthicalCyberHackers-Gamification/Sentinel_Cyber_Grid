@@ -1,0 +1,93 @@
+Continue the existing Ethical CyberHackers Platform project.
+
+Current status:
+
+* Command Preview + Manual Execution System exists.
+* Assignments 1, 2, and 3 work.
+* Command cards populate the terminal input before execution.
+* Everything is frontend-only.
+
+Now implement:
+
+Milestone 35B — Command Knowledge Hover System
+
+Purpose:
+Add learning support without interrupting gameplay. When students hover over a command card, show a concise explanation of what the command does, why a SOC analyst uses it, and what to look for in the output.
+
+Requirements:
+
+1. Add hover/focus tooltip for every command card.
+2. Tooltip should work with mouse hover and keyboard focus.
+3. Tooltip should be readable and not cover the terminal input.
+4. Add reusable command metadata fields:
+
+* commandText
+* shortDescription
+* socUse
+* whatToLookFor
+* beginnerExplanation
+* advancedEquivalent if applicable
+
+5. Examples:
+
+Assignment 1:
+pwd
+Description: Shows the current folder.
+SOC use: Helps confirm where the analyst is working.
+Look for: Whether you are in the expected directory.
+
+ls
+Description: Lists files and folders.
+SOC use: Helps identify items available for inspection.
+Look for: suspicious or unfamiliar filenames.
+
+cd documents
+Description: Moves into the documents folder.
+SOC use: Lets the analyst inspect user files.
+Look for: files that may contain suspicious requests.
+
+cat suspicious_file.txt
+Description: Displays the content of a text file.
+SOC use: Lets the analyst review possible evidence.
+Look for: password requests, urgent language, unknown senders, external links.
+
+Assignment 2:
+ip addr
+Description: Shows network address information.
+SOC use: Helps identify the local workstation’s network position.
+Look for: IP address and network range.
+
+ping 10.0.0.5
+Description: Tests whether a host is reachable.
+SOC use: Helps determine if a target system is active.
+Look for: successful replies or timeouts.
+
+nmap 10.0.0.5
+Description: Simulates service discovery on a host.
+SOC use: Helps identify exposed services.
+Look for: open ports and service names.
+
+Assignment 3:
+netstat -an
+Description: Shows active network connections.
+SOC use: Helps review network activity and suspicious connections.
+Look for: repeated sources, external IPs, unusual states.
+
+whois 203.0.113.77
+Description: Looks up information about an IP address.
+SOC use: Helps analysts understand source context.
+Look for: unfamiliar or external sources.
+
+grep 203.0.113.77 access.log
+Description: Searches logs for a specific IP address.
+SOC use: Helps find repeated activity from a source.
+Look for: repeated hits across services or time.
+
+6. Keep explanations short.
+7. Do not add large lesson panels.
+8. Add optional “More detail” expansion inside tooltip if simple.
+9. Apply consistently across all assignments.
+10. Keep everything frontend-only.
+
+Goal:
+Students should learn what each command means before running it without leaving the mission flow.
