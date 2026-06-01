@@ -4207,6 +4207,10 @@ const BOOT_MESSAGES = [
 
 const terminalOutput = document.getElementById("terminalOutput");
 const terminalInput  = document.getElementById("terminalInput");
+// Milestone 35A — Assignment 2 & 3 terminal inputs (now student-driven: a
+// clicked command card loads into the input, the student presses Enter to run).
+const m2TerminalInput = document.getElementById("m2TerminalInput");
+const m3TerminalInput = document.getElementById("m3TerminalInput");
 const missionTimer   = document.getElementById("missionTimer");
 const promptLabel    = document.querySelector(".terminal-prompt-label");
 const terminalTitle  = document.querySelector(".terminal-title");
@@ -4937,15 +4941,10 @@ function renderButtons(newlyUnlocked = []) {
       `<span class="cmd-desc">${btn.desc}</span>`;
 
     el.addEventListener("click", () => {
-      // Type the command into the terminal entry first so the player can SEE
-      // exactly what is being sent to the command line, THEN run it.
-      typeCommandIntoTerminal(btn.command, () => {
-        runCommand(btn.command, btn.key);
-        if (terminalInput) {
-          terminalInput.value = "";
-          terminalInput.focus();
-        }
-      });
+      // Milestone 35A — clicking a card LOADS the command into the terminal
+      // input so the student can review it; they press Enter to execute it.
+      // It is NOT run on click anymore.
+      loadCommandToTerminal(btn.command, terminalInput);
     });
 
     ensureGroup(m1CommandCategory(btn.key)).appendChild(el);
@@ -6189,6 +6188,113 @@ function typeCommandIntoTerminal(command, onDone) {
 
 
 /* ============================================================
+   Milestone 35A — COMMAND PREVIEW + MANUAL EXECUTION
+   Clicking a command card no longer runs the command instantly.
+   Instead it LOADS the command text into that assignment's terminal
+   input; the student reviews it and presses Enter to execute. This
+   makes the game feel like real terminal work. Manual typing still
+   works, and the same parser runs typed and card-loaded commands.
+   Applies to Assignment 1, 2, and 3. Frontend-only.
+   ============================================================ */
+
+/** Load a command string into a terminal input WITHOUT executing it. The
+ *  student presses Enter to run it. `inputEl` defaults to Mission 1's
+ *  terminal; Mission 2 / 3 pass their own input element. */
+function loadCommandToTerminal(commandText, inputEl) {
+  const input = inputEl || terminalInput;
+  if (!input) return;
+  // Cancel any in-progress M1 typing animation so it can't overwrite us.
+  cancelTerminalTyping();
+  input.value = String(commandText);
+  try {
+    input.focus();
+    const end = input.value.length;
+    input.setSelectionRange(end, end);
+  } catch (_) {}
+}
+
+/** Resolve typed terminal text to a command key for a key-driven mission
+ *  (Mission 2 / 3, whose command maps store the literal command in `.cmd`).
+ *  Whitespace/case-insensitive. Returns the key, or null if no match. */
+function keyForTypedCommand(commandsMap, text) {
+  const norm = String(text).trim().toLowerCase().replace(/\s+/g, " ");
+  if (!norm) return null;
+  for (const k of Object.keys(commandsMap)) {
+    const def = commandsMap[k];
+    if (def && String(def.cmd).toLowerCase().replace(/\s+/g, " ") === norm) {
+      return k;
+    }
+  }
+  return null;
+}
+
+/** Execute a command the student typed (or loaded from a card) into the
+ *  Mission 2 terminal. Maps the text to a command key, then runs the SAME
+ *  path as a card click. Gives friendly guidance when the command is
+ *  unrecognized, locked, or edited incorrectly. */
+function submitM2TerminalInput(text) {
+  if (!m2Started) return;
+  const trimmed = String(text).trim();
+  if (!trimmed) return;
+  const echo = () => printM2Line(
+    `<span class="m2-prompt">student@cybercorp:~$</span> ${escapeHtml(trimmed)}`,
+    "m2-line--prompt"
+  );
+  const key = keyForTypedCommand(M2_COMMANDS, trimmed);
+  if (!key) {
+    echo();
+    printM2Line(
+      "That command isn't recognized here. Tip: click a command card to load the exact command, then press Enter.",
+      "m2-line--output"
+    );
+    printM2Line("", "m2-line--blank");
+    return;
+  }
+  if (mission2Complete || !m2UnlockedCmds.has(key)) {
+    echo();
+    printM2Line(
+      "That command isn't available yet — finish the current step first, then it will unlock.",
+      "m2-line--output"
+    );
+    printM2Line("", "m2-line--blank");
+    return;
+  }
+  runM2Command(key);
+}
+
+/** Mission 3 equivalent of submitM2TerminalInput(). */
+function submitM3TerminalInput(text) {
+  if (!m3Started) return;
+  const trimmed = String(text).trim();
+  if (!trimmed) return;
+  const echo = () => printM3Line(
+    `<span class="m3-prompt">student@cybercorp:~$</span> ${escapeHtml(trimmed)}`,
+    "m3-line--prompt"
+  );
+  const key = keyForTypedCommand(M3_COMMANDS, trimmed);
+  if (!key) {
+    echo();
+    printM3Line(
+      "That command isn't recognized here. Tip: click a command card to load the exact command, then press Enter.",
+      "m3-line--output"
+    );
+    printM3Line("", "m3-line--blank");
+    return;
+  }
+  if (mission3Complete || !m3UnlockedCmds.has(key)) {
+    echo();
+    printM3Line(
+      "That command isn't available yet — finish the current step first, then it will unlock.",
+      "m3-line--output"
+    );
+    printM3Line("", "m3-line--blank");
+    return;
+  }
+  runM3Command(key);
+}
+
+
+/* ============================================================
    KEYBOARD INPUT (optional — typed commands bypass unlock logic)
    ============================================================ */
 
@@ -6200,6 +6306,24 @@ function initTerminalInput() {
       if (outputRevealQueue.length) flushTerminalOutput();
     });
   });
+  // Milestone 35A — Assignment 2 & 3 terminals are now student-driven too:
+  // press Enter to run the loaded/typed command through the same parser.
+  if (m2TerminalInput) {
+    m2TerminalInput.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const typed = m2TerminalInput.value;
+      m2TerminalInput.value = "";
+      submitM2TerminalInput(typed);
+    });
+  }
+  if (m3TerminalInput) {
+    m3TerminalInput.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const typed = m3TerminalInput.value;
+      m3TerminalInput.value = "";
+      submitM3TerminalInput(typed);
+    });
+  }
   if (!terminalInput) return;
   terminalInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -10849,7 +10973,12 @@ function boot() {
   const m2DashBackBtn = document.getElementById("m2DashBackBtn");
   if (m2DashBackBtn) m2DashBackBtn.addEventListener("click", backToMission2Overview);
   document.querySelectorAll(".m2-cmd-btn[data-m2cmd]").forEach((btn) => {
-    btn.addEventListener("click", () => runM2Command(btn.getAttribute("data-m2cmd")));
+    // Milestone 35A — load the command into the M2 terminal; the student
+    // presses Enter to run it (no instant execution on click).
+    btn.addEventListener("click", () => {
+      const def = M2_COMMANDS[btn.getAttribute("data-m2cmd")];
+      if (def) loadCommandToTerminal(def.cmd, m2TerminalInput);
+    });
   });
   renderM2Status();
 
@@ -10863,7 +10992,12 @@ function boot() {
   const m3DashBackBtn = document.getElementById("m3DashBackBtn");
   if (m3DashBackBtn) m3DashBackBtn.addEventListener("click", backToMission3Overview);
   document.querySelectorAll(".m3-cmd-btn[data-m3cmd]").forEach((btn) => {
-    btn.addEventListener("click", () => runM3Command(btn.getAttribute("data-m3cmd")));
+    // Milestone 35A — load the command into the M3 terminal; the student
+    // presses Enter to run it (no instant execution on click).
+    btn.addEventListener("click", () => {
+      const def = M3_COMMANDS[btn.getAttribute("data-m3cmd")];
+      if (def) loadCommandToTerminal(def.cmd, m3TerminalInput);
+    });
   });
   renderM3Status();
 
@@ -12864,13 +12998,14 @@ function demoClickCommand(command) {
       btn = btnContainer.querySelector(`[data-command="${command}"]`);
     }
   }
+  // Milestone 35A — card clicks now only LOAD the command (the student
+  // presses Enter to run). The watch-me demo must still auto-run, so it
+  // types + runs directly instead of relying on the click handler.
   if (btn) {
     btn.classList.add("demo-press");
     demoWait(() => btn.classList.remove("demo-press"), 520);
-    btn.click(); // routed through typeCommandIntoTerminal → runCommand(key)
-  } else {
-    typeCommandIntoTerminal(command, () => runCommand(command, m1KeyForCommand(command)));
   }
+  typeCommandIntoTerminal(command, () => runCommand(command, m1KeyForCommand(command)));
 }
 
 /** Demo: simulate MANUAL typing — type into the entry with NO button, then

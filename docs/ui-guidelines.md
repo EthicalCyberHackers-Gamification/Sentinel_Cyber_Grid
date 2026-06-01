@@ -79,16 +79,29 @@ terminal cap for high-zoom/short viewports. (Durable rule recorded in agent memo
 
 ## Terminal behavior
 
-- **Command-on-click typing**: clicking an M1 command first TYPES it into
-  `#terminalInput` (~38ms/char) so it's visible, then executes
-  (`typeCommandIntoTerminal`, with cancel/flush helpers; cancelled centrally in
-  `endGuidedRun`/`abortDemo`).
+- **Command preview + manual execution (all 3 assignments)**: clicking a command
+  card does NOT execute — it LOADS the command text into that assignment's
+  terminal input via `loadCommandToTerminal(commandText, inputEl)`; the student
+  reviews it and presses **Enter** to run. Cards remain as beginner support; the
+  real execution always goes through the terminal input. Helper text under the
+  cards reads "Click a command to load it into the terminal, then press Enter to
+  run it."
+- **One parser per assignment runs both typed and card-loaded commands.** M1 uses
+  `runCommand`→`processCommand` (resolves keyless typed text to a key). M2/M3 use
+  `submitM2TerminalInput`/`submitM3TerminalInput`, which reverse-map the typed
+  text to a command key with `keyForTypedCommand(map, text)` (case/whitespace-
+  insensitive against each command's `.cmd`) and then run the existing
+  `runM2Command`/`runM3Command` path — so unlock chains, reasoning gates, pins,
+  confidence, and persistence are untouched. Unrecognized/edited or still-locked
+  commands get friendly in-terminal guidance instead of executing.
+- **Terminal inputs**: `#terminalInput` (M1), `#m2TerminalInput`, `#m3TerminalInput`
+  — all enabled and student-driven; Enter handlers wired in `initTerminalInput()`.
 - **Paced output**: output lines reveal one at a time from a shared queue
   (`TERMINAL_LINE_DELAY`); command echoes are instant. Clicking the terminal
   flushes the queue (skip-to-end).
-- **Typed commands drive M1 progression** at parity with button clicks
-  (`processCommand` resolves the equivalent key for keyless typed commands), with
-  friendly normalization and student-friendly errors.
+- **The opt-in M1 demo** still auto-runs: `demoClickCommand` is decoupled from the
+  card click and types + runs directly (`typeCommandIntoTerminal` → `runCommand`),
+  so the watch-me walkthrough is unaffected by the load-on-click change.
 
 ## Alerts, animations, sound
 

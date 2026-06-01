@@ -676,18 +676,20 @@
           </div>
           <div class="terminal-body m2-terminal" id="m2Terminal" role="log" aria-live="polite"></div>
 
-          <!-- Decorative prompt row — visual parity with M1. The input
-               is disabled because Mission 2 is button-driven, but the
-               prompt + blinking cursor preserve the terminal silhouette. -->
+          <!-- Milestone 35A — student-driven terminal. A clicked command card
+               loads the command here; the student presses Enter to run it.
+               Manual typing also works. -->
           <div class="terminal-input-row">
             <span class="terminal-prompt-label">student@cybercorp:~$</span>
-            <span class="terminal-cursor" aria-hidden="true">▌</span>
             <input
               type="text"
+              id="m2TerminalInput"
               class="terminal-input"
-              placeholder="Click an unlocked command button below..."
-              disabled
-              aria-hidden="true"
+              placeholder="Click a command to load it, then press Enter to run..."
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
             />
           </div>
         </section>
@@ -717,7 +719,7 @@
             </div>
 
             <p class="commands-hint">
-              Click an unlocked command to run it in the terminal.
+              Click a command to load it into the terminal, then press Enter to run it.
               More commands unlock as you progress.
             </p>
 
@@ -1225,15 +1227,18 @@
           </div>
           <div class="terminal-body m3-terminal" id="m3Terminal" role="log" aria-live="polite"></div>
 
+          <!-- Milestone 35A — student-driven terminal (load on click, run on Enter). -->
           <div class="terminal-input-row">
             <span class="terminal-prompt-label">student@cybercorp:~$</span>
-            <span class="terminal-cursor" aria-hidden="true">▌</span>
             <input
               type="text"
+              id="m3TerminalInput"
               class="terminal-input"
-              placeholder="Click an unlocked command button below..."
-              disabled
-              aria-hidden="true"
+              placeholder="Click a command to load it, then press Enter to run..."
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
             />
           </div>
         </section>
@@ -1261,7 +1266,7 @@
             </div>
 
             <p class="commands-hint">
-              Click an unlocked command to run it in the terminal.
+              Click a command to load it into the terminal, then press Enter to run it.
               More commands unlock as you progress.
             </p>
 
@@ -1855,7 +1860,7 @@
             </div>
 
             <p class="commands-hint">
-              Click a button below to run that command in the terminal.
+              Click a command to load it into the terminal, then press Enter to run it.
               More commands will unlock as you investigate.
             </p>
             <!-- JS dynamically renders buttons here from COMMAND_BUTTONS in missions.js -->
