@@ -472,7 +472,7 @@ function revealNextM1File(currentFile) {
   renderButtons(newly); // newly-unlocked card gets the .cmd-btn--unlocking fade/pulse
   if (newly.length) {
     showEventToast("Next File Available", "A new document is ready to inspect.", "info");
-    setCurrentObjective("mission-001", "Open the next document to continue your investigation.");
+    setCurrentObjective("mission-001", "Goal: keep comparing the evidence. Open the next document and judge what it suggests.");
   }
 }
 
@@ -1029,7 +1029,7 @@ function handleM1Reasoning(key, answerId) {
 function submitM1Classification(key, level) {
   const host = document.getElementById(pinHostId("mission-001"));
   if (host) {
-    host.querySelectorAll(".classify-btn, .classify-skip-btn").forEach((b) => { b.disabled = true; });
+    host.querySelectorAll(".classify-btn").forEach((b) => { b.disabled = true; });
     const panel = host.querySelector(".classify-panel");
     if (panel) {
       const pending = document.createElement("div");
@@ -1192,16 +1192,13 @@ function showClassificationPrompt(missionId, key) {
   `).join("");
 
   // Guided one-clue-at-a-time flow (Mission 1): frame this as the single file
-  // currently "under investigation", and offer an explicit Skip (except on the
-  // final file, where the suspicious file must actually be classified to win).
+  // currently "under investigation". UF-1 (Req 6): the suspicion call IS the
+  // interpretation gate, so EVERY file now requires a classification to advance
+  // — there is no "skip" bypass. A wrong call still advances with guidance, so
+  // the student is never stuck, but progress always reflects a real decision.
   const isM1 = missionId === "mission-001";
-  const fileIdx = isM1 ? M1_FILE_REVEAL.findIndex((f) => f.file === key) : -1;
-  const canSkip = isM1 && fileIdx >= 0 && fileIdx < M1_FILE_REVEAL.length - 1;
   const activeHeader = isM1
     ? `<p class="classify-active-file">🔎 Current File Under Investigation</p>`
-    : "";
-  const skipBtn = canSkip
-    ? `<button class="classify-skip-btn" type="button" data-skip-key="${escapeHtml(key)}">Skip this file for now</button>`
     : "";
 
   host.innerHTML = `
@@ -1210,7 +1207,6 @@ function showClassificationPrompt(missionId, key) {
       <p class="classify-title">How suspicious is this evidence?</p>
       <p class="classify-subject">${escapeHtml(rating.title)}</p>
       <div class="classify-options">${opts}</div>
-      ${skipBtn}
     </div>
   `;
   host.querySelectorAll(".classify-btn").forEach((btn) => {
@@ -1222,23 +1218,6 @@ function showClassificationPrompt(missionId, key) {
       else handlePinClassification(missionId, key, lvl);
     });
   });
-  const skipEl = host.querySelector(".classify-skip-btn");
-  if (skipEl) skipEl.addEventListener("click", () => handleM1Skip(key));
-}
-
-/**
- * Guided flow — the student intentionally skips classifying the active file.
- * No pin/evidence is recorded; the chain simply advances to the next file.
- * The file card stays available so they can revisit it later.
- */
-function handleM1Skip(key) {
-  setM1ActiveFile(null);
-  const host = document.getElementById(pinHostId("mission-001"));
-  if (host) { host.innerHTML = ""; host.style.display = "none"; }
-  setManagerText("mission-001", "Skipped for now. You can reopen this file anytime to classify it.");
-  showEventToast("File Skipped", "You can revisit this document later.", "info");
-  revealNextM1File(key);
-  try { saveProgress(); } catch (_) { /* non-fatal */ }
 }
 
 /** Commit a pin + classification, apply effects, react, and re-render. */
@@ -4531,7 +4510,7 @@ function handleM1FileRead(filename) {
       pinnableFindings["mission-001"].add(name);
       setM1ActiveFile(m1BtnKeyForFile(name));
       // Milestone 27A — reason first ("What does this file suggest?"), then classify.
-      setCurrentObjective("mission-001", "Analyze this file: what does it suggest?");
+      setCurrentObjective("mission-001", "Read this file closely: what is it actually asking for, and does that make it a threat?");
       showM1ReasoningPrompt(name);
       // Milestone 25B — spotlight the classification action during a guided run.
       if (igEnabled) {
@@ -4778,9 +4757,9 @@ function afterCommand(buttonKey) {
   // Guided one-clue-at-a-time flow — keep the Current Objective focused on the
   // single next action as the student walks into the documents folder.
   if (buttonKey === "cd-documents") {
-    setCurrentObjective("mission-001", "List the contents of the documents folder.");
+    setCurrentObjective("mission-001", "Goal: see what this workstation is holding. List the contents of the documents folder.");
   } else if (buttonKey === "ls-documents") {
-    setCurrentObjective("mission-001", "Open the first document to begin your investigation.");
+    setCurrentObjective("mission-001", "Goal: start building a picture of what's here. Open the first document and read what it actually says.");
   }
 
   // Milestone 7: show the "Submit Finding" panel 800ms after reading the
@@ -7983,7 +7962,7 @@ const M2_COMMANDS = {
   "ip-addr": {
     cmd:    "ip addr",
     output: ["eth0: inet 10.0.0.12/24"],
-    nextHint: "Now check whether the target host is reachable.",
+    nextHint: "Next: find out whether the suspect host is even alive — a host that never answers can't be exposing anything. Confirm the target responds.",
     unlocks: [],
     managerMsg: "Good — you've identified your local IP. Now confirm whether the target host is reachable.",
   },
@@ -7992,14 +7971,14 @@ const M2_COMMANDS = {
   "ping-bad": {
     cmd:    "ping 10.0.0.8",
     output: ["Request timed out. Host not reachable."],
-    nextHint: "That host didn't respond. Try the other target from the alert.",
+    nextHint: "Silent — a dead end, which is still useful to rule out. Now confirm which host from the alert actually responds.",
     unlocks: [],
     managerMsg: "That host is not reachable. Try another target from the alert.",
   },
   "ping": {
     cmd:    "ping 10.0.0.5",
     output: ["64 bytes from 10.0.0.5: host is reachable"],
-    nextHint: "The host is reachable. Scan for open services.",
+    nextHint: "The host is alive, so find out what it's exposing — scan it to see which services (open doors) are reachable from the network.",
     unlocks: ["nmap"],
     managerMsg: "The host is alive. Let's see what services it's exposing — try a quick port scan.",
   },
@@ -8011,14 +7990,14 @@ const M2_COMMANDS = {
       "80/tcp   open   http",
       "443/tcp  open   https",
     ],
-    nextHint: "Review the services and think about what they mean.",
+    nextHint: "You can see the open ports. Now work out what they mean for risk — review the exposed services as an analyst would.",
     unlocks: ["review"],
     managerMsg: "Three open ports — SSH, HTTP, and HTTPS. Review what those services tell us about this host.",
   },
   "review": {
     cmd:    "review services",
     output: ["The host has SSH, HTTP, and HTTPS services exposed."],
-    nextHint: "Now think like an analyst — answer the Analyst Review question below.",
+    nextHint: "Decide what this exposure means for the network — answer the Analyst Review below to make your call.",
     unlocks: [],
     managerMsg: "Good. You've enumerated the services. Now think like an analyst — which of these exposed services could become a risk?",
   },
@@ -8187,7 +8166,7 @@ function beginMission2() {
 
   // Status + opening hint + supervisor briefing
   markM2Status("started");
-  setM2Hint("Start by identifying your local IP address.");
+  setM2Hint("First, get your bearings: find your own address on the network so you have a reference point. Check your local IP to begin.");
   setM2ManagerMessage("Welcome to your next assignment, Agent. Let's map this network — start by identifying your local IP address.");
   // Milestone 24F — dynamic manager reaction for mission start (M2).
   updateManagerReaction("mission_started", { missionId: "mission-002" });
@@ -8251,11 +8230,21 @@ function runM2Command(key) {
   def.output.forEach((line) => printM2Line(escapeHtml(line), "m2-line--output"));
   printM2Line("", "m2-line--blank");
 
-  // Mark this status step complete + unlock next commands
+  // Mark this status step complete. UF-1 (Req 6): if this command has an
+  // interpretation prompt the student hasn't answered yet, DEFER unlocking the
+  // next command until they interpret the result correctly (see
+  // handleM2Reasoning). Commands without a pending reasoning prompt — and
+  // re-runs after the reasoning was already answered (resume-safe) — unlock
+  // immediately, preserving the original flow.
   markM2Status(key);
-  def.unlocks.forEach((next) => m2UnlockedCmds.add(next));
+  const m2GateReasoning = !!M2_REASONING[key] && !m2ReasoningAnswered.has(key);
+  if (!m2GateReasoning) {
+    def.unlocks.forEach((next) => m2UnlockedCmds.add(next));
+  }
   syncM2Buttons();
-  setM2Hint(def.nextHint);
+  setM2Hint(m2GateReasoning
+    ? "Interpret this result in Analyst Reasoning below — the next step unlocks once you do."
+    : def.nextHint);
   if (def.managerMsg) setM2ManagerMessage(def.managerMsg);
 
   // Challenge Layer 1 (M2) — raise evidence confidence per command (once each).
@@ -8466,6 +8455,18 @@ function handleM2Reasoning(key, letter) {
   m2ReasoningAnswered.add(key);
   addM2AnalystConfidence(def.conf || 0);
   setM2ManagerMessage(def.correctMsg);
+
+  // UF-1 (Req 6): completing the interpretation is what unlocks the next
+  // command. runM2Command deliberately held it back, so the student can't
+  // advance the investigation on raw command output alone.
+  const m2CmdDef = M2_COMMANDS[key];
+  if (m2CmdDef && Array.isArray(m2CmdDef.unlocks)) {
+    let m2Unlocked = false;
+    m2CmdDef.unlocks.forEach((next) => {
+      if (!m2UnlockedCmds.has(next)) { m2UnlockedCmds.add(next); m2Unlocked = true; }
+    });
+    if (m2Unlocked) syncM2Buttons();
+  }
   try { saveProgress(); } catch (_) { /* non-fatal */ }
 
   // Offer the matching evidence pin (one-thing-at-a-time flow), then point the
@@ -9166,7 +9167,7 @@ function resetMission2() {
   clearTerminalOutputQueue();                   // FIX 1 — drop any pending reveals.
   const term = document.getElementById("m2Terminal");
   if (term) term.innerHTML = "";
-  setM2Hint("Start by identifying your local IP address.");
+  setM2Hint("First, get your bearings: find your own address on the network so you have a reference point. Check your local IP to begin.");
   setM2ManagerMessage("Welcome back. This assignment is a network reconnaissance exercise. Click any unlocked command to begin.");
   renderM2Status();
 
@@ -9308,7 +9309,7 @@ const M3_COMMANDS = {
       "203.0.113.77:80    TIME_WAIT",
       "203.0.113.77:22    SYN_SENT",
     ],
-    nextHint: "One external address keeps appearing. Look it up to see who it is.",
+    nextHint: "One external address keeps reappearing. Find out who it is — a known service is harmless, an unknown one is a lead. Look it up.",
     unlocks: [],
     managerMsg: "Good — you've reviewed the active connections. One external address keeps appearing. Find out who it is.",
   },
@@ -9320,7 +9321,7 @@ const M3_COMMANDS = {
       "OrgName: Global CDN Services",
       "Status:  Known content-delivery network",
     ],
-    nextHint: "That address is a known CDN — normal traffic. Check the address that keeps repeating.",
+    nextHint: "A known CDN — normal traffic you can rule out. Now identify the source that keeps repeating instead.",
     unlocks: [],
     managerMsg: "That's a known content-delivery network — legitimate traffic. Focus on the address that keeps repeating.",
   },
@@ -9331,7 +9332,7 @@ const M3_COMMANDS = {
       "Country: --",
       "Status:  No abuse contact on file",
     ],
-    nextHint: "An unknown external source. Check the logs to see what it's been doing.",
+    nextHint: "This source is unknown and unregistered — a real red flag. Find out what it's been doing by checking the logs.",
     unlocks: ["nmap"],
     managerMsg: "An unknown, unregistered source — that's a red flag. Check the logs to see what it's been doing.",
   },
@@ -9343,14 +9344,14 @@ const M3_COMMANDS = {
       "203.0.113.77 -> port 443 (https) probe",
       "203.0.113.77 -> port 3306 (mysql) probe",
     ],
-    nextHint: "Review this pattern and think about what it means.",
+    nextHint: "You can see what the source touched. Now work out what the pattern means — review whether this looks like scanning.",
     unlocks: ["review"],
     managerMsg: "It's probing one service after another — that's a scanning pattern. Review what this tells us.",
   },
   "review": {
     cmd:    "review recon",
     output: ["One unknown external host is systematically probing multiple services."],
-    nextHint: "Now think like an analyst — answer the Analyst Review question below.",
+    nextHint: "Decide what stage of an attack this is — answer the Analyst Review below to make your call.",
     unlocks: [],
     managerMsg: "Good. You've correlated the signals. Now think like an analyst — what stage of an attack is this?",
   },
@@ -9519,7 +9520,7 @@ function beginMission3() {
 
   // Status + opening hint + supervisor briefing
   markM3Status("started");
-  setM3Hint("Start by reviewing the active network connections.");
+  setM3Hint("Goal: find out who this workstation is talking to. Repeated or unfamiliar connections are the first sign of recon — start by reviewing the active connections.");
   setM3ManagerMessage("Welcome to your next assignment, Agent. We've flagged unusual traffic — start by reviewing the active connections.");
   // Milestone 24F — dynamic manager reaction for mission start (M3).
   updateManagerReaction("mission_started", { missionId: "mission-003" });
@@ -9583,11 +9584,21 @@ function runM3Command(key) {
   def.output.forEach((line) => printM3Line(escapeHtml(line), "m3-line--output"));
   printM3Line("", "m3-line--blank");
 
-  // Mark this status step complete + unlock next commands
+  // Mark this status step complete. UF-1 (Req 6): if this command has an
+  // interpretation prompt the student hasn't answered yet, DEFER unlocking the
+  // next command until they interpret the result correctly (see
+  // handleM3Reasoning). Commands without a pending reasoning prompt — and
+  // re-runs after the reasoning was already answered (resume-safe) — unlock
+  // immediately, preserving the original flow.
   markM3Status(key);
-  def.unlocks.forEach((next) => m3UnlockedCmds.add(next));
+  const m3GateReasoning = !!M3_REASONING[key] && !m3ReasoningAnswered.has(key);
+  if (!m3GateReasoning) {
+    def.unlocks.forEach((next) => m3UnlockedCmds.add(next));
+  }
   syncM3Buttons();
-  setM3Hint(def.nextHint);
+  setM3Hint(m3GateReasoning
+    ? "Interpret this result in Analyst Reasoning below — the next step unlocks once you do."
+    : def.nextHint);
   if (def.managerMsg) setM3ManagerMessage(def.managerMsg);
 
   // Challenge Layer 1 (M3) — raise evidence confidence per command (once each).
@@ -9798,6 +9809,18 @@ function handleM3Reasoning(key, letter) {
   m3ReasoningAnswered.add(key);
   addM3AnalystConfidence(def.conf || 0);
   setM3ManagerMessage(def.correctMsg);
+
+  // UF-1 (Req 6): completing the interpretation is what unlocks the next
+  // command. runM3Command deliberately held it back, so the student can't
+  // advance the investigation on raw command output alone.
+  const m3CmdDef = M3_COMMANDS[key];
+  if (m3CmdDef && Array.isArray(m3CmdDef.unlocks)) {
+    let m3Unlocked = false;
+    m3CmdDef.unlocks.forEach((next) => {
+      if (!m3UnlockedCmds.has(next)) { m3UnlockedCmds.add(next); m3Unlocked = true; }
+    });
+    if (m3Unlocked) syncM3Buttons();
+  }
   try { saveProgress(); } catch (_) { /* non-fatal */ }
 
   // Offer the matching evidence pin (one-thing-at-a-time flow), then point the
@@ -10498,7 +10521,7 @@ function resetMission3() {
   clearTerminalOutputQueue();                   // FIX 1 — drop any pending reveals.
   const term = document.getElementById("m3Terminal");
   if (term) term.innerHTML = "";
-  setM3Hint("Start by identifying your local IP address.");
+  setM3Hint("Goal: find out who this workstation is talking to. Repeated or unfamiliar connections are the first sign of recon — start by reviewing the active connections.");
   setM3ManagerMessage("Welcome back. This assignment is a network reconnaissance exercise. Click any unlocked command to begin.");
   renderM3Status();
 
@@ -13090,7 +13113,7 @@ function finishGuidedLaunch(missionId, startFn) {
   if (typeof startFn === "function") startFn();
   // Milestone 25B fix — set the explicit first objective after launch (M1).
   if (missionId === "mission-001") {
-    setCurrentObjective("mission-001", "Open the documents folder and inspect the files.");
+    setCurrentObjective("mission-001", "Goal: find the source of the alert. Open the documents folder and inspect what's inside.");
   }
   // Enable the in-investigation spotlight tour for THIS live run only.
   igEnabled = true;
