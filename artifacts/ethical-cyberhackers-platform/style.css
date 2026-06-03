@@ -9101,3 +9101,56 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .m2-reasoning-feedback--pending { animation: none; }
 }
+
+/* ============================================================
+   UF-5 — Density recede + completion threat-settle
+   ------------------------------------------------------------
+   Closes the remaining cinematic-refinement gaps:
+   (1) older content recedes so the active step stands out, and
+   (2) the threat meter visually "settles" when an incident is
+       contained. All motion is guarded by prefers-reduced-motion.
+   These are new selectors (no @media property they touch is set
+   earlier), so appending at the end is safe.
+   ============================================================ */
+
+/* (1a) Older supervisor messages compress so the latest line is the focus.
+   The feed holds at most three bubbles; the last child stays full strength. */
+.manager-bubble { transition: opacity .5s ease, transform .5s ease, filter .5s ease; }
+.manager-bubble:not(:last-child) {
+  opacity: 0.55;
+  transform: scale(0.985);
+  filter: saturate(0.82);
+}
+.manager-bubble:not(:last-child):not(:nth-last-child(2)) {
+  opacity: 0.38;
+}
+
+/* (1b) Completed checklist steps reduce visual weight vs. pending/active ones. */
+.m2-status-item--done,
+.m3-status-item--done {
+  opacity: 0.62;
+  transition: opacity 0.4s ease;
+}
+
+/* (2) Completion: threat telemetry visually stabilizes (one-shot calm). */
+.threat-meter--settling { animation: threatSettle 1.2s ease both; }
+@keyframes threatSettle {
+  0%   { box-shadow: 0 0 0 rgba(120, 200, 255, 0); }
+  35%  { box-shadow: 0 0 18px rgba(120, 200, 255, 0.28); }
+  100% { box-shadow: 0 0 0 rgba(120, 200, 255, 0); }
+}
+.threat-meter--settling .threat-meter-segment--on {
+  animation: threatSegSettle 1.2s ease both;
+}
+@keyframes threatSegSettle {
+  0%   { filter: brightness(1.4); }
+  100% { filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manager-bubble { transition: none; }
+  .m2-status-item--done,
+  .m3-status-item--done { transition: none; }
+  .threat-meter--settling,
+  .threat-meter--settling .threat-meter-segment--on { animation: none; }
+}

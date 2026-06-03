@@ -6,3 +6,5 @@
 - [Command execution asymmetry](ech-command-runner-asymmetry.md) — M1 is text-parser-driven; M2/M3 are key-driven (`.cmd` per key). Typed-terminal features must reverse-map text→key, then call the existing key runner.
 - [Gate pacing resume-safety](ech-gate-pacing-resume-safe.md) — commit reasoning-gate completion (answered/confidence/unlock/save) synchronously; defer only the cosmetic "Reviewing…" reveal + pin, never persistence.
 - [State-aware hints](ech-state-aware-hints.md) — re-sync gate-dependent hints at the state-change site (e.g. `updateBriefingGate`), not just boot/reset; `loadCommandToTerminal` is the one chokepoint for "command loaded" guidance.
+- [Completion chokepoint](ech-completion-chokepoint.md) — `notifyAssignmentComplete(missionId)` fires once across all completion paths/missions; hook cross-mission completion side-effects there (defer meter-touching ones; M1 re-renders threat right after).
+- [Full e2e exceeds runTest budget](ech-e2e-runtest-timeout.md) — a whole-game A1→A3 runTest times out the 600s sandbox; scope tests small or verify cosmetic changes via node --check + typecheck + screenshot + clean console logs.

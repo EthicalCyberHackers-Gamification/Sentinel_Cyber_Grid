@@ -1299,6 +1299,10 @@ function handlePinClassification(missionId, key, level) {
   showEventToast("Evidence Added", `${rating.title} pinned to the board.`, "info");
   if (correct) {
     showEventToast("Evidence Classified", "Suspicion level recorded correctly.", "success");
+    // UF-5 — contextual pacing beat: surface the SOC "thinking" between the
+    // classification and the board update (non-blocking; the ambient rotation
+    // resumes on its own next tick).
+    setAmbientLine("Correlating evidence across the investigation board…");
   } else {
     showEventToast("Re-check Evidence", "This finding's priority looks off.", "warning");
   }
@@ -2457,6 +2461,32 @@ function renderThreatLevel(missionId) {
       Threat level changes as the investigation develops.
     </p>
   `;
+}
+
+/* UF-5 — Completion "telemetry stabilizing" calm on a mission's threat meter
+   when the incident is contained. Visual only — never changes threat state.
+   Honors prefers-reduced-motion via the CSS keyframe guard. The trigger is a
+   short deferred timer (see notifyAssignmentComplete), tracked so it stays
+   cancel-safe on any mission-exit. */
+let completionSettleTimer = null;
+let settleClassTimer = null;
+function clearCompletionSettle() {
+  if (completionSettleTimer !== null) { clearTimeout(completionSettleTimer); completionSettleTimer = null; }
+  if (settleClassTimer !== null) { clearTimeout(settleClassTimer); settleClassTimer = null; }
+}
+function settleThreatMeter(missionId) {
+  const hostId = missionId === "mission-003" ? "m3ThreatMeter"
+              : missionId === "mission-002" ? "m2ThreatMeter" : "threatMeter";
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  host.classList.remove("threat-meter--settling");
+  void host.offsetWidth; // restart the animation
+  host.classList.add("threat-meter--settling");
+  if (settleClassTimer !== null) clearTimeout(settleClassTimer);
+  settleClassTimer = window.setTimeout(() => {
+    settleClassTimer = null;
+    host.classList.remove("threat-meter--settling");
+  }, 1300);
 }
 
 /* ============================================================
@@ -11570,6 +11600,17 @@ function notifyAssignmentComplete(missionId) {
       xp_total: currentXP,
     });
   } catch (_) { /* non-fatal */ }
+
+  // UF-5 — incident contained: the threat telemetry visually "settles" and a
+  // calm ambient line confirms containment. Deferred one tick so it runs AFTER
+  // the path's own synchronous threat re-render (M1 lowers threat to Low right
+  // after this call, which rebuilds the meter). Cancel-safe via endGuidedRun().
+  clearCompletionSettle();
+  completionSettleTimer = window.setTimeout(() => {
+    completionSettleTimer = null;
+    setAmbientLine("Threat telemetry stabilizing — containment holding.");
+    settleThreatMeter(missionId);
+  }, 60);
 }
 
 function boot() {
@@ -13511,6 +13552,9 @@ function endGuidedRun() {
   // path is shared by every mission-exit (map/overview/back/reset), so one
   // call here covers them all.
   cancelTerminalTyping();
+  // UF-5 — cancel a pending completion "telemetry settling" beat so a stale
+  // cosmetic callback can't touch a meter after the student has navigated away.
+  clearCompletionSettle();
   // Milestone 27A — cancel a pending "Submitting analysis..." delay so a stale
   // reasoning/classification callback can't mutate pins/XP/UI after the exit.
   clearM1AnalysisTimer();
