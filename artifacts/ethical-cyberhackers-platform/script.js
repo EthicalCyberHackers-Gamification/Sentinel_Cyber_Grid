@@ -6427,29 +6427,82 @@ const COMMAND_KNOWLEDGE = {
 // (e.g. the other readable files in Assignment 1: cat employee_notes.txt,
 // cat meeting_schedule.txt, ...) still get a sensible, consistent tooltip.
 const COMMAND_KNOWLEDGE_FALLBACK = {
+  "pwd": {
+    shortDescription: "Shows the current folder.",
+    socUse: "Confirms where the analyst is working.",
+    whatToLookFor: "Whether you are in the expected directory.",
+    beginnerExplanation: "Every terminal session has a \u201ccurrent folder.\u201d pwd (print working directory) tells you exactly where you are so you don't run commands in the wrong place.",
+    advancedEquivalent: "pwd",
+  },
+  "ls": {
+    shortDescription: "Lists files and folders.",
+    socUse: "Shows which items are available to inspect.",
+    whatToLookFor: "Suspicious or unfamiliar filenames.",
+    beginnerExplanation: "ls (list) prints the names of everything in the current folder so you can decide what to open next.",
+    advancedEquivalent: "ls -la",
+  },
+  "cd": {
+    shortDescription: "Moves into a different folder.",
+    socUse: "Lets the analyst navigate to where the evidence lives.",
+    whatToLookFor: "That you've landed in the folder you intended to inspect.",
+    beginnerExplanation: "cd (change directory) walks you into a folder so you can work with what's inside it.",
+    advancedEquivalent: "cd <path>",
+  },
   "cat": {
     shortDescription: "Displays the contents of a text file.",
     socUse: "Lets the analyst review a file as possible evidence.",
     whatToLookFor: "Unusual requests, urgent language, or unfamiliar senders.",
     beginnerExplanation: "cat prints a text file straight to the screen so you can read it without opening an editor.",
+    advancedEquivalent: "cat <file>",
+  },
+  "ip": {
+    shortDescription: "Shows network address information.",
+    socUse: "Helps identify the local workstation's network position.",
+    whatToLookFor: "Your IP address and network range.",
+    beginnerExplanation: "ip addr lists the network addresses assigned to this machine \u2014 your starting point for mapping the network.",
+    advancedEquivalent: "ip addr show / ifconfig",
   },
   "ping": {
     shortDescription: "Tests whether a host is reachable.",
     socUse: "Helps determine if a target system is active.",
     whatToLookFor: "Successful replies or timeouts.",
     beginnerExplanation: "ping sends a small probe and waits for a reply. Replies mean the host is online; a timeout means it isn't responding.",
+    advancedEquivalent: "ping -c 4 <host>",
+  },
+  "nmap": {
+    shortDescription: "Scans a host for open services.",
+    socUse: "Reveals which services a system is exposing to the network.",
+    whatToLookFor: "Open ports and the services running behind them.",
+    beginnerExplanation: "nmap checks a host to see which \u201cdoors\u201d (ports) are open and what's listening behind them.",
+    advancedEquivalent: "nmap -sV <host>",
+  },
+  "netstat": {
+    shortDescription: "Lists active network connections.",
+    socUse: "Helps review who a machine is talking to right now.",
+    whatToLookFor: "Repeated sources, external IPs, or unusual connection states.",
+    beginnerExplanation: "netstat shows the live connections in and out of a machine, including the address on the other end.",
+    advancedEquivalent: "netstat -an / ss -an",
+  },
+  "ps": {
+    shortDescription: "Lists the processes running on a system.",
+    socUse: "Helps spot unexpected or malicious programs that are running.",
+    whatToLookFor: "Unfamiliar process names or programs that shouldn't be running.",
+    beginnerExplanation: "ps aux lists every program currently running on the machine so you can spot anything that looks out of place.",
+    advancedEquivalent: "ps aux / ps -ef",
   },
   "whois": {
     shortDescription: "Looks up information about an IP address.",
     socUse: "Helps analysts understand source context.",
     whatToLookFor: "Whether the source is known/legitimate or unfamiliar.",
     beginnerExplanation: "whois queries public registries to tell you who an IP address belongs to.",
+    advancedEquivalent: "whois <ip>",
   },
   "grep": {
     shortDescription: "Searches a file for matching text.",
     socUse: "Helps find repeated activity from a source.",
     whatToLookFor: "Repeated hits across services or over time.",
     beginnerExplanation: "grep scans a file and prints only the lines that match what you searched for.",
+    advancedEquivalent: "grep <pattern> <file>",
   },
   "review": {
     shortDescription: "Summarizes what you found so far.",
@@ -6624,6 +6677,190 @@ function attachCommandTooltip(el, commandText) {
   el.addEventListener("mouseleave", scheduleHideCommandTip);
   el.addEventListener("focus", () => showCommandTip(el, commandText));
   el.addEventListener("blur", scheduleHideCommandTip);
+}
+
+/* ============================================================
+   SOC TOOLKIT — always-available, learning-only command reference
+   ------------------------------------------------------------
+   A small, toggleable panel that lets students browse what each
+   command means at their own pace, grouped by purpose. It is
+   purely educational: selecting a command ONLY reveals its
+   explanation — it never runs a command, loads a terminal, or
+   changes any mission state. Assignments 1–3 play identically
+   whether or not the Toolkit is ever opened.
+
+   Adding a new command or category later is a DATA-ONLY edit to
+   SOC_TOOLKIT below: list its command string under a category and
+   (if it isn't already covered) add a matching entry to
+   COMMAND_KNOWLEDGE / COMMAND_KNOWLEDGE_FALLBACK. The panel rebuilds
+   itself from this array — no per-command wiring is needed. Each
+   command resolves through the shared getCommandKnowledge() source so
+   explanations stay defined in exactly one place.
+   ============================================================ */
+const SOC_TOOLKIT = [
+  { category: "Network Tools", icon: "🌐", commands: ["ip addr", "ping", "nmap", "netstat"] },
+  { category: "Log Tools",     icon: "📑", commands: ["grep"] },
+  { category: "Process Tools", icon: "⚙",  commands: ["ps aux"] },
+  { category: "File Tools",    icon: "📁", commands: ["pwd", "ls", "cd", "cat"] },
+];
+
+let _socToolkitBuilt = false;
+let _socToolkitToggleEl = null;
+let _socToolkitPanelEl = null;
+let _socToolkitBackdropEl = null;
+
+/** Build the five-facet explanation markup for one resolved command entry. */
+function buildToolkitCommandFacets(info) {
+  const rows = [];
+  rows.push(`<p class="soc-tk-desc">${escapeHtml(info.shortDescription)}</p>`);
+  rows.push(`<dl class="soc-tk-meta">`);
+  rows.push(`<div class="soc-tk-row"><dt>SOC use</dt><dd>${escapeHtml(info.socUse)}</dd></div>`);
+  rows.push(`<div class="soc-tk-row"><dt>Look for</dt><dd>${escapeHtml(info.whatToLookFor)}</dd></div>`);
+  if (info.beginnerExplanation) {
+    rows.push(`<div class="soc-tk-row"><dt>Beginner</dt><dd>${escapeHtml(info.beginnerExplanation)}</dd></div>`);
+  }
+  if (info.advancedEquivalent) {
+    rows.push(`<div class="soc-tk-row"><dt>Advanced</dt><dd><code>${escapeHtml(info.advancedEquivalent)}</code></dd></div>`);
+  }
+  rows.push(`</dl>`);
+  return rows.join("");
+}
+
+/** Render the grouped command list into the panel body from SOC_TOOLKIT. */
+function renderSocToolkitBody(host) {
+  if (!host) return;
+  host.innerHTML = "";
+  SOC_TOOLKIT.forEach((group) => {
+    const cmds = group.commands
+      .map((command) => ({ command, info: getCommandKnowledge(command) }))
+      .filter((x) => x.info);
+    if (!cmds.length) return; // skip a category whose commands lack knowledge entries
+
+    const section = document.createElement("section");
+    section.className = "soc-tk-group";
+
+    const head = document.createElement("h3");
+    head.className = "soc-tk-group-title";
+    head.innerHTML =
+      `<span class="soc-tk-group-icon" aria-hidden="true">${escapeHtml(group.icon || "›")}</span>` +
+      escapeHtml(group.category);
+    section.appendChild(head);
+
+    cmds.forEach(({ command, info }) => {
+      const item = document.createElement("div");
+      item.className = "soc-tk-item";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "soc-tk-cmd";
+      btn.setAttribute("aria-expanded", "false");
+      btn.innerHTML =
+        `<code class="soc-tk-cmd-code">${escapeHtml(command)}</code>` +
+        `<span class="soc-tk-cmd-short">${escapeHtml(info.shortDescription)}</span>` +
+        `<span class="soc-tk-cmd-caret" aria-hidden="true">▸</span>`;
+
+      const detail = document.createElement("div");
+      detail.className = "soc-tk-detail";
+      detail.hidden = true;
+      detail.innerHTML = buildToolkitCommandFacets(info);
+
+      // Learning-only: this ONLY shows/hides the explanation. It never runs the
+      // command, loads a terminal, or mutates mission state.
+      btn.addEventListener("click", () => {
+        const willOpen = detail.hidden;
+        detail.hidden = !willOpen;
+        btn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        item.classList.toggle("soc-tk-item--open", willOpen);
+      });
+
+      item.appendChild(btn);
+      item.appendChild(detail);
+      section.appendChild(item);
+    });
+
+    host.appendChild(section);
+  });
+}
+
+function isSocToolkitOpen() {
+  return !!(_socToolkitPanelEl && _socToolkitPanelEl.classList.contains("is-open"));
+}
+
+function openSocToolkit() {
+  if (_socToolkitPanelEl) {
+    _socToolkitPanelEl.classList.add("is-open");
+    _socToolkitPanelEl.setAttribute("aria-hidden", "false");
+  }
+  if (_socToolkitBackdropEl) _socToolkitBackdropEl.classList.add("is-open");
+  if (_socToolkitToggleEl) _socToolkitToggleEl.setAttribute("aria-expanded", "true");
+  const closeBtn = _socToolkitPanelEl && _socToolkitPanelEl.querySelector(".soc-tk-close");
+  if (closeBtn) closeBtn.focus();
+}
+
+function closeSocToolkit() {
+  if (_socToolkitPanelEl) {
+    _socToolkitPanelEl.classList.remove("is-open");
+    _socToolkitPanelEl.setAttribute("aria-hidden", "true");
+  }
+  if (_socToolkitBackdropEl) _socToolkitBackdropEl.classList.remove("is-open");
+  if (_socToolkitToggleEl) {
+    _socToolkitToggleEl.setAttribute("aria-expanded", "false");
+    _socToolkitToggleEl.focus();
+  }
+}
+
+/** Mount the floating toggle + reference panel once, then render its contents. */
+function initSocToolkit() {
+  if (_socToolkitBuilt) return;
+  _socToolkitBuilt = true;
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.id = "socToolkitToggle";
+  toggle.className = "soc-toolkit-toggle";
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-controls", "socToolkitPanel");
+  toggle.innerHTML =
+    `<span class="soc-tk-toggle-icon" aria-hidden="true">🧰</span>` +
+    `<span class="soc-tk-toggle-label">SOC Toolkit</span>`;
+  document.body.appendChild(toggle);
+  _socToolkitToggleEl = toggle;
+
+  const backdrop = document.createElement("div");
+  backdrop.className = "soc-toolkit-backdrop";
+  document.body.appendChild(backdrop);
+  _socToolkitBackdropEl = backdrop;
+
+  const panel = document.createElement("aside");
+  panel.id = "socToolkitPanel";
+  panel.className = "soc-toolkit-panel";
+  panel.setAttribute("aria-hidden", "true");
+  panel.setAttribute("aria-label", "SOC Toolkit — command reference");
+  panel.innerHTML =
+    `<div class="soc-tk-head">` +
+      `<div class="soc-tk-head-text">` +
+        `<span class="soc-tk-eyebrow">REFERENCE</span>` +
+        `<h2 class="soc-tk-title">SOC Toolkit</h2>` +
+        `<p class="soc-tk-sub">What each command does and why an analyst uses it. Learning only — nothing here runs.</p>` +
+      `</div>` +
+      `<button type="button" class="soc-tk-close" aria-label="Close SOC Toolkit">✕</button>` +
+    `</div>` +
+    `<div class="soc-tk-body" id="socToolkitBody"></div>`;
+  document.body.appendChild(panel);
+  _socToolkitPanelEl = panel;
+
+  renderSocToolkitBody(panel.querySelector("#socToolkitBody"));
+
+  toggle.addEventListener("click", () => {
+    if (isSocToolkitOpen()) closeSocToolkit();
+    else openSocToolkit();
+  });
+  const closeBtn = panel.querySelector(".soc-tk-close");
+  if (closeBtn) closeBtn.addEventListener("click", closeSocToolkit);
+  backdrop.addEventListener("click", closeSocToolkit);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isSocToolkitOpen()) closeSocToolkit();
+  });
 }
 
 /* ============================================================
@@ -11490,6 +11727,10 @@ function boot() {
   // Milestone 32A — paint the Operations Center home after restore so a fresh
   // OR returning recruit sees the correct career/assignment/threat state.
   renderOperationsCenter();
+
+  // Phase UF-2 — mount the always-available, learning-only SOC Toolkit
+  // reference panel (does not run commands or touch mission state).
+  initSocToolkit();
 }
 
 /* ============================================================
