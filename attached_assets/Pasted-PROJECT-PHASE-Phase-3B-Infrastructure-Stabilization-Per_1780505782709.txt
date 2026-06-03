@@ -1,0 +1,379 @@
+PROJECT PHASE:
+Phase 3B — Infrastructure Stabilization & Persistence Foundation
+
+Continue the existing Ethical CyberHackers Platform project.
+
+Task:
+Infrastructure Stabilization — Supabase Status Verification + Local-First Backend Alignment
+
+Purpose:
+Verify the current Supabase backend status first, then update only the infrastructure pieces needed to align the app with the planned backend foundation while preserving the local-first architecture.
+
+Do NOT add Assignment 4.
+Do NOT redesign UI.
+Do NOT change gameplay flow.
+Do NOT remove localStorage.
+Do NOT make Supabase mandatory for gameplay.
+Do NOT require full student login before gameplay.
+Do NOT break Assignments 1–3.
+
+---
+
+## CRITICAL RULE
+
+The platform must remain local-first.
+
+localStorage remains the primary source of truth for immediate gameplay.
+
+Supabase is only:
+
+* background sync
+* persistent backup
+* analytics foundation
+* future teacher/classroom foundation
+
+If Supabase fails:
+
+* gameplay continues normally
+* progress still saves locally
+* no student-facing crash occurs
+
+---
+
+1. VERIFY SUPABASE STATUS ONLY FIRST
+
+---
+
+Before changing code, verify and report:
+
+1. Are these Replit Secrets present?
+
+   * SUPABASE_URL
+   * SUPABASE_ANON_KEY
+
+2. Is the Supabase client initialized safely?
+
+3. Does the project connect successfully to Supabase?
+
+4. Do these tables exist in the connected Supabase project?
+
+   * profiles
+   * missions
+   * student_progress
+   * mission_attempts
+   * xp_events
+   * certificates
+
+5. Are RLS policies present and not blocking expected anonymous/local-first sync?
+
+6. Are migrations present locally?
+
+   * supabase/migrations/001_initial_game_schema.sql
+
+7. Is backendSync.js currently using old table names or the new schema?
+
+8. Does the app currently show:
+
+   * Backend: Local Only
+   * Backend: Supabase Connected
+   * Backend: Sync Delayed
+
+After verification, create/update:
+
+docs/SUPABASE_STATUS_REVIEW.md
+
+Include:
+
+* Connected / Not Connected
+* Tables Found / Missing
+* Secrets Found / Missing
+* Current sync layer status
+* Risks
+* Recommended next action
+
+---
+
+2. UPDATE SUPABASE SCHEMA ALIGNMENT
+
+---
+
+If the database schema exists, align the app sync layer to the current schema.
+
+Expected tables:
+
+* profiles
+* missions
+* student_progress
+* mission_attempts
+* xp_events
+* certificates
+
+Do NOT create new table names unless absolutely necessary.
+
+Do NOT revert to older table structures.
+
+Do NOT manually create fake local-only tables.
+
+---
+
+3. PRESERVE SIMPLE LOGIN / ANONYMOUS MODE
+
+---
+
+Do NOT implement full authentication yet.
+
+Keep current simple player identity flow.
+
+Use:
+
+* display_name
+* anonymous_id
+* optional nullable user_id for future auth support
+
+Requirements:
+
+* anonymous_id generated once
+* stored in localStorage
+* reused across sessions
+* mapped to profiles.anonymous_id
+* no forced email/password login
+* no Google login
+* no school login yet
+
+Authentication is future-facing only.
+
+Gameplay must NOT depend on auth.
+
+---
+
+4. PERSISTENT PROGRESSION ALIGNMENT
+
+---
+
+Connect local progress to Supabase background sync.
+
+Use student_progress for:
+
+* current mission status
+* best mission result
+* mission completion
+* best score
+* best confidence
+* highest XP earned
+* attempts count
+* last played
+* completed_at
+
+Rules:
+
+* localStorage updates first
+* Supabase sync happens second
+* failed sync does not block gameplay
+* retries happen quietly
+* local progress remains authoritative
+
+---
+
+5. MISSION ATTEMPT TRACKING
+
+---
+
+Use mission_attempts for replay history.
+
+Rules:
+
+* every restart creates a new attempt
+* old attempts are never overwritten
+* attempt_number increments correctly
+* completed attempts store scorecard_json
+* status tracked as:
+
+  * started
+  * completed
+  * abandoned
+
+Restart Assignment must NOT erase full player history.
+
+Clear Progress may reset local journey only after explicit user confirmation.
+
+---
+
+6. XP / RANK SYSTEM ALIGNMENT
+
+---
+
+Keep current XP/rank behavior visually unchanged.
+
+Persist:
+
+* profiles.xp_total
+* profiles.current_role
+* profiles.analyst_reputation
+* profiles.promotion_readiness
+* xp_events
+
+Rules:
+
+* XP updates locally first
+* meaningful XP events only
+* avoid excessive tiny event logging
+* mission completion XP tracked
+* investigation milestone XP optionally tracked
+
+Do NOT redesign XP UI.
+
+---
+
+7. MISSION SCORING ALIGNMENT
+
+---
+
+Preserve current scoring behavior.
+
+Ensure Supabase can store:
+
+* mission outcome
+* trust score change
+* analyst confidence
+* evidence confidence
+* containment/readiness score
+* final threat level
+* scorecard_json
+
+Use:
+
+* student_progress for best/current result
+* mission_attempts for full historical attempts
+
+Do NOT redesign scoring systems.
+
+---
+
+8. SAVE / LOAD SYSTEM STABILIZATION
+
+---
+
+Preserve:
+localStorage-first save/load behavior.
+
+Add or stabilize:
+
+* saveCloudProgress()
+* loadCloudProgress()
+* syncPlayerProfile()
+* syncMissionProgress()
+* startMissionAttempt()
+* completeMissionAttempt()
+* trackXpEvent()
+
+Load logic:
+
+1. Load localStorage first.
+2. If Supabase is available, compare cloud progress safely.
+3. Avoid destructive overwrites.
+4. Preserve newest reliable local progress.
+5. Log warnings instead of crashing.
+
+---
+
+9. BACKEND STATUS INDICATOR
+
+---
+
+Ensure backend status is accurate:
+
+* Backend: Local Only
+* Backend: Supabase Connected
+* Backend: Sync Delayed
+
+Indicator should:
+
+* remain visually subtle
+* avoid UI clutter
+* reflect actual backend state
+
+---
+
+10. ERROR HANDLING
+
+---
+
+All Supabase operations must fail safely.
+
+Requirements:
+
+* try/catch around sync calls
+* no uncaught promise failures
+* no student-facing technical errors
+* console warnings acceptable
+* gameplay continues even if backend fails
+
+---
+
+11. VERIFICATION AFTER CHANGES
+
+---
+
+After updates, verify:
+
+Assignment 1:
+
+* start
+* complete
+* XP update
+* scorecard
+* localStorage save
+* Supabase sync attempt
+
+Assignment 2:
+
+* same checks
+
+Assignment 3:
+
+* same checks
+
+Backend:
+
+* profile sync works
+* student_progress sync works
+* mission_attempt sync works
+* xp_event sync works
+* app remains playable if Supabase is unavailable
+
+---
+
+12. OUTPUT REPORT
+
+---
+
+Create/update:
+
+docs/INFRASTRUCTURE_STABILIZATION_REPORT.md
+
+Include:
+
+* what was verified
+* what was changed
+* what remains local-first
+* what syncs to Supabase
+* deferred authentication strategy
+* risks
+* test results
+* recommended next infrastructure step
+
+---
+
+## FINAL GOAL
+
+Stabilize the platform infrastructure for:
+
+* Supabase schema alignment
+* future authentication support
+* persistent progression
+* XP/rank persistence
+* mission scoring persistence
+* replay attempt tracking
+* reliable save/load behavior
+
+while preserving the existing local-first architecture and keeping Assignments 1–3 fully playable and stable.
