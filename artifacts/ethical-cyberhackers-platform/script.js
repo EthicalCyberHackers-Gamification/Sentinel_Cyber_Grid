@@ -62,6 +62,7 @@ import {
   abandonAssignmentAttempt,
   completeAssignmentAttempt,
   trackGameEvent,
+  trackXpEvent,
   queueCloudSync,
   loadCloudProgress,
 } from "./lib/backendSync.js";
@@ -11594,12 +11595,41 @@ function backendMissionScore(missionId) {
 /* Phase B0 — close the open cloud attempt as completed. Idempotent across the
    game's multiple completion code paths (quiz path + engine path). Never throws. */
 function notifyAssignmentComplete(missionId) {
+  let closedAttempt = null;
   try {
-    completeAssignmentAttempt(missionId, {
+    closedAttempt = completeAssignmentAttempt(missionId, {
       score: backendMissionScore(missionId),
       xp_total: currentXP,
     });
   } catch (_) { /* non-fatal */ }
+
+  // Phase 3B — append a meaningful XP/reputation event to the cloud ledger
+  // (best-effort, append-only, anon-permitted). Fully local-first: failures are
+  // swallowed and never affect gameplay or the authoritative localStorage save.
+  // Gated on `closedAttempt` so it fires once per real completion: a duplicate
+  // completion call closes nothing (returns null) and emits no extra row, while
+  // a genuine replay opens a new attempt and is correctly logged again.
+  if (closedAttempt) {
+    try {
+      const reward =
+        missionId === "mission-003"
+          ? (typeof M3_QUIZ === "object" && M3_QUIZ ? M3_QUIZ.xpReward : 0)
+          : missionId === "mission-002"
+            ? (typeof M2_QUIZ === "object" && M2_QUIZ ? M2_QUIZ.xpReward : 0)
+            : (typeof QUIZ === "object" && QUIZ ? QUIZ.xpReward : 0);
+      void trackXpEvent("mission_completion", {
+        xp_change: typeof reward === "number" ? reward : 0,
+        description: `Completed ${missionId}`,
+        metadata: {
+          mission_code: missionId,
+          xp_total: currentXP,
+          confidence: backendMissionScore(missionId),
+          attempt_id: closedAttempt.attempt_id,
+          attempt_number: closedAttempt.attempt_number,
+        },
+      });
+    } catch (_) { /* non-fatal */ }
+  }
 
   // UF-5 — incident contained: the threat telemetry visually "settles" and a
   // calm ambient line confirms containment. Deferred one tick so it runs AFTER

@@ -16,7 +16,9 @@ is far more browser steps than a typical e2e.
 **How to apply:** don't attempt a single full-game runTest. Either scope tests to one
 mission (or a few steps), or verify non-blocking/cosmetic changes via:
 `node --check script.js` + artifact `typecheck` + an app-preview screenshot +
-`refresh_all_logs` to confirm the browser console shows no uncaught errors (the only
-expected warning is the Supabase `public.student_profiles` table-not-found line).
-A clean ~10-min driven session with no error-level console output is strong evidence
-that newly-referenced functions resolve and nothing throws during play.
+`refresh_all_logs` to confirm the browser console shows no uncaught errors. After the
+safe-subset Supabase alignment the console should be **clean** on load (status pill
+"Supabase Connected", only Vite messages) — the old `public.student_profiles`
+table-not-found warning is gone and should NOT reappear. A clean driven session with
+no error-level console output is strong evidence that newly-referenced functions
+resolve and nothing throws during play.
