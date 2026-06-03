@@ -63,6 +63,7 @@ import {
   completeAssignmentAttempt,
   trackGameEvent,
   trackXpEvent,
+  cloudCompleteMissionAttempt,
   queueCloudSync,
   loadCloudProgress,
 } from "./lib/backendSync.js";
@@ -11627,6 +11628,42 @@ function notifyAssignmentComplete(missionId) {
           attempt_id: closedAttempt.attempt_id,
           attempt_number: closedAttempt.attempt_number,
         },
+      });
+
+      // Phase B1 — write the attempt record to Supabase `mission_attempts`.
+      // Server-side triggers (003_server_triggers.sql) automatically upsert
+      // `student_progress` and increment `profiles.missions_completed` and
+      // `profiles.xp_total` in response. Fully best-effort; never throws.
+      const containment = (typeof blueTeamContainment === "object" && blueTeamContainment)
+        ? (typeof blueTeamContainment[missionId] === "number" ? blueTeamContainment[missionId] : null)
+        : null;
+      const evidenceConf = typeof getConfidence === "function" ? getConfidence(missionId) : null;
+      const analystConf  = backendMissionScore(missionId);
+      const reasoningScr = missionId === "mission-001"
+        ? (typeof m1AnalystScore === "number" ? m1AnalystScore : null)
+        : null;
+      const rewardNum = typeof reward === "number" ? reward : 0;
+      void cloudCompleteMissionAttempt(missionId, {
+        attempt_number:    closedAttempt.attempt_number,
+        started_at:        closedAttempt.started_at,
+        xp_earned:         rewardNum,
+        trust_delta:       typeof trustScore === "number" ? trustScore : 0,
+        analyst_confidence:analystConf,
+        containment_score: containment,
+        evidence_score:    evidenceConf,
+        reasoning_score:   reasoningScr,
+        scorecard_json: {
+          mission_code:      missionId,
+          xp_earned:         rewardNum,
+          xp_total:          currentXP,
+          analyst_confidence:analystConf,
+          containment_score: containment,
+          evidence_score:    evidenceConf,
+          reasoning_score:   reasoningScr,
+          trust_score:       typeof trustScore === "number" ? trustScore : 0,
+          attempt_id:        closedAttempt.attempt_id,
+        },
+        displayName: typeof studentName === "string" ? studentName : null,
       });
     } catch (_) { /* non-fatal */ }
   }

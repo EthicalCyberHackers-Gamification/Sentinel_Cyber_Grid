@@ -1,7 +1,7 @@
 /**
  * lib/backendSync.js
  * ------------------
- * Phase 3B — best-effort cloud sync layer, aligned to the production schema
+ * Phase B1 — best-effort cloud sync layer, aligned to the production schema
  * (`supabase/migrations/001_initial_game_schema.sql`). LOCAL-FIRST.
  *
  * Every function here is fire-and-forget and fully fault-tolerant:
@@ -13,18 +13,13 @@
  * localStorage remains the authoritative save (handled in script.js). This layer
  * only mirrors a small, RLS-permitted slice of state to the cloud.
  *
- * SAFE-SUBSET SCOPE (see docs/SUPABASE_STATUS_REVIEW.md):
- *   The browser has ONLY the anon key, and the schema's RLS is secure-by-default
- *   — anon may SELECT + INSERT but NOT UPDATE/DELETE, and cannot seed `missions`.
- *   So this layer implements exactly what anon is allowed to do:
- *     • map this browser's anonymous_id -> a `profiles` row (INSERT-once),
- *     • append meaningful `xp_events` (e.g. mission completion),
- *     • read warm-up.
- *   The progression rollup that REQUIRES an UPDATE-capable writer or a seeded
- *   missions catalog (`student_progress` best/current, growing `profiles.xp_total`,
- *   `mission_attempts` keyed by `mission_id`) is intentionally kept LOCAL-ONLY
- *   here and left as documented no-ops until a service-role/auth writer exists.
- *   Attempt bookkeeping below is therefore a LOCAL-ONLY mirror (no cloud writes).
+ * WHAT NOW SYNCS TO THE CLOUD (after 002/003 migrations):
+ *   • profiles      — INSERT-once anonymous identity row.
+ *   • xp_events     — append-only; triggers increment profiles.xp_total/trust_score.
+ *   • mission_attempts — append-only INSERT; server trigger upserts student_progress
+ *                        and increments profiles.missions_completed automatically.
+ *   student_progress and profile totals are maintained server-side via triggers
+ *   (003_server_triggers.sql) so the anon client never needs UPDATE permission.
  */
 
 import {
@@ -211,28 +206,69 @@ export async function syncPlayerProfile(profile = {}) {
 }
 
 /* ------------------------------------------------------------------ *
- * Mission progress rollup — DEFERRED (needs mission_id + UPDATE writer)
- * ------------------------------------------------------------------ */
+ * Mission catalog lookup — resolve mission_code → missions.id (UUID)
+ * ------------------------------------------------------------------ *
+ * Cached in-memory per session. The missions table is read-only for clients
+ * (seeded via 002_seed_missions.sql) and never changes at runtime.
+ */
+
+/** @type {Map<string, string>} mission_code → uuid */
+const _missionIdCache = new Map();
 
 /**
- * Deferred in the safe subset: `student_progress` is one-row-per (profile,mission)
- * "overwritten in place" (requires UPDATE) and is keyed by `mission_id` (the
- * `missions` catalog is unseeded and not anon-writable). Kept as a documented
- * no-op so the public API is stable; progress stays authoritative in localStorage.
+ * Look up the UUID for a mission by its stable code (e.g. "mission-001").
+ * Result is cached for the session. Returns null when the backend is
+ * unconfigured, the missions table is not yet seeded, or the lookup fails.
+ * @param {string} missionCode
+ * @returns {Promise<string|null>}
  */
-export function syncMissionProgress(/* rows */) {
-  /* intentionally local-only — see docs/SUPABASE_STATUS_REVIEW.md */
+async function getMissionId(missionCode) {
+  if (!isBackendConfigured || !supabase || !missionCode) return null;
+  if (_missionIdCache.has(missionCode)) return _missionIdCache.get(missionCode);
+  try {
+    const { data, error } = await supabase
+      .from("missions")
+      .select("id")
+      .eq("mission_code", missionCode)
+      .maybeSingle();
+    if (error || !data || !data.id) {
+      // eslint-disable-next-line no-console
+      if (error) console.warn("[backend] mission lookup failed:", error.message);
+      return null;
+    }
+    _missionIdCache.set(missionCode, data.id);
+    setBackendStatus("connected");
+    return data.id;
+  } catch (_) {
+    return null;
+  }
 }
 
-/** Back-compat alias for the previous name (also a safe no-op now). */
+/* ------------------------------------------------------------------ *
+ * Mission progress rollup — maintained server-side via triggers
+ * ------------------------------------------------------------------ *
+ * student_progress and profiles.missions_completed are kept up to date
+ * by server-side triggers in 003_server_triggers.sql that fire on every
+ * INSERT into mission_attempts. The client never needs UPDATE permission.
+ */
+
+/**
+ * No-op kept for API stability. student_progress is now maintained
+ * automatically by the trg_mission_attempt_upsert trigger.
+ */
+export function syncMissionProgress(/* rows */) {
+  /* maintained server-side — see supabase/migrations/003_server_triggers.sql */
+}
+
+/** Back-compat alias. */
 export const syncAssignmentProgress = syncMissionProgress;
 
 /* ------------------------------------------------------------------ *
- * Mission attempts — LOCAL-ONLY mirror
+ * Mission attempts — LOCAL mirror + CLOUD append
  * ------------------------------------------------------------------ *
- * Cloud `mission_attempts` requires a `mission_id` from the unseeded missions
- * catalog, so attempt history is tracked locally only. Numbering increments,
- * prior attempts are never overwritten, and "abandoned" is recorded locally.
+ * Local tracking is unchanged (numbering, idempotency, abandoned).
+ * cloudCompleteMissionAttempt adds the cloud INSERT once the attempt
+ * is locally closed and the missions catalog is seeded.
  */
 
 /**
@@ -325,6 +361,86 @@ export const completeAssignmentAttempt = completeMissionAttempt;
 export function getBestScore(missionId) {
   const rec = readAttemptStore()[missionId];
   return rec && typeof rec.best_score === "number" ? rec.best_score : null;
+}
+
+/* ------------------------------------------------------------------ *
+ * Cloud attempt record — append-only INSERT into mission_attempts
+ * ------------------------------------------------------------------ *
+ * Called from notifyAssignmentComplete in script.js (after the local
+ * completeMissionAttempt closes the local record). This is the cloud
+ * counterpart: it resolves the mission UUID, ensures a profile row,
+ * and INSERTs one row into mission_attempts (anon INSERT is allowed).
+ * The server-side trigger (003_server_triggers.sql) then upserts
+ * student_progress and increments profiles.missions_completed
+ * automatically — no UPDATE permission needed from the browser.
+ *
+ * Idempotency: gated on the `closedAttempt` object returned by the
+ * local completeMissionAttempt (null on a duplicate call), so this
+ * never fires twice for the same logical completion.
+ *
+ * @param {string} missionId   e.g. "mission-001"
+ * @param {object} data
+ * @param {string} [data.attempt_id]
+ * @param {number} [data.attempt_number]
+ * @param {string} [data.started_at]       ISO string
+ * @param {number} [data.xp_earned]
+ * @param {number} [data.trust_delta]
+ * @param {number|null} [data.analyst_confidence]
+ * @param {number|null} [data.containment_score]
+ * @param {number|null} [data.evidence_score]
+ * @param {number|null} [data.reasoning_score]
+ * @param {object} [data.scorecard_json]
+ * @param {string} [data.displayName]
+ */
+export async function cloudCompleteMissionAttempt(missionId, data = {}) {
+  if (!isBackendConfigured || !supabase || !missionId) return;
+
+  const mission_id = await getMissionId(missionId);
+  if (!mission_id) {
+    // missions table not seeded yet — stay local-only
+    // eslint-disable-next-line no-console
+    console.warn("[backend] cloudCompleteMissionAttempt: mission_id not found for", missionId, "(run 002_seed_missions migration)");
+    return;
+  }
+
+  const profile_id = await ensureProfileId(data.displayName ?? null);
+  if (!profile_id) return;
+
+  let scorecard_json = {};
+  try {
+    scorecard_json = JSON.parse(JSON.stringify(data.scorecard_json || {}));
+  } catch (_) { scorecard_json = {}; }
+
+  const row = {
+    profile_id,
+    mission_id,
+    attempt_number:    typeof data.attempt_number    === "number" ? data.attempt_number    : 1,
+    outcome_status:    "completed",
+    xp_earned:         typeof data.xp_earned         === "number" ? data.xp_earned         : 0,
+    trust_delta:       typeof data.trust_delta        === "number" ? data.trust_delta        : 0,
+    analyst_confidence:typeof data.analyst_confidence === "number" ? data.analyst_confidence : null,
+    containment_score: typeof data.containment_score  === "number" ? data.containment_score  : null,
+    evidence_score:    typeof data.evidence_score     === "number" ? data.evidence_score     : null,
+    reasoning_score:   typeof data.reasoning_score    === "number" ? data.reasoning_score    : null,
+    started_at:        data.started_at || new Date().toISOString(),
+    completed_at:      new Date().toISOString(),
+    scorecard_json,
+  };
+
+  try {
+    const { error } = await supabase.from("mission_attempts").insert(row);
+    if (error) {
+      setBackendStatus("delayed");
+      // eslint-disable-next-line no-console
+      console.warn("[backend] mission_attempts insert failed (continuing locally):", error.message);
+      return;
+    }
+    setBackendStatus("connected");
+  } catch (e) {
+    setBackendStatus("delayed");
+    // eslint-disable-next-line no-console
+    console.warn("[backend] mission_attempts insert threw (continuing locally):", e && e.message);
+  }
 }
 
 /* ------------------------------------------------------------------ *
