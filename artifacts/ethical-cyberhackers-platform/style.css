@@ -8987,3 +8987,117 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
   .soc-toolkit-backdrop { transition: opacity 0.12s ease, visibility 0.12s ease; }
   .soc-toolkit-panel { transform: none; }
 }
+
+/* ======================================================
+   UF-4 — Cinematic single-focus / visual-hierarchy layer
+   Goal: ONE primary "key light" (Current Objective) leads
+   the eye; decorative secondary motion is calmed (not
+   removed) so panels stop competing. Appended last so it
+   refines the tuned base rules without rewriting them.
+   ====================================================== */
+
+/* --- Current Objective = the interface key light --- */
+.current-objective {
+  padding: 14px 16px;
+  border-left-width: 4px;
+  background: linear-gradient(180deg, rgba(0, 229, 255, 0.12), rgba(0, 0, 0, 0));
+  box-shadow:
+    0 0 22px rgba(0, 229, 255, 0.14),
+    inset 0 0 0 1px rgba(0, 229, 255, 0.10);
+  animation: objectiveKeyLight 3.6s ease-in-out infinite;
+}
+.current-objective-label {
+  font-size: 0.7rem;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.45);
+}
+.current-objective-text {
+  font-size: 1rem;
+  line-height: 1.45;
+}
+@keyframes objectiveKeyLight {
+  0%, 100% {
+    box-shadow:
+      0 0 18px rgba(0, 229, 255, 0.12),
+      inset 0 0 0 1px rgba(0, 229, 255, 0.08);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(0, 229, 255, 0.24),
+      inset 0 0 0 1px rgba(0, 229, 255, 0.15);
+  }
+}
+/* Keep the transient update-flash working alongside the key light
+   (two-class specificity wins over the base rule above). */
+.current-objective.current-objective--flash {
+  animation: fxPanelFlash 0.7s ease, objectiveKeyLight 3.6s ease-in-out infinite;
+}
+
+/* --- Calm secondary, decorative motion so it reads as background --- */
+/* XP shimmer: quieter + slower (informational, not a focal point). */
+.xp-bar::after {
+  opacity: 0.4;
+  animation-duration: 6s;
+}
+/* Active mission status badge: slower, less insistent pulse. */
+.mission-status-badge:not(.mission-status-badge--complete) {
+  animation-duration: 4.2s;
+}
+
+/* --- Respect reduced-motion for the new key-light pulse --- */
+@media (prefers-reduced-motion: reduce) {
+  .current-objective,
+  .current-objective.current-objective--flash {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   UF-4b — Optional reasoning hints + "reviewing" pending verdict
+   Collapsible, JS-free hints (M1/M2/M3) and the short "Reviewing
+   analyst assessment..." pacing beat shown on a correct gate answer.
+   ============================================================ */
+.reason-hint,
+.m2-reasoning-hint {
+  margin: 6px 0 10px;
+  font-size: 0.82rem;
+  color: var(--color-text-dim);
+}
+.reason-hint > summary,
+.m2-reasoning-hint > summary {
+  cursor: pointer;
+  list-style: none;
+  color: var(--color-cyan);
+  font-family: var(--font-hud);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.reason-hint > summary::-webkit-details-marker,
+.m2-reasoning-hint > summary::-webkit-details-marker { display: none; }
+.reason-hint > summary::before,
+.m2-reasoning-hint > summary::before { content: "\25B8 "; }
+.reason-hint[open] > summary::before,
+.m2-reasoning-hint[open] > summary::before { content: "\25BE "; }
+.reason-hint > summary:hover,
+.m2-reasoning-hint > summary:hover { opacity: 1; }
+.reason-hint[open] > summary,
+.m2-reasoning-hint[open] > summary { margin-bottom: 6px; }
+.reason-hint p,
+.m2-reasoning-hint p {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 2px solid rgba(0, 229, 255, 0.4);
+  background: rgba(0, 229, 255, 0.06);
+  border-radius: var(--radius-sm);
+  line-height: 1.45;
+}
+
+.m2-reasoning-feedback--pending {
+  color: var(--color-yellow);
+  font-style: italic;
+  animation: reasonPulse 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m2-reasoning-feedback--pending { animation: none; }
+}

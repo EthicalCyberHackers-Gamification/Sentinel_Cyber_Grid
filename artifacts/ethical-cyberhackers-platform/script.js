@@ -960,6 +960,7 @@ function buildM1ReasoningHTML(key, feedback) {
       <p class="classify-subject">${escapeHtml(rating ? rating.title : key)}</p>
       <p class="reason-question">${escapeHtml(prompt.question)}</p>
       <div class="reason-options">${opts}</div>
+      ${prompt.hint ? `<details class="reason-hint"><summary>Need a hint?</summary><p>${escapeHtml(prompt.hint)}</p></details>` : ""}
       ${feedback ? `<div class="reason-feedback ${feedback.cls}">${feedback.html}</div>` : ""}
     </div>
   `;
@@ -998,7 +999,7 @@ function handleM1Reasoning(key, answerId) {
   if (panel) {
     const pending = document.createElement("div");
     pending.className = "reason-feedback reason-feedback--pending";
-    pending.textContent = "Submitting analysis to manager...";
+    pending.textContent = "Reviewing analyst assessment...";
     panel.appendChild(pending);
   }
 
@@ -8663,6 +8664,7 @@ function renderM2Reasoning(key) {
         <span class="m2-reasoning-topic">${escapeHtml(def.title)}</span>
       </div>
       <p class="m2-reasoning-q">${escapeHtml(def.question)}</p>
+      ${def.hint ? `<details class="m2-reasoning-hint"><summary>Need a hint?</summary><p>${escapeHtml(def.hint)}</p></details>` : ""}
       <div class="m2-reasoning-answers">
         ${def.answers.map((a) => `
           <button class="m2-reasoning-btn" type="button"
@@ -8710,15 +8712,15 @@ function handleM2Reasoning(key, letter) {
       if (isCorrect || l === letter) b.disabled = true;
     });
   }
-  if (fb) {
-    fb.style.display = "";
-    fb.textContent   = isCorrect ? def.correctMsg : def.wrongMsg;
-    fb.classList.toggle("m2-reasoning-feedback--correct", isCorrect);
-    fb.classList.toggle("m2-reasoning-feedback--wrong",  !isCorrect);
-  }
-
+  // Wrong — reveal the gentle correction immediately, then re-open the untried
+  // options after a beat (no penalty).
   if (!isCorrect) {
-    // Gentle retry — re-enable the not-yet-tried options after a beat.
+    if (fb) {
+      fb.style.display = "";
+      fb.textContent   = def.wrongMsg;
+      fb.classList.remove("m2-reasoning-feedback--pending", "m2-reasoning-feedback--correct");
+      fb.classList.add("m2-reasoning-feedback--wrong");
+    }
     m2ReasoningTimers.push(setTimeout(() => {
       if (!answersWrap) return;
       answersWrap.querySelectorAll(".m2-reasoning-btn").forEach((b) => {
@@ -8731,11 +8733,12 @@ function handleM2Reasoning(key, letter) {
     return;
   }
 
-  // Correct — mark answered, raise Analyst Confidence, manager confirm, persist.
+  // Correct — commit the gate completion IMMEDIATELY so progress is never lost
+  // if the learner navigates away during the pacing beat (keeps the resume-safe,
+  // idempotent-completion pattern). The "Reviewing analyst assessment..." beat
+  // below is purely cosmetic pacing on top of an already-committed result.
   m2ReasoningAnswered.add(key);
   addM2AnalystConfidence(def.conf || 0);
-  setM2ManagerMessage(def.correctMsg);
-
   // UF-1 (Req 6): completing the interpretation is what unlocks the next
   // command. runM2Command deliberately held it back, so the student can't
   // advance the investigation on raw command output alone.
@@ -8749,15 +8752,30 @@ function handleM2Reasoning(key, letter) {
   }
   try { saveProgress(); } catch (_) { /* non-fatal */ }
 
-  // Offer the matching evidence pin (one-thing-at-a-time flow), then point the
-  // student at the next step.
+  if (fb) {
+    fb.style.display = "";
+    fb.textContent   = "Reviewing analyst assessment...";
+    fb.classList.remove("m2-reasoning-feedback--correct", "m2-reasoning-feedback--wrong");
+    fb.classList.add("m2-reasoning-feedback--pending");
+  }
   m2ReasoningTimers.push(setTimeout(() => {
-    host.style.display = "none";
-    host.innerHTML = "";
-    if (EVIDENCE_RATINGS["mission-002"][key]) showPinPrompt("mission-002", key);
-    const nextDef = M2_COMMANDS[key];
-    if (nextDef && nextDef.nextHint) setCurrentObjective("mission-002", nextDef.nextHint);
-  }, 700));
+    if (fb) {
+      fb.classList.remove("m2-reasoning-feedback--pending");
+      fb.textContent = def.correctMsg;
+      fb.classList.add("m2-reasoning-feedback--correct");
+    }
+    setM2ManagerMessage(def.correctMsg);
+
+    // Offer the matching evidence pin (one-thing-at-a-time flow), then point
+    // the student at the next step.
+    m2ReasoningTimers.push(setTimeout(() => {
+      host.style.display = "none";
+      host.innerHTML = "";
+      if (EVIDENCE_RATINGS["mission-002"][key]) showPinPrompt("mission-002", key);
+      const nextDef = M2_COMMANDS[key];
+      if (nextDef && nextDef.nextHint) setCurrentObjective("mission-002", nextDef.nextHint);
+    }, 700));
+  }, reviewAssessmentDelay()));
 }
 
 /** Derive the Analyst Confidence tier (label + caption) for a numeric value. */
@@ -10015,26 +10033,27 @@ function renderM3Reasoning(key) {
   }
   host.style.display = "";
   host.innerHTML = `
-    <div class="m3-reasoning" data-key="${escapeHtml(key)}">
-      <div class="m3-reasoning-head">
-        <span class="m3-reasoning-label">Analyst Reasoning</span>
-        <span class="m3-reasoning-topic">${escapeHtml(def.title)}</span>
+    <div class="m2-reasoning" data-key="${escapeHtml(key)}">
+      <div class="m2-reasoning-head">
+        <span class="m2-reasoning-label">Analyst Reasoning</span>
+        <span class="m2-reasoning-topic">${escapeHtml(def.title)}</span>
       </div>
-      <p class="m3-reasoning-q">${escapeHtml(def.question)}</p>
-      <div class="m3-reasoning-answers">
+      <p class="m2-reasoning-q">${escapeHtml(def.question)}</p>
+      ${def.hint ? `<details class="m2-reasoning-hint"><summary>Need a hint?</summary><p>${escapeHtml(def.hint)}</p></details>` : ""}
+      <div class="m2-reasoning-answers">
         ${def.answers.map((a) => `
-          <button class="m3-reasoning-btn" type="button"
+          <button class="m2-reasoning-btn" type="button"
                   data-reasoning-key="${escapeHtml(key)}"
                   data-reasoning-letter="${escapeHtml(a.letter)}">
-            <span class="m3-reasoning-letter">${escapeHtml(a.letter)}</span>
-            <span class="m3-reasoning-text">${escapeHtml(a.text)}</span>
+            <span class="m2-reasoning-letter">${escapeHtml(a.letter)}</span>
+            <span class="m2-reasoning-text">${escapeHtml(a.text)}</span>
           </button>
         `).join("")}
       </div>
-      <div class="m3-reasoning-feedback" data-reasoning-feedback style="display:none;"></div>
+      <div class="m2-reasoning-feedback" data-reasoning-feedback style="display:none;"></div>
     </div>
   `;
-  host.querySelectorAll(".m3-reasoning-btn").forEach((btn) => {
+  host.querySelectorAll(".m2-reasoning-btn").forEach((btn) => {
     btn.addEventListener("click", () =>
       handleM3Reasoning(
         btn.getAttribute("data-reasoning-key"),
@@ -10055,45 +10074,47 @@ function handleM3Reasoning(key, letter) {
 
   const isCorrect = letter === def.correct;
   const fb = host.querySelector("[data-reasoning-feedback]");
-  const answersWrap = host.querySelector(".m3-reasoning-answers");
+  const answersWrap = host.querySelector(".m2-reasoning-answers");
 
   if (answersWrap) {
-    answersWrap.querySelectorAll(".m3-reasoning-btn").forEach((b) => {
+    answersWrap.querySelectorAll(".m2-reasoning-btn").forEach((b) => {
       const l = b.getAttribute("data-reasoning-letter");
       if (l === def.correct) {
-        b.classList.add(isCorrect ? "m3-reasoning-btn--correct" : "m3-reasoning-btn--reveal");
+        b.classList.add(isCorrect ? "m2-reasoning-btn--correct" : "m2-reasoning-btn--reveal");
       } else if (l === letter) {
-        b.classList.add("m3-reasoning-btn--wrong");
+        b.classList.add("m2-reasoning-btn--wrong");
       }
       if (isCorrect || l === letter) b.disabled = true;
     });
   }
-  if (fb) {
-    fb.style.display = "";
-    fb.textContent   = isCorrect ? def.correctMsg : def.wrongMsg;
-    fb.classList.toggle("m3-reasoning-feedback--correct", isCorrect);
-    fb.classList.toggle("m3-reasoning-feedback--wrong",  !isCorrect);
-  }
 
+  // Wrong — reveal the gentle correction immediately, then re-open the untried
+  // options after a beat (no penalty).
   if (!isCorrect) {
-    // Gentle retry — re-enable the not-yet-tried options after a beat.
+    if (fb) {
+      fb.style.display = "";
+      fb.textContent   = def.wrongMsg;
+      fb.classList.remove("m2-reasoning-feedback--pending", "m2-reasoning-feedback--correct");
+      fb.classList.add("m2-reasoning-feedback--wrong");
+    }
     m3ReasoningTimers.push(setTimeout(() => {
       if (!answersWrap) return;
-      answersWrap.querySelectorAll(".m3-reasoning-btn").forEach((b) => {
+      answersWrap.querySelectorAll(".m2-reasoning-btn").forEach((b) => {
         const l = b.getAttribute("data-reasoning-letter");
         if (l === letter) return;
         b.disabled = false;
-        b.classList.remove("m3-reasoning-btn--reveal");
+        b.classList.remove("m2-reasoning-btn--reveal");
       });
     }, 600));
     return;
   }
 
-  // Correct — mark answered, raise Analyst Confidence, manager confirm, persist.
+  // Correct — commit the gate completion IMMEDIATELY so progress is never lost
+  // if the learner navigates away during the pacing beat (keeps the resume-safe,
+  // idempotent-completion pattern). The "Reviewing analyst assessment..." beat
+  // below is purely cosmetic pacing on top of an already-committed result.
   m3ReasoningAnswered.add(key);
   addM3AnalystConfidence(def.conf || 0);
-  setM3ManagerMessage(def.correctMsg);
-
   // UF-1 (Req 6): completing the interpretation is what unlocks the next
   // command. runM3Command deliberately held it back, so the student can't
   // advance the investigation on raw command output alone.
@@ -10107,15 +10128,30 @@ function handleM3Reasoning(key, letter) {
   }
   try { saveProgress(); } catch (_) { /* non-fatal */ }
 
-  // Offer the matching evidence pin (one-thing-at-a-time flow), then point the
-  // student at the next step.
+  if (fb) {
+    fb.style.display = "";
+    fb.textContent   = "Reviewing analyst assessment...";
+    fb.classList.remove("m2-reasoning-feedback--correct", "m2-reasoning-feedback--wrong");
+    fb.classList.add("m2-reasoning-feedback--pending");
+  }
   m3ReasoningTimers.push(setTimeout(() => {
-    host.style.display = "none";
-    host.innerHTML = "";
-    if (EVIDENCE_RATINGS["mission-003"][key]) showPinPrompt("mission-003", key);
-    const nextDef = M3_COMMANDS[key];
-    if (nextDef && nextDef.nextHint) setCurrentObjective("mission-003", nextDef.nextHint);
-  }, 700));
+    if (fb) {
+      fb.classList.remove("m2-reasoning-feedback--pending");
+      fb.textContent = def.correctMsg;
+      fb.classList.add("m2-reasoning-feedback--correct");
+    }
+    setM3ManagerMessage(def.correctMsg);
+
+    // Offer the matching evidence pin (one-thing-at-a-time flow), then point
+    // the student at the next step.
+    m3ReasoningTimers.push(setTimeout(() => {
+      host.style.display = "none";
+      host.innerHTML = "";
+      if (EVIDENCE_RATINGS["mission-003"][key]) showPinPrompt("mission-003", key);
+      const nextDef = M3_COMMANDS[key];
+      if (nextDef && nextDef.nextHint) setCurrentObjective("mission-003", nextDef.nextHint);
+    }, 700));
+  }, reviewAssessmentDelay()));
 }
 
 /** Derive the Analyst Confidence tier (label + caption) for a numeric value. */
@@ -13481,6 +13517,7 @@ function endGuidedRun() {
   // Milestone 31A — cancel pending M2 reasoning pin-offer / retry timers so a
   // stale callback can't open a pin prompt off-screen after navigation.
   clearM2ReasoningTimers();
+  clearM3ReasoningTimers();
   // Milestone 28A — cancel a pending Blue Team decision submit / delayed red-team
   // event, and clear the decision-focus dim, on every mission-exit.
   clearM1DecisionTimers();

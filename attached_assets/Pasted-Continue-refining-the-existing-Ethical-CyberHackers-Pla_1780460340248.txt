@@ -1,0 +1,565 @@
+Continue refining the existing Ethical CyberHackers Platform interface and operational learning environment.
+
+This is a UX, immersion, pacing, and operational realism refinement pass.
+
+Do NOT add Assignment 4.
+Do NOT redesign the entire app.
+Do NOT remove existing cyber aesthetics.
+Do NOT flatten the interface.
+Do NOT break Assignments 1–3.
+Do NOT change Supabase/localStorage behavior.
+Do NOT add mobile-specific behavior.
+Do NOT remove existing systems.
+
+Preserve:
+
+* terminal system
+* Operations Map
+* investigation board
+* evidence system
+* trust score
+* analyst confidence
+* threat level
+* command hover learning
+* interpretation gates
+* SOC Toolkit
+* XP systems
+* Red Team / Blue Team structure
+* mission progression
+
+---
+
+## PRIMARY GOAL
+
+Transform the interface from:
+“multiple glowing dashboard widgets”
+
+into:
+“a cinematic operational analyst environment.”
+
+The student should feel:
+
+* operational focus
+* calm pressure
+* environmental realism
+* investigative immersion
+* analytical continuity
+
+The interface should increasingly feel:
+“a believable cyber operations environment that teaches naturally.”
+
+NOT:
+“an educational dashboard with cyber styling.”
+
+---
+
+1. IMPLEMENT VISUAL HIERARCHY SYSTEM
+
+---
+
+Current issue:
+Too many panels compete equally for attention.
+
+Fix:
+Create a layered visual hierarchy.
+
+Primary focus:
+
+* Current Objective
+* terminal
+* active command/action
+* critical threat alerts
+* active reasoning prompts
+
+Secondary focus:
+
+* evidence confidence
+* analyst confidence
+* threat level
+* investigation board
+
+Background information:
+
+* historical telemetry
+* completed tasks
+* passive logs
+* old manager notes
+* inactive panels
+
+The student’s eye should instinctively know:
+
+* what matters
+* what changed
+* what to do next
+
+without searching.
+
+---
+
+2. SINGLE VISUAL FOCUS PRINCIPLE
+
+---
+
+At any given moment:
+ONLY ONE PRIMARY AREA should pulse or strongly glow.
+
+Allowed active emphasis:
+
+* Current Objective
+* active action button
+* active reasoning prompt
+* critical threat escalation
+
+Everything else:
+
+* stable
+* calm
+* visually quieter
+
+Avoid:
+
+* simultaneous pulsing panels
+* equal animation everywhere
+* competing glow regions
+
+---
+
+3. UNEQUAL GLOW SYSTEM
+
+---
+
+Current issue:
+All panels glow equally.
+
+Fix:
+Glow intensity must communicate importance.
+
+Primary active elements:
+
+* strongest glow
+* brightest emphasis
+* subtle pulse allowed
+
+Secondary informational elements:
+
+* softer glow
+* stable brightness
+* restrained borders
+
+Background elements:
+
+* minimal glow
+* atmospheric only
+* low visual weight
+
+Keep cyber aesthetic intact.
+Do NOT remove glow.
+Control it intelligently.
+
+---
+
+4. SURFACE SEPARATION WITHOUT HEAVY BORDERS
+
+---
+
+Avoid aggressive visible panel outlines everywhere.
+
+Instead use:
+
+* subtle surface brightness variation
+* soft depth layering
+* gentle shadow separation
+* restrained edge lighting
+
+Panels should feel:
+grouped naturally
+
+NOT:
+boxed aggressively.
+
+---
+
+5. OBJECTIVE-DRIVEN LIGHTING
+
+---
+
+Treat the interface like cinematic lighting.
+
+The “key light” of the UI should be:
+
+* Current Objective
+* active investigation task
+* active command/action
+* terminal focus
+
+Surrounding panels should support the focal point rather than compete with it.
+
+---
+
+6. REDUCE VISUAL FATIGUE
+
+---
+
+Reduce:
+
+* excessive neon intensity
+* repeated glow effects
+* high-contrast inactive panels
+* over-bright telemetry
+* visual noise
+
+Keep strongest emphasis ONLY on:
+
+* active objective
+* terminal activity
+* critical evidence
+* active investigation decisions
+
+Inactive sections should visually calm down.
+
+---
+
+7. CREATE VISUAL STILLNESS
+
+---
+
+The environment should feel:
+quiet, monitored, controlled.
+
+Most of the interface should remain visually stable.
+
+Avoid:
+
+* excessive movement
+* constant blinking
+* arcade-style motion
+* simultaneous activity everywhere
+
+Operational realism should feel:
+tense but calm.
+
+---
+
+8. IMPROVE TERMINAL PRESENCE
+
+---
+
+The terminal should feel like:
+the operational core of the environment.
+
+Enhance:
+
+* subtle cursor clarity
+* paced output rendering
+* environmental system messages
+* asynchronous operational updates
+* quiet passive telemetry
+
+Examples:
+
+* “gateway telemetry streaming…”
+* “email filter monitoring suspicious traffic…”
+* “Blue Team review channel active…”
+* “threat feed synchronized…”
+
+Do NOT spam logs.
+Do NOT overwhelm the terminal.
+
+The terminal must feel:
+alive and connected.
+
+---
+
+9. ADD OPERATIONAL ATMOSPHERE
+
+---
+
+Add subtle environmental narrative elements.
+
+Examples:
+
+* “Recon traffic slowing”
+* “Containment holding”
+* “Analyst review pending”
+* “Threat activity stabilizing”
+* “External gateway filtering updated”
+
+These are environmental only.
+No interaction required.
+
+---
+
+10. IMPROVE TRANSITION PACING
+
+---
+
+Add short cinematic operational delays where appropriate.
+
+Examples:
+
+* “Reviewing analyst assessment…”
+* “Correlating evidence…”
+* “Updating threat telemetry…”
+* “Preparing containment recommendation…”
+
+Use short delays only:
+700–1200 ms.
+
+Goal:
+Create operational pacing and realism.
+
+Do NOT slow gameplay excessively.
+
+---
+
+11. ADD SOFT ATTENTION GUIDANCE
+
+---
+
+Guide attention subtly without intrusive tutorials.
+
+When a new action becomes available:
+
+* softly highlight active region
+* gently brighten relevant section
+* fade in next action
+* dim irrelevant panels slightly
+
+Do NOT:
+
+* flash aggressively
+* use large popups
+* create tutorial spam
+
+---
+
+12. IMPROVE CURRENT OBJECTIVE PROMINENCE
+
+---
+
+Current Objective must become:
+the operational anchor of the interface.
+
+Improve:
+
+* visibility
+* spacing
+* focus hierarchy
+* readability
+
+It should naturally drive the student workflow.
+
+---
+
+13. IMPROVE COMMAND FLOW FEEL
+
+---
+
+Commands should feel:
+part of a live investigation workflow.
+
+NOT:
+detached UI cards.
+
+Preserve:
+
+* manual typing
+* command loading
+* Enter-to-execute behavior
+* command hover learning
+
+Improve:
+
+* sequencing
+* pacing
+* integration into investigation flow
+* operational continuity
+
+---
+
+14. IMPROVE INVESTIGATION BOARD
+
+---
+
+Investigation board should feel:
+active and evolving.
+
+Enhance:
+
+* gradual evidence appearance
+* clearer classification tags
+* subtle evidence emphasis
+* quieter inactive evidence
+* evolving analyst annotations
+* operational organization
+
+Do NOT add new mechanics.
+
+---
+
+15. REDUCE PANEL DENSITY
+
+---
+
+Completed or inactive information should compact automatically.
+
+Examples:
+
+* completed commands collapse
+* old hints fade/minimize
+* completed evidence compresses
+* previous manager notes compact
+* inactive telemetry quiets down
+
+Keep active information expanded.
+
+---
+
+16. CLEAN TOP STATUS BAR
+
+---
+
+Remove redundant wording.
+
+Avoid:
+
+* “Contained / Containment Contained”
+* repeated “Active” states
+* duplicated operational labels
+
+Use concise operational terminology.
+
+Example:
+Blue Team: Active
+Incident: Contained
+Threat: Low
+Containment: Secured
+
+---
+
+17. RIGHT PANEL REFINEMENT
+
+---
+
+Right-side telemetry should feel:
+analytical, not decorative.
+
+Reduce excessive glow in:
+
+* threat bars
+* telemetry headers
+* evidence sections
+
+Improve readability and hierarchy.
+
+---
+
+18. FIX EMPTY TERMINAL FEEL
+
+---
+
+Large terminal space currently feels underutilized.
+
+Add:
+
+* subtle passive system updates
+* evolving environmental responses
+* operational monitoring feedback
+* delayed analytical updates
+
+WITHOUT cluttering the interface.
+
+---
+
+19. IMPROVE COMPLETION EXPERIENCE
+
+---
+
+Mission completion should feel:
+resolved and operationally complete.
+
+After completion:
+
+* stabilize threat telemetry
+* show concise debrief
+* summarize evidence outcome
+* show manager acknowledgment
+* guide student toward Operations Map naturally
+
+Completion should feel:
+earned and resolved.
+
+---
+
+20. REVIEW AND FIX UI STATE CONSISTENCY
+
+---
+
+Review all assignments for:
+
+* stale hints
+* instructions pointing to missing buttons
+* hidden controls
+* overlapping panels
+* inaccessible actions
+* incorrect state guidance
+
+Ensure:
+all hints match actual current interface state.
+
+---
+
+21. FIX SOC TOOLKIT VISIBILITY
+
+---
+
+SOC Toolkit must remain:
+
+* visible
+* accessible
+* never overlapped by Music controls
+* never blocked by floating buttons
+
+Place it in a stable operational location.
+
+---
+
+22. REVIEW ALL ASSIGNMENTS
+
+---
+
+Test:
+
+* Assignment 1
+* Assignment 2
+* Assignment 3
+
+Verify:
+
+* operational pacing
+* visual hierarchy
+* current objective flow
+* command usability
+* evidence readability
+* state transitions
+* no UI overlap
+* no dead-end instructions
+* terminal visibility
+* investigation continuity
+
+---
+
+## FINAL TARGET EXPERIENCE
+
+The interface should feel like:
+
+* a cinematic cyber operations workstation
+* a realistic analyst environment
+* a calm but tense operational console
+* a believable investigative workspace
+
+The student should feel:
+they are operating inside a living cybersecurity environment.
+
+NOT:
+clicking through glowing educational widgets.
