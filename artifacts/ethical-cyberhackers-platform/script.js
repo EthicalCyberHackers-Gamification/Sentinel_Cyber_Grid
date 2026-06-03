@@ -256,6 +256,10 @@ function clearM2ReasoningTimers() {
   m2ReasoningTimers.forEach((t) => window.clearTimeout(t));
   m2ReasoningTimers = [];
 }
+function clearM3ReasoningTimers() {
+  m3ReasoningTimers.forEach((t) => window.clearTimeout(t));
+  m3ReasoningTimers = [];
+}
 
 // Challenge Layer 1 — Mission 1 investigation tracking (for the scorecard).
 const m1FilesReviewed     = new Set();
@@ -520,6 +524,7 @@ const M1_REASONING = {
       { id: "D", text: "It should be escalated as an active attack.", correct: false },
     ],
     why: "Awareness reminders support an investigation, but they are not the attack itself.",
+    hint: "Ask whether the file actually requests anything — a password, a login, an action — or just reminds staff about safe behavior.",
   },
   "meeting_schedule.txt": {
     question: "What does this file suggest?",
@@ -530,6 +535,7 @@ const M1_REASONING = {
       { id: "D", text: "It should be escalated immediately.", correct: false },
     ],
     why: "Urgent language alone is not enough. Analysts look for credential requests, unknown links, or external pressure.",
+    hint: "Urgent wording isn't a threat by itself. Look for a credential request, an external link, or pressure from outside.",
   },
   "finance_update.txt": {
     question: "What does this file suggest?",
@@ -540,6 +546,7 @@ const M1_REASONING = {
       { id: "D", text: "It must be escalated immediately.", correct: false },
     ],
     why: "Sensitive-sounding files are only a threat when they request credentials or external action.",
+    hint: "A sensitive topic isn't the same as an attack. Does it ask you to log in or hand over credentials?",
   },
   "security_policy.txt": {
     question: "What does this file suggest?",
@@ -550,6 +557,7 @@ const M1_REASONING = {
       { id: "D", text: "It is irrelevant to the investigation.", correct: false },
     ],
     why: "Policy evidence helps explain WHY the suspicious file violates safe behavior.",
+    hint: "Policy documents describe the rules — they're evidence that explains why behavior is unsafe, not the attack itself.",
   },
   "suspicious_file.txt": {
     question: "What does this file suggest?",
@@ -560,12 +568,20 @@ const M1_REASONING = {
       { id: "D", text: "It only needs to be ignored.", correct: false },
     ],
     why: "Password requests from unknown external emails are strong phishing indicators.",
+    hint: "Check who it's from and what it wants — an unknown external sender asking for a password is the classic phishing pattern.",
   },
 };
 
 /** Random "Submitting analysis to manager..." delay (700–1200 ms) for anticipation. */
 function m1AnalysisDelay() {
   return 700 + Math.floor(Math.random() * 500);
+}
+
+/** UF-3 — short "Reviewing analyst assessment..." delay (650–1050 ms) before a
+ *  per-step reasoning verdict is revealed (Assignments 2 & 3). Keeps the gate
+ *  feeling weighed without being slow or frustrating. */
+function reviewAssessmentDelay() {
+  return 650 + Math.floor(Math.random() * 400);
 }
 
 /** Cancel a pending "Submitting analysis..." delay so a stale callback can never
@@ -8305,6 +8321,7 @@ const M2_REASONING = {
     conf: 15,
     correctMsg: "Right — knowing your own host address is the baseline for mapping a network.",
     wrongMsg:   "Not quite. `ip addr` shows YOUR workstation's local address — your starting point.",
+    hint: "This is the address of the machine you're working from — your reference point for everything else on the network.",
   },
   "ping-bad": {
     title: "Unreachable Host",
@@ -8318,6 +8335,7 @@ const M2_REASONING = {
     conf: 15,
     correctMsg: "Correct — no reply means this host isn't reachable. A useful negative result.",
     wrongMsg:   "Look again — the request timed out, which means the host did not respond.",
+    hint: "No reply within the timeout means the host didn't answer — and a silent host can't be exposing services.",
   },
   "ping": {
     title: "Reachable Host",
@@ -8331,6 +8349,7 @@ const M2_REASONING = {
     conf: 25,
     correctMsg: "Correct — a reply confirms the host is live, so it's worth scanning.",
     wrongMsg:   "Re-read the output — the host replied, so it IS reachable and worth a closer look.",
+    hint: "A reply confirms the host is alive on the network, so it's worth a closer look.",
   },
   "nmap": {
     title: "Open Services",
@@ -8344,6 +8363,7 @@ const M2_REASONING = {
     conf: 35,
     correctMsg: "Exactly — exposed services are attack surface and must be assessed for risk.",
     wrongMsg:   "Not quite. Open services aren't auto-hacked, but each one is attack surface to review.",
+    hint: "Each open port is a service reachable from the network — attack surface to assess, not automatically 'hacked' or automatically 'safe'.",
   },
 };
 
@@ -9659,6 +9679,7 @@ const M3_REASONING = {
     conf: 15,
     correctMsg: "Right — one external address keeps reappearing. That repetition is worth investigating.",
     wrongMsg:   "Look again — the same external address (203.0.113.77) appears on several connections.",
+    hint: "Scan the list for an address that keeps reappearing — repetition from one external source is the signal here.",
   },
   "ping-bad": {
     title: "Known Source",
@@ -9672,6 +9693,7 @@ const M3_REASONING = {
     conf: 15,
     correctMsg: "Correct — a known CDN is normal traffic. Ruling a source out is useful too.",
     wrongMsg:   "Re-read it — this is a registered content-delivery network, i.e. legitimate traffic.",
+    hint: "A registered content-delivery network is normal traffic. Ruling a source out is still progress.",
   },
   "ping": {
     title: "Unknown Source",
@@ -9685,6 +9707,7 @@ const M3_REASONING = {
     conf: 25,
     correctMsg: "Correct — an unregistered, unknown source connecting repeatedly is a real red flag.",
     wrongMsg:   "Look again — the lookup shows an unknown, unregistered source with no abuse contact.",
+    hint: "Check whether the source is registered and has an abuse contact — an unknown, unregistered source connecting repeatedly is the red flag.",
   },
   "nmap": {
     title: "Probe Pattern",
@@ -9698,6 +9721,7 @@ const M3_REASONING = {
     conf: 35,
     correctMsg: "Exactly — probing one service after another is a classic reconnaissance scan.",
     wrongMsg:   "Not quite. The same source is hitting many different services in sequence — a scanning pattern.",
+    hint: "One source touching many different services in sequence is a scanning / reconnaissance pattern, not a single accidental hit.",
   },
 };
 
