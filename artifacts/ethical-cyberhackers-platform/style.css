@@ -5281,8 +5281,10 @@ body.alert-modal-open { overflow: hidden; }
 /* ---- Focus Mode control bar ---- */
 .focus-control-bar {
   position: fixed;
-  bottom: 18px;
-  right: 18px;
+  /* Bottom-right floating stack: Music toggle anchors the corner at 16px;
+     this bar sits directly above it; the SOC Toolkit sits above this. */
+  bottom: 62px;
+  right: 16px;
   z-index: 1200;
   display: flex;
   align-items: center;
@@ -5498,6 +5500,9 @@ body.focus-mode .center-column { flex: 1 1 100%; }
 @media (max-width: 900px) {
   body.focus-mode .center-column { order: -1; }
   .focus-control-bar { bottom: 12px; right: 12px; left: 12px; justify-content: space-between; }
+  /* The focus bar spans full width here, so lift the Music toggle above it
+     (only while a mission is active) to keep the bottom controls from overlapping. */
+  body.mission-running .soundtrack-toggle { bottom: 56px; }
 }
 
 /* ======================================================
@@ -8776,8 +8781,10 @@ body.mission-running .current-objective--center {
    ====================================================== */
 .soc-toolkit-toggle {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
+  /* Bottom-right floating stack: above the Music toggle (anchored at 16px).
+     While a mission is active the Focus bar slots in between (see below). */
+  right: 16px;
+  bottom: 62px;
   z-index: 1250;
   display: inline-flex;
   align-items: center;
@@ -8800,8 +8807,9 @@ body.mission-running .current-objective--center {
   box-shadow: 0 6px 22px rgba(0, 229, 255, 0.22);
 }
 .soc-tk-toggle-icon { font-size: 14px; line-height: 1; }
-/* Sit above the Focus Mode control bar while a mission dashboard is active. */
-body.mission-running .soc-toolkit-toggle { bottom: 76px; }
+/* Sit above the Focus Mode control bar (which itself sits above Music) while a
+   mission dashboard is active, so all three controls stack without overlap. */
+body.mission-running .soc-toolkit-toggle { bottom: 116px; }
 /* Keep the scripted demo uncluttered (mirrors .focus-control-bar). */
 body.demo-active .soc-toolkit-toggle,
 body.demo-active .soc-toolkit-panel,
@@ -8810,7 +8818,9 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 .soc-toolkit-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1290;
+  /* Above the always-on-top Music toggle (z-index 9999) so an open panel is
+     never pierced by the floating Music button. */
+  z-index: 10000;
   background: rgba(0, 0, 0, 0.45);
   opacity: 0;
   visibility: hidden;
@@ -8824,7 +8834,8 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
   right: 18px;
   bottom: 18px;
   width: min(360px, calc(100vw - 36px));
-  z-index: 1300;
+  /* Above the backdrop (10000) and the always-on-top Music toggle (9999). */
+  z-index: 10001;
   display: flex;
   flex-direction: column;
   background: rgba(8, 16, 22, 0.98);
@@ -8968,7 +8979,7 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 @media (max-width: 640px) {
   .soc-tk-toggle-label { display: none; }
   .soc-toolkit-toggle { padding: 10px; }
-  body.mission-running .soc-toolkit-toggle { bottom: 70px; }
+  body.mission-running .soc-toolkit-toggle { bottom: 116px; }
   .soc-toolkit-panel { top: 60px; left: 12px; right: 12px; bottom: 12px; width: auto; }
 }
 @media (prefers-reduced-motion: reduce) {

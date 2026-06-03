@@ -1723,6 +1723,12 @@ function updateBriefingGate(missionId) {
       btn.innerHTML = complete
         ? "\u25B6&nbsp; Begin Investigation"
         : "\u25B6&nbsp; Begin Investigation \uD83D\uDD12";
+      // Re-sync the awaiting hint / Current Objective with the gate state so
+      // reviewing the briefing immediately updates the guidance. Guarded to the
+      // pre-launch state so it never overwrites in-mission or completed hints.
+      if (!missionStarted && !missionComplete) {
+        setHint(m1AwaitingHint(), "muted");
+      }
     }
   }
 }
@@ -4184,7 +4190,7 @@ const REFLECTION = {
 };
 
 const HINTS = {
-  awaiting:             "Read the briefing, then click Begin Mission.",
+  awaiting:             "Review the mission briefing first, then begin the investigation.",
   started:              "Start by checking your current location.",
   "pwd":                "Now list the files and folders in your current location.",
   "ls-home":            "You found several folders. Open the documents folder.",
@@ -4197,6 +4203,16 @@ const HINTS = {
 
 // Strict forward sequence (cat-employee-notes is optional and handled separately)
 const HINT_SEQUENCE = ["pwd", "ls-home", "cd-documents", "ls-documents", "cat-suspicious"];
+
+/** State-aware "awaiting launch" guidance for Mission 1. The Begin button is
+ *  relabeled and gated behind the Briefing Room ("Begin Investigation 🔒" until
+ *  the briefing is reviewed), so point the student at the correct next action
+ *  for the current briefing state instead of a fixed button label. */
+function m1AwaitingHint() {
+  return isBriefingComplete("mission-001")
+    ? "Briefing reviewed — begin the investigation when you're ready."
+    : HINTS.awaiting;
+}
 
 /** Boot messages shown in the terminal on load and after every restart. */
 const BOOT_MESSAGES = [
@@ -5973,7 +5989,7 @@ function resetMission() {
   renderAllMiniMaps(); // Milestone 25D — refresh compact route maps.
 
   // Reset hint back to the pre-briefing message
-  setHint(HINTS.awaiting, "muted");
+  setHint(m1AwaitingHint(), "muted");
   // Milestone 13: reset supervisor message back to the welcome line
   setManagerMessage("awaiting");
   // Milestone 15: reset progress tracker (Briefing complete, Begin Mission current)
@@ -6223,6 +6239,13 @@ function loadCommandToTerminal(commandText, inputEl) {
     const end = input.value.length;
     input.setSelectionRange(end, end);
   } catch (_) {}
+  // State-aware guidance: a command is now loaded but not yet executed. Point the
+  // student at the next concrete action (press Enter) on the matching mission's
+  // hint / Current Objective. This never runs the command.
+  const loadedMsg = "Command loaded — press Enter to execute it.";
+  if (input === m2TerminalInput) setM2Hint(loadedMsg);
+  else if (input === m3TerminalInput) setM3Hint(loadedMsg);
+  else setHint(loadedMsg, "normal");
 }
 
 /** Resolve typed terminal text to a command key for a key-driven mission
@@ -11521,7 +11544,7 @@ function boot() {
   initializeMissionTools("mission-002");
 
   // Milestone 6: show the awaiting hint on initial load
-  setHint(HINTS.awaiting, "muted");
+  setHint(m1AwaitingHint(), "muted");
 
   // Hide command buttons + hint until the student clicks Begin Mission
   if (btnContainer) btnContainer.style.display = "none";

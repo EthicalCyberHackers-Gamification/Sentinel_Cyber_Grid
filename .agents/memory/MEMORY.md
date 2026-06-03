@@ -4,3 +4,4 @@
 - [Supabase backend (local-first)](ech-supabase-backend.md) — optional cloud mirror; localStorage stays authoritative, sync never throws/blocks, attempts resume-safe, completion idempotent across both completion paths.
 - [Hoverable locked cards](ech-locked-card-tooltips.md) — `disabled` buttons fire no hover/focus events; lock M2/M3 command cards with `aria-disabled` + click guard so their tooltips still work.
 - [Command execution asymmetry](ech-command-runner-asymmetry.md) — M1 is text-parser-driven; M2/M3 are key-driven (`.cmd` per key). Typed-terminal features must reverse-map text→key, then call the existing key runner.
+- [State-aware hints](ech-state-aware-hints.md) — re-sync gate-dependent hints at the state-change site (e.g. `updateBriefingGate`), not just boot/reset; `loadCommandToTerminal` is the one chokepoint for "command loaded" guidance.

@@ -1,0 +1,251 @@
+Review and repair the current Ethical CyberHackers Platform build.
+
+Issue observed:
+Several guidance notes tell the student to click or find something, but the referenced action is not clearly visible or available. Example: the hint says “Read the briefing, then click Begin Mission,” but the visible button/action may not exist in the current active interface state. This creates student confusion.
+
+A second issue:
+The SOC Toolkit button appears at the bottom right but is visually blocked or crowded by the “Music: On” button. This makes the toolkit hard to access.
+
+Do NOT add new assignments.
+Do NOT redesign the full UI.
+Do NOT remove existing systems.
+Do NOT break Assignments 1–3.
+Do NOT change Supabase/localStorage behavior.
+
+---
+
+1. REVIEW ALL ASSIGNMENTS FOR BROKEN GUIDANCE REFERENCES
+
+---
+
+Review Assignments 1, 2, and 3.
+
+Find every place where text says:
+
+* click Begin Mission
+* click Review Briefing
+* open briefing
+* click command below
+* use SOC Toolkit
+* click Next
+* open Mission Map
+* review scorecard
+* launch assignment
+* use hint
+* execute command
+* run command
+
+Confirm that the referenced UI element:
+
+* exists
+* is visible
+* is enabled
+* is in the correct current state
+* is not hidden below the fold
+* is not covered by another fixed element
+
+If not, fix the text or fix the UI state.
+
+---
+
+2. FIX STALE HINT TEXT
+
+---
+
+Current problem example:
+Hint says:
+“Read the briefing, then click Begin Mission.”
+
+But if the mission is already launched or the correct action is now different, the hint should change.
+
+Implement state-aware hints.
+
+Examples:
+
+Before launch:
+“Review the briefing, then launch the assignment.”
+
+After launch:
+“Follow the Current Objective and run the next available command.”
+
+When command is loaded:
+“Press Enter to execute the loaded command.”
+
+When interpretation is required:
+“Answer the reasoning question before continuing.”
+
+When assignment is complete:
+“Open the Operations Map or review your scorecard.”
+
+Hints must match the current state.
+
+---
+
+3. ADD STATE-AWARE CURRENT OBJECTIVE VALIDATION
+
+---
+
+Current Objective must always point to an available next action.
+
+If Current Objective says:
+“Open documents folder”
+
+then the corresponding command/action must be visible or loadable.
+
+If no action is available:
+show:
+“Use the available command area below or open SOC Toolkit for help.”
+
+Do not show dead-end instructions.
+
+---
+
+4. REVIEW COMMAND AREA FLOW
+
+---
+
+For each assignment, verify:
+
+* command cards appear only when relevant
+* completed commands are compacted
+* next command unlocks only after required reasoning
+* command cards do not reference old mission states
+* manual command input remains available
+* command loading works
+* pressing Enter executes the command
+* wrong command feedback is useful
+
+---
+
+5. FIX SOC TOOLKIT VISIBILITY
+
+---
+
+The SOC Toolkit control must not be hidden behind:
+
+* Music On button
+* Exit button
+* assignment active badge
+* bottom dock
+* any floating controls
+
+Move SOC Toolkit to a stable location.
+
+Preferred options:
+Option A:
+Place SOC Toolkit as a clear button in the command panel header.
+
+Option B:
+Place SOC Toolkit in the right-side Live Status / Analyst Profile panel.
+
+Option C:
+Place SOC Toolkit near Current Objective as “Open SOC Toolkit.”
+
+Do NOT leave it in the bottom-right floating area if it overlaps with Music controls.
+
+---
+
+6. FIX BOTTOM-RIGHT CONTROL COLLISION
+
+---
+
+Review all fixed-position bottom controls:
+
+* SOC Toolkit
+* Music On
+* Exit
+* Assignment Active
+* backend status
+* any floating help buttons
+
+Ensure:
+
+* no overlap
+* consistent spacing
+* clear click targets
+* works at normal browser zoom
+* does not cover command area
+* does not cover scorecards
+* does not cover next-step panels
+
+---
+
+7. REVIEW LAYOUT ACCESSIBILITY
+
+---
+
+At normal desktop zoom:
+
+* terminal input must remain visible
+* Current Objective must remain visible
+* command panel must be usable
+* SOC Toolkit must be accessible
+* hints must point to visible actions
+* scorecard and next-step panels must be reachable by scrolling
+
+Remove or adjust any fixed positioning that blocks interaction.
+
+---
+
+8. ADD UI STATE DEBUG CHECKLIST
+
+---
+
+Create or update:
+
+docs/UI_STATE_REVIEW.md
+
+Include:
+
+* Assignment 1 state flow
+* Assignment 2 state flow
+* Assignment 3 state flow
+* expected visible action per state
+* hint text per state
+* current objective per state
+* known fixed UI controls
+* overlap checks
+
+---
+
+9. REQUIRED TESTING
+
+---
+
+Manually test:
+
+Assignment 1:
+
+* briefing state
+* launch state
+* first command state
+* interpretation state
+* evidence state
+* decision state
+* completion state
+
+Assignment 2:
+same full flow
+
+Assignment 3:
+same full flow
+
+For each state confirm:
+
+* Current Objective is accurate
+* hint text is accurate
+* required action is visible
+* SOC Toolkit is accessible
+* no bottom controls overlap
+* terminal input is visible
+* user is never told to click something that does not exist
+
+---
+
+## GOAL
+
+The student should never be confused by instructions pointing to missing or hidden controls.
+
+The SOC Toolkit must be visible, accessible, and not blocked by the Music On control.
+
+The assignment UI must remain stable, readable, and state-aware across Assignments 1–3.
