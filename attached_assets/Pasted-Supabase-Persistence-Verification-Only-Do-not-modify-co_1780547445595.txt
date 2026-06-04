@@ -1,0 +1,97 @@
+Supabase Persistence Verification Only
+
+Do not modify code yet.
+Do not refactor UI.
+Do not change schema.
+Do not create new tables.
+Do not run broad fixes.
+
+Task:
+Audit the current Supabase persistence implementation and report the exact state of affairs.
+
+Known verified behavior:
+- profiles table is updating in Supabase
+- xp_events table is updating in Supabase
+- student_progress table remains blank
+- mission_attempts table remains blank
+- missions table may be blank or unused
+- local-first architecture must be preserved
+
+Verify the following:
+
+1. Supabase Client Setup
+- Locate the Supabase client file.
+- Confirm which environment variables are used.
+- Confirm whether the frontend is using VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.
+
+2. Profile Writes
+- Locate the function that writes to profiles.
+- Identify when it runs.
+- Identify the exact payload sent to Supabase.
+- Confirm why this table is updating successfully.
+
+3. XP Event Writes
+- Locate the function that writes to xp_events.
+- Identify when it runs.
+- Identify the exact payload sent to Supabase.
+- Confirm why this table is updating successfully.
+
+4. Student Progress Writes
+- Search for all references to student_progress.
+- Determine whether insert/upsert/update code exists.
+- Identify whether it is ever called during mission completion, save/load, XP award, or progression update.
+- If it exists, identify likely failure cause.
+- If it does not exist, state that clearly.
+
+5. Mission Attempts Writes
+- Search for all references to mission_attempts.
+- Determine whether attempt start/completion tracking exists.
+- Identify whether it is called when a mission starts, fails, restarts, or completes.
+- If it exists, identify likely failure cause.
+- If it does not exist, state that clearly.
+
+6. Missions Table Usage
+- Search for all references to missions table.
+- Determine whether missions are read from Supabase or hardcoded in the frontend.
+- Determine whether mission_code is mapped to missions.id.
+- Determine whether missing mission seed data could block student_progress or mission_attempts writes.
+
+7. Schema Mapping Check
+Compare frontend write payloads against expected database columns.
+Specifically check for mismatch between:
+- anonymous_id vs profile_id
+- assignment_id / mission code text vs mission_id UUID
+- xp / rank / progress blob vs normalized columns
+- localStorage mission state vs Supabase persistence state
+
+8. RLS / Permission Risk
+Based on the frontend write methods, identify whether Row Level Security could be blocking inserts/updates to:
+- student_progress
+- mission_attempts
+- missions
+
+Do not attempt to change RLS yet. Only report likely blockers.
+
+9. Browser/Console Error Check
+If possible, identify where Supabase errors are caught or swallowed.
+Report whether errors are logged clearly or hidden silently.
+
+Required Output:
+Return a structured report with these sections:
+
+A. Current Working Supabase Writes
+B. Tables Not Being Written
+C. Exact Files Reviewed
+D. Functions Responsible for Supabase Writes
+E. Missing or Broken Persistence Paths
+F. Schema / Payload Mismatches
+G. RLS or Permission Risks
+H. Recommended Minimal Fix Plan
+I. Files That Would Need Modification
+
+Important:
+Do not implement fixes in this task.
+Do not modify the UI.
+Do not change the database schema.
+Do not change local-first behavior.
+Only verify and document the current state.

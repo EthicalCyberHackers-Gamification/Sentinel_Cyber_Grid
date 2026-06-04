@@ -34,3 +34,9 @@ externalPort = 3002
 [[ports]]
 localPort = 18184
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+PORT = "5173"
+BASE_PATH = "/"
