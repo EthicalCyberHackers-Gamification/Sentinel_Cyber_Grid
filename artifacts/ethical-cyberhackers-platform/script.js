@@ -1661,7 +1661,11 @@ function renderBriefingRoom(missionId) {
 
   host.innerHTML = `
     <div class="briefing-room-inner">
-      <h3 class="briefing-room-title">Mission Briefing Room</h3>
+      <div class="briefing-room-head">
+        <h3 class="briefing-room-title">Mission Briefing Room</h3>
+        <button class="replay-guide-btn briefing-replay-btn" type="button"
+                title="Replay the full briefing, then the on-screen walkthrough">↻ Replay Briefing</button>
+      </div>
       <p class="briefing-assignment">${escapeHtml(briefing.assignment)}</p>
       <ul class="briefing-card-list">${cards}</ul>
       <div class="briefing-readiness ${complete ? "briefing-readiness--ready" : ""}">
@@ -1682,6 +1686,11 @@ function renderBriefingRoom(missionId) {
       reviewBriefingCard(missionId, btn.getAttribute("data-briefing-card"))
     );
   });
+
+  // Task #6 — presentation-only "Replay Briefing" control (briefing recap →
+  // spotlight tour). Never touches progress/XP/sync.
+  const replayBtn = host.querySelector(".briefing-replay-btn");
+  if (replayBtn) replayBtn.addEventListener("click", () => startBriefingReplay(missionId));
 
   updateBriefingGate(missionId);
 }
@@ -5595,6 +5604,9 @@ function buildNextStepHTML(missionId) {
         <button type="button" class="next-step-btn next-step-btn--secondary" id="nextStepScore${sfx}">
           Review Scorecard
         </button>
+        <button type="button" class="next-step-btn next-step-btn--secondary" id="nextStepReplay${sfx}">
+          ↻ Replay Briefing
+        </button>
       </div>
     </div>
   `;
@@ -5611,6 +5623,10 @@ function wireNextStepButtons(missionId) {
     const card = host ? host.querySelector(".scorecard") : null;
     if (card && card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "start" });
   });
+  // Task #6 — post-completion "Replay Briefing" (presentation-only; keeps the
+  // replay reachable after a mission is finished).
+  const replayBtn = document.getElementById(`nextStepReplay${sfx}`);
+  if (replayBtn) replayBtn.addEventListener("click", () => startBriefingReplay(missionId));
 }
 
 /**
@@ -11774,11 +11790,12 @@ function boot() {
     const btn = document.getElementById(id);
     if (btn) btn.addEventListener("click", jumpToNextAction);
   });
-  // Task #5 — "Replay Guide" buttons re-run the guided spotlight tour on demand
-  // for their mission (UI-only; no gameplay/XP/backend side-effects).
+  // Task #6 — "Replay Briefing" buttons re-show the briefing cards then flow
+  // into the on-demand spotlight tour for their mission, as one presentation-
+  // only sequence (UI-only; no gameplay/XP/backend side-effects).
   [["replayGuideBtn", "mission-001"], ["m2ReplayGuideBtn", "mission-002"], ["m3ReplayGuideBtn", "mission-003"]].forEach(([id, mid]) => {
     const btn = document.getElementById(id);
-    if (btn) btn.addEventListener("click", () => startReplayGuide(mid));
+    if (btn) btn.addEventListener("click", () => startBriefingReplay(mid));
   });
   renderAllMiniMaps(); // Milestone 25D — initial compact route map render.
   initOpsStrips();     // Milestone 29A — inject the persistent operations strip.
@@ -13593,6 +13610,9 @@ const IG_PHASES = {
  *  briefing overlay) is on screen — the spotlight waits for it to close. */
 function igModalOpen() {
   if (document.getElementById("guidedOverlay")) return true;
+  // Task #6 — the presentation-only briefing-replay recap is also blocking;
+  // defer any live spotlight while it is on screen.
+  if (document.getElementById("rgbOverlay")) return true;
   const a = document.getElementById("alertModalRoot");
   if (a && getComputedStyle(a).display !== "none" && a.childElementCount > 0) return true;
   return false;
@@ -13662,6 +13682,9 @@ function endGuidedRun() {
   // Task #5 — also tear down an on-demand Replay Guide on any mission-exit so
   // its dim/coach can never be left stuck after navigation (no-op if inactive).
   endReplayGuide();
+  // Task #6 — also tear down a briefing-replay recap on any mission-exit so
+  // its overlay can never be left stuck after navigation (no-op if inactive).
+  endBriefingReplay();
   guidedState = null;
   closeGuidedOverlay();
 }
@@ -13888,6 +13911,117 @@ function endReplayGuide() {
   rgMissionId = null;
   rgPlan = [];
   rgIndex = 0;
+}
+
+/* ============================================================
+   BRIEFING REPLAY (Task #6) — presentation-only briefing recap
+   ------------------------------------------------------------
+   Re-shows a mission's briefing cards (MISSION_BRIEFINGS) in a
+   read-only overlay (#rgbOverlay), then flows directly into the
+   spotlight Replay Guide so the whole thing feels like one
+   onboarding sequence. Dedicated overlay + teardown, fully
+   independent of the first-run guided briefing.
+
+   Touches NO gameplay state. It deliberately does NOT call
+   reviewBriefingCard / advanceGuidedStep / startGuidedBriefing
+   (which persist + award one-time briefing XP), nor saveProgress
+   / awardXP. The only permitted write is the same inert, never-
+   read UI flag used by the Replay Guide. */
+let rgbActive = false;
+let rgbState = null; // { missionId, step, total }
+let rgbKeyHandler = null;
+
+/** Entry point for every "Replay Briefing" control. Shows the briefing
+ *  cards first (if any), then chains into the spotlight Replay Guide. */
+function startBriefingReplay(missionId) {
+  // Never stack: ignore if a briefing recap or spotlight replay is running.
+  if (rgbActive || rgActive) return;
+  const briefing = MISSION_BRIEFINGS[missionId];
+  if (!briefing || !briefing.cards.length) {
+    // No briefing cards — just run the spotlight replay (which itself
+    // exits cleanly when no targets are currently visible).
+    startReplayGuide(missionId);
+    return;
+  }
+  // Exclusivity — never let the recap stack on top of a live (reactive)
+  // spotlight; tear it down first (same pattern startReplayGuide uses).
+  igTeardown();
+  rgbActive = true;
+  rgbState = { missionId, step: 0, total: briefing.cards.length };
+  // Optional, non-functional UI flag only — best-effort, never throws and
+  // never touches ech.progress.v1 or any backend sync.
+  try { localStorage.setItem("ech.replayGuideUsed.v1", "1"); } catch (_) {}
+  console.log("Briefing replay started for " + missionId + " (" + briefing.cards.length + " card(s))");
+  rgbKeyHandler = (e) => { if (e.key === "Escape") endBriefingReplay(); };
+  document.addEventListener("keydown", rgbKeyHandler);
+  rgbRenderStep();
+}
+
+function rgbRenderStep() {
+  if (!rgbActive || !rgbState) return;
+  let overlay = document.getElementById("rgbOverlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "rgbOverlay";
+    overlay.className = "guided-overlay rgb-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    document.body.appendChild(overlay);
+  }
+  const { missionId, step, total } = rgbState;
+  const briefing = MISSION_BRIEFINGS[missionId];
+  const card = briefing.cards[step];
+  if (!card) { rgbFinish(); return; }
+  const points = card.points
+    .map((p) => `<li><span class="guided-point-bullet">▹</span>${escapeHtml(p)}</li>`)
+    .join("");
+  const isLast = step + 1 >= total;
+  overlay.innerHTML = `
+    <div class="guided-card" role="document">
+      <div class="guided-room-title">Mission Briefing Replay</div>
+      <div class="guided-progress">Briefing Step ${step + 1} of ${total}</div>
+      <h3 class="guided-title">${escapeHtml(card.title)}</h3>
+      <ul class="guided-points">${points}</ul>
+      <div class="guided-actions guided-actions--split">
+        <button id="rgbCloseBtn" class="rgb-close-btn" type="button">Close</button>
+        <button id="rgbNextBtn" class="guided-next-btn" type="button">
+          ${isLast ? "Continue to walkthrough ›" : "Got it — Next ›"}
+        </button>
+      </div>
+    </div>
+  `;
+  const next = overlay.querySelector("#rgbNextBtn");
+  if (next) next.addEventListener("click", rgbAdvance);
+  const close = overlay.querySelector("#rgbCloseBtn");
+  if (close) close.addEventListener("click", () => endBriefingReplay());
+}
+
+function rgbAdvance() {
+  if (!rgbActive || !rgbState) return;
+  rgbState.step += 1;
+  if (rgbState.step >= rgbState.total) { rgbFinish(); return; }
+  rgbRenderStep();
+}
+
+/** Briefing cards done — tear down the recap overlay and flow into the
+ *  spotlight Replay Guide as one continuous sequence. */
+function rgbFinish() {
+  const missionId = rgbState ? rgbState.missionId : null;
+  endBriefingReplay();
+  if (missionId) startReplayGuide(missionId);
+}
+
+/** End the briefing recap (Close button, Escape, finished, or navigation).
+ *  Safe to call when inactive — leaves no overlay behind. */
+function endBriefingReplay() {
+  const overlay = document.getElementById("rgbOverlay");
+  if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+  if (rgbKeyHandler) {
+    document.removeEventListener("keydown", rgbKeyHandler);
+    rgbKeyHandler = null;
+  }
+  rgbActive = false;
+  rgbState = null;
 }
 
 /* ============================================================

@@ -8724,6 +8724,37 @@ body.mission-running .current-objective--center {
 }
 .replay-guide-btn:active { transform: translateY(1px); }
 
+/* Task #6 — Briefing Replay: title row in the Briefing Room, and the
+   recap overlay's split action bar (reuses the .guided-overlay shell). */
+.briefing-room-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-sm);
+  flex-wrap: wrap;
+}
+.guided-actions--split {
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--gap-sm);
+}
+.rgb-close-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--color-text-dim);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+.rgb-close-btn:hover {
+  color: var(--color-text-bright);
+  border-color: var(--color-text-dim);
+}
+
 /* Replay coach footer (step counter + Close/Next). Reuses the .ig-coach shell
    and .ig-coach-dismiss (green) for the primary Next/Done button. */
 .rg-coach-foot {

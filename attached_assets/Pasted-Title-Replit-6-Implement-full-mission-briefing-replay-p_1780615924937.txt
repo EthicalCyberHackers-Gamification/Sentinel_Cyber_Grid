@@ -1,0 +1,162 @@
+Title: Replit #6 — Implement full mission briefing replay (presentation-only)
+
+Goal:
+Implement the actual visible “Replay Briefing” user experience for Assignments 1–3 using the already-validated replay-safe architecture.
+
+This task must create the real player-facing replay control and full replay flow while preserving the replay safety guarantees proven in Replit #7.
+
+Critical architectural rule:
+Replay systems must remain presentation-layer only.
+
+Replay must NEVER:
+- award XP
+- update progress
+- create mission_attempts
+- create xp_events
+- enqueue sync operations
+- emit analytics events
+- modify certificates
+- mutate persistent gameplay state
+- alter backend schema
+- alter progression state
+
+Background:
+Replit #5 and #7 established:
+- replay-safe architecture
+- UI-only replay guarantees
+- persistence isolation
+
+However:
+The actual visible replay UX and full briefing replay flow are not fully implemented yet.
+
+The current published build does not visibly expose replay controls to the player.
+
+This task completes the actual player-facing replay experience.
+
+Scope:
+Implement a visible “Replay Briefing” or “Replay Guide” control for Assignments 1–3.
+
+Replay must:
+- replay onboarding spotlight/tutorial flow
+- replay operational guidance
+- replay instructional overlays
+- replay mission briefing text/steps
+- safely skip missing targets
+- remain cancelable
+- work across:
+  - fresh mission
+  - mid-mission
+  - completed mission
+  - after reload
+
+The replay flow must:
+- feel seamless
+- match original onboarding pacing
+- not stack overlays
+- not duplicate listeners
+- not break layout
+- not interfere with gameplay
+
+IMPORTANT:
+Do NOT reuse progression-linked onboarding logic directly.
+
+Specifically:
+- do NOT reuse reviewBriefingCard persistence behavior
+- do NOT trigger awardXP()
+- do NOT trigger saveProgress()
+- do NOT reuse first-run-only progression handlers
+
+Instead:
+Build a dedicated presentation-only replay orchestration layer.
+
+UI Placement Requirements:
+Replay control should be visible and intuitive.
+
+Acceptable locations:
+- Assignment header
+- Mission controls panel
+- Completion summary card
+- Operations map panel
+
+The replay button must remain accessible after mission completion.
+
+Required behavior:
+1. Replay button visible on Assignments 1–3.
+2. Clicking replay starts presentation-only replay sequence.
+3. Replay may be canceled safely.
+4. Missing spotlight targets skip safely.
+5. Replay survives reload safely.
+6. Replay works after mission completion.
+7. Replay never modifies progression.
+
+Required technical validation:
+- no Supabase writes
+- no localStorage progression changes
+- no sync queue writes
+- no analytics events
+- no mission_attempt rows
+- no xp_events rows
+- no duplicate overlays
+- no duplicate listeners
+- no memory leak after repeated replay cycles
+
+Required testing:
+Test Assignments 1–3 in:
+- fresh state
+- mid-mission
+- completed state
+- after reload
+
+Repeat replay 10+ times to validate overlay/listener cleanup.
+
+Inspect:
+- network requests
+- localStorage
+- sync queue
+- Supabase rows
+- console warnings/errors
+
+Do NOT:
+- change backend schema
+- change XP system
+- change progression logic
+- create replay persistence
+- expose service-role keys
+- break local-first architecture
+
+Acceptance Criteria:
+✅ Replay button visibly appears in live assignment UI.
+✅ Replay flow matches original onboarding behavior.
+✅ Replay works for Assignments 1–3.
+✅ Replay works after mission completion.
+✅ Replay remains presentation-only.
+✅ No progression mutation occurs.
+✅ No backend writes occur.
+✅ No analytics events emitted.
+✅ No overlay duplication.
+✅ No listener leakage.
+✅ Replay safely skips missing targets.
+✅ Replay cancel works safely.
+✅ Reload-safe behavior confirmed.
+
+Deliverables:
+1. Functional replay UI integrated into live assignment layout.
+2. PR with screenshots/GIFs.
+3. Documentation file:
+
+docs/BRIEFING_REPLAY_REPLIT_#6.md
+
+Documentation must include:
+- replay architecture overview
+- UI placement explanation
+- test matrix
+- replay flow behavior
+- network inspection summary
+- localStorage inspection summary
+- sync queue inspection summary
+- screenshots/GIFs
+- known limitations
+- future recommendations
+
+Final instruction:
+Do not mark task complete unless replay controls are visibly available in the published assignment UI and proven presentation-only.
