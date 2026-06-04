@@ -60,6 +60,9 @@ Detailed docs live in [`/docs`](./docs):
   migrations in [`/supabase/migrations`](./supabase/migrations).
 - [docs/SUPABASE_MIGRATION_SETUP.md](./docs/SUPABASE_MIGRATION_SETUP.md) — Supabase
   CLI install/link/`db push`, schema verification, and future-migration workflow.
+- [docs/APPLY_MIGRATIONS_REPLIT_#2.md](./docs/APPLY_MIGRATIONS_REPLIT_#2.md) —
+  operational record of applying/verifying the live migrations (CLI push,
+  verification queries, non-destructive smoke-test outputs, rollback plan).
 - [docs/deployment.md](./docs/deployment.md) — build, run, publish, env, testing notes.
 - [docs/changelog.md](./docs/changelog.md) — compressed milestone history.
 

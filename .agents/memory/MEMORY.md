@@ -8,4 +8,5 @@
 - [State-aware hints](ech-state-aware-hints.md) — re-sync gate-dependent hints at the state-change site (e.g. `updateBriefingGate`), not just boot/reset; `loadCommandToTerminal` is the one chokepoint for "command loaded" guidance.
 - [Completion chokepoint](ech-completion-chokepoint.md) — `notifyAssignmentComplete(missionId)` fires once across all completion paths/missions; hook cross-mission completion side-effects there (defer meter-touching ones; M1 re-renders threat right after).
 - [Full e2e exceeds runTest budget](ech-e2e-runtest-timeout.md) — a whole-game A1→A3 runTest times out the 600s sandbox; scope tests small or verify cosmetic changes via node --check + typecheck + screenshot + clean console logs.
+- [Supabase migration apply/verify](ech-supabase-migrations.md) — drift gotcha: a migration's effects can exist while it's unrecorded in remote history; trust `migration list`, reconcile with idempotent `db push`.
 - [Replay vs live spotlight exclusivity](ech-replay-vs-live-spotlight.md) — separate dim/coach ids aren't enough; on-demand replay must both guard igShow AND igTeardown() any live overlay on start (they share `.ig-spotlight-target`).
