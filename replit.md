@@ -63,6 +63,9 @@ Detailed docs live in [`/docs`](./docs):
 - [docs/APPLY_MIGRATIONS_REPLIT_#2.md](./docs/APPLY_MIGRATIONS_REPLIT_#2.md) —
   operational record of applying/verifying the live migrations (CLI push,
   verification queries, non-destructive smoke-test outputs, rollback plan).
+- [docs/REPLAY_SAFETY_CHECK_REPLIT_#7.md](./docs/REPLAY_SAFETY_CHECK_REPLIT_#7.md) —
+  safety audit proving the Replay Guide is presentation-only (zero writes to
+  progress/Supabase/sync/analytics): write-surface map, test matrix, evidence.
 - [docs/deployment.md](./docs/deployment.md) — build, run, publish, env, testing notes.
 - [docs/changelog.md](./docs/changelog.md) — compressed milestone history.
 

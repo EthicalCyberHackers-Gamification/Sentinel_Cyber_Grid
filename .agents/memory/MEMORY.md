@@ -10,3 +10,4 @@
 - [Full e2e exceeds runTest budget](ech-e2e-runtest-timeout.md) — a whole-game A1→A3 runTest times out the 600s sandbox; scope tests small or verify cosmetic changes via node --check + typecheck + screenshot + clean console logs.
 - [Supabase migration apply/verify](ech-supabase-migrations.md) — drift gotcha: a migration's effects can exist while it's unrecorded in remote history; trust `migration list`, reconcile with idempotent `db push`.
 - [Replay vs live spotlight exclusivity](ech-replay-vs-live-spotlight.md) — separate dim/coach ids aren't enough; on-demand replay must both guard igShow AND igTeardown() any live overlay on start (they share `.ig-spotlight-target`).
+- [Persistence chokepoint](ech-persistence-chokepoint.md) — `saveProgress()` is the one place that writes `ech.progress.v1` AND enqueues cloud sync (and `awardXP`→`saveProgress`); presentation-only features must reach neither (briefing-review path persists — don't reuse for replay).

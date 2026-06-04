@@ -1,0 +1,90 @@
+Title: Replit #7 — Replay Safety Audit: Replay must never change progress
+
+Goal:
+Perform a QA and technical safety audit proving that all replay features are presentation-only and produce zero side effects on persistent progress.
+
+Scope:
+Audit the Replay Guide and full mission briefing replay behavior for Assignments 1–3.
+
+Validate that replay/spotlight actions do NOT:
+- write XP
+- update student progress
+- create mission_attempts
+- create xp_events
+- mutate certificates
+- enqueue sync operations
+- trigger Supabase writes
+- corrupt localStorage
+- emit analytics events
+
+Required tests:
+1. Use clean staging/test accounts only.
+2. Snapshot Supabase rows before testing.
+3. Snapshot localStorage before testing.
+4. Run Replay Guide for Assignments 1–3.
+5. Run full mission briefing replay for Assignments 1–3.
+6. Test each assignment in these states:
+   - fresh start
+   - mid-mission
+   - after completion
+   - after browser reload
+7. Monitor browser Network tab for Supabase write requests.
+8. Inspect Supabase rows before/during/after replay.
+9. Inspect localStorage before/during/after replay.
+10. Repeat replay 10 times to check for duplicate overlays, memory leaks, or duplicate event listeners.
+11. Verify replay remains cancelable.
+12. Verify replay safely skips missing spotlight targets.
+13. Verify no sync queue entries are created by replay actions.
+
+Do NOT:
+- modify production data
+- use production user accounts
+- expose service-role keys
+- change backend schema
+- change XP/progression logic unless a confirmed bug requires a small fix
+- create new persistent fields for replay
+- change localStorage schema
+
+Allowed:
+- staging/test accounts
+- read-only inspection
+- QA logs
+- screenshots/GIFs
+- small bug fixes only if replay is found to write state
+- follow-up tickets for larger fixes
+
+Acceptance Criteria:
+- Documented proof that replay causes zero writes to:
+  - profiles
+  - student_progress
+  - mission_attempts
+  - xp_events
+  - certificates
+- Documented proof that localStorage is unchanged except for explicitly allowed non-persistent UI-only flags.
+- Documented proof that replay does not enqueue offline sync operations.
+- Documented proof that replay does not emit analytics events.
+- Network captures show no Supabase write requests during replay.
+- Repeated replay cycles do not create duplicate overlays or event listener buildup.
+- Missing targets skip safely.
+- Replay can be canceled safely.
+- If any unexpected writes occur, document root cause and create remediation tickets before marking task complete.
+
+Deliverables:
+Create:
+docs/REPLAY_SAFETY_CHECK_REPLIT_#7.md
+
+The document must include:
+- test matrix
+- assignment coverage
+- fresh/mid/complete/reload results
+- Supabase before/after evidence
+- localStorage before/after evidence
+- network capture summary
+- sync queue inspection result
+- PASS/FAIL status
+- screenshots/GIFs
+- remediation tickets if needed
+- final recommendation
+
+Final output:
+Do not mark complete unless all replay systems are proven UI-only and safe.
