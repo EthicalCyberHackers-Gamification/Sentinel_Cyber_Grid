@@ -11774,6 +11774,12 @@ function boot() {
     const btn = document.getElementById(id);
     if (btn) btn.addEventListener("click", jumpToNextAction);
   });
+  // Task #5 — "Replay Guide" buttons re-run the guided spotlight tour on demand
+  // for their mission (UI-only; no gameplay/XP/backend side-effects).
+  [["replayGuideBtn", "mission-001"], ["m2ReplayGuideBtn", "mission-002"], ["m3ReplayGuideBtn", "mission-003"]].forEach(([id, mid]) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.addEventListener("click", () => startReplayGuide(mid));
+  });
   renderAllMiniMaps(); // Milestone 25D — initial compact route map render.
   initOpsStrips();     // Milestone 29A — inject the persistent operations strip.
   initRedTeamPanels(); // Milestone 30A — inject the RED TEAM ACTIVITY panel.
@@ -13653,12 +13659,19 @@ function endGuidedRun() {
   igPending.clear();
   clearGuidedLaunchTimers();
   igTeardown();
+  // Task #5 — also tear down an on-demand Replay Guide on any mission-exit so
+  // its dim/coach can never be left stuck after navigation (no-op if inactive).
+  endReplayGuide();
   guidedState = null;
   closeGuidedOverlay();
 }
 
 function igShow(missionId, phase, targetEl) {
   if (!igEnabled) return;
+  // Task #5 — never let a live (reactive) spotlight fire over an on-demand
+  // Replay Guide. This is purely cosmetic suppression; it touches no gameplay
+  // state and does not flip igEnabled, keeping the two paths fully independent.
+  if (rgActive) return;
   const def = IG_PHASES[phase];
   if (!def) return;
   const key = missionId + ":" + phase;
@@ -13735,6 +13748,146 @@ function positionCoach(tip, el) {
   left = Math.max(margin, Math.min(left, window.innerWidth - tr.width - margin));
   tip.style.top  = top + "px";
   tip.style.left = left + "px";
+}
+
+/* ============================================================
+   REPLAY GUIDE (Task #5) — on-demand spotlight replay, UI ONLY
+   ------------------------------------------------------------
+   Re-runs the Milestone 25B spotlight phases for the current
+   mission on demand (for players who skipped or forgot the live
+   walkthrough). Fully self-contained: its own dim/coach nodes
+   (#rgDim / #rgCoach) and teardown, INDEPENDENT of the live
+   igEnabled / igShow path so the two can never overlap. Reuses
+   the exact 25B visuals (.ig-dim, .ig-spotlight-target,
+   .ig-coach) and the existing IG_PHASES copy/targets.
+
+   Touches NO gameplay state — no XP, evidence, attempts, command
+   unlocks, Supabase writes, or progress localStorage. The only
+   permitted write is one optional, non-functional UI flag. */
+const RG_PHASE_ORDER = ["commands", "files", "board", "decision"];
+let rgActive = false;
+let rgMissionId = null;
+let rgPlan = [];
+let rgIndex = 0;
+let rgTargetEl = null;
+let rgKeyHandler = null;
+
+/** Resolve a phase's target for a mission, returning it only if visible.
+ *  Mirrors igShow's `offsetParent === null` guard so off-screen / display:none
+ *  targets are skipped safely (no stuck dim, no trapped clicks). */
+function rgVisibleTarget(phase, missionId) {
+  const def = IG_PHASES[phase];
+  if (!def) return null;
+  let el = null;
+  try { el = def.target(missionId); } catch (_) { el = null; }
+  if (!el || el.offsetParent === null) return null;
+  return el;
+}
+
+/** Launch the replay tour for a mission (no-op if one is already running). */
+function startReplayGuide(missionId) {
+  if (rgActive) return;
+  // Enforce exclusivity with the live first-run tour: if a live spotlight
+  // overlay (#igDim / #igCoach + ring) happens to be on screen, remove ITS
+  // visuals first so only one dim/coach can ever exist. This does NOT flip
+  // igEnabled or clear igPhasesShown — the live tour's logical state is left
+  // intact; we only clear its current visual. While rgActive, igShow's
+  // `if (rgActive) return` guard then prevents any new live spotlight.
+  igTeardown();
+  // Build the plan from phases whose targets are currently on screen, in the
+  // fixed 25B order: commands -> files -> board -> decision.
+  const plan = RG_PHASE_ORDER.filter((p) => rgVisibleTarget(p, missionId));
+  rgActive = true;
+  rgMissionId = missionId;
+  rgPlan = plan;
+  rgIndex = 0;
+  // Optional, non-functional UI flag only (no gameplay meaning). Best-effort —
+  // never throws and never affects ech.progress.v1 or any backend sync.
+  try { localStorage.setItem("ech.replayGuideUsed.v1", "1"); } catch (_) {}
+  console.log("Replay Guide started for " + missionId + " (" + plan.length + " step(s))");
+  // Escape cancels the replay at any time.
+  rgKeyHandler = (e) => { if (e.key === "Escape") endReplayGuide(); };
+  document.addEventListener("keydown", rgKeyHandler);
+  rgShowStep();
+}
+
+function rgShowStep() {
+  if (!rgActive) return;
+  // Advance past any phase whose target became unavailable since planning.
+  while (rgIndex < rgPlan.length) {
+    const phase = rgPlan[rgIndex];
+    const el = rgVisibleTarget(phase, rgMissionId);
+    if (el) { rgRender(phase, el); return; }
+    rgIndex += 1;
+  }
+  endReplayGuide(); // nothing left to show — clean exit, no stuck overlay
+}
+
+function rgRender(phase, el) {
+  rgTeardownVisual();
+  const def = IG_PHASES[phase];
+
+  const dim = document.createElement("div");
+  dim.id = "rgDim";
+  dim.className = "ig-dim"; // reuse the exact 25B dim (pointer-events:none)
+  document.body.appendChild(dim);
+
+  el.classList.add("ig-spotlight-target");
+  rgTargetEl = el;
+  try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
+
+  const isLast = rgIndex >= rgPlan.length - 1;
+  const tip = document.createElement("div");
+  tip.id = "rgCoach";
+  tip.className = "ig-coach rg-coach";
+  tip.innerHTML =
+    `<p class="ig-coach-text">${escapeHtml(def.text)}</p>` +
+    `<div class="rg-coach-foot">` +
+      `<span class="rg-coach-step">Step ${rgIndex + 1} of ${rgPlan.length}</span>` +
+      `<span class="rg-coach-btns">` +
+        `<button class="rg-coach-close" type="button">Close</button>` +
+        `<button class="ig-coach-dismiss rg-coach-next" type="button">${isLast ? "Done" : "Next ›"}</button>` +
+      `</span>` +
+    `</div>`;
+  document.body.appendChild(tip);
+
+  const nextBtn = tip.querySelector(".rg-coach-next");
+  if (nextBtn) nextBtn.addEventListener("click", rgAdvance);
+  const closeBtn = tip.querySelector(".rg-coach-close");
+  if (closeBtn) closeBtn.addEventListener("click", endReplayGuide);
+
+  positionCoach(tip, el);
+}
+
+function rgAdvance() {
+  if (!rgActive) return;
+  rgIndex += 1;
+  rgShowStep();
+}
+
+function rgTeardownVisual() {
+  const dim = document.getElementById("rgDim");
+  if (dim && dim.parentNode) dim.parentNode.removeChild(dim);
+  const tip = document.getElementById("rgCoach");
+  if (tip && tip.parentNode) tip.parentNode.removeChild(tip);
+  if (rgTargetEl) {
+    rgTargetEl.classList.remove("ig-spotlight-target");
+    rgTargetEl = null;
+  }
+}
+
+/** End the replay (Close button, Escape, finished, or navigation). Safe to
+ *  call when inactive — leaves no dim layer and traps no clicks. */
+function endReplayGuide() {
+  rgTeardownVisual();
+  if (rgKeyHandler) {
+    document.removeEventListener("keydown", rgKeyHandler);
+    rgKeyHandler = null;
+  }
+  rgActive = false;
+  rgMissionId = null;
+  rgPlan = [];
+  rgIndex = 0;
 }
 
 /* ============================================================

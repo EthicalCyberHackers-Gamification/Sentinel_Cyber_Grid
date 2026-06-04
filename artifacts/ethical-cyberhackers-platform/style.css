@@ -8687,6 +8687,79 @@ body.mission-running .current-objective--center {
 }
 .jump-next-btn:active { transform: translateY(1px); }
 
+/* Task #5 — Replay Guide control. Calm/secondary to the cyan Jump button.
+   Grouped with Jump on the right side of the objective head. */
+.objective-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-xs);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.replay-guide-btn {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  background: rgba(122, 134, 153, 0.08);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition),
+    border-color var(--transition), box-shadow var(--transition);
+}
+.replay-guide-btn:hover {
+  color: var(--color-green);
+  background: var(--color-green-dark);
+  border-color: var(--color-green-dim);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.18);
+}
+.replay-guide-btn:focus-visible {
+  outline: 2px solid var(--color-green-dim);
+  outline-offset: 2px;
+}
+.replay-guide-btn:active { transform: translateY(1px); }
+
+/* Replay coach footer (step counter + Close/Next). Reuses the .ig-coach shell
+   and .ig-coach-dismiss (green) for the primary Next/Done button. */
+.rg-coach-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-sm);
+  margin-top: var(--gap-xs);
+}
+.rg-coach-step {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-text-dim);
+}
+.rg-coach-btns {
+  display: flex;
+  gap: var(--gap-xs);
+  flex-shrink: 0;
+}
+.rg-coach-close {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--color-text-dim);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  transition: color var(--transition), border-color var(--transition);
+}
+.rg-coach-close:hover {
+  color: var(--color-text-bright);
+  border-color: var(--color-text-dim);
+}
+
 /* Short viewports (common at high browser zoom): release the terminal
    height cap so the page simply scrolls and nothing is hidden. */
 @media (max-height: 720px) {
