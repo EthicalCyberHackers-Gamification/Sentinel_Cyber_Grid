@@ -515,35 +515,176 @@ export function trackGameEvent(/* eventType, payload */) {
 }
 
 /* ------------------------------------------------------------------ *
- * Full-progress cloud backup — DEFERRED (no progress column in schema)
- * ------------------------------------------------------------------ */
-
-/**
- * Deferred in the safe subset: the normalized schema has no JSONB "progress"
- * column to mirror the whole localStorage blob into. Kept as a safe no-op so the
- * public API is stable; the authoritative blob stays in localStorage.
+ * Full-progress cloud restore checkpoints (append-only snapshots)
+ * ------------------------------------------------------------------ *
+ * Phase 3B. The authoritative localStorage blob (ech.progress.v1) is mirrored
+ * as an append-only row in `progress_snapshots` (migration 004). localStorage
+ * stays authoritative; these are best-effort durable restore checkpoints and
+ * the foundation for future authentication / cross-device continuity.
+ *
+ * Why a snapshot (not reconstruction): the normalized tables are an analytics
+ * mirror — different XP number-space and no model for rich in-mission state
+ * (evidence pins, confidence/reasoning, blue-team/incident timelines). Storing
+ * the full blob restores everything exactly. RLS-safe: anon INSERT + SELECT
+ * only (immutable; no UPDATE/DELETE).
  */
-export function saveCloudProgress(/* blob */) {
-  /* intentionally local-only — see docs/SUPABASE_STATUS_REVIEW.md */
+
+const STORAGE_KEY = "ech.progress.v1";
+const SNAPSHOT_TABLE = "progress_snapshots";
+
+/** Signature of the last snapshot we successfully wrote, to skip redundant inserts. */
+let _lastSnapshotSig = null;
+
+/** True when `blob` looks like a real progress object (defensive). */
+function looksLikeProgress(blob) {
+  return (
+    !!blob &&
+    typeof blob === "object" &&
+    ("studentName" in blob || "mission1Complete" in blob || "xp" in blob)
+  );
 }
 
 /**
- * Warm-up / future restore: confirm connectivity and ensure our profile id is
- * resolved. Does NOT auto-overwrite local state (local-first). Returns null —
- * there is no cloud "progress blob" in the production schema to restore from.
+ * Progression score for a progress blob — higher means more advanced. Completed
+ * missions dominate; XP breaks ties. Used so cloud restore NEVER reduces local
+ * progression (we only ever restore a strictly-more-advanced cloud blob).
+ */
+function progressionScore(blob) {
+  if (!looksLikeProgress(blob)) return -1;
+  const done =
+    (blob.mission1Complete ? 1 : 0) +
+    (blob.mission2Complete ? 1 : 0) +
+    (blob.mission3Complete ? 1 : 0);
+  const xp = typeof blob.xp === "number" ? blob.xp : 0;
+  return done * 1e7 + xp;
+}
+
+/** Read the authoritative local save, or null. Never throws. */
+function readLocalProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return data && typeof data === "object" ? data : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Append the authoritative progress blob as a durable cloud checkpoint.
+ * Best-effort: skips inserts when the blob is unchanged, requires the profiles
+ * row (created on demand), and never throws into the caller.
+ * @param {object} blob the localStorage progress object
+ */
+export async function saveCloudProgress(blob) {
+  if (!isBackendConfigured || !supabase || !looksLikeProgress(blob)) return;
+
+  let json;
+  try {
+    json = JSON.parse(JSON.stringify(blob));
+  } catch (_) {
+    return;
+  }
+  const sig = JSON.stringify(json);
+  if (sig === _lastSnapshotSig) return; // unchanged since last successful write
+
+  const profile_id = await ensureProfileId(blob.studentName ?? null);
+  if (!profile_id) return;
+
+  try {
+    const { error } = await supabase.from(SNAPSHOT_TABLE).insert({
+      profile_id,
+      schema_version: STORAGE_KEY,
+      snapshot_json: json,
+      client_saved_at: blob.savedAt || new Date().toISOString(),
+    });
+    if (error) {
+      setBackendStatus("delayed");
+      // eslint-disable-next-line no-console
+      console.warn("[backend] snapshot insert failed (continuing locally):", error.message);
+      return;
+    }
+    _lastSnapshotSig = sig;
+    setBackendStatus("connected");
+  } catch (e) {
+    setBackendStatus("delayed");
+    // eslint-disable-next-line no-console
+    console.warn("[backend] snapshot insert threw (continuing locally):", e && e.message);
+  }
+}
+
+/**
+ * Fetch this browser's latest cloud snapshot, or null. Read-only — never creates
+ * a profile and never touches local state. Returns `{ blob, savedAt }` or null.
  */
 export async function loadCloudProgress() {
   if (!isBackendConfigured || !supabase) return null;
-  await selectProfileId(); // sets status connected/delayed; caches nothing destructive
-  return null;
+  const profile_id = await selectProfileId();
+  if (!profile_id) return null;
+  rememberProfileId(profile_id);
+  try {
+    const { data, error } = await supabase
+      .from(SNAPSHOT_TABLE)
+      .select("snapshot_json, client_saved_at")
+      .eq("profile_id", profile_id)
+      .order("client_saved_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      setBackendStatus("delayed");
+      return null;
+    }
+    setBackendStatus("connected");
+    if (!data || !looksLikeProgress(data.snapshot_json)) return null;
+    return { blob: data.snapshot_json, savedAt: data.client_saved_at };
+  } catch (e) {
+    setBackendStatus("delayed");
+    return null;
+  }
+}
+
+/**
+ * Local-first cloud reconciliation, run once at boot. NEVER loses progress:
+ *   - keeps local when a usable local save exists and is >= cloud progression
+ *     (the common case — including delayed sync / Supabase down);
+ *   - restores the cloud blob into localStorage only when there is no usable
+ *     local save, OR the cloud snapshot is strictly more advanced (e.g. local was
+ *     cleared or rolled back while the cloud identity persisted).
+ * Returns `{ restored: boolean }`. When `restored`, the caller should reload so
+ * the normal local boot path rehydrates the restored state.
+ */
+export async function reconcileCloudProgress() {
+  if (!isBackendConfigured || !supabase) return { restored: false };
+
+  let cloud;
+  try {
+    cloud = await loadCloudProgress();
+  } catch (_) {
+    return { restored: false };
+  }
+  if (!cloud || !looksLikeProgress(cloud.blob)) return { restored: false };
+
+  const local = readLocalProgress();
+  // Local-first: keep local unless it's absent or strictly behind the cloud.
+  if (local && progressionScore(local) >= progressionScore(cloud.blob)) {
+    return { restored: false };
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cloud.blob));
+  } catch (_) {
+    return { restored: false };
+  }
+  _lastSnapshotSig = JSON.stringify(cloud.blob); // avoid immediately re-uploading it
+  return { restored: true };
 }
 
 /* ------------------------------------------------------------------ *
  * Coordinator called from script.js saveProgress().
  * ------------------------------------------------------------------ *
- * Debounced as a whole so a burst of local saves results in (at most) one
- * cloud touch. In the safe subset this only ensures the profiles row exists
- * (INSERT-once); richer progression remains local-first.
+ * Debounced as a whole so a burst of local saves results in (at most) one cloud
+ * touch. Appends a durable restore checkpoint (skipped when unchanged).
  */
 
 let _latestSnapshot = null;
@@ -551,11 +692,7 @@ let _latestSnapshot = null;
 const _flushCloudSync = debounce(() => {
   const snapshot = _latestSnapshot;
   if (!isBackendConfigured || !supabase || !snapshot) return;
-  try {
-    void ensureProfileId(snapshot.studentName ?? null);
-  } catch (_) {
-    /* non-fatal */
-  }
+  void saveCloudProgress(snapshot);
 }, 5000);
 
 /**

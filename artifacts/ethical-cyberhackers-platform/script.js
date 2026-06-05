@@ -65,7 +65,7 @@ import {
   trackXpEvent,
   cloudCompleteMissionAttempt,
   queueCloudSync,
-  loadCloudProgress,
+  reconcileCloudProgress,
 } from "./lib/backendSync.js";
 
 // Background soundtrack — bundled by Vite (returns a served URL string).
@@ -3503,6 +3503,9 @@ function saveProgress() {
   if (suppressSave) return;
   try {
     const data = {
+      // Phase 3B — monotonic save marker used by cloud restore reconciliation
+      // (newest/most-advanced wins; never overwrites more-advanced local state).
+      savedAt: new Date().toISOString(),
       studentName,
       xp: currentXP,
       rank: rankNameEl ? rankNameEl.textContent : INITIAL_RANK,
@@ -11703,7 +11706,28 @@ function boot() {
   try {
     getOrCreateAnonymousId();
     mountBackendStatusIndicator();
-    void loadCloudProgress();
+    // Phase 3B — local-first cloud restore. Runs async (never blocks boot) and
+    // only restores when there is no usable local save, or the cloud snapshot is
+    // strictly more advanced (e.g. local was cleared/rolled back). On restore we
+    // reload once so the normal local boot path rehydrates the restored state.
+    void (async () => {
+      try {
+        const res = await reconcileCloudProgress();
+        const RELOAD_GUARD = "ech.cloud_restore_reloaded";
+        if (res && res.restored) {
+          // Reload once to rehydrate from the freshly-restored localStorage. The
+          // guard prevents a reload loop; the next (non-restoring) boot clears it.
+          if (!sessionStorage.getItem(RELOAD_GUARD)) {
+            sessionStorage.setItem(RELOAD_GUARD, "1");
+            location.reload();
+          }
+        } else {
+          // Nothing restored this boot — release the one-shot guard so a future
+          // legitimate restore in this same tab can trigger its reload again.
+          sessionStorage.removeItem(RELOAD_GUARD);
+        }
+      } catch (_) { /* non-fatal */ }
+    })();
   } catch (_) { /* non-fatal — game runs fully offline */ }
 
   // Pre-populate the starting buttons (stay hidden until Begin Mission)
