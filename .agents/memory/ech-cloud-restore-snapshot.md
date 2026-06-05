@@ -32,6 +32,23 @@ timelines, briefing flags) is not modeled in those tables at all.
   restores in the same tab. Clearing on restore=false is still loop-safe (we only
   reload when the guard is unset, and only clear it when nothing was restored).
 
+**Latest ≠ best (restore-completeness gap, NOT an invariant violation):**
+`loadCloudProgress` reads the snapshot with the newest `client_saved_at`, not the
+one with the highest `progressionScore`. If a player peaks then resets/regresses,
+the newest snapshot can be *lower* than an earlier one (confirmed live: a profile
+went xp905/M1-done → xp750/M1-false as its latest row). The no-downgrade invariant
+still holds because reconcile only restores when local is absent/behind (it never
+lowers existing local), but a cleared browser restores the *regressed latest*, not
+the all-time peak. Decide "recover most-recent" vs "recover best" (max
+progressionScore) before cross-device/auth restore.
+
+**Snapshot store vs normalized ledger legitimately diverge:** the append-only
+ledger (mission_attempts→triggers→student_progress/profiles) can show a mission
+completed while NO snapshot ever recorded that completion flag (completion fired,
+but localStorage was reset before the debounced snapshot flushed). They answer
+different questions — exactly why restore uses the snapshot blob, not ledger
+reconstruction. Expected; not a bug.
+
 # Anon RLS is a bearer-capability model (not per-user isolation)
 
 Every ECH ledger table (incl. `progress_snapshots`) uses anon

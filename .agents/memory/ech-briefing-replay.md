@@ -16,7 +16,7 @@ one-time briefing XP, and calls `saveProgress()` (writes `ech.progress.v1` +
 enqueues cloud sync). Replay re-reads the same card data but renders it
 independently, calling none of those handlers.
 
-**Safety invariant (shared with `rg*`, audited in REPLAY_SAFETY_CHECK #7):** the
+**Safety invariant (shared with `rg*`, audited in the replay safety check):** the
 replay path must reach NEITHER `saveProgress()` NOR `awardXP()`, and must not call
 `reviewBriefingCard`/`advanceGuidedStep`/`startGuidedBriefing`. Only permitted
 persistent write = inert, never-read flag `ech.replayGuideUsed.v1`.

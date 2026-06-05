@@ -65,6 +65,12 @@ Detailed docs live in [`/docs`](./docs):
   verification, the append-only `progress_snapshots` table (migration `004`), the
   faithful-snapshot save/load/reconcile path, local-first invariants, and the
   no-data-loss reconciliation rules (auth/cross-device deferred).
+- [docs/PHASE_3C_VALIDATION_REPORT.md](./docs/PHASE_3C_VALIDATION_REPORT.md) —
+  Phase 3C end-to-end restore validation (PASS): test matrix across
+  profile/continuity/reconciliation/offline/UI/database/logging, live append-only
+  RLS proof, the 11-case reconciliation matrix, and key findings — restore returns
+  the **most-recent** (not highest) snapshot, and the snapshot store vs normalized
+  ledger legitimately diverge — with pre-auth recommendations.
 - [docs/APPLY_MIGRATIONS_REPLIT_#2.md](./docs/APPLY_MIGRATIONS_REPLIT_#2.md) —
   operational record of applying/verifying the live migrations (CLI push,
   verification queries, non-destructive smoke-test outputs, rollback plan).

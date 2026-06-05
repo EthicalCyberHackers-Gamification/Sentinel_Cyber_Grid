@@ -1,0 +1,255 @@
+PROJECT PHASE:
+Phase 3C — Validation, Reliability & UX Completion
+
+TASK #14 — Manual Supabase Restore Validation
+
+Purpose:
+Perform a full end-to-end validation of the newly completed Phase 3B restore foundation and confirm the platform behaves correctly under real gameplay, reload, restore, offline, and reconciliation conditions before any authentication or Assignment 4 work begins.
+
+This is a validation/stability task.
+
+Do NOT:
+
+* implement authentication
+* redesign the interface
+* add Assignment 4
+* add analytics expansion
+* add multiplayer/team systems
+* change gameplay flow
+* rewrite the backend architecture
+* alter local-first philosophy
+
+---
+
+## CURRENT ARCHITECTURAL STATE
+
+Already completed:
+
+* 001_initial_game_schema.sql
+* 002_seed_missions.sql
+* 003_server_triggers.sql
+* 004_progress_snapshots.sql
+
+Already implemented:
+
+* append-only restore snapshots
+* local/cloud reconciliation
+* progression-score merge protection
+* replay continuity foundation
+* local-first save architecture
+
+Current rule:
+localStorage remains authoritative.
+Supabase acts as restore/snapshot persistence.
+Gameplay must remain fully functional offline or during backend failure.
+
+---
+
+## PRIMARY OBJECTIVE
+
+Prove that:
+
+1. Progress is never lost.
+2. Cloud restore never downgrades newer local progress.
+3. Replay continuity remains stable.
+4. Local-first gameplay remains resilient.
+5. Assignments 1–3 remain stable across refresh/reconnect/offline scenarios.
+
+---
+
+## STEP 1 — PROFILE + SNAPSHOT VALIDATION
+
+Validate new-player creation flow.
+
+Test:
+
+1. Clear localStorage completely.
+2. Launch game.
+3. Create new analyst identity.
+4. Start Assignment 1.
+5. Verify:
+
+   * new anonymous_id created
+   * new profile row appears
+   * progress_snapshots row appears
+   * xp_events appear
+   * mission_attempt row appears
+
+Verify:
+
+* profile sync timing
+* snapshot save timing
+* no duplicate profile creation
+* no stale identity reuse
+
+---
+
+## STEP 2 — ASSIGNMENT CONTINUITY VALIDATION
+
+Assignments:
+
+* Assignment 1
+* Assignment 2
+* Assignment 3
+
+For EACH assignment test:
+
+1. Start mission
+2. Perform partial progress
+3. Refresh browser
+4. Verify restore state
+5. Continue mission
+6. Complete mission
+7. Replay mission
+8. Verify:
+
+   * no duplicate XP
+   * no duplicate completion rewards
+   * no corrupted mission state
+   * no broken unlock state
+   * replay continuity preserved
+
+---
+
+## STEP 3 — LOCAL VS CLOUD RECONCILIATION TESTS
+
+Explicitly test:
+
+* local ahead of cloud
+* cloud ahead of local
+* equal state
+* malformed cloud snapshot
+* stale cloud snapshot
+* cleared localStorage with valid cloud snapshot
+* reconnect after delayed sync
+
+Verify:
+
+* newer local state always wins
+* restore can only raise progression
+* no rollback occurs
+* no progress corruption occurs
+
+---
+
+## STEP 4 — OFFLINE RESILIENCE TESTS
+
+Simulate:
+
+* offline browser
+* Supabase unavailable
+* delayed network reconnect
+
+Verify:
+
+* gameplay still works
+* no console-breaking errors
+* no mission lockups
+* no replay-guide failures
+* no XP corruption
+* local saves continue normally
+* sync resumes safely later
+
+---
+
+## STEP 5 — UI/STATE CONTINUITY TESTS
+
+Verify restore stability for:
+
+* Current Objective
+* Investigation Board
+* Evidence state
+* Mission unlock state
+* Threat level state
+* XP/rank state
+* Replay Guide state
+* SOC Toolkit state if merged
+* Assignment completion state
+
+Confirm:
+
+* no UI desync
+* no duplicated overlays
+* no broken onboarding flow
+* no hidden mission progression corruption
+
+---
+
+## STEP 6 — DATABASE VALIDATION
+
+Verify correct writes for:
+
+* profiles
+* progress_snapshots
+* xp_events
+* mission_attempts
+* student_progress
+
+Verify:
+
+* append-only snapshot behavior
+* update/delete restrictions
+* RLS enforcement behavior
+* no uncontrolled row growth bugs
+* no duplicate mission attempt spam
+
+---
+
+## STEP 7 — LOGGING & ERROR REVIEW
+
+Review:
+
+* browser console
+* Vite logs
+* Supabase responses
+* sync failures
+* reload guard behavior
+
+Confirm:
+
+* no infinite reload loops
+* no snapshot corruption
+* no unhandled promise errors
+* no silent mission corruption
+
+---
+
+## DOCUMENTATION
+
+Create/update:
+
+docs/PHASE_3C_VALIDATION_REPORT.md
+
+Include:
+
+* test matrix
+* pass/fail results
+* restore behavior observations
+* local/cloud reconciliation behavior
+* offline behavior results
+* replay continuity results
+* known limitations
+* deferred architectural concerns
+* recommendations before authentication
+
+---
+
+## IMPORTANT DEFERRED ITEMS
+
+Do NOT begin:
+
+* authentication
+* account migration
+* cross-device persistence
+* closed beta prep
+* Assignment 4
+* SIEM persistence
+* advanced analytics
+
+Those remain blocked until Phase 3C validation passes.
+
+---
+
+## FINAL RESULT
+
+The Ethical CyberHackers platform is validated as a stable local-first operational simulator with reliable restore continuity, resilient progression persistence, and safe cloud reconciliation before identity/authentication systems are introduced.
