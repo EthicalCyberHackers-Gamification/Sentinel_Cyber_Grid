@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/ops-center/"
+title = "Operations Center Prototype"
+version = "1.0.0"
+id = "artifacts/ops-center-prototype"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/ops-center/" ]
+localPort = 24705
+
+[services.development]
+run = "pnpm --filter @workspace/ops-center-prototype run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ops-center-prototype", "run", "build" ]
+publicDir = "artifacts/ops-center-prototype/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24705"
+BASE_PATH = "/ops-center/"

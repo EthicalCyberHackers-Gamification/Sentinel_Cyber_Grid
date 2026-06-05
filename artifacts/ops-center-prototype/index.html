@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Operations Center — CyberCorp SOC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./oc.css" />
+</head>
+<body>
+
+  <!-- ===== OPS CENTER SCREEN ===== -->
+  <div id="opsCenter" class="screen screen--ops">
+
+    <!-- HEADER -->
+    <header class="oc-header">
+      <div class="oc-header-brand">
+        <svg class="brand-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <polygon points="20,2 38,12 38,28 20,38 2,28 2,12" stroke="#00ff88" stroke-width="1.5" fill="none"/>
+          <polygon points="20,8 32,15 32,25 20,32 8,25 8,15" stroke="#00ff88" stroke-width="1" fill="rgba(0,255,136,0.07)"/>
+          <text x="20" y="25" text-anchor="middle" fill="#00ff88" font-size="14" font-family="monospace" font-weight="bold">&gt;_</text>
+        </svg>
+        <div class="brand-text">
+          <span class="brand-name">CyberCorp SOC</span>
+          <span class="brand-tagline">Operations Center — Global Command</span>
+        </div>
+      </div>
+
+      <div class="oc-header-status">
+        <div class="status-chip status-chip--ok">
+          <span class="status-dot"></span>
+          <span>BLUE TEAM ACTIVE</span>
+        </div>
+        <div class="status-chip status-chip--warn">
+          <span class="status-dot"></span>
+          <span>THREAT LEVEL: ELEVATED</span>
+        </div>
+        <div class="status-chip status-chip--ok">
+          <span class="status-dot"></span>
+          <span>MONITORING: ONLINE</span>
+        </div>
+      </div>
+
+      <div class="oc-header-meta">
+        <div class="meta-clock" id="headerClock">00:00:00 UTC</div>
+        <div class="meta-analyst">
+          <span class="agent-label">ANALYST</span>
+          <span class="agent-name">GHOST_ZERO</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- THREE-PANEL BODY -->
+    <main class="oc-body">
+
+      <!-- LEFT — ALERTS & INTEL -->
+      <aside class="oc-panel oc-panel--left" aria-label="Alerts and Intel">
+        <div class="panel-head">
+          <div class="panel-head-title">
+            <span class="panel-head-icon" aria-hidden="true">◉</span>
+            <span>ALERT QUEUE</span>
+          </div>
+          <div class="panel-head-badge" id="alertCount">0 ACTIVE</div>
+        </div>
+
+        <div class="alert-feed" id="alertFeed" role="log" aria-live="polite" aria-label="Live alert feed">
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <div class="panel-head panel-head--sm">
+          <div class="panel-head-title">
+            <span class="panel-head-icon" aria-hidden="true">▤</span>
+            <span>INTEL UPDATES</span>
+          </div>
+        </div>
+        <div class="intel-feed" id="intelFeed">
+        </div>
+      </aside>
+
+      <!-- CENTER — WORLD MAP -->
+      <section class="oc-panel oc-panel--center" aria-label="Global Operations Map">
+        <div class="panel-head">
+          <div class="panel-head-title">
+            <span class="panel-head-icon" aria-hidden="true">⊕</span>
+            <span>GLOBAL OPERATIONS MAP</span>
+          </div>
+          <div class="map-legend">
+            <span class="legend-item legend-item--critical">CRITICAL</span>
+            <span class="legend-item legend-item--high">HIGH</span>
+            <span class="legend-item legend-item--medium">MEDIUM</span>
+            <span class="legend-item legend-item--low">LOW</span>
+          </div>
+        </div>
+
+        <div class="map-container">
+          <svg class="world-svg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <defs>
+              <pattern id="mapGrid" width="50" height="50" patternUnits="userSpaceOnUse">
+                <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(0,255,136,0.06)" stroke-width="0.5"/>
+              </pattern>
+              <filter id="nodeGlow">
+                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <rect width="1000" height="500" fill="url(#mapGrid)"/>
+
+            <!-- Latitude/longitude reference lines -->
+            <line x1="0" y1="250" x2="1000" y2="250" stroke="rgba(0,255,136,0.07)" stroke-width="0.8" stroke-dasharray="4,8"/>
+            <line x1="500" y1="0" x2="500" y2="500" stroke="rgba(0,255,136,0.07)" stroke-width="0.8" stroke-dasharray="4,8"/>
+            <line x1="0" y1="125" x2="1000" y2="125" stroke="rgba(0,255,136,0.04)" stroke-width="0.5" stroke-dasharray="2,10"/>
+            <line x1="0" y1="375" x2="1000" y2="375" stroke="rgba(0,255,136,0.04)" stroke-width="0.5" stroke-dasharray="2,10"/>
+
+            <!-- North America -->
+            <path d="M 90,58 L 125,52 L 165,58 L 200,73 L 220,98 L 230,128 L 240,153 L 225,173 L 215,198 L 200,223 L 180,238 L 160,248 L 145,258 L 130,253 L 115,243 L 100,233 L 85,213 L 75,188 L 70,163 L 75,128 L 80,98 L 85,73 Z" fill="rgba(0,255,136,0.055)" stroke="rgba(0,255,136,0.2)" stroke-width="0.8"/>
+            <path d="M 178,238 L 188,258 L 183,278 L 173,283 L 163,273 L 158,248 Z" fill="rgba(0,255,136,0.04)" stroke="rgba(0,255,136,0.15)" stroke-width="0.6"/>
+
+            <!-- South America -->
+            <path d="M 192,278 L 218,273 L 248,283 L 268,303 L 278,328 L 273,358 L 258,388 L 238,408 L 213,418 L 188,413 L 168,393 L 158,368 L 158,343 L 163,313 L 173,293 Z" fill="rgba(0,255,136,0.055)" stroke="rgba(0,255,136,0.2)" stroke-width="0.8"/>
+
+            <!-- Greenland -->
+            <path d="M 322,18 L 362,13 L 397,23 L 402,48 L 387,73 L 362,83 L 332,78 L 312,58 L 312,33 Z" fill="rgba(0,255,136,0.03)" stroke="rgba(0,255,136,0.12)" stroke-width="0.6"/>
+
+            <!-- Europe -->
+            <path d="M 458,53 L 493,48 L 523,53 L 548,68 L 553,88 L 538,108 L 518,118 L 498,128 L 478,143 L 463,153 L 448,143 L 438,128 L 438,108 L 443,88 L 448,68 Z" fill="rgba(0,255,136,0.055)" stroke="rgba(0,255,136,0.2)" stroke-width="0.8"/>
+            <path d="M 443,128 L 458,138 L 453,158 L 438,163 L 428,153 L 433,138 Z" fill="rgba(0,255,136,0.04)" stroke="rgba(0,255,136,0.13)" stroke-width="0.5"/>
+            <path d="M 483,48 L 498,33 L 513,28 L 523,43 L 518,63 L 503,68 Z" fill="rgba(0,255,136,0.04)" stroke="rgba(0,255,136,0.13)" stroke-width="0.5"/>
+
+            <!-- Russia / Eurasia -->
+            <path d="M 538,33 L 603,23 L 683,18 L 763,23 L 833,33 L 883,48 L 893,73 L 868,88 L 823,93 L 773,88 L 723,83 L 673,88 L 623,93 L 578,98 L 548,93 L 533,78 L 528,58 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.17)" stroke-width="0.7"/>
+
+            <!-- Middle East / Arabia -->
+            <path d="M 563,148 L 593,143 L 623,148 L 638,168 L 633,193 L 618,213 L 598,218 L 578,213 L 558,193 L 553,168 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.17)" stroke-width="0.7"/>
+
+            <!-- Africa -->
+            <path d="M 468,163 L 513,158 L 548,163 L 568,183 L 568,213 L 558,243 L 548,273 L 538,303 L 523,338 L 503,373 L 478,403 L 453,413 L 428,408 L 408,388 L 393,358 L 388,323 L 393,288 L 403,258 L 418,228 L 428,198 L 433,173 L 448,163 Z" fill="rgba(0,255,136,0.055)" stroke="rgba(0,255,136,0.2)" stroke-width="0.8"/>
+
+            <!-- Central Asia / South Asia -->
+            <path d="M 623,98 L 683,93 L 733,98 L 773,108 L 793,128 L 793,153 L 778,173 L 748,183 L 713,183 L 683,173 L 658,158 L 638,143 L 628,118 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.17)" stroke-width="0.7"/>
+            <!-- Indian subcontinent -->
+            <path d="M 663,178 L 688,173 L 713,183 L 723,208 L 718,238 L 703,258 L 683,263 L 663,253 L 651,228 L 648,203 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.16)" stroke-width="0.7"/>
+            <!-- SE Asia peninsula -->
+            <path d="M 773,183 L 803,193 L 823,213 L 818,238 L 803,253 L 783,253 L 763,238 L 753,213 L 758,193 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.15)" stroke-width="0.6"/>
+
+            <!-- Australia -->
+            <path d="M 793,308 L 843,293 L 893,298 L 933,313 L 948,338 L 943,368 L 923,393 L 888,403 L 848,403 L 813,388 L 788,363 L 781,338 Z" fill="rgba(0,255,136,0.055)" stroke="rgba(0,255,136,0.2)" stroke-width="0.8"/>
+
+            <!-- Japan -->
+            <ellipse cx="868" cy="108" rx="10" ry="26" fill="rgba(0,255,136,0.035)" stroke="rgba(0,255,136,0.13)" stroke-width="0.5" transform="rotate(-15,868,108)"/>
+
+            <!-- Animated network arcs -->
+            <path class="arc arc--a" d="M 160,180 Q 340,80 490,103" fill="none" stroke="rgba(0,229,255,0.18)" stroke-width="1.2" stroke-dasharray="5,5"/>
+            <path class="arc arc--b" d="M 498,103 Q 620,58 753,143" fill="none" stroke="rgba(0,255,136,0.14)" stroke-width="1" stroke-dasharray="4,6"/>
+            <path class="arc arc--c" d="M 213,318 Q 380,178 490,103" fill="none" stroke="rgba(255,107,0,0.14)" stroke-width="1" stroke-dasharray="5,5"/>
+            <path class="arc arc--d" d="M 498,103 Q 518,198 498,318" fill="none" stroke="rgba(0,229,255,0.10)" stroke-width="1" stroke-dasharray="3,7"/>
+            <path class="arc arc--e" d="M 753,143 Q 820,248 863,348" fill="none" stroke="rgba(0,255,136,0.11)" stroke-width="1" stroke-dasharray="4,8"/>
+            <path class="arc arc--f" d="M 590,180 Q 620,140 668,165" fill="none" stroke="rgba(255,215,0,0.12)" stroke-width="1" stroke-dasharray="3,6"/>
+          </svg>
+
+          <!-- Incident Nodes -->
+          <div class="map-nodes" aria-label="Incident nodes">
+            <button class="incident-node incident-node--critical" id="node-emea" style="left:50%;top:24%" data-id="emea" aria-label="EMEA Region — Critical">
+              <span class="node-pulse" aria-hidden="true"></span>
+              <span class="node-core" aria-hidden="true"></span>
+              <span class="node-label">EMEA</span>
+            </button>
+            <button class="incident-node incident-node--high" id="node-apac" style="left:78%;top:29%" data-id="apac" aria-label="APAC Region — High">
+              <span class="node-pulse" aria-hidden="true"></span>
+              <span class="node-core" aria-hidden="true"></span>
+              <span class="node-label">APAC</span>
+            </button>
+            <button class="incident-node incident-node--high" id="node-na-east" style="left:19%;top:37%" data-id="na-east" aria-label="NA East — High">
+              <span class="node-pulse" aria-hidden="true"></span>
+              <span class="node-core" aria-hidden="true"></span>
+              <span class="node-label">NA-EAST</span>
+            </button>
+            <button class="incident-node incident-node--medium" id="node-latam" style="left:21%;top:63%" data-id="latam" aria-label="LATAM — Medium">
+              <span class="node-pulse" aria-hidden="true"></span>
+              <span class="node-core" aria-hidden="true"></span>
+              <span class="node-label">LATAM</span>
+            </button>
+            <button class="incident-node incident-node--medium" id="node-mena" style="left:58%;top:40%" data-id="mena" aria-label="MENA — Medium">
+              <span class="node-pulse" aria-hidden="true"></span>
+              <span class="node-core" aria-hidden="true"></span>
+              <span class="node-label">MENA</span>
+            </button>
+            <button class="incident-node incident-node--low" id="node-sea" style="left:82%;top:52%" data-id="sea" aria-label="SEA — Low">
+              <span class="node-pulse" aria-hidden="true"></span>
+              <span class="node-core" aria-hidden="true"></span>
+              <span class="node-label">SEA</span>
+            </button>
+          </div>
+
+          <!-- Incident Card -->
+          <div class="incident-card" id="incidentCard" style="display:none;" role="dialog" aria-modal="true" aria-label="Incident details">
+            <button class="incident-card-close" id="incidentCardClose" type="button" aria-label="Close">✕</button>
+            <div class="incident-card-severity" id="incidentSeverity">CRITICAL</div>
+            <div class="incident-card-region" id="incidentRegion">EMEA REGION</div>
+            <h3 class="incident-card-title" id="incidentTitle">—</h3>
+            <p class="incident-card-desc" id="incidentDesc">—</p>
+            <div class="incident-card-meta">
+              <div class="incident-meta-row">
+                <span class="incident-meta-label">FIRST DETECTED</span>
+                <span class="incident-meta-val" id="incidentDetected">—</span>
+              </div>
+              <div class="incident-meta-row">
+                <span class="incident-meta-label">AFFECTED SYSTEMS</span>
+                <span class="incident-meta-val" id="incidentSystems">—</span>
+              </div>
+              <div class="incident-meta-row">
+                <span class="incident-meta-label">ASSIGNED TO</span>
+                <span class="incident-meta-val" id="incidentAssigned">Unassigned</span>
+              </div>
+            </div>
+            <button class="incident-launch-btn" id="incidentLaunchBtn" type="button">
+              ▶&nbsp; LAUNCH INVESTIGATION
+            </button>
+          </div>
+        </div>
+
+        <!-- Map Footer -->
+        <div class="map-footer">
+          <div class="map-stat"><span class="map-stat-label">ACTIVE INCIDENTS</span><span class="map-stat-val map-stat-val--warn">6</span></div>
+          <div class="map-stat"><span class="map-stat-label">CRITICAL</span><span class="map-stat-val map-stat-val--critical">1</span></div>
+          <div class="map-stat"><span class="map-stat-label">HIGH</span><span class="map-stat-val map-stat-val--high">2</span></div>
+          <div class="map-stat"><span class="map-stat-label">MEDIUM</span><span class="map-stat-val map-stat-val--medium">2</span></div>
+          <div class="map-stat"><span class="map-stat-label">LOW</span><span class="map-stat-val map-stat-val--low">1</span></div>
+          <div class="map-stat"><span class="map-stat-label">COVERAGE</span><span class="map-stat-val map-stat-val--ok">6 REGIONS</span></div>
+        </div>
+      </section>
+
+      <!-- RIGHT — SOC COMMUNICATIONS -->
+      <aside class="oc-panel oc-panel--right" aria-label="SOC Communications">
+        <div class="panel-head">
+          <div class="panel-head-title">
+            <span class="panel-head-icon" aria-hidden="true">◈</span>
+            <span>SOC COMMS</span>
+          </div>
+          <span class="panel-head-badge panel-head-badge--live">
+            <span class="live-dot" aria-hidden="true"></span>LIVE
+          </span>
+        </div>
+
+        <div class="comms-feed" id="commsFeed" role="log" aria-live="polite" aria-label="SOC communications">
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <div class="panel-head panel-head--sm">
+          <div class="panel-head-title">
+            <span class="panel-head-icon" aria-hidden="true">▲</span>
+            <span>ANALYST ROSTER</span>
+          </div>
+        </div>
+        <div class="roster-list">
+          <div class="roster-analyst">
+            <div class="roster-avatar roster-avatar--lead">SR</div>
+            <div class="roster-info">
+              <span class="roster-name">Sarah Reyes</span>
+              <span class="roster-role">SOC Lead</span>
+            </div>
+            <span class="roster-status-dot" title="Online"></span>
+          </div>
+          <div class="roster-analyst">
+            <div class="roster-avatar roster-avatar--intel">MC</div>
+            <div class="roster-info">
+              <span class="roster-name">Marcus Chen</span>
+              <span class="roster-role">Threat Intel</span>
+            </div>
+            <span class="roster-status-dot" title="Online"></span>
+          </div>
+          <div class="roster-analyst">
+            <div class="roster-avatar roster-avatar--cmd">CB</div>
+            <div class="roster-info">
+              <span class="roster-name">Cmdr. Brooks</span>
+              <span class="roster-role">Incident Cmd</span>
+            </div>
+            <span class="roster-status-dot" title="Online"></span>
+          </div>
+          <div class="roster-analyst">
+            <div class="roster-avatar roster-avatar--junior">AT</div>
+            <div class="roster-info">
+              <span class="roster-name">Alex Torres</span>
+              <span class="roster-role">Junior Analyst</span>
+            </div>
+            <span class="roster-status-dot" title="Online"></span>
+          </div>
+        </div>
+      </aside>
+
+    </main>
+  </div>
+
+  <!-- ===== MISSION WORKSPACE SCREEN ===== -->
+  <div id="missionWorkspace" class="screen screen--workspace" style="display:none;" aria-label="Investigation Workspace">
+
+    <div class="ws-header">
+      <button class="ws-back-btn" id="wsBackBtn" type="button">
+        ← RETURN TO OPERATIONS CENTER
+      </button>
+      <div class="ws-incident-strip">
+        <span class="ws-severity" id="wsSeverity">CRITICAL</span>
+        <span class="ws-region" id="wsRegion">EMEA REGION</span>
+        <span class="ws-sep" aria-hidden="true">—</span>
+        <span class="ws-title" id="wsTitle">Credential Phishing Campaign</span>
+      </div>
+      <div class="ws-status">
+        <span class="ws-status-dot" aria-hidden="true"></span>
+        INVESTIGATION ACTIVE
+      </div>
+    </div>
+
+    <div class="ws-body">
+
+      <!-- Mission Briefing Sidebar -->
+      <aside class="ws-sidebar">
+        <div class="ws-sidebar-head">MISSION BRIEFING</div>
+
+        <div class="ws-brief-section">
+          <div class="ws-brief-label">OPERATION ID</div>
+          <div class="ws-brief-val" id="wsOpId">OPS-2026-001</div>
+        </div>
+        <div class="ws-brief-section">
+          <div class="ws-brief-label">THREAT CLASS</div>
+          <div class="ws-brief-val" id="wsThreatClass">Credential Phishing</div>
+        </div>
+        <div class="ws-brief-section">
+          <div class="ws-brief-label">ASSIGNED ANALYST</div>
+          <div class="ws-brief-val">GHOST_ZERO</div>
+        </div>
+        <div class="ws-brief-section">
+          <div class="ws-brief-label">PRIORITY</div>
+          <div class="ws-brief-val ws-brief-val--critical" id="wsPriority">P1 — IMMEDIATE</div>
+        </div>
+
+        <div class="ws-brief-divider"></div>
+
+        <div class="ws-brief-label">OBJECTIVES</div>
+        <ul class="ws-objectives">
+          <li class="ws-obj"><span class="ws-obj-icon" aria-hidden="true">○</span><span id="wsObj1">Identify entry vector</span></li>
+          <li class="ws-obj"><span class="ws-obj-icon" aria-hidden="true">○</span><span id="wsObj2">Collect forensic evidence</span></li>
+          <li class="ws-obj"><span class="ws-obj-icon" aria-hidden="true">○</span><span id="wsObj3">Assess lateral spread</span></li>
+          <li class="ws-obj"><span class="ws-obj-icon" aria-hidden="true">○</span><span id="wsObj4">Draft containment report</span></li>
+        </ul>
+
+        <div class="ws-brief-divider"></div>
+
+        <div class="ws-brief-label">MANAGER NOTE</div>
+        <p class="ws-manager-note" id="wsManagerNote">"Ghost Zero — this one's active. Document everything." — Reyes</p>
+
+        <div class="ws-brief-label" style="margin-top:14px;">TIME ELAPSED</div>
+        <div class="ws-timer" id="wsTimer">00:00</div>
+      </aside>
+
+      <!-- Terminal -->
+      <div class="ws-terminal-area">
+        <div class="ws-terminal-head">
+          <span class="term-dot term-dot--red" aria-hidden="true"></span>
+          <span class="term-dot term-dot--yellow" aria-hidden="true"></span>
+          <span class="term-dot term-dot--green" aria-hidden="true"></span>
+          <span class="term-title">INVESTIGATION TERMINAL — analyst@cybercorp-soc:~$</span>
+        </div>
+        <div class="ws-terminal" id="wsTerminal" role="log" aria-label="Terminal output">
+          <div class="term-line term-line--system">CyberCorp SOC // Investigation Terminal v4.2.1</div>
+          <div class="term-line term-line--system">Session authenticated. Evidence logging: ACTIVE</div>
+          <div class="term-line term-line--system">─────────────────────────────────────────────────</div>
+          <div class="term-line term-line--info" id="termWelcome"></div>
+          <div class="term-line term-line--system">─────────────────────────────────────────────────</div>
+          <div class="term-line">analyst@cybercorp-soc:~$ <span class="term-cursor" aria-hidden="true">█</span></div>
+        </div>
+        <div class="ws-note">
+          <span aria-hidden="true">ℹ</span>
+          Experimental prototype. Full terminal gameplay — commands, evidence collection, guided investigation — is implemented in the main CyberCorp SOC simulator.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script type="module" src="./oc.js"></script>
+</body>
+</html>
