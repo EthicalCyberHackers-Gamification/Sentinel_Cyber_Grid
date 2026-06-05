@@ -234,6 +234,21 @@ const ROLLING_COMMS = [
   { author: "junior", name: "Alex Torres", role: "Junior Analyst", text: "LATAM perimeter report filed. Recommend geo-blocking AS47337 range as proactive measure." },
 ];
 
+const TICKER_IOCS = [
+  { sev: "critical", text: "IOC: external-reyes@cybercorp-support[.]net — Active credential phishing domain" },
+  { sev: "high",     text: "C2: 185.220.101.47:443 — Cobalt Strike beacon active on NA-EAST segment" },
+  { sev: "high",     text: "Hash: 4d1f8e29a031bcc7 — Malware dropper on NA-WS-1092 — quarantine pending" },
+  { sev: "medium",   text: "IP Range: 203.0.113.0/24 — Sequential port scan ongoing LATAM perimeter" },
+  { sev: "medium",   text: "47 failed MFA challenges — Privileged accounts targeted in MENA region" },
+  { sev: "high",     text: "Pass-the-hash lateral movement — APAC-SEG-3 → APAC-SEG-7 — source: 10.44.2.19" },
+  { sev: "info",     text: "CISA AA26-071A: CVE-2026-1033 active exploitation confirmed in VPN appliances" },
+  { sev: "low",      text: "CDN probe 198.51.100.20 — SEA DMZ ports 80,443 — automated scan, low rate" },
+  { sev: "info",     text: "Threat feed update: 148 new IOCs ingested from MISP — SIEM rules refreshed" },
+  { sev: "medium",   text: "PowerShell obfuscation pattern detected — NA-EAST endpoint — policy alert triggered" },
+  { sev: "high",     text: "Domain: cybercorp-support[.]net — Bulletproof hosting AS8003 — confirmed malicious" },
+  { sev: "info",     text: "Blue Team tabletop 14:00 UTC — ransomware response exercise — all analysts required" },
+];
+
 /* ============================================================
    STATE
    ============================================================ */
@@ -449,6 +464,25 @@ function returnToOpsCenter() {
 }
 
 /* ============================================================
+   THREAT TICKER
+   ============================================================ */
+function initThreatTicker() {
+  const track = document.getElementById('tickerTrack');
+  if (!track) return;
+
+  function makeItem(ioc) {
+    const el = document.createElement('span');
+    el.className = 'ticker-item';
+    el.innerHTML = `<span class="ticker-sev ticker-sev--${ioc.sev}">${ioc.sev.toUpperCase()}</span>${ioc.text}`;
+    return el;
+  }
+
+  // Two full copies so the CSS -50% translateX creates a seamless loop
+  const allItems = [...TICKER_IOCS, ...TICKER_IOCS];
+  allItems.forEach(ioc => track.appendChild(makeItem(ioc)));
+}
+
+/* ============================================================
    ROLLING UPDATES (periodic live feed simulation)
    ============================================================ */
 function scheduleRollingAlerts() {
@@ -543,6 +577,9 @@ function init() {
       hideIncidentCard();
     }
   });
+
+  // Threat ticker
+  initThreatTicker();
 
   // Start rolling live feed
   scheduleRollingAlerts();

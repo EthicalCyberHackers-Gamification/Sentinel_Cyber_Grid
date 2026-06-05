@@ -152,17 +152,35 @@
             <ellipse cx="868" cy="108" rx="10" ry="26" fill="rgba(0,255,136,0.035)" stroke="rgba(0,255,136,0.13)" stroke-width="0.5" transform="rotate(-15,868,108)"/>
 
             <!-- Animated network arcs -->
-            <path class="arc arc--a" d="M 160,180 Q 340,80 490,103" fill="none" stroke="rgba(0,229,255,0.18)" stroke-width="1.2" stroke-dasharray="5,5"/>
-            <path class="arc arc--b" d="M 498,103 Q 620,58 753,143" fill="none" stroke="rgba(0,255,136,0.14)" stroke-width="1" stroke-dasharray="4,6"/>
-            <path class="arc arc--c" d="M 213,318 Q 380,178 490,103" fill="none" stroke="rgba(255,107,0,0.14)" stroke-width="1" stroke-dasharray="5,5"/>
-            <path class="arc arc--d" d="M 498,103 Q 518,198 498,318" fill="none" stroke="rgba(0,229,255,0.10)" stroke-width="1" stroke-dasharray="3,7"/>
-            <path class="arc arc--e" d="M 753,143 Q 820,248 863,348" fill="none" stroke="rgba(0,255,136,0.11)" stroke-width="1" stroke-dasharray="4,8"/>
-            <path class="arc arc--f" d="M 590,180 Q 620,140 668,165" fill="none" stroke="rgba(255,215,0,0.12)" stroke-width="1" stroke-dasharray="3,6"/>
+            <path id="arc-a" class="arc arc--a" d="M 160,180 Q 340,80 490,103" fill="none" stroke="rgba(0,229,255,0.18)" stroke-width="1.2" stroke-dasharray="5,5"/>
+            <path id="arc-b" class="arc arc--b" d="M 498,103 Q 620,58 753,143" fill="none" stroke="rgba(0,255,136,0.14)" stroke-width="1" stroke-dasharray="4,6"/>
+            <path id="arc-c" class="arc arc--c" d="M 213,318 Q 380,178 490,103" fill="none" stroke="rgba(255,107,0,0.14)" stroke-width="1" stroke-dasharray="5,5"/>
+            <path id="arc-d" class="arc arc--d" d="M 498,103 Q 518,198 498,318" fill="none" stroke="rgba(0,229,255,0.10)" stroke-width="1" stroke-dasharray="3,7"/>
+            <path id="arc-e" class="arc arc--e" d="M 753,143 Q 820,248 863,348" fill="none" stroke="rgba(0,255,136,0.11)" stroke-width="1" stroke-dasharray="4,8"/>
+            <path id="arc-f" class="arc arc--f" d="M 590,180 Q 620,140 668,165" fill="none" stroke="rgba(255,215,0,0.12)" stroke-width="1" stroke-dasharray="3,6"/>
+
+            <!-- Packet dots travelling along arcs -->
+            <circle class="arc-packet arc-packet--cyan" r="2.5" filter="url(#nodeGlow)">
+              <animateMotion dur="6s" repeatCount="indefinite" begin="0s"><mpath href="#arc-a"/></animateMotion>
+            </circle>
+            <circle class="arc-packet arc-packet--green" r="2" filter="url(#nodeGlow)">
+              <animateMotion dur="9s" repeatCount="indefinite" begin="1.5s"><mpath href="#arc-b"/></animateMotion>
+            </circle>
+            <circle class="arc-packet arc-packet--orange" r="2" filter="url(#nodeGlow)">
+              <animateMotion dur="7.5s" repeatCount="indefinite" begin="3s"><mpath href="#arc-c"/></animateMotion>
+            </circle>
+            <circle class="arc-packet arc-packet--green" r="2" filter="url(#nodeGlow)">
+              <animateMotion dur="8s" repeatCount="indefinite" begin="0.5s"><mpath href="#arc-e"/></animateMotion>
+            </circle>
+            <circle class="arc-packet arc-packet--yellow" r="2" filter="url(#nodeGlow)">
+              <animateMotion dur="5.5s" repeatCount="indefinite" begin="2s"><mpath href="#arc-f"/></animateMotion>
+            </circle>
           </svg>
 
           <!-- Incident Nodes -->
           <div class="map-nodes" aria-label="Incident nodes">
             <button class="incident-node incident-node--critical" id="node-emea" style="left:50%;top:24%" data-id="emea" aria-label="EMEA Region — Critical">
+              <span class="node-radar" aria-hidden="true"></span>
               <span class="node-pulse" aria-hidden="true"></span>
               <span class="node-core" aria-hidden="true"></span>
               <span class="node-label">EMEA</span>
@@ -218,6 +236,14 @@
             <button class="incident-launch-btn" id="incidentLaunchBtn" type="button">
               ▶&nbsp; LAUNCH INVESTIGATION
             </button>
+          </div>
+        </div>
+
+        <!-- Threat Ticker -->
+        <div class="threat-ticker" id="threatTicker" aria-hidden="true">
+          <div class="ticker-label">◈ LIVE IOC FEED</div>
+          <div class="ticker-viewport">
+            <div class="ticker-track" id="tickerTrack"></div>
           </div>
         </div>
 

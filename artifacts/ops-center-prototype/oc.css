@@ -470,6 +470,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   100% { stroke-dashoffset: -60; opacity: 0.6; }
 }
 
+/* Arc packet dots */
+.arc-packet--cyan   { fill: rgba(0, 229, 255, 0.92); }
+.arc-packet--green  { fill: rgba(0, 255, 136, 0.92); }
+.arc-packet--orange { fill: rgba(255, 107, 0, 0.92); }
+.arc-packet--yellow { fill: rgba(255, 215, 0, 0.92); }
+
 /* Map Nodes */
 .map-nodes {
   position: absolute;
@@ -515,6 +521,31 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .incident-node.node--active .node-core {
   transform: scale(1.4);
   box-shadow: 0 0 22px currentColor;
+}
+
+/* Radar sweep — critical nodes only */
+.node-radar {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46px;
+  height: 46px;
+  transform: translate(-50%, -50%) rotate(0deg);
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 51, 68, 0.4) 18deg,
+    transparent 36deg
+  );
+  animation: radar-sweep 4s linear infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+@keyframes radar-sweep {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 .node-pulse {
@@ -692,6 +723,91 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background: rgba(0,255,136,0.15);
   border-color: var(--green);
   box-shadow: 0 0 12px rgba(0,255,136,0.2);
+}
+
+/* =============================================
+   THREAT TICKER
+   ============================================= */
+.threat-ticker {
+  flex-shrink: 0;
+  height: 26px;
+  background: rgba(4, 6, 14, 0.95);
+  border-top: 1px solid rgba(255, 51, 68, 0.18);
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.ticker-label {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--red);
+  background: rgba(255, 51, 68, 0.1);
+  border-right: 1px solid rgba(255, 51, 68, 0.25);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.ticker-viewport {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.ticker-track {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: ticker-scroll 72s linear infinite;
+  will-change: transform;
+}
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 22px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+}
+
+.ticker-sev {
+  font-size: 8px;
+  letter-spacing: 1px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.ticker-sev--critical { background: rgba(255, 51, 68, 0.15);  color: var(--red);    }
+.ticker-sev--high     { background: rgba(255, 107, 0, 0.13);  color: var(--orange); }
+.ticker-sev--medium   { background: rgba(255, 215, 0, 0.10);  color: var(--yellow); }
+.ticker-sev--low      { background: rgba(0, 229, 255, 0.08);  color: var(--cyan);   }
+.ticker-sev--info     { background: rgba(0, 255, 136, 0.07);  color: var(--green);  }
+
+/* =============================================
+   REDUCED-MOTION OVERRIDES
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+  .arc-packet                { display: none; }
+  .node-radar                { animation: none; opacity: 0; }
+  .ticker-track              { animation: none; }
 }
 
 /* Map Footer */
