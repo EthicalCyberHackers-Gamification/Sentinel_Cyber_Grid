@@ -1,0 +1,339 @@
+We are creating an EXPERIMENTAL FORK of the current cybersecurity simulation project.
+
+This fork is ONLY for prototyping a future “Operations Center / World Map” layer.
+
+CRITICAL:
+Do NOT rebuild the game.
+Do NOT replace the current gameplay architecture.
+Do NOT redesign the mission engine.
+Do NOT remove or break any current systems.
+
+The existing simulator structure must remain fully intact and functional.
+
+The objective is:
+ADD a strategic operations-center layer ABOVE the current mission system.
+
+====================================================
+PRIMARY DESIGN GOAL
+====================================================
+
+Transform the simulator from:
+
+“standalone educational assignments”
+
+into:
+
+“a persistent cybersecurity operations center with deployable analyst missions.”
+
+The current mission engine already works.
+The terminal gameplay already works.
+The progression system already works.
+
+The new UI should ENHANCE immersion and operational continuity,
+NOT replace the existing gameplay.
+
+====================================================
+SYSTEMS THAT MUST REMAIN INTACT
+====================================================
+
+The following systems are CORE to the identity of the project and MUST remain untouched:
+
+----------------------------------------------------
+1. TERMINAL-CENTERED GAMEPLAY
+----------------------------------------------------
+
+The terminal is the HEART of the simulator.
+
+DO NOT:
+- remove terminal gameplay
+- minimize terminal importance
+- replace terminal interaction with map clicking
+- convert the game into a strategy game
+
+The gameplay loop must still be:
+
+observe
+→ investigate
+→ analyze
+→ decide
+→ respond
+
+The terminal must remain:
+- central
+- immersive
+- visually important
+- psychologically authentic
+
+The world map is ONLY a mission orchestration layer.
+
+----------------------------------------------------
+2. CURRENT MISSION ENGINE
+----------------------------------------------------
+
+Keep:
+- mission progression
+- mission completion logic
+- current assignment structure
+- mission state handling
+- objective tracking
+- mission launching system
+
+Do NOT rewrite:
+- mission logic
+- game flow
+- progression architecture
+
+The world map should simply LAUNCH existing missions.
+
+----------------------------------------------------
+3. LOCAL-FIRST ARCHITECTURE
+----------------------------------------------------
+
+Preserve:
+- localStorage systems
+- offline functionality
+- existing save systems
+- current profile behavior
+
+Do NOT alter:
+- persistent storage architecture
+- player progress handling
+
+----------------------------------------------------
+4. SUPABASE INTEGRATION
+----------------------------------------------------
+
+DO NOT TOUCH:
+- Supabase schema
+- sync logic
+- backend architecture
+- auth concepts
+- cloud sync structure
+
+Use mock operational data only.
+
+This fork is visual/systemic prototyping ONLY.
+
+----------------------------------------------------
+5. CURRENT CYBERSECURITY LEARNING MODEL
+----------------------------------------------------
+
+Retain:
+- investigation-based gameplay
+- command interaction
+- educational flow
+- guided learning
+- cybersecurity authenticity
+
+Do NOT:
+- gamify away the cybersecurity
+- reduce technical interaction
+- simplify missions into arcade mechanics
+
+====================================================
+NEW SYSTEM TO ADD
+====================================================
+
+Add a NEW top-level screen called:
+
+“Operations Center”
+
+This is the strategic campaign layer.
+
+The player should feel like:
+- a cybersecurity analyst
+- operating inside a live SOC
+- monitoring global incidents
+- responding to active cyber threats
+
+====================================================
+OPERATIONS CENTER STRUCTURE
+====================================================
+
+The Operations Center should contain:
+
+----------------------------------------------------
+CENTER PANEL — WORLD OPERATIONS MAP
+----------------------------------------------------
+
+Features:
+- world map or tactical network map
+- regional incident nodes
+- pulsing threat indicators
+- active incident regions
+- subtle animated network traffic
+- glowing cyber operations aesthetic
+
+The map should feel:
+- cinematic
+- alive
+- tactical
+- modern
+
+BUT:
+
+Do NOT make it overwhelming.
+Do NOT add excessive animation.
+Subtle movement only.
+
+----------------------------------------------------
+LEFT PANEL — ALERTS & INTEL
+----------------------------------------------------
+
+Add:
+- alert queue
+- incident feed
+- threat severity indicators
+- active investigations
+- scrolling intelligence updates
+
+Example alerts:
+- suspicious login activity
+- phishing campaign detected
+- malware outbreak
+- lateral movement alert
+- suspicious PowerShell execution
+
+This should resemble:
+a real SOC monitoring feed.
+
+----------------------------------------------------
+RIGHT PANEL — SOC COMMUNICATIONS
+----------------------------------------------------
+
+Add:
+- mentor/operator messages
+- analyst chatter
+- mission dispatch messages
+- incident briefings
+- escalation notifications
+
+Introduce recurring characters:
+- SOC Lead
+- Threat Intel Analyst
+- Incident Commander
+- Junior Analyst
+- Adversary persona later
+
+This creates:
+human narrative continuity.
+
+====================================================
+MISSION FLOW
+====================================================
+
+Correct flow:
+
+Operations Center
+→ Select Incident
+→ Mission Briefing
+→ Launch Investigation Workspace
+→ Terminal Gameplay
+→ Mission Resolution
+→ Return to Operations Center
+
+====================================================
+VERY IMPORTANT:
+MISSION GAMEPLAY SCREEN
+====================================================
+
+Once a mission launches:
+
+The current mission layout should remain mostly intact.
+
+The terminal investigation workspace remains primary.
+
+The world map should:
+- disappear
+OR
+- minimize heavily
+
+The mission screen should continue emphasizing:
+- terminal interaction
+- evidence analysis
+- investigation
+- command execution
+- cybersecurity workflows
+
+====================================================
+FUTURE-FACING DESIGN DIRECTION
+====================================================
+
+The long-term vision is:
+
+“Persistent Cybersecurity Career Simulation”
+
+NOT:
+- arcade hacking
+- random minigames
+- generic strategy gameplay
+
+The simulator should eventually feel like:
+“a day in the life of a cybersecurity analyst.”
+
+Meaning future systems may include:
+- alert prioritization
+- shift-based operations
+- false positives
+- escalation chains
+- incident documentation
+- analyst reputation
+- operational pressure
+- persistent adversaries
+
+The architecture should support these future systems.
+
+====================================================
+VISUAL STYLE
+====================================================
+
+Visual inspiration:
+- tactical operations centers
+- modern SOC dashboards
+- cyber threat command systems
+- cinematic military interfaces
+- advanced monitoring stations
+
+Style goals:
+- dark tactical UI
+- holographic accents
+- glowing network overlays
+- cyberpunk-lite
+- high readability
+- immersive but clean
+
+Avoid:
+- clutter
+- unrealistic “Hollywood hacking”
+- excessive neon overload
+- unusable UI
+
+====================================================
+TECHNICAL REQUIREMENTS
+====================================================
+
+Requirements:
+1. Preserve existing architecture.
+2. Use modular components.
+3. Add new UI layer only.
+4. Keep old mission launcher accessible as fallback.
+5. Use mock data for operations center.
+6. Do not break existing gameplay.
+7. Keep performance lightweight.
+8. Avoid large framework rewrites.
+9. Maintain desktop-first design.
+10. Keep terminal interaction responsive.
+
+====================================================
+FINAL DELIVERABLE
+====================================================
+
+Create an experimental Operations Center prototype that:
+
+- preserves the existing simulator
+- preserves terminal-centered gameplay
+- adds a persistent global operations layer
+- improves immersion
+- supports future campaign systems
+- feels like a real cybersecurity operations environment
+- can launch existing missions without altering mission logic
