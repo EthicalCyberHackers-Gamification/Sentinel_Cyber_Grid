@@ -1,0 +1,237 @@
+PROJECT PHASE:
+Phase 3B — Infrastructure Stabilization & Persistence Foundation
+
+CURRENT ARCHITECTURAL STATUS REVIEW
+
+Before proceeding further with authentication, analytics expansion, or closed beta preparation, reassess the current backend state using the updated project context below.
+
+---
+
+## ALREADY DEPLOYED TO LIVE SUPABASE
+
+The following migrations have already been successfully pushed to the live Supabase project:
+
+1.
+
+001_initial_game_schema.sql
+
+* Core schema
+* profiles
+* missions
+* student_progress
+* mission_attempts
+* xp_events
+* certificates
+
+2.
+
+002_seed_missions.sql
+
+* Mission catalog seeding
+* Initial assignment metadata/content population
+
+3.
+
+003_server_triggers.sql
+
+* Server-side trigger/rollup infrastructure
+* XP/event rollup foundations
+
+Current backend status indicator in-app:
+"Backend: Supabase Connected"
+
+This means:
+
+* Supabase secrets are loading
+* Supabase client initializes successfully
+* Browser can reach Supabase
+* Background sync layer partially functions
+
+---
+
+## IMPORTANT ARCHITECTURAL CLARIFICATION
+
+The backend is NOT starting from zero anymore.
+
+The primary remaining gap is NOT schema deployment.
+
+The actual missing layer is:
+
+CLOUD PROGRESS RESTORE + LOCAL/CLOUD RECONCILIATION
+
+Specifically:
+
+* restoring anonymous player progression
+* restoring XP/rank state
+* restoring replay continuity
+* restoring mission attempts
+* reconciling newer local progress vs older cloud state
+* validating local-first failover behavior
+* validating write/read integrity
+
+Authentication must remain deferred until this layer is stable.
+
+---
+
+## FOUNDATION-FIRST RULE
+
+Do NOT continue authentication implementation yet.
+
+Pause or re-scope authentication-related work until:
+
+* restore path exists
+* persistence integrity is verified
+* local-first behavior is proven stable
+* anonymous progression continuity is protected
+
+The architecture rule is:
+
+localStorage remains authoritative for gameplay.
+Supabase remains background persistence/sync.
+Gameplay must remain fully functional:
+
+* offline
+* during sync delay
+* during Supabase failure
+* during partial backend outage
+
+Cloud sync must NEVER break gameplay.
+
+---
+
+## NEXT BEST STEPS
+
+STEP 1 — VERIFY DEPLOYED INFRASTRUCTURE
+
+Audit and verify:
+
+1. Live schema matches expected structure.
+2. Seeded missions exist correctly.
+3. Server triggers execute correctly.
+4. RLS policies align with actual sync behavior.
+5. backendSync.js references current table names/schema.
+6. Existing write-path works for:
+
+   * profiles
+   * mission_attempts
+   * xp_events
+   * student_progress
+
+Confirm:
+
+* which writes succeed
+* which writes silently fail
+* which writes are intentionally local-only
+* which writes depend on triggers
+
+Do not redesign yet.
+Document findings first.
+
+---
+
+STEP 2 — VERIFY LOCAL-FIRST INVARIANTS
+
+Prove these behaviors:
+
+1. Gameplay fully works offline.
+2. Missions remain playable with Supabase disabled.
+3. Local progress survives refresh/reload.
+4. Sync failures never soft-lock gameplay.
+5. Cloud failures never overwrite newer local state.
+6. Replay Guide functionality remains unaffected by sync failures.
+7. Assignments 1–3 remain stable during delayed sync.
+
+---
+
+STEP 3 — BUILD CLOUD PROGRESS RESTORE FOUNDATION
+
+Build the missing restore/reconciliation layer.
+
+Required capabilities:
+
+1. Restore anonymous player progression safely.
+2. Restore XP/rank state safely.
+3. Restore mission completion safely.
+4. Restore mission attempts safely.
+5. Restore replay continuity safely.
+6. Restore assignment unlock state safely.
+7. Avoid overwriting newer local progress with stale cloud data.
+8. Handle partial sync states gracefully.
+9. Preserve local-first behavior at all times.
+
+Do NOT require authentication yet.
+
+---
+
+STEP 4 — VALIDATE SAVE/LOAD CONTINUITY
+
+Test scenarios:
+
+1. Fresh anonymous player.
+2. Reload mid-mission.
+3. Complete Assignment 1.
+4. Replay Assignment 1.
+5. Progress into Assignment 2.
+6. Refresh browser.
+7. Clear temporary memory but preserve cloud.
+8. Simulate delayed sync.
+9. Simulate Supabase unavailable.
+10. Restore after reconnect.
+
+Verify:
+
+* no duplicate XP
+* no duplicate attempts
+* no lost progression
+* no broken unlock paths
+* no corrupted rank state
+* no replay corruption
+
+---
+
+STEP 5 — DOCUMENT ACTUAL SYSTEM STATE
+
+Create/update:
+
+docs/PHASE_3B_INFRASTRUCTURE_AUDIT.md
+
+Include:
+
+* deployed migrations
+* verified tables
+* trigger behavior
+* current sync behavior
+* restore-path status
+* local-first invariants
+* known architectural gaps
+* authentication blockers
+* future migration concerns
+* recommended sequencing after stabilization
+
+---
+
+## IMPORTANT DEFERRED ITEMS
+
+Do NOT prioritize yet:
+
+* Authentication
+* SIEM persistence
+* Full analytics/event telemetry
+* Closed beta infrastructure
+* Deep event store
+* Cross-device account migration
+* Real security-event engine
+
+These depend on the restore foundation first.
+
+---
+
+## FINAL OBJECTIVE
+
+Establish a stable local-first persistence architecture where:
+
+* gameplay remains resilient
+* cloud sync is safe
+* anonymous progression is protected
+* restore continuity works
+* future authentication can later be added safely without wiping or corrupting student progress.
