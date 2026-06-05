@@ -7034,6 +7034,442 @@ function setOpsAssignment(rowId, statusId, label, state) {
   }
 }
 
+/* ============================================================
+   OPS CENTER V2 — Three-Panel Layout  (graduated from prototype)
+   ------------------------------------------------------------
+   Wired to real localStorage progress + mission data. Pure
+   presentation layer: never writes state, never calls saveProgress.
+   Entry points:
+     renderOcPanelV2()  — called from renderOperationsCenter() to
+                          sync alert feed + node states + analyst name.
+     initOcv2()         — called once (guarded) to wire up clock,
+                          ticker, comms, node clicks, incident card.
+   ============================================================ */
+
+/**
+ * OCV2-specific presentation data for the three world-map nodes.
+ * Narrative fields (title / briefing text / threat type) are NOT stored
+ * here — they are read at call time from MISSION_MAP (the canonical
+ * source) to prevent divergence. Only data that has no equivalent in
+ * MISSION_MAP lives here: map severity classification, geographic region
+ * label, and the comms-character metadata for the SOC right panel.
+ */
+const OCV2_NODE_META = {
+  "mission-001": {
+    severity:    "CRITICAL",
+    region:      "EMEA REGION",
+    commsAuthor: "lead",
+    commsName:   "Sarah Reyes",
+    commsRole:   "SOC Lead",
+  },
+  "mission-002": {
+    severity:    "HIGH",
+    region:      "APAC REGION",
+    commsAuthor: "intel",
+    commsName:   "Marcus Chen",
+    commsRole:   "Threat Intel",
+  },
+  "mission-003": {
+    severity:    "HIGH",
+    region:      "NA-EAST REGION",
+    commsAuthor: "cmd",
+    commsName:   "Cmdr. Brooks",
+    commsRole:   "Incident Cmd",
+  },
+};
+
+const OCV2_TICKER_IOCS = [
+  { sev: "critical", text: "IOC: external-reyes@cybercorp-support[.]net — Active credential phishing domain" },
+  { sev: "high",     text: "Network exposure on target APAC host — 4 open services require triage" },
+  { sev: "high",     text: "External source repeatedly contacting internal NA-East services — recon pattern confirmed" },
+  { sev: "info",     text: "CISA AA26-071A: CVE-2026-1033 active exploitation confirmed in enterprise VPN appliances" },
+  { sev: "medium",   text: "PowerShell obfuscation pattern detected — NA-EAST endpoint — policy alert triggered" },
+  { sev: "high",     text: "Domain: cybercorp-support[.]net — Bulletproof hosting AS8003 — confirmed malicious" },
+  { sev: "info",     text: "Threat feed update: 148 new IOCs ingested from MISP — SIEM rules refreshed" },
+  { sev: "medium",   text: "Anomalous auth events — multiple failed MFA challenges on privileged accounts" },
+  { sev: "critical", text: "Finance workstation — suspicious file requesting credential share to external domain" },
+  { sev: "high",     text: "Shodan fingerprinting signatures detected against internal service endpoints" },
+];
+
+const OCV2_INTEL_ITEMS = [
+  { kind: "threat",  text: "Phishing domain cybercorp-support[.]net traced to bulletproof hosting AS8003." },
+  { kind: "network", text: "Target host in APAC segment — services 22, 80, 443, 8080 confirmed reachable." },
+  { kind: "recon",   text: "External probe pattern consistent with Shodan fingerprinting methodology." },
+  { kind: "info",    text: "CISA advisory AA26-071A: active exploitation of CVE-2026-1033 in VPN appliances." },
+  { kind: "threat",  text: "Credential collection via spoofed executive domain active for 48+ hours." },
+];
+
+/**
+ * Build the initial SOC comms feed from canonical MISSION_MAP transmission
+ * text.  The `transmission` field on each MISSION_MAP entry is the official
+ * in-world briefing voice for that assignment; reusing it here keeps the
+ * narrative single-sourced and prevents copy drift.
+ */
+function ocv2BuildInitialComms() {
+  const m1 = MISSION_MAP["mission-001"] || {};
+  const m2 = MISSION_MAP["mission-002"] || {};
+  const m3 = MISSION_MAP["mission-003"] || {};
+  return [
+    { author: "lead",   name: "Sarah Reyes",  role: "SOC Lead",
+      time: "06:10", text: m1.transmission || "Blue Team active. Assignments are pending." },
+    { author: "intel",  name: "Marcus Chen",  role: "Threat Intel",
+      time: "06:11", text: m2.transmission || "APAC network exposure scoped. Awaiting triage assignment." },
+    { author: "cmd",    name: "Cmdr. Brooks", role: "Incident Cmd",
+      time: "06:12", text: m3.transmission || "NA-East monitoring elevated. External recon pattern is persistent." },
+    { author: "junior", name: "Alex Torres",  role: "Junior Analyst",
+      time: "06:13", text: "All assignments queued. Standing by for analyst deployment." },
+  ];
+}
+
+/** Module-level state for the ops center panel. */
+let ocv2ActiveNodeId = null;
+let ocv2Initialized  = false;
+
+/** Return HH:MM UTC string for comms timestamps. */
+function ocv2NowTime() {
+  const n = new Date();
+  return String(n.getUTCHours()).padStart(2,"0") + ":" + String(n.getUTCMinutes()).padStart(2,"0");
+}
+
+/** Tick the live UTC clock in the header. */
+function ocv2UpdateClock() {
+  const n  = new Date();
+  const hh = String(n.getUTCHours()).padStart(2,"0");
+  const mm = String(n.getUTCMinutes()).padStart(2,"0");
+  const ss = String(n.getUTCSeconds()).padStart(2,"0");
+  const el = document.getElementById("ocv2Clock");
+  if (el) el.textContent = `${hh}:${mm}:${ss} UTC`;
+}
+
+/** Append one message to the SOC comms feed. Caps the feed at 14 items. */
+function ocv2RenderCommsMsg(data) {
+  const feed = document.getElementById("ocv2CommsFeed");
+  if (!feed) return;
+  const el   = document.createElement("div");
+  el.className = "ocv2-comms-msg";
+  const time    = data.time || ocv2NowTime();
+  const initials = data.name.split(" ").map((p) => p[0]).join("").slice(0, 2);
+  el.innerHTML = `
+    <div class="ocv2-comms-av ocv2-av--${escapeHtml(data.author)}">${escapeHtml(initials)}</div>
+    <div class="ocv2-comms-body">
+      <div class="ocv2-comms-meta">
+        <span class="ocv2-comms-name ocv2-comms-name--${escapeHtml(data.author)}">${escapeHtml(data.name)}</span>
+        <span class="ocv2-comms-role">// ${escapeHtml(data.role)}</span>
+        <span class="ocv2-comms-time">${escapeHtml(time)}</span>
+      </div>
+      <div class="ocv2-comms-text">${escapeHtml(data.text)}</div>
+    </div>`;
+  feed.appendChild(el);
+  feed.scrollTop = feed.scrollHeight;
+  while (feed.children.length > 14) feed.removeChild(feed.firstChild);
+}
+
+/** Fill the IOC ticker with two copies so the loop is seamless. */
+function ocv2InitTicker() {
+  const track = document.getElementById("ocv2TickerTrack");
+  if (!track || track.children.length) return; // already populated
+  const items = [...OCV2_TICKER_IOCS, ...OCV2_TICKER_IOCS]; // duplicate for seamless loop
+  items.forEach((ioc) => {
+    const el = document.createElement("span");
+    el.className = "ocv2-ticker-item";
+    el.innerHTML = `<span class="ocv2-ticker-sev ocv2-ticker-sev--${escapeHtml(ioc.sev)}">${escapeHtml(ioc.sev.toUpperCase())}</span>${escapeHtml(ioc.text)}`;
+    track.appendChild(el);
+  });
+}
+
+/** Fill the intel feed (left panel, lower section). Idempotent. */
+function ocv2InitIntelFeed() {
+  const feed = document.getElementById("ocv2IntelFeed");
+  if (!feed || feed.children.length) return; // already populated
+  OCV2_INTEL_ITEMS.forEach((item) => {
+    const el = document.createElement("div");
+    el.className = `ocv2-intel-item ocv2-intel--${escapeHtml(item.kind)}`;
+    el.innerHTML = `<span class="ocv2-intel-dot" aria-hidden="true"></span><span class="ocv2-intel-text">${escapeHtml(item.text)}</span>`;
+    feed.appendChild(el);
+  });
+}
+
+/**
+ * Redirect attention to the signin strip and pulse its border when a player
+ * tries to interact with the Ops Center before starting their shift.
+ */
+function ocv2PromptOnboarding() {
+  const strip = document.querySelector(".ocv2-signin-strip");
+  const nameInput = document.getElementById("studentNameInput");
+  if (strip) {
+    strip.classList.remove("ocv2-signin--pulse");
+    // Force reflow so re-adding the class restarts the animation.
+    void strip.offsetWidth;
+    strip.classList.add("ocv2-signin--pulse");
+    strip.addEventListener("animationend", () => strip.classList.remove("ocv2-signin--pulse"), { once: true });
+  }
+  if (nameInput) nameInput.focus();
+}
+
+function showOcv2IncidentCard(missionId) {
+  // Onboarding gate: mission cards must not open before the analyst has
+  // started their shift (name entry → enterModule side effects: saveProgress,
+  // soundtrack, loader). Returning players have studentName from loadProgress().
+  if (!studentName || !studentName.trim()) {
+    ocv2PromptOnboarding();
+    return;
+  }
+
+  // Presentation-only metadata (severity, region, comms character).
+  const meta = OCV2_NODE_META[missionId];
+  if (!meta) return;
+
+  // Narrative content sourced from the canonical MISSION_MAP entry.
+  const mapData = MISSION_MAP[missionId] || {};
+
+  ocv2ActiveNodeId = missionId;
+
+  // Highlight the selected node; deselect all others.
+  document.querySelectorAll(".ocv2-node[data-mission]").forEach((n) =>
+    n.classList.remove("ocv2-node--active"));
+  const nodeIds = { "mission-001": "ocv2NodeEmea", "mission-002": "ocv2NodeApac", "mission-003": "ocv2NodeNaEast" };
+  const node = document.getElementById(nodeIds[missionId] || "");
+  if (node) node.classList.add("ocv2-node--active");
+
+  const m1Done = !!missionComplete;
+  const m2Done = !!mission2Complete;
+  const m3Done = !!mission3Complete;
+  const isLocked = (missionId === "mission-002" && !m1Done) ||
+                   (missionId === "mission-003" && !m2Done);
+  const isDone   = (missionId === "mission-001" && m1Done) ||
+                   (missionId === "mission-002" && m2Done) ||
+                   (missionId === "mission-003" && m3Done);
+
+  const card = document.getElementById("ocv2IncidentCard");
+  if (!card) return;
+
+  card.setAttribute("data-severity", meta.severity);
+  card.style.display = "block";
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set("ocv2CardSev",    meta.severity);
+  set("ocv2CardRegion", meta.region);
+  // Title, briefing description, and threat type come from MISSION_MAP — single source of truth.
+  set("ocv2CardTitle",  mapData.title    || missionId);
+  set("ocv2CardDesc",   mapData.briefing || "—");
+  set("ocv2CardThreat", mapData.threat   || "—");
+  set("ocv2CardStatus", isDone ? "Completed" : isLocked ? "Locked — complete prior assignment first" : "Active — pending investigation");
+
+  const launchBtn   = document.getElementById("ocv2LaunchBtn");
+  const lockedNote  = document.getElementById("ocv2LockedNote");
+  if (launchBtn)  {
+    launchBtn.style.display = isLocked ? "none" : "block";
+    if (!isLocked) launchBtn.textContent = `▶\u00a0${isDone ? "REPLAY" : "LAUNCH"} INVESTIGATION`;
+  }
+  if (lockedNote) lockedNote.style.display = isLocked ? "block" : "none";
+
+  // Post a contextual comms message using the mission's canonical transmission
+  // text attributed to the character responsible for this node.
+  if (mapData.transmission) {
+    setTimeout(() => ocv2RenderCommsMsg({
+      author: meta.commsAuthor,
+      name:   meta.commsName,
+      role:   meta.commsRole,
+      text:   mapData.transmission,
+      time:   null,
+    }), 600);
+  }
+}
+
+/** Hide the incident card and deselect all nodes. */
+function hideOcv2IncidentCard() {
+  const card = document.getElementById("ocv2IncidentCard");
+  if (card) card.style.display = "none";
+  document.querySelectorAll(".ocv2-node[data-mission]").forEach((n) =>
+    n.classList.remove("ocv2-node--active"));
+  ocv2ActiveNodeId = null;
+}
+
+/**
+ * One-time initialization of the ops center panel.
+ * Called (guarded) from renderOcPanelV2() on first render.
+ * Wires: clock tick, ticker, intel feed, comms seed, node clicks,
+ *        card close, launch button, click-outside dismiss, Escape key.
+ */
+function initOcv2() {
+  if (ocv2Initialized) return;
+  ocv2Initialized = true;
+
+  // Live UTC clock
+  ocv2UpdateClock();
+  setInterval(ocv2UpdateClock, 1000);
+
+  // Static feeds (idempotent)
+  ocv2InitIntelFeed();
+  ocv2InitTicker();
+
+  // Seed the comms feed with initial team messages derived from MISSION_MAP.
+  const feed = document.getElementById("ocv2CommsFeed");
+  if (feed && !feed.children.length) {
+    ocv2BuildInitialComms().forEach((msg) => ocv2RenderCommsMsg(msg));
+  }
+
+  // Wire mission-node buttons (EMEA / APAC / NA-EAST)
+  document.querySelectorAll(".ocv2-node[data-mission]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const mid = btn.getAttribute("data-mission");
+      if (ocv2ActiveNodeId === mid) {
+        hideOcv2IncidentCard(); // second click toggles off
+      } else {
+        showOcv2IncidentCard(mid);
+      }
+    });
+    btn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); btn.click(); }
+    });
+  });
+
+  // Close button on the incident card
+  const closeBtn = document.getElementById("ocv2CardClose");
+  if (closeBtn) closeBtn.addEventListener("click", hideOcv2IncidentCard);
+
+  // "Launch Investigation" → hand off to existing mission launch flow
+  const launchBtn = document.getElementById("ocv2LaunchBtn");
+  if (launchBtn) {
+    launchBtn.addEventListener("click", () => {
+      const mid = ocv2ActiveNodeId;
+      if (!mid) return;
+      hideOcv2IncidentCard();
+      launchMissionFromMap(mid);
+    });
+  }
+
+  // Click outside the card (but not on a node) to dismiss it
+  const mapContainer = document.getElementById("ocv2MapContainer");
+  if (mapContainer) {
+    mapContainer.addEventListener("click", (e) => {
+      const card = document.getElementById("ocv2IncidentCard");
+      if (!card || card.style.display === "none") return;
+      if (!card.contains(e.target) && !e.target.closest(".ocv2-node[data-mission]")) {
+        hideOcv2IncidentCard();
+      }
+    });
+  }
+
+  // Escape key to dismiss
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && ocv2ActiveNodeId) hideOcv2IncidentCard();
+  });
+}
+
+/**
+ * Render the three-panel ops center elements from live progress state.
+ * Called at the end of renderOperationsCenter() — idempotent, read-only.
+ */
+function renderOcPanelV2() {
+  const m1Done = !!missionComplete;
+  const m2Done = !!mission2Complete;
+  const m3Done = !!mission3Complete;
+
+  // Analyst name in header
+  const nameEl = document.getElementById("ocv2AnalystName");
+  if (nameEl) {
+    nameEl.textContent = (studentName && studentName.trim())
+      ? studentName.trim().toUpperCase()
+      : "GHOST_ZERO";
+  }
+
+  // Alert feed — 3 mission-derived items
+  const feed = document.getElementById("ocv2AlertFeed");
+  if (feed) {
+    const m2Avail  = m1Done;
+    const m3Avail  = m2Done;
+    const m1Sev    = m1Done ? "ok"       : "critical";
+    const m2Sev    = m2Done ? "ok"       : (m2Avail ? "high" : "locked");
+    const m3Sev    = m3Done ? "ok"       : (m3Avail ? "high" : "locked");
+
+    // Names and regions sourced from MISSION_MAP (canonical) and OCV2_NODE_META.
+    const alerts = [
+      { id: "mission-001", sev: m1Sev,
+        name:   (MISSION_MAP["mission-001"] || {}).title  || "Mission 001",
+        region: ((OCV2_NODE_META["mission-001"] || {}).region || "EMEA").split(" ")[0],
+        time: "06:14" },
+      { id: "mission-002", sev: m2Sev,
+        name:   (MISSION_MAP["mission-002"] || {}).title  || "Mission 002",
+        region: ((OCV2_NODE_META["mission-002"] || {}).region || "APAC").split(" ")[0],
+        time: "04:38" },
+      { id: "mission-003", sev: m3Sev,
+        name:   (MISSION_MAP["mission-003"] || {}).title  || "Mission 003",
+        region: ((OCV2_NODE_META["mission-003"] || {}).region || "NA-EAST").split(" ")[0],
+        time: "03:52" },
+    ];
+
+    feed.innerHTML = "";
+    alerts.forEach((a) => {
+      const isCompleted = a.sev === "ok";
+      const isLocked    = a.sev === "locked";
+      const el = document.createElement("div");
+      el.className = [
+        "ocv2-alert-item",
+        isCompleted ? "ocv2-alert--completed" : "",
+        isLocked    ? "ocv2-alert--locked"    : "",
+      ].filter(Boolean).join(" ");
+
+      const sevLabel = isCompleted ? "CLOSED" : isLocked ? "LOCKED" : a.sev.toUpperCase();
+      const sevKey   = isCompleted ? "ok"     : isLocked ? "locked" : a.sev;
+      el.innerHTML = `
+        <div class="ocv2-alert-top">
+          <span class="ocv2-alert-sev ocv2-alert-sev--${escapeHtml(sevKey)}">${escapeHtml(sevLabel)}</span>
+          <span class="ocv2-alert-name">${escapeHtml(a.name)}</span>
+        </div>
+        <div class="ocv2-alert-meta">
+          <span class="ocv2-alert-region">${escapeHtml(a.region)}</span>
+          <span class="ocv2-alert-time">${escapeHtml(a.time)}</span>
+        </div>`;
+
+      // Clicking an alert row also opens the incident card (except locked items)
+      if (!isLocked) {
+        el.style.cursor = "pointer";
+        el.addEventListener("click", () => showOcv2IncidentCard(a.id));
+      }
+      feed.appendChild(el);
+    });
+
+    // Update the alert count badge
+    const badge = document.getElementById("ocv2AlertCount");
+    const activeN = alerts.filter((a) => a.sev !== "ok" && a.sev !== "locked").length;
+    if (badge) badge.textContent = `${activeN} ACTIVE`;
+  }
+
+  // Update node locked / completed visual state
+  const nodeIds = {
+    "mission-001": "ocv2NodeEmea",
+    "mission-002": "ocv2NodeApac",
+    "mission-003": "ocv2NodeNaEast",
+  };
+  const nodeStates = {
+    "mission-001": m1Done ? "completed" : "active",
+    "mission-002": m2Done ? "completed" : (m1Done ? "active" : "locked"),
+    "mission-003": m3Done ? "completed" : (m2Done ? "active" : "locked"),
+  };
+  Object.entries(nodeIds).forEach(([mid, nid]) => {
+    const node = document.getElementById(nid);
+    if (!node) return;
+    const state = nodeStates[mid];
+    node.classList.toggle("ocv2-node--locked", state === "locked");
+    node.classList.toggle("ocv2-node--done",   state === "completed");
+    // aria-disabled prevents interaction on locked nodes (no pointer-events)
+    if (state === "locked") {
+      node.setAttribute("aria-disabled", "true");
+      node.setAttribute("tabindex", "-1");
+    } else {
+      node.removeAttribute("aria-disabled");
+      node.setAttribute("tabindex", "0");
+    }
+  });
+
+  // Refresh incident card if it's visible (state may have changed)
+  if (ocv2ActiveNodeId) showOcv2IncidentCard(ocv2ActiveNodeId);
+
+  // Wire on first render (guarded internally)
+  initOcv2();
+}
+
 function renderOperationsCenter() {
   const home = document.getElementById("moduleLanding");
   if (!home) return;
@@ -7150,6 +7586,10 @@ function renderOperationsCenter() {
 
   // Milestone 33A — refresh the persistent Analyst Profile / reputation / history.
   renderAnalystProfile();
+
+  // Ops Center V2 — sync the three-panel layout elements (alert feed, node
+  // states, analyst name) and initialize the panel on first call.
+  renderOcPanelV2();
 }
 
 /* ============================================================
@@ -7779,6 +8219,12 @@ function renderMapTransmission(missionId) {
  * to the existing flow.
  */
 function launchMissionFromMap(missionId) {
+  // Defensive onboarding gate — route through the signin strip if called
+  // before enterModule() has run (new player, no studentName set).
+  if (!studentName || !studentName.trim()) {
+    ocv2PromptOnboarding();
+    return;
+  }
   if (missionMapStatus(missionId) === "locked") return;
   if (missionId === "mission-001") {
     openMission1Dashboard();

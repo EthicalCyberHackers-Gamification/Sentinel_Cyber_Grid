@@ -1,4 +1,5 @@
 - [Operations Center home re-render](ech-landing-render.md) — every path that reveals `#moduleLanding` must call `renderOperationsCenter()` or it shows stale progress.
+- [Ops Center V2 three-panel layout](ech-ocv2-layout.md) — graduated from prototype; ocv2-* classes in style.css, initOcv2()/renderOcPanelV2() in script.js called from renderOperationsCenter(); preserved IDs live in .ocv2-compat-hidden div.
 - [e2e localStorage frame mismatch](ech-e2e-localstorage-frame.md) — can't prime localStorage from the harness (top frame ≠ app iframe); test restore by driving the app UI then reloading.
 - [Active-dashboard viewport lock](ech-active-dashboard-viewport-lock.md) — `body.mission-running .dashboard` (overflow:hidden + grid auto 1fr) clips tall content/forces zoom; let the PAGE scroll during active play.
 - [Supabase backend (local-first)](ech-supabase-backend.md) — optional cloud mirror; localStorage stays authoritative, sync never throws/blocks, attempts resume-safe, completion idempotent across both completion paths.

@@ -69,216 +69,304 @@
       </div>
     </header>
 
-    <!-- ===== MODULE LANDING SCREEN (Milestone 10) =====
-         Shown first on page load. Hides the entire dashboard until the
-         student clicks "Enter Module". The "Back to Module Overview"
-         button inside the mission panel returns the student here without
-         resetting their mission progress. -->
-    <section id="moduleLanding" class="module-landing" aria-label="Module Overview">
-      <div class="module-landing-card">
+    <!-- ===== MODULE LANDING SCREEN — OPS CENTER V2 =====
+         Three-panel CyberCorp SOC layout (graduated from the prototype).
+         Real mission data from localStorage + missions.js, wired by
+         renderOcPanelV2() / initOcv2() in script.js.
+         All original preserved IDs (#studentNameInput, #enterModuleBtn,
+         #saveIndicatorLanding, .clear-progress-btn, #opsPromoBar, etc.)
+         are kept in the hidden compat section at the bottom so the
+         existing renderOperationsCenter() / renderAnalystProfile() logic
+         continues to run without modification. -->
+    <section id="moduleLanding" class="module-landing ocv2-screen" aria-label="Operations Center">
 
-        <!-- ===== Milestone 32A — Cyber Operations Career Entry Experience =====
-             The landing screen is reframed from a course dashboard into a
-             "CyberCorp Operations Center" where the player reports for duty on
-             Blue Team. Preserved IDs (#studentNameInput, #enterModuleBtn,
-             #saveIndicatorLanding, .clear-progress-btn) keep the existing name
-             gating / save / clear wiring intact. Dynamic fields are filled by
-             renderOperationsCenter() in script.js. -->
-        <header class="ops-header">
-          <div class="ops-eyebrow">
-            <span class="ops-eyebrow-dot" aria-hidden="true"></span>
-            <span class="ops-eyebrow-label">CYBERCORP &nbsp;//&nbsp; SECURE ACCESS</span>
-          </div>
-          <h1 class="ops-title">CyberCorp Operations Center</h1>
-          <p class="ops-subtitle">Blue Team Network Defense Division</p>
-        </header>
-
-        <div class="ops-status-strip" role="list" aria-label="Operations status">
-          <div class="ops-stat" role="listitem">
-            <span class="ops-stat-label">Blue Team</span>
-            <span class="ops-stat-value ops-stat-value--ok">Active</span>
-          </div>
-          <div class="ops-stat" role="listitem">
-            <span class="ops-stat-label">Security Posture</span>
-            <span class="ops-stat-value ops-stat-value--warn">Elevated</span>
-          </div>
-          <div class="ops-stat" role="listitem">
-            <span class="ops-stat-label">Threat Monitoring</span>
-            <span class="ops-stat-value ops-stat-value--ok">Online</span>
-          </div>
-          <div class="ops-stat" role="listitem">
-            <span class="ops-stat-label">Current Role</span>
-            <span class="ops-stat-value">Cybersecurity Intern</span>
+      <!-- OPS CENTER V2 HEADER -->
+      <header class="ocv2-header">
+        <div class="ocv2-brand">
+          <svg class="ocv2-brand-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <polygon points="20,2 38,12 38,28 20,38 2,28 2,12" stroke="#00ff88" stroke-width="1.5" fill="none"/>
+            <polygon points="20,8 32,15 32,25 20,32 8,25 8,15" stroke="#00ff88" stroke-width="1" fill="rgba(0,255,136,0.07)"/>
+            <text x="20" y="25" text-anchor="middle" fill="#00ff88" font-size="14" font-family="monospace" font-weight="bold">&gt;_</text>
+          </svg>
+          <div class="ocv2-brand-text">
+            <span class="ocv2-brand-name">CyberCorp SOC</span>
+            <span class="ocv2-brand-tag">Operations Center — Global Command</span>
           </div>
         </div>
 
-        <div class="ops-grid">
-          <!-- LEFT column -->
-          <div class="ops-col">
-            <section class="ops-panel ops-career" aria-label="Career Track">
-              <div class="ops-panel-head">
-                <span class="ops-panel-icon" aria-hidden="true">▲</span>
-                <h2 class="ops-panel-title">Career Track</h2>
-              </div>
-              <div class="ops-panel-body">
-                <div class="ops-career-roles">
-                  <div class="ops-role-cell">
-                    <span class="ops-mini-label">Current Role</span>
-                    <span class="ops-role-name">Cybersecurity Intern</span>
-                  </div>
-                  <span class="ops-role-arrow" aria-hidden="true">→</span>
-                  <div class="ops-role-cell">
-                    <span class="ops-mini-label">Next Promotion</span>
-                    <span class="ops-role-name ops-role-name--next">Junior SOC Analyst</span>
-                  </div>
-                </div>
-                <div class="ops-promo">
-                  <div class="ops-promo-track">
-                    <div class="ops-promo-fill" id="opsPromoBar" style="width:0%"></div>
-                  </div>
-                  <div class="ops-promo-meta">
-                    <span class="ops-promo-pct" id="opsPromoPct">0%</span>
-                    <span class="ops-promo-text" id="opsPromoText">toward Junior SOC Analyst</span>
-                  </div>
-                </div>
-                <div class="ops-future">
-                  <span class="ops-mini-label">Career Path</span>
-                  <ul class="ops-future-list">
-                    <li class="ops-future-role ops-future-role--next"><span class="ops-future-mark" aria-hidden="true">⬡</span>Junior SOC Analyst</li>
-                    <li class="ops-future-role"><span class="ops-future-mark" aria-hidden="true">🔒</span>SOC Analyst</li>
-                    <li class="ops-future-role"><span class="ops-future-mark" aria-hidden="true">🔒</span>Incident Responder</li>
-                    <li class="ops-future-role"><span class="ops-future-mark" aria-hidden="true">🔒</span>Cyber Defense Specialist</li>
-                  </ul>
-                </div>
-              </div>
-            </section>
+        <div class="ocv2-header-status">
+          <div class="ocv2-status-chip ocv2-status--ok">
+            <span class="ocv2-status-dot" aria-hidden="true"></span>
+            <span>BLUE TEAM ACTIVE</span>
+          </div>
+          <div class="ocv2-status-chip ocv2-status--warn">
+            <span class="ocv2-status-dot" aria-hidden="true"></span>
+            <span>THREAT LEVEL: ELEVATED</span>
+          </div>
+          <div class="ocv2-status-chip ocv2-status--ok">
+            <span class="ocv2-status-dot" aria-hidden="true"></span>
+            <span>MONITORING: ONLINE</span>
+          </div>
+        </div>
 
-            <section class="ops-panel ops-assignments" aria-label="Active Assignments">
-              <div class="ops-panel-head">
-                <span class="ops-panel-icon" aria-hidden="true">◎</span>
-                <h2 class="ops-panel-title">Active Assignments</h2>
-              </div>
-              <div class="ops-panel-body">
-                <ul class="ops-assign-list">
-                  <li class="ops-assign ops-assign--available" id="opsAssign1">
-                    <span class="ops-assign-num">01</span>
-                    <div class="ops-assign-body">
-                      <span class="ops-assign-name">Credential Phishing Investigation</span>
-                      <span class="ops-assign-desc">Investigate a compromised analyst workstation.</span>
-                    </div>
-                    <span class="ops-assign-status" id="opsAssign1Status">Available</span>
-                  </li>
-                  <li class="ops-assign ops-assign--locked" id="opsAssign2">
-                    <span class="ops-assign-num">02</span>
-                    <div class="ops-assign-body">
-                      <span class="ops-assign-name">Network Exposure Review</span>
-                      <span class="ops-assign-desc">Map exposed services across the network.</span>
-                    </div>
-                    <span class="ops-assign-status" id="opsAssign2Status">Locked</span>
-                  </li>
-                  <li class="ops-assign ops-assign--monitoring" id="opsAssign3">
-                    <span class="ops-assign-num">03</span>
-                    <div class="ops-assign-body">
-                      <span class="ops-assign-name">Reconnaissance Detection</span>
-                      <span class="ops-assign-desc">Detect early-stage adversary reconnaissance.</span>
-                    </div>
-                    <span class="ops-assign-status" id="opsAssign3Status">Monitoring</span>
-                  </li>
-                </ul>
-              </div>
-            </section>
+        <div class="ocv2-header-meta">
+          <div class="ocv2-clock" id="ocv2Clock">00:00:00 UTC</div>
+          <div class="ocv2-analyst-badge">
+            <span class="ocv2-agent-label">ANALYST</span>
+            <span class="ocv2-agent-name" id="ocv2AnalystName">GHOST_ZERO</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- THREE-PANEL BODY -->
+      <main class="ocv2-body">
+
+        <!-- LEFT — ALERT QUEUE + INTEL UPDATES -->
+        <aside class="ocv2-panel ocv2-panel--left" aria-label="Alert queue and intel">
+          <div class="ocv2-panel-head">
+            <div class="ocv2-phead-title">
+              <span class="ocv2-phead-icon" aria-hidden="true">◉</span>
+              <span>ALERT QUEUE</span>
+            </div>
+            <div class="ocv2-phead-badge" id="ocv2AlertCount">3 ACTIVE</div>
           </div>
 
-          <!-- RIGHT column -->
-          <div class="ops-col">
-            <section class="ops-panel ops-manager" aria-label="Manager Assignment">
-              <div class="ops-manager-head">
-                <div class="ops-manager-avatar" aria-hidden="true">SR</div>
-                <div class="ops-manager-meta">
-                  <span class="ops-manager-name">Sarah Reyes</span>
-                  <span class="ops-manager-role">Lead Analyst</span>
-                </div>
-                <span class="ops-manager-live"><span class="ops-live-dot" aria-hidden="true"></span>TRANSMISSION</span>
+          <div class="ocv2-alert-feed" id="ocv2AlertFeed" role="log" aria-live="polite" aria-label="Mission alert queue"></div>
+
+          <div class="ocv2-panel-divider"></div>
+
+          <div class="ocv2-panel-head ocv2-panel-head--sm">
+            <div class="ocv2-phead-title">
+              <span class="ocv2-phead-icon" aria-hidden="true">▤</span>
+              <span>INTEL UPDATES</span>
+            </div>
+          </div>
+          <div class="ocv2-intel-feed" id="ocv2IntelFeed"></div>
+        </aside>
+
+        <!-- CENTER — GLOBAL OPERATIONS MAP -->
+        <section class="ocv2-panel ocv2-panel--center" aria-label="Global operations map">
+          <div class="ocv2-panel-head">
+            <div class="ocv2-phead-title">
+              <span class="ocv2-phead-icon" aria-hidden="true">⊕</span>
+              <span>GLOBAL OPERATIONS MAP</span>
+            </div>
+            <div class="ocv2-map-legend">
+              <span class="ocv2-legend ocv2-legend--critical">CRITICAL</span>
+              <span class="ocv2-legend ocv2-legend--high">HIGH</span>
+              <span class="ocv2-legend ocv2-legend--medium">MEDIUM</span>
+            </div>
+          </div>
+
+          <div class="ocv2-map-container" id="ocv2MapContainer">
+            <svg class="ocv2-world-svg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+              <defs>
+                <pattern id="ocv2MapGrid" width="50" height="50" patternUnits="userSpaceOnUse">
+                  <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(0,255,136,0.06)" stroke-width="0.5"/>
+                </pattern>
+                <filter id="ocv2NodeGlow">
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                  <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <rect width="1000" height="500" fill="url(#ocv2MapGrid)"/>
+              <line x1="0" y1="250" x2="1000" y2="250" stroke="rgba(0,255,136,0.07)" stroke-width="0.8" stroke-dasharray="4,8"/>
+              <line x1="500" y1="0" x2="500" y2="500" stroke="rgba(0,255,136,0.07)" stroke-width="0.8" stroke-dasharray="4,8"/>
+              <line x1="0" y1="125" x2="1000" y2="125" stroke="rgba(0,255,136,0.04)" stroke-width="0.5" stroke-dasharray="2,10"/>
+              <line x1="0" y1="375" x2="1000" y2="375" stroke="rgba(0,255,136,0.04)" stroke-width="0.5" stroke-dasharray="2,10"/>
+              <!-- North America -->
+              <path d="M 90,58 L 125,52 L 165,58 L 200,73 L 220,98 L 230,128 L 240,153 L 225,173 L 215,198 L 200,223 L 180,238 L 160,248 L 145,258 L 130,253 L 115,243 L 100,233 L 85,213 L 75,188 L 70,163 L 75,128 L 80,98 L 85,73 Z" fill="rgba(0,255,136,0.055)" stroke="rgba(0,255,136,0.2)" stroke-width="0.8"/>
+              <path d="M 178,238 L 188,258 L 183,278 L 173,283 L 163,273 L 158,248 Z" fill="rgba(0,255,136,0.04)" stroke="rgba(0,255,136,0.15)" stroke-width="0.6"/>
+              <!-- South America -->
+              <path d="M 192,278 L 218,273 L 248,283 L 268,303 L 278,328 L 273,358 L 258,388 L 238,408 L 213,418 L 188,413 L 168,393 L 158,368 L 158,343 L 163,313 L 173,293 Z" fill="rgba(0,255,136,0.055)" stroke="rgba(0,255,136,0.2)" stroke-width="0.8"/>
+              <!-- Greenland -->
+              <path d="M 322,18 L 362,13 L 397,23 L 402,48 L 387,73 L 362,83 L 332,78 L 312,58 L 312,33 Z" fill="rgba(0,255,136,0.03)" stroke="rgba(0,255,136,0.12)" stroke-width="0.6"/>
+              <!-- Europe -->
+              <path d="M 458,53 L 493,48 L 523,53 L 548,68 L 553,88 L 538,108 L 518,118 L 498,128 L 478,143 L 463,153 L 448,143 L 438,128 L 438,108 L 443,88 L 448,68 Z" fill="rgba(0,255,136,0.055)" stroke="rgba(0,255,136,0.2)" stroke-width="0.8"/>
+              <path d="M 443,128 L 458,138 L 453,158 L 438,163 L 428,153 L 433,138 Z" fill="rgba(0,255,136,0.04)" stroke="rgba(0,255,136,0.13)" stroke-width="0.5"/>
+              <!-- Russia / Eurasia -->
+              <path d="M 538,33 L 603,23 L 683,18 L 763,23 L 833,33 L 883,48 L 893,73 L 868,88 L 823,93 L 773,88 L 723,83 L 673,88 L 623,93 L 578,98 L 548,93 L 533,78 L 528,58 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.17)" stroke-width="0.7"/>
+              <!-- Middle East -->
+              <path d="M 563,148 L 593,143 L 623,148 L 638,168 L 633,193 L 618,213 L 598,218 L 578,213 L 558,193 L 553,168 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.17)" stroke-width="0.7"/>
+              <!-- Africa -->
+              <path d="M 468,163 L 513,158 L 548,163 L 568,183 L 568,213 L 558,243 L 548,273 L 538,303 L 523,338 L 503,373 L 478,403 L 453,413 L 428,408 L 408,388 L 393,358 L 388,323 L 393,288 L 403,258 L 418,228 L 428,198 L 433,173 L 448,163 Z" fill="rgba(0,255,136,0.055)" stroke="rgba(0,255,136,0.2)" stroke-width="0.8"/>
+              <!-- Central / South Asia -->
+              <path d="M 623,98 L 683,93 L 733,98 L 773,108 L 793,128 L 793,153 L 778,173 L 748,183 L 713,183 L 683,173 L 658,158 L 638,143 L 628,118 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.17)" stroke-width="0.7"/>
+              <path d="M 663,178 L 688,173 L 713,183 L 723,208 L 718,238 L 703,258 L 683,263 L 663,253 L 651,228 L 648,203 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.16)" stroke-width="0.7"/>
+              <!-- SE Asia -->
+              <path d="M 773,183 L 803,193 L 823,213 L 818,238 L 803,253 L 783,253 L 763,238 L 753,213 L 758,193 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.15)" stroke-width="0.6"/>
+              <!-- Australia -->
+              <path d="M 793,308 L 843,293 L 893,298 L 933,313 L 948,338 L 943,368 L 923,393 L 888,403 L 848,403 L 813,388 L 788,363 L 781,338 Z" fill="rgba(0,255,136,0.055)" stroke="rgba(0,255,136,0.2)" stroke-width="0.8"/>
+              <!-- Animated network arcs -->
+              <path id="ocv2arc-a" class="ocv2-arc ocv2-arc--a" d="M 160,180 Q 340,80 490,103" fill="none" stroke="rgba(0,229,255,0.18)" stroke-width="1.2" stroke-dasharray="5,5"/>
+              <path id="ocv2arc-b" class="ocv2-arc ocv2-arc--b" d="M 498,103 Q 620,58 753,143" fill="none" stroke="rgba(0,255,136,0.14)" stroke-width="1" stroke-dasharray="4,6"/>
+              <path id="ocv2arc-c" class="ocv2-arc ocv2-arc--c" d="M 213,318 Q 380,178 490,103" fill="none" stroke="rgba(255,107,0,0.14)" stroke-width="1" stroke-dasharray="5,5"/>
+              <path id="ocv2arc-d" class="ocv2-arc ocv2-arc--d" d="M 498,103 Q 518,198 498,318" fill="none" stroke="rgba(0,229,255,0.10)" stroke-width="1" stroke-dasharray="3,7"/>
+              <path id="ocv2arc-e" class="ocv2-arc ocv2-arc--e" d="M 753,143 Q 820,248 863,348" fill="none" stroke="rgba(0,255,136,0.11)" stroke-width="1" stroke-dasharray="4,8"/>
+              <!-- Packet dots -->
+              <circle class="ocv2-arc-packet ocv2-packet--cyan" r="2.5" filter="url(#ocv2NodeGlow)">
+                <animateMotion dur="6s" repeatCount="indefinite" begin="0s"><mpath href="#ocv2arc-a"/></animateMotion>
+              </circle>
+              <circle class="ocv2-arc-packet ocv2-packet--green" r="2" filter="url(#ocv2NodeGlow)">
+                <animateMotion dur="9s" repeatCount="indefinite" begin="1.5s"><mpath href="#ocv2arc-b"/></animateMotion>
+              </circle>
+              <circle class="ocv2-arc-packet ocv2-packet--orange" r="2" filter="url(#ocv2NodeGlow)">
+                <animateMotion dur="7.5s" repeatCount="indefinite" begin="3s"><mpath href="#ocv2arc-c"/></animateMotion>
+              </circle>
+            </svg>
+
+            <!-- Mission Nodes (3 active + 3 decorative) -->
+            <div class="ocv2-map-nodes" aria-label="Mission incident nodes">
+              <!-- M1: EMEA — Credential Phishing (CRITICAL) -->
+              <button class="ocv2-node ocv2-node--critical" id="ocv2NodeEmea"
+                      data-mission="mission-001"
+                      style="left:50%;top:24%"
+                      type="button"
+                      aria-label="EMEA Region — Credential Phishing — Click to view incident">
+                <span class="ocv2-node-radar" aria-hidden="true"></span>
+                <span class="ocv2-node-pulse" aria-hidden="true"></span>
+                <span class="ocv2-node-core" aria-hidden="true"></span>
+                <span class="ocv2-node-label">EMEA</span>
+              </button>
+
+              <!-- M2: APAC — Network Exposure (HIGH) -->
+              <button class="ocv2-node ocv2-node--high" id="ocv2NodeApac"
+                      data-mission="mission-002"
+                      style="left:78%;top:29%"
+                      type="button"
+                      aria-label="APAC Region — Network Exposure — Click to view incident">
+                <span class="ocv2-node-pulse" aria-hidden="true"></span>
+                <span class="ocv2-node-core" aria-hidden="true"></span>
+                <span class="ocv2-node-label">APAC</span>
+              </button>
+
+              <!-- M3: NA-EAST — Reconnaissance (HIGH) -->
+              <button class="ocv2-node ocv2-node--high" id="ocv2NodeNaEast"
+                      data-mission="mission-003"
+                      style="left:19%;top:37%"
+                      type="button"
+                      aria-label="NA-EAST Region — Reconnaissance Detection — Click to view incident">
+                <span class="ocv2-node-pulse" aria-hidden="true"></span>
+                <span class="ocv2-node-core" aria-hidden="true"></span>
+                <span class="ocv2-node-label">NA-EAST</span>
+              </button>
+
+              <!-- Decorative / atmospheric nodes (no incident card) -->
+              <div class="ocv2-node ocv2-node--medium ocv2-node--deco" style="left:21%;top:63%" aria-hidden="true">
+                <span class="ocv2-node-pulse"></span>
+                <span class="ocv2-node-core"></span>
+                <span class="ocv2-node-label">LATAM</span>
               </div>
-              <p class="ops-manager-msg" id="opsManagerMsg" aria-live="polite">
-                Welcome to Blue Team Operations. Your first assignments are designed to build your investigation, evidence handling, and incident response judgment.
+              <div class="ocv2-node ocv2-node--medium ocv2-node--deco" style="left:58%;top:40%" aria-hidden="true">
+                <span class="ocv2-node-pulse"></span>
+                <span class="ocv2-node-core"></span>
+                <span class="ocv2-node-label">MENA</span>
+              </div>
+              <div class="ocv2-node ocv2-node--low ocv2-node--deco" style="left:82%;top:52%" aria-hidden="true">
+                <span class="ocv2-node-pulse"></span>
+                <span class="ocv2-node-core"></span>
+                <span class="ocv2-node-label">SEA</span>
+              </div>
+            </div>
+
+            <!-- Incident Card (populated by showOcv2IncidentCard in script.js) -->
+            <div class="ocv2-incident-card" id="ocv2IncidentCard" style="display:none;" role="dialog" aria-modal="true" aria-label="Incident details">
+              <button class="ocv2-card-close" id="ocv2CardClose" type="button" aria-label="Close incident card">✕</button>
+              <div class="ocv2-card-sev" id="ocv2CardSev">CRITICAL</div>
+              <div class="ocv2-card-region" id="ocv2CardRegion">EMEA REGION</div>
+              <h3 class="ocv2-card-title" id="ocv2CardTitle">—</h3>
+              <p class="ocv2-card-desc" id="ocv2CardDesc">—</p>
+              <div class="ocv2-card-meta">
+                <div class="ocv2-meta-row">
+                  <span class="ocv2-meta-label">THREAT TYPE</span>
+                  <span class="ocv2-meta-val" id="ocv2CardThreat">—</span>
+                </div>
+                <div class="ocv2-meta-row">
+                  <span class="ocv2-meta-label">STATUS</span>
+                  <span class="ocv2-meta-val" id="ocv2CardStatus">—</span>
+                </div>
+              </div>
+              <button class="ocv2-launch-btn" id="ocv2LaunchBtn" type="button">
+                ▶&nbsp;LAUNCH INVESTIGATION
+              </button>
+              <p class="ocv2-locked-note" id="ocv2LockedNote" style="display:none;">
+                Complete previous assignments first.
               </p>
-            </section>
-
-            <section class="ops-panel ops-threat" aria-label="Live Threat Status">
-              <div class="ops-panel-head">
-                <span class="ops-panel-icon" aria-hidden="true">⚠</span>
-                <h2 class="ops-panel-title">Live Threat Status</h2>
-              </div>
-              <div class="ops-panel-body">
-                <ul class="ops-threat-list">
-                  <li class="ops-threat-row ops-threat-row--watch" id="opsThreatPhishing"><span class="ops-threat-dot" aria-hidden="true"></span>Credential phishing activity detected</li>
-                  <li class="ops-threat-row ops-threat-row--watch" id="opsThreatProbing"><span class="ops-threat-dot" aria-hidden="true"></span>External probing activity monitored</li>
-                  <li class="ops-threat-row ops-threat-row--info" id="opsThreatRecon"><span class="ops-threat-dot" aria-hidden="true"></span>Reconnaissance activity under observation</li>
-                  <li class="ops-threat-row ops-threat-row--ok"><span class="ops-threat-dot" aria-hidden="true"></span>Containment status: <strong id="opsContainStatus">Stable</strong></li>
-                  <li class="ops-threat-row ops-threat-row--info" id="opsThreatRedTeam"><span class="ops-threat-dot" aria-hidden="true"></span>Red Team Activity: <strong id="opsRedTeamStatus">Monitored</strong></li>
-                  <li class="ops-threat-row ops-threat-row--ok" id="opsReadinessRow" style="display:none;"><span class="ops-threat-dot" aria-hidden="true"></span>Blue Team readiness improving</li>
-                </ul>
-                <div class="ops-analyst-mini">
-                  <span class="ops-analyst-chip">XP <strong id="opsAnalystXp">0</strong></span>
-                  <span class="ops-analyst-chip">Trust <strong id="opsAnalystTrust">50</strong></span>
-                </div>
-              </div>
-            </section>
+            </div>
           </div>
-        </div>
 
-        <!-- ===== Milestone 33A — Persistent Analyst Profile + Operational History =====
-             A compact, professional career-identity strip. The reputation
-             standing, traits, ratings, and operational history are filled by
-             renderAnalystProfile() in script.js from already-persisted signals. -->
-        <div class="ops-profile-grid">
-          <section class="ops-panel ops-profile" aria-label="Analyst Profile">
-            <div class="ops-panel-head">
-              <span class="ops-panel-icon" aria-hidden="true">🛡</span>
-              <h2 class="ops-panel-title">Analyst Profile</h2>
+          <!-- Threat Ticker -->
+          <div class="ocv2-ticker" aria-hidden="true">
+            <div class="ocv2-ticker-label">◈ LIVE IOC FEED</div>
+            <div class="ocv2-ticker-viewport">
+              <div class="ocv2-ticker-track" id="ocv2TickerTrack"></div>
             </div>
-            <div class="ops-panel-body">
-              <div class="ops-profile-id">
-                <span class="ops-profile-avatar" aria-hidden="true">◢◤</span>
-                <div class="ops-profile-id-meta">
-                  <span class="ops-profile-name" id="opsProfileName">Blue Team Analyst</span>
-                  <span class="ops-profile-role">Cybersecurity Intern</span>
-                </div>
-              </div>
-              <div class="ops-rep">
-                <span class="ops-mini-label">Operational Reputation</span>
-                <span class="ops-rep-standing" id="opsRepStanding">Awaiting First Assignment</span>
-                <div class="ops-rep-traits" id="opsRepTraits"></div>
-                <span class="ops-rep-readiness" id="opsRepReadiness">Career Readiness: Onboarding</span>
-              </div>
-              <ul class="ops-rating-list">
-                <li class="ops-rating"><span class="ops-rating-key">Containment Rating</span><strong class="ops-rating-val" id="opsRatingContainment">Developing</strong></li>
-                <li class="ops-rating"><span class="ops-rating-key">Threat Response</span><strong class="ops-rating-val" id="opsRatingThreat">Developing</strong></li>
-                <li class="ops-rating"><span class="ops-rating-key">Manager Trust</span><strong class="ops-rating-val" id="opsRatingTrust">Moderate</strong></li>
-              </ul>
-            </div>
-          </section>
+          </div>
 
-          <section class="ops-panel ops-history-panel" aria-label="Previous Operations">
-            <div class="ops-panel-head">
-              <span class="ops-panel-icon" aria-hidden="true">▤</span>
-              <h2 class="ops-panel-title">Previous Operations</h2>
-            </div>
-            <div class="ops-panel-body">
-              <ul class="ops-history-list" id="opsHistoryList">
-                <li class="ops-history-empty">No operations on record yet. Complete your first assignment to begin building your operational history.</li>
-              </ul>
-            </div>
-          </section>
-        </div>
+          <!-- Map Footer Stats -->
+          <div class="ocv2-map-footer">
+            <div class="ocv2-map-stat"><span class="ocv2-stat-label">ASSIGNMENTS</span><span class="ocv2-stat-val ocv2-stat--warn">3 ACTIVE</span></div>
+            <div class="ocv2-map-stat"><span class="ocv2-stat-label">CRITICAL</span><span class="ocv2-stat-val ocv2-stat--critical">1</span></div>
+            <div class="ocv2-map-stat"><span class="ocv2-stat-label">HIGH</span><span class="ocv2-stat-val ocv2-stat--high">2</span></div>
+            <div class="ocv2-map-stat"><span class="ocv2-stat-label">COVERAGE</span><span class="ocv2-stat-val ocv2-stat--ok">GLOBAL</span></div>
+          </div>
+        </section>
 
-        <!-- Report for duty: name (preserved #studentNameInput) + Start Shift -->
-        <div class="ops-signin">
-          <div class="ops-signin-field">
-            <label for="studentNameInput" class="ops-signin-label">ANALYST NAME</label>
+        <!-- RIGHT — SOC COMMUNICATIONS + ANALYST ROSTER -->
+        <aside class="ocv2-panel ocv2-panel--right" aria-label="SOC communications">
+          <div class="ocv2-panel-head">
+            <div class="ocv2-phead-title">
+              <span class="ocv2-phead-icon" aria-hidden="true">◈</span>
+              <span>SOC COMMS</span>
+            </div>
+            <span class="ocv2-live-badge">
+              <span class="ocv2-live-dot" aria-hidden="true"></span>LIVE
+            </span>
+          </div>
+
+          <div class="ocv2-comms-feed" id="ocv2CommsFeed" role="log" aria-live="polite" aria-label="SOC communications feed"></div>
+
+          <div class="ocv2-panel-divider"></div>
+
+          <div class="ocv2-panel-head ocv2-panel-head--sm">
+            <div class="ocv2-phead-title">
+              <span class="ocv2-phead-icon" aria-hidden="true">▲</span>
+              <span>ANALYST ROSTER</span>
+            </div>
+          </div>
+          <div class="ocv2-roster">
+            <div class="ocv2-roster-item">
+              <div class="ocv2-roster-av ocv2-av--lead">SR</div>
+              <div class="ocv2-roster-info"><span class="ocv2-roster-name">Sarah Reyes</span><span class="ocv2-roster-role">SOC Lead</span></div>
+              <span class="ocv2-roster-dot" title="Online"></span>
+            </div>
+            <div class="ocv2-roster-item">
+              <div class="ocv2-roster-av ocv2-av--intel">MC</div>
+              <div class="ocv2-roster-info"><span class="ocv2-roster-name">Marcus Chen</span><span class="ocv2-roster-role">Threat Intel</span></div>
+              <span class="ocv2-roster-dot" title="Online"></span>
+            </div>
+            <div class="ocv2-roster-item">
+              <div class="ocv2-roster-av ocv2-av--cmd">CB</div>
+              <div class="ocv2-roster-info"><span class="ocv2-roster-name">Cmdr. Brooks</span><span class="ocv2-roster-role">Incident Cmd</span></div>
+              <span class="ocv2-roster-dot" title="Online"></span>
+            </div>
+            <div class="ocv2-roster-item">
+              <div class="ocv2-roster-av ocv2-av--junior">AT</div>
+              <div class="ocv2-roster-info"><span class="ocv2-roster-name">Alex Torres</span><span class="ocv2-roster-role">Junior Analyst</span></div>
+              <span class="ocv2-roster-dot" title="Online"></span>
+            </div>
+          </div>
+        </aside>
+
+      </main>
+
+      <!-- SIGNIN STRIP — preserved for onboarding (name input + start shift) -->
+      <div class="ocv2-signin-strip" id="ocv2SigninStrip">
+        <div class="ocv2-signin-inner">
+          <div class="ocv2-signin-field">
+            <label for="studentNameInput" class="ocv2-signin-label">ANALYST NAME</label>
             <input id="studentNameInput"
-                   class="student-name-input"
+                   class="student-name-input ocv2-name-input"
                    type="text"
                    placeholder="Enter your analyst name"
                    maxlength="40"
@@ -286,21 +374,53 @@
                    spellcheck="false"
                    aria-label="Analyst Name" />
           </div>
-          <button id="enterModuleBtn" class="enter-module-btn ops-start-btn" disabled>
+          <button id="enterModuleBtn" class="enter-module-btn ocv2-start-btn" disabled>
             ▶&nbsp; Start Blue Team Shift
           </button>
-        </div>
-
-        <!-- Milestone 18: local save status + clear button. The indicator
-             text and Clear button enabled state are managed by
-             updateSaveIndicator() in script.js. -->
-        <div class="save-status-row">
-          <span class="save-indicator" id="saveIndicatorLanding">No saved progress yet</span>
-          <button id="clearProgressBtnLanding" class="clear-progress-btn" type="button" disabled>
-            🗑&nbsp; Clear Saved Progress
-          </button>
+          <div class="ocv2-save-row">
+            <span class="save-indicator" id="saveIndicatorLanding">No saved progress yet</span>
+            <button id="clearProgressBtnLanding" class="clear-progress-btn" type="button" disabled>
+              🗑&nbsp;Clear Progress
+            </button>
+          </div>
         </div>
       </div>
+
+      <!-- Hidden backward-compat elements — renderOperationsCenter() and
+           renderAnalystProfile() write to these IDs. They must remain in
+           the DOM but do not need to be visible. -->
+      <div class="ocv2-compat-hidden" aria-hidden="true">
+        <div id="opsPromoBar" style="width:0%"></div>
+        <span id="opsPromoPct">0%</span>
+        <span id="opsPromoText">toward Junior SOC Analyst</span>
+        <ul>
+          <li id="opsAssign1"><span id="opsAssign1Status">Available</span></li>
+          <li id="opsAssign2"><span id="opsAssign2Status">Locked</span></li>
+          <li id="opsAssign3"><span id="opsAssign3Status">Monitoring</span></li>
+        </ul>
+        <p id="opsManagerMsg"></p>
+        <span id="opsContainStatus">In Progress</span>
+        <strong id="opsAnalystXp">0</strong>
+        <strong id="opsAnalystTrust">50</strong>
+        <ul>
+          <li id="opsThreatPhishing"></li>
+          <li id="opsThreatProbing"></li>
+          <li id="opsThreatRecon"></li>
+          <li id="opsThreatRedTeam"><strong id="opsRedTeamStatus">Monitored</strong></li>
+          <li id="opsReadinessRow"></li>
+        </ul>
+        <span id="opsProfileName">Blue Team Analyst</span>
+        <span id="opsRepStanding">Awaiting First Assignment</span>
+        <div id="opsRepTraits"></div>
+        <span id="opsRepReadiness">Career Readiness: Onboarding</span>
+        <strong id="opsRatingContainment">Developing</strong>
+        <strong id="opsRatingThreat">Developing</strong>
+        <strong id="opsRatingTrust">Moderate</strong>
+        <ul id="opsHistoryList">
+          <li class="ops-history-empty">No operations on record yet.</li>
+        </ul>
+      </div>
+
     </section>
 
     <!-- ===== CYBER MISSIONS MAP (Milestone 25C) =====
