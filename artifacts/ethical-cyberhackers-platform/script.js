@@ -7955,18 +7955,18 @@ function enterModule() {
 
   // Milestone 11 — show the simulation loader first, then the dashboard.
   if (moduleLandingEl) moduleLandingEl.style.display = "none";
-  // Milestone 25C — after the loader, the student lands on the Cyber Missions
-  // Map (selection screen) instead of dropping straight into Mission 1. The
-  // map hands off to the existing M1 / M2 flow via launchMissionFromMap().
+  // Task 8 — after the loader, the student lands on the three-panel Operations
+  // Center (the single hub) instead of the legacy missions-map screen. The
+  // Ops Center's own mission nodes hand off to the M1/M2/M3 flow directly.
   // Deep-link: if the player arrived from the prototype OC with ?mission=,
-  // skip the map and go straight to the requested investigation.
+  // skip the hub and go straight to the requested investigation.
   runSimulationLoader(() => {
     if (pendingDeepLinkMission) {
       const mid = pendingDeepLinkMission;
       pendingDeepLinkMission = null;
       launchMissionFromMap(mid);
     } else {
-      showMissionsMap();
+      showModuleLanding();
     }
   });
 }
@@ -8285,6 +8285,38 @@ function showMissionsMap() {
   renderMissionMapStates();
   renderAllMiniMaps();
   selectMissionNode(currentMapSelection);
+}
+
+/**
+ * Land on the Operations Center (#moduleLanding). This is the primary
+ * post-login destination and the place mission "Back" buttons return to.
+ * Mirrors showMissionsMap()'s cleanup (leave any active mission UI cleanly)
+ * but reveals the Ops Center home instead of the legacy missions map.
+ */
+function showModuleLanding() {
+  // Leave any active mission UI cleanly (parity with showMissionsMap).
+  setMissionRunning(false);
+  endGuidedRun();
+  clearAllMapButtonsAttention();
+  if (dashboardEl)     dashboardEl.style.display     = "none";
+  if (simLoaderEl)     simLoaderEl.style.display     = "none";
+  const m2o = document.getElementById("mission2Overview");
+  if (m2o) m2o.style.display = "none";
+  const m2d = document.getElementById("mission2Dashboard");
+  if (m2d) m2d.style.display = "none";
+  const m3o = document.getElementById("mission3Overview");
+  if (m3o) m3o.style.display = "none";
+  const m3d = document.getElementById("mission3Dashboard");
+  if (m3d) m3d.style.display = "none";
+  const map = document.getElementById("missionsMap");
+  if (map) map.style.display = "none";
+  if (moduleLandingEl) {
+    moduleLandingEl.style.display = "";
+    moduleLandingEl.scrollTop = 0;
+  }
+  window.scrollTo({ top: 0, behavior: "instant" });
+  // Refresh so career/assignment/XP/trust changes are reflected (no stale state).
+  renderOperationsCenter();
 }
 
 /**
@@ -12265,17 +12297,18 @@ function boot() {
   document.querySelectorAll(".mission-node[data-mission]").forEach((node) => {
     node.addEventListener("click", () => selectMissionNode(node.getAttribute("data-mission")));
   });
-  // "Back to Missions Map" buttons across the mission screens (no progress loss).
+  // Task 8 — "Back to Ops Center" buttons across the mission screens return to
+  // the Operations Center hub (no progress loss).
   const m1MapBack = document.getElementById("m1MapBackBtn");
-  if (m1MapBack) m1MapBack.addEventListener("click", showMissionsMap);
+  if (m1MapBack) m1MapBack.addEventListener("click", showModuleLanding);
   const m2MapBack = document.getElementById("m2MapBackBtn");
-  if (m2MapBack) m2MapBack.addEventListener("click", showMissionsMap);
+  if (m2MapBack) m2MapBack.addEventListener("click", showModuleLanding);
   const m2OvMapBack = document.getElementById("m2OverviewMapBackBtn");
-  if (m2OvMapBack) m2OvMapBack.addEventListener("click", showMissionsMap);
+  if (m2OvMapBack) m2OvMapBack.addEventListener("click", showModuleLanding);
   const m3MapBack = document.getElementById("m3MapBackBtn");
-  if (m3MapBack) m3MapBack.addEventListener("click", showMissionsMap);
+  if (m3MapBack) m3MapBack.addEventListener("click", showModuleLanding);
   const m3OvMapBack = document.getElementById("m3OverviewMapBackBtn");
-  if (m3OvMapBack) m3OvMapBack.addEventListener("click", showMissionsMap);
+  if (m3OvMapBack) m3OvMapBack.addEventListener("click", showModuleLanding);
   // Milestone 25D — "Open Full Map" buttons in the right control panels.
   const m1OpenFullMap = document.getElementById("m1OpenFullMapBtn");
   if (m1OpenFullMap) m1OpenFullMap.addEventListener("click", showMissionsMap);
