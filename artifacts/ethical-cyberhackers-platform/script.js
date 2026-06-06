@@ -7100,6 +7100,32 @@ const OCV2_INTEL_ITEMS = [
 ];
 
 /**
+ * Character-specific completion acknowledgements for the SOC comms feed, keyed
+ * by mission and outcome tier. The responsible character (Sarah / Marcus /
+ * Brooks — see OCV2_NODE_META) reacts to how the assignment went so the Ops
+ * Center feels alive when the player returns. M1 tiers are excellent / reactive
+ * / delayed / weak; M2 & M3 are excellent / delayed / weak (lowercased labels).
+ */
+const OCV2_COMPLETION_COMMS = {
+  "mission-001": {
+    excellent: "Phishing assignment closed — clean containment, zero spread. Textbook work, analyst. The EMEA node is dark.",
+    reactive:  "Threat was already moving, but you stabilized it fast — solid reactive recovery. EMEA node is clear.",
+    delayed:   "Credential phishing handled, though it expanded a little before you locked it down. EMEA node is clear — let's tighten the timing next round.",
+    weak:      "EMEA phishing incident is closed, but the response lagged and the threat gained ground. We'll debrief on faster containment.",
+  },
+  "mission-002": {
+    excellent: "APAC exposure review complete — correct call, no scope drift, high confidence. Host is locked down. Sharp triage, analyst.",
+    delayed:   "APAC network recommendation landed — right answer, just took a few detours. Exposure closed. Tighten the scope next time.",
+    weak:      "APAC host is contained, but the ideal Blue Team recommendation slipped past. Good effort — let's sharpen the analysis.",
+  },
+  "mission-003": {
+    excellent: "NA-East recon detection wrapped — correct report-and-monitor call, clean and confident. Outstanding work, analyst.",
+    delayed:   "NA-East recon assignment closed — right recommendation reached after some drift. Source is on the monitor list.",
+    weak:      "NA-East reconnaissance reported, but the optimal call was missed. Source is monitored — review the decision tree with me.",
+  },
+};
+
+/**
  * Build the initial SOC comms feed from canonical MISSION_MAP transmission
  * text.  The `transmission` field on each MISSION_MAP entry is the official
  * in-world briefing voice for that assignment; reusing it here keeps the
@@ -7290,6 +7316,42 @@ function hideOcv2IncidentCard() {
   document.querySelectorAll(".ocv2-node[data-mission]").forEach((n) =>
     n.classList.remove("ocv2-node--active"));
   ocv2ActiveNodeId = null;
+}
+
+/**
+ * Post a character-specific completion acknowledgement to the SOC comms feed
+ * when the player finishes an assignment, so the Ops Center reflects the win
+ * live the moment they return (no reload). The responsible character reacts to
+ * the outcome tier of the run. Presentation-only: reads outcome state, writes
+ * nothing persistent. ocv2RenderCommsMsg is a no-op if the feed isn't mounted
+ * and self-caps the feed at 14 messages.
+ */
+function ocv2PostCompletionComms(missionId) {
+  const meta = OCV2_NODE_META[missionId];
+  if (!meta) return;
+
+  // Normalize each mission's outcome tier to the shared comms keys.
+  let tier = "excellent";
+  try {
+    if (missionId === "mission-001") {
+      tier = m1OutcomeVariation().key;            // excellent|reactive|delayed|weak
+    } else if (missionId === "mission-002") {
+      tier = (m2OutcomeTier().label || "").toLowerCase(); // excellent|delayed|weak
+    } else if (missionId === "mission-003") {
+      tier = (m3OutcomeTier().label || "").toLowerCase(); // excellent|delayed|weak
+    }
+  } catch (_) { /* fall back to the neutral excellent line */ }
+
+  const byTier = OCV2_COMPLETION_COMMS[missionId] || {};
+  const text = byTier[tier] || byTier.excellent || "Assignment closed. Good work, analyst.";
+
+  ocv2RenderCommsMsg({
+    author: meta.commsAuthor,
+    name:   meta.commsName,
+    role:   meta.commsRole,
+    text,
+    time:   null,
+  });
 }
 
 /**
@@ -12178,6 +12240,15 @@ function notifyAssignmentComplete(missionId) {
         displayName: typeof studentName === "string" ? studentName : null,
       });
     } catch (_) { /* non-fatal */ }
+  }
+
+  // Task — the responsible SOC character acknowledges the completed assignment
+  // in the Ops Center comms feed so it updates live when the player returns (no
+  // reload). Gated on `closedAttempt` so it posts once per real completion (a
+  // duplicate completion call closes nothing and stays silent; a genuine replay
+  // re-acknowledges). Presentation-only; the feed self-caps at 14 messages.
+  if (closedAttempt) {
+    try { ocv2PostCompletionComms(missionId); } catch (_) { /* non-fatal */ }
   }
 
   // UF-5 — incident contained: the threat telemetry visually "settles" and a
