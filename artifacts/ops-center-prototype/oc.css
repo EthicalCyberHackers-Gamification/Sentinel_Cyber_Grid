@@ -2706,6 +2706,97 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .sc-ev.lab-ev.is-pinned .sc-ev-tag { color: var(--green); }
 .sc-ev.lab-ev .sc-ev-teach { font-size: 10.5px; color: var(--text-dim); margin-top: 4px; line-height: 1.45; }
 
+/* ---- Intel cards (training overlay; presentation-only) ---- */
+/* Map nodes and connections are interactive intel triggers. */
+.lab-node { cursor: pointer; }
+.lab-node:focus-visible,
+.lab-link-mid:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+.lab-node:hover .lab-node-dot { border-color: var(--cyan); box-shadow: 0 0 16px rgba(0,229,255,0.5); }
+.lab-node.is-threat:hover .lab-node-dot { border-color: var(--red); box-shadow: 0 0 16px rgba(255,51,68,0.6); }
+
+/* Connection midpoint marker — keyboard/touch reachable target for a link. */
+.lab-link-mid {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; margin: 0;
+  font-family: var(--font-mono); font-size: 10px; font-style: italic; font-weight: 700;
+  line-height: 1; color: var(--bg-panel);
+  background: var(--cyan-dim);
+  border: 1px solid var(--cyan);
+  border-radius: 50%;
+  cursor: pointer; opacity: 0.55;
+  transition: var(--transition);
+}
+.lab-link-mid:hover, .lab-link-mid:focus-visible { opacity: 1; box-shadow: 0 0 10px rgba(0,229,255,0.6); }
+.lab-link-mid.is-danger { background: var(--red); border-color: var(--red); color: #fff; }
+.lab-link-mid.is-danger:hover, .lab-link-mid.is-danger:focus-visible { box-shadow: 0 0 10px rgba(255,51,68,0.7); }
+
+/* Wide transparent hit-line so mouse hover works anywhere along a connection. */
+.lab-link-hit { stroke: transparent; stroke-width: 4; cursor: pointer; }
+
+/* Evidence-rail item + its dedicated, non-pinning intel hotspot. */
+.lab-ev-wrap { position: relative; display: flex; }
+.lab-ev-wrap .sc-ev { flex: 1; padding-right: 30px; }
+.lab-ev-info {
+  position: absolute; top: 7px; right: 7px;
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; line-height: 1;
+  font-family: var(--font-mono); font-size: 11px; font-style: italic; font-weight: 700;
+  color: var(--cyan); background: var(--bg-panel);
+  border: 1px solid var(--cyan-dim); border-radius: 50%;
+  cursor: pointer; opacity: 0.7; transition: var(--transition);
+}
+.lab-ev-info:hover, .lab-ev-info:focus-visible {
+  opacity: 1; background: rgba(0,229,255,0.12);
+  box-shadow: 0 0 8px rgba(0,229,255,0.4); outline: none;
+}
+.lab-ev-info:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+/* The one shared, viewport-clamped intel card. */
+.lab-intel {
+  position: fixed; z-index: 1200;
+  width: 300px; max-width: calc(100vw - 20px);
+  padding: 12px 13px;
+  background: var(--bg-panel);
+  border: 1px solid var(--cyan-dim);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 36px rgba(0,0,0,0.55), 0 0 18px rgba(0,229,255,0.18);
+  font-family: var(--font-body);
+  animation: labIntelIn 140ms ease;
+  pointer-events: auto;
+}
+.lab-intel[hidden] { display: none; }
+@keyframes labIntelIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.lab-intel-head {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 8px; padding-bottom: 7px;
+  border-bottom: 1px solid var(--border);
+}
+.lab-intel-kind {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.08em;
+  color: var(--cyan); border: 1px solid var(--cyan-dim);
+  border-radius: var(--radius-sm); padding: 1px 6px; flex: none;
+}
+.lab-intel-title {
+  font-family: var(--font-mono); font-size: 12px; color: var(--text-bright);
+  line-height: 1.3; min-width: 0;
+}
+.lab-intel-row { margin-top: 7px; }
+.lab-intel-row:first-of-type { margin-top: 0; }
+.lab-intel-k {
+  display: block;
+  font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;
+}
+.lab-intel-v { display: block; font-size: 11.5px; color: var(--text); line-height: 1.5; }
+
 /* Scorecard */
 .lab-card {
   width: min(560px, 100%);

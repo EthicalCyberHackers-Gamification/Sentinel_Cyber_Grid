@@ -107,26 +107,66 @@ const LAB_FS = {
 const LAB_IND = {
   // Stage 1–2 phishing indicators
   'urgency':         { group: 'phish', kind: 'INDICATOR', label: 'Urgency / pressure language',
-                       teach: 'Phishing manufactures urgency ("expires TODAY", "within 24 hours") to rush you past your judgment.' },
+                       teach: 'Phishing manufactures urgency ("expires TODAY", "within 24 hours") to rush you past your judgment.',
+                       intel: {
+                         what: 'Pressure language ("expires TODAY", "within 24 hours") engineered to make the reader act before thinking.',
+                         technique: 'Content analysis — flag time pressure, threats, and false authority cues in the message body.',
+                         why: 'Urgency is a social-engineering lever. Spotting it early primes you to distrust the rest of the message.' } },
   'link-mismatch':   { group: 'phish', kind: 'LINK', label: 'Link points to a non-CyberCorp domain',
-                       teach: 'The portal link goes to cybercorp-support.net — a lookalike, not cybercorp.com. The destination, not the wording, is what matters.' },
+                       teach: 'The portal link goes to cybercorp-support.net — a lookalike, not cybercorp.com. The destination, not the wording, is what matters.',
+                       intel: {
+                         what: 'The "login" link actually points to cybercorp-support.net, not the real cybercorp.com.',
+                         technique: 'Link extraction — pull the true href out of the raw message and compare its domain to the claimed brand.',
+                         why: 'Attackers disguise destinations. The real URL, not the label, tells you where a victim would land.' } },
   'spoofed-headers': { group: 'phish', kind: 'HEADERS', label: 'SPF FAIL · DKIM none · relay mismatch',
-                       teach: 'SPF/DKIM are how a domain authorizes its mail. FAIL/none means cybercorp.com did NOT send this — the From line is forged.' },
+                       teach: 'SPF/DKIM are how a domain authorizes its mail. FAIL/none means cybercorp.com did NOT send this — the From line is forged.',
+                       intel: {
+                         what: 'The authentication results read SPF FAIL, DKIM none, and a relay that does not belong to cybercorp.com.',
+                         technique: 'Header analysis — read the Received, SPF, DKIM, and DMARC results in the raw source.',
+                         why: 'These checks prove the From domain did not actually send the mail. The sender is forged.' } },
   'spoofed-sender':  { group: 'phish', kind: 'SENDER', label: 'Display name ≠ real return address',
-                       teach: 'The friendly "IT Helpdesk" display name hides a Return-Path on a different domain. Always read the real address.' },
+                       teach: 'The friendly "IT Helpdesk" display name hides a Return-Path on a different domain. Always read the real address.',
+                       intel: {
+                         what: 'A friendly "IT Helpdesk" display name hiding a Return-Path on a completely different domain.',
+                         technique: 'Inspect the real Return-Path / envelope sender — never trust the display name alone.',
+                         why: 'Display names are free text. The underlying address is what reveals the impersonation.' } },
   'lookalike-domain':{ group: 'phish', kind: 'DOMAIN', label: 'Lookalike domain registered 2 days ago',
-                       teach: 'cybercorp-support.net was registered 2 days ago. Brand-new lookalike domains are a classic phishing tell.' },
+                       teach: 'cybercorp-support.net was registered 2 days ago. Brand-new lookalike domains are a classic phishing tell.',
+                       intel: {
+                         what: 'cybercorp-support.net — a domain mimicking CyberCorp, registered only 2 days ago.',
+                         technique: 'WHOIS / registration-age check on the link domain.',
+                         why: 'Newly registered lookalikes are a strong, hard-to-fake signal of a phishing operation.' } },
   // Stage 4 SOC indicators
   'domain-rep':      { group: 'soc', kind: 'INTEL', label: 'Domain flagged KNOWN-MALICIOUS',
-                       teach: 'Threat-intel feeds already list this domain + host as phishing infrastructure — independent confirmation.' },
+                       teach: 'Threat-intel feeds already list this domain + host as phishing infrastructure — independent confirmation.',
+                       intel: {
+                         what: 'Threat-intel feeds already list this domain and host as known phishing infrastructure.',
+                         technique: 'Reputation lookup — check the domain/IP against intel feeds and blocklists.',
+                         why: 'Independent confirmation that you are not chasing a false positive.' } },
   'campaign-scope':  { group: 'soc', kind: 'SCOPE', label: '12 employees received the same lure',
-                       teach: 'One report is the tip of a campaign. Checking recipients shows the real blast radius.' },
+                       teach: 'One report is the tip of a campaign. Checking recipients shows the real blast radius.',
+                       intel: {
+                         what: 'Twelve employees received the exact same lure, not just the one who reported it.',
+                         technique: 'Recipient enumeration — query the mail gateway/SIEM for every message matching the subject, sender, or URL.',
+                         why: 'Defines the real blast radius you must notify, reset, and protect.' } },
   'cred-endpoint':   { group: 'soc', kind: 'URL', label: 'Link POSTs creds to /collect.php',
-                       teach: 'Tracing the URL shows the fake portal harvests credentials to attacker infrastructure.' },
+                       teach: 'Tracing the URL shows the fake portal harvests credentials to attacker infrastructure.',
+                       intel: {
+                         what: 'The fake portal POSTs whatever credentials are entered to /collect.php on attacker infrastructure.',
+                         technique: 'Safe URL analysis — inspect the form action in a sandbox; never enter real credentials.',
+                         why: 'Confirms the attacker\u2019s objective is credential theft, not just a suspicious-looking page.' } },
   'account-comp':    { group: 'soc', kind: 'ACCOUNT', label: 'j.martin clicked, submitted creds, foreign login followed',
-                       teach: 'One target was compromised: they entered credentials and a sign-in from the attacker IP followed minutes later.' },
+                       teach: 'One target was compromised: they entered credentials and a sign-in from the attacker IP followed minutes later.',
+                       intel: {
+                         what: 'j.martin clicked the lure, submitted credentials, and a sign-in from the attacker IP followed minutes later.',
+                         technique: 'Sign-in log correlation — line up the victim against the attacker IP and timeline.',
+                         why: 'Marks a real account takeover requiring immediate password reset and session revocation.' } },
   'alert-corr':      { group: 'soc', kind: 'SIEM', label: 'SIEM alerts line up with the timeline',
-                       teach: 'Correlating SIEM alerts confirms the sequence: lure -> click -> credential POST -> anomalous login.' },
+                       teach: 'Correlating SIEM alerts confirms the sequence: lure -> click -> credential POST -> anomalous login.',
+                       intel: {
+                         what: 'SIEM alerts across email, proxy, and identity line up with the attack timeline.',
+                         technique: 'Alert correlation — stitch isolated alerts into one ordered sequence.',
+                         why: 'Turns scattered alerts into one coherent incident narrative: lure → click → credential POST → anomalous login.' } },
 };
 
 /* ------------------------------------------------------------------ *
@@ -134,19 +174,63 @@ const LAB_IND = {
  * ------------------------------------------------------------------ */
 const LAB_TOPO = {
   nodes: {
-    'inbox':   { x: 18, y: 54, glyph: '📥', label: 'Reported inbox', sub: 'r.okafor', type: '' },
-    'phish':   { x: 50, y: 46, glyph: '🌐', label: 'cybercorp-support.net', sub: 'lookalike domain', type: 'threat' },
-    'targets': { x: 17, y: 22, glyph: '👥', label: '12 targeted inboxes', sub: 'same lure', type: '' },
-    'attacker':{ x: 84, y: 22, glyph: '💀', label: '45.139.x.x', sub: 'bulletproof host', type: 'threat' },
-    'cred':    { x: 84, y: 70, glyph: '🪝', label: '/collect.php', sub: 'credential harvest', type: 'threat' },
-    'victim':  { x: 50, y: 85, glyph: '⚠', label: 'j.martin', sub: 'clicked + submitted', type: 'victim' },
+    'inbox':   { x: 18, y: 54, glyph: '📥', label: 'Reported inbox', sub: 'r.okafor', type: '',
+                 intel: {
+                   what: 'The mailbox of the employee who reported the suspicious email — your starting point.',
+                   technique: 'User-report triage — treat the report as a lead and verify it from the raw message, not the user\u2019s summary.',
+                   why: 'Every investigation needs a confirmed entry point. From here you pivot outward to see how far the attack spread.' } },
+    'phish':   { x: 50, y: 46, glyph: '🌐', label: 'cybercorp-support.net', sub: 'lookalike domain', type: 'threat',
+                 intel: {
+                   what: 'A lookalike domain registered to impersonate CyberCorp\u2019s real login page.',
+                   technique: 'Domain analysis & WHOIS — compare the link\u2019s domain to the real one, then check its age and reputation.',
+                   why: 'An email\u2019s wording can lie, but the destination domain cannot. This lookalike is the technical core of the attack.' } },
+    'targets': { x: 17, y: 22, glyph: '👥', label: '12 targeted inboxes', sub: 'same lure', type: '',
+                 intel: {
+                   what: 'Eleven other employees who received the exact same lure.',
+                   technique: 'Recipient enumeration — query the mail gateway/SIEM for all messages sharing the lure\u2019s subject, sender, or URL.',
+                   why: 'One report is the tip of the iceberg. Mapping the full recipient list reveals the blast radius you must contain.' } },
+    'attacker':{ x: 84, y: 22, glyph: '💀', label: '45.139.x.x', sub: 'bulletproof host', type: 'threat',
+                 intel: {
+                   what: 'The attacker-controlled server hosting the fake portal, on an abuse-resistant "bulletproof" host.',
+                   technique: 'Infrastructure pivoting — resolve the domain to its IP/ASN and check the hosting reputation.',
+                   why: 'Identifying the attacker infrastructure lets you block it network-wide and spot other campaigns using the same host.' } },
+    'cred':    { x: 84, y: 70, glyph: '🪝', label: '/collect.php', sub: 'credential harvest', type: 'threat',
+                 intel: {
+                   what: 'The endpoint the fake login form POSTs stolen usernames and passwords to.',
+                   technique: 'Safe URL analysis — inspect the form action in a sandbox; never submit real credentials.',
+                   why: 'This is the attacker\u2019s goal. Confirming credential capture proves intent and flags which accounts may be compromised.' } },
+    'victim':  { x: 50, y: 85, glyph: '⚠', label: 'j.martin', sub: 'clicked + submitted', type: 'victim',
+                 intel: {
+                   what: 'An employee who clicked the lure and submitted their credentials.',
+                   technique: 'Timeline correlation — line up the click, the credential POST, and any follow-on logins from the attacker IP.',
+                   why: 'A confirmed compromise raises severity from "attempted" to "successful" and triggers account containment.' } },
   },
   links: [
-    { a: 'inbox',   b: 'phish' },
-    { a: 'targets', b: 'phish' },
-    { a: 'phish',   b: 'attacker' },
-    { a: 'phish',   b: 'cred' },
-    { a: 'victim',  b: 'cred', danger: true },
+    { a: 'inbox',   b: 'phish',
+      intel: {
+        what: 'The reported email links to the lookalike domain.',
+        technique: 'Link extraction — pull every URL out of the raw message and compare its domain to the sender\u2019s.',
+        why: 'This connection turns a "suspicious-looking" email into confirmed phishing — it points at attacker infrastructure.' } },
+    { a: 'targets', b: 'phish',
+      intel: {
+        what: 'All twelve recipients were sent the same link to the same lookalike domain.',
+        technique: 'Clustering by indicator — group messages that share a URL or sender to size the campaign.',
+        why: 'Shared infrastructure across many inboxes is what makes this a campaign, not an isolated email.' } },
+    { a: 'phish',   b: 'attacker',
+      intel: {
+        what: 'The lookalike domain resolves to the attacker\u2019s bulletproof host.',
+        technique: 'DNS resolution & ASN lookup — map the domain to its IP and hosting provider.',
+        why: 'Tying the domain to its host lets you block the whole infrastructure, not just one URL.' } },
+    { a: 'phish',   b: 'cred',
+      intel: {
+        what: 'The fake portal on the domain submits credentials to /collect.php.',
+        technique: 'Form-action inspection — read where the login form sends its data.',
+        why: 'This link proves the site\u2019s purpose is credential theft, confirming the attacker\u2019s objective.' } },
+    { a: 'victim',  b: 'cred', danger: true,
+      intel: {
+        what: 'The compromised user\u2019s credentials were POSTed to the harvest endpoint.',
+        technique: 'Correlate the victim\u2019s click with the credential POST and the subsequent attacker login.',
+        why: 'lure → click → credential POST → account takeover: the completed kill-chain that demands immediate containment.' } },
   ],
 };
 
@@ -255,6 +339,7 @@ function labEcho(text) { labPrint([{ t: text, c: 'cmd' }]); }
  * ------------------------------------------------------------------ */
 function openLab() {
   LAB.runToken++;
+  labIntelHide();
   LAB.stage = 1;
   LAB.ran.clear();
   LAB.read.clear();
@@ -300,6 +385,7 @@ function openLab() {
 
 function returnFromLab() {
   LAB.runToken++;
+  labIntelHide();
   $lab('labConsole').style.display = 'none';
   $lab('opsCenter').style.display = 'flex';
 }
@@ -1057,6 +1143,103 @@ function labAddNode(id) {
   labRenderTopo();
 }
 
+/* ------------------------------------------------------------------ *
+ * INTEL CARDS — presentation-only training overlay.
+ * One shared, viewport-clamped card surface that opens on hover, keyboard
+ * focus, or tap for every map node, connection, and evidence item. It is
+ * STRICTLY read-only: it never pins, mutates node/mission state, advances
+ * the lab, or writes storage. Handlers below must never call labPin / save.
+ * ------------------------------------------------------------------ */
+let labIntelEl = null;
+let labIntelHideTimer = null;
+
+function labIntelEnsure() {
+  if (labIntelEl) return labIntelEl;
+  const el = document.createElement('div');
+  el.className = 'lab-intel';
+  el.id = 'labIntel';
+  el.setAttribute('role', 'tooltip');
+  el.hidden = true;
+  // Hovering the card itself keeps it open so the text stays selectable.
+  el.addEventListener('mouseenter', () => {
+    if (labIntelHideTimer) { clearTimeout(labIntelHideTimer); labIntelHideTimer = null; }
+  });
+  el.addEventListener('mouseleave', labIntelScheduleHide);
+  document.body.appendChild(el);
+  labIntelEl = el;
+  return el;
+}
+
+function labIntelRow(k, v) {
+  return v ? `<div class="lab-intel-row"><span class="lab-intel-k">${labEsc(k)}</span><span class="lab-intel-v">${labEsc(v)}</span></div>` : '';
+}
+
+function labIntelHtml(intel, title, kind) {
+  return `
+    <div class="lab-intel-head">
+      ${kind ? `<span class="lab-intel-kind">${labEsc(kind)}</span>` : ''}
+      <span class="lab-intel-title">${labEsc(title)}</span>
+    </div>
+    ${labIntelRow('What it is', intel.what)}
+    ${labIntelRow('How an analyst surfaces it', intel.technique)}
+    ${labIntelRow('Why it matters', intel.why)}`;
+}
+
+function labIntelShow(intel, title, kind, anchorEl) {
+  if (!intel || !anchorEl) return;
+  if (labIntelHideTimer) { clearTimeout(labIntelHideTimer); labIntelHideTimer = null; }
+  const el = labIntelEnsure();
+  el.innerHTML = labIntelHtml(intel, title, kind);
+  el.hidden = false;
+  // Measure now that it's laid out, then clamp fully inside the viewport so
+  // the card can never clip off the small map edge.
+  const a = anchorEl.getBoundingClientRect();
+  const cw = el.offsetWidth, ch = el.offsetHeight;
+  const m = 10;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let top = a.top - ch - m;            // prefer above the anchor
+  if (top < m) top = a.bottom + m;     // otherwise below
+  let left = a.left + a.width / 2 - cw / 2;
+  left = Math.max(m, Math.min(left, vw - cw - m));
+  top = Math.max(m, Math.min(top, vh - ch - m));
+  el.style.left = left + 'px';
+  el.style.top = top + 'px';
+}
+
+function labIntelScheduleHide() {
+  if (labIntelHideTimer) clearTimeout(labIntelHideTimer);
+  labIntelHideTimer = setTimeout(labIntelHide, 140);
+}
+
+function labIntelHide() {
+  if (labIntelHideTimer) { clearTimeout(labIntelHideTimer); labIntelHideTimer = null; }
+  if (labIntelEl) labIntelEl.hidden = true;
+}
+
+// Wire one trigger element to the shared card. `click` enables tap/click
+// toggling for non-button targets (touch has no hover). Never mutates state.
+function labIntelBind(el, intel, title, kind, opts) {
+  if (!intel || !el) return;
+  el.addEventListener('mouseenter', () => labIntelShow(intel, title, kind, el));
+  el.addEventListener('mouseleave', labIntelScheduleHide);
+  el.addEventListener('focus', () => labIntelShow(intel, title, kind, el));
+  el.addEventListener('blur', labIntelHide);
+  if (opts && opts.click) {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (labIntelEl && !labIntelEl.hidden) labIntelHide();
+      else labIntelShow(intel, title, kind, el);
+    });
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        labIntelShow(intel, title, kind, el);
+      }
+    });
+  }
+}
+
 function labRenderTopo() {
   const svg = $lab('labTopoSvg');
   const host = $lab('labTopoNodes');
@@ -1079,6 +1262,31 @@ function labRenderTopo() {
     else if (lk.danger) cls += ' is-danger';
     el.setAttribute('class', cls);  // SVG className is read-only — must use setAttribute
     svg.appendChild(el);
+
+    if (!lk.intel) return;
+    const title = `${na.label} → ${nb.label}`;
+    // Focusable midpoint marker: the keyboard- and touch-reachable target for
+    // the connection (a bare <line> is a thin mouse-only hit area).
+    const mx = (na.x + nb.x) / 2, my = (na.y + nb.y) / 2;
+    const mk = document.createElement('button');
+    mk.type = 'button';
+    mk.className = 'lab-link-mid' + (lk.danger ? ' is-danger' : '');
+    mk.style.left = mx + '%';
+    mk.style.top = my + '%';
+    mk.setAttribute('aria-label', `Connection ${na.label} to ${nb.label} — analyst intel`);
+    mk.textContent = 'i';
+    host.appendChild(mk);
+    labIntelBind(mk, lk.intel, title, 'CONNECTION', { click: true });
+
+    // Wide transparent hit-line so hovering anywhere along the line works too;
+    // it anchors the card to the visible marker.
+    const hit = document.createElementNS(SVGNS, 'line');
+    hit.setAttribute('x1', na.x); hit.setAttribute('y1', na.y);
+    hit.setAttribute('x2', nb.x); hit.setAttribute('y2', nb.y);
+    hit.setAttribute('class', 'lab-link-hit');
+    hit.addEventListener('mouseenter', () => labIntelShow(lk.intel, title, 'CONNECTION', mk));
+    hit.addEventListener('mouseleave', labIntelScheduleHide);
+    svg.appendChild(hit);
   });
 
   // node chips
@@ -1102,6 +1310,12 @@ function labRenderTopo() {
       <span class="lab-node-label">${n.label}</span>
       <span class="lab-node-sub">${n.sub}</span>
       ${tag}`;
+    if (n.intel) {
+      div.tabIndex = 0;
+      div.setAttribute('role', 'button');
+      div.setAttribute('aria-label', `${n.label}${n.sub ? ', ' + n.sub : ''} — analyst intel`);
+      labIntelBind(div, n.intel, n.label, n.sub ? n.sub.toUpperCase() : '', { click: true });
+    }
     host.appendChild(div);
   });
 }
@@ -1125,17 +1339,34 @@ function labRenderRail(justNew) {
     const pinned = LAB.pinned.has(id);
     const cls = ['sc-ev', 'lab-ev', pinned ? 'is-pinned' : '', fresh.has(id) ? 'is-new' : ''].filter(Boolean).join(' ');
     const tag = pinned ? '📌 PINNED' : 'click to pin';
+    // A dedicated info hotspot opens intel WITHOUT pinning — the only
+    // touch-reliable way to read the card (tapping the card itself pins).
+    const info = ind.intel
+      ? `<button type="button" class="lab-ev-info" data-lab-info="${labEsc(id)}" aria-label="Analyst intel for ${labEsc(ind.label)}">i</button>`
+      : '';
     return `
-      <button type="button" class="${cls}" data-lab-pin="${id}">
-        <span class="sc-ev-kind">${ind.kind}</span>
-        <span class="sc-ev-label">${ind.label}</span>
-        <span class="sc-ev-tag">${tag}</span>
-        <span class="sc-ev-teach">${ind.teach}</span>
-      </button>`;
+      <div class="lab-ev-wrap">
+        <button type="button" class="${cls}" data-lab-pin="${id}">
+          <span class="sc-ev-kind">${ind.kind}</span>
+          <span class="sc-ev-label">${ind.label}</span>
+          <span class="sc-ev-tag">${tag}</span>
+          <span class="sc-ev-teach">${ind.teach}</span>
+        </button>
+        ${info}
+      </div>`;
   }).join('');
 
   list.querySelectorAll('[data-lab-pin]').forEach((btn) => {
-    btn.addEventListener('click', () => labPin(btn.dataset.labPin));
+    const id = btn.dataset.labPin;
+    btn.addEventListener('click', () => labPin(id));
+    // Hover/focus opens the intel card; click still pins (existing behavior).
+    const ind = LAB_IND[id];
+    if (ind && ind.intel) labIntelBind(btn, ind.intel, ind.label, ind.kind);
+  });
+  list.querySelectorAll('[data-lab-info]').forEach((btn) => {
+    const ind = LAB_IND[btn.dataset.labInfo];
+    // click:true → presentation-only, stops propagation so it never pins.
+    if (ind && ind.intel) labIntelBind(btn, ind.intel, ind.label, ind.kind, { click: true });
   });
 }
 
@@ -1253,6 +1484,16 @@ function labInit() {
     if (e.key !== 'Escape') return;
     const open = ['labExplain', 'labKit'].some((id) => { const el = $lab(id); return el && !el.hidden; });
     if (open) labCloseModals();
+  });
+
+  // Intel card dismissal: Escape, scrolling, or a click outside any trigger.
+  // All read-only — these only hide the presentation overlay.
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') labIntelHide(); });
+  window.addEventListener('scroll', labIntelHide, true);
+  document.addEventListener('click', (e) => {
+    if (!labIntelEl || labIntelEl.hidden) return;
+    if (e.target.closest('.lab-node, .lab-link-mid, .lab-intel, [data-lab-pin], [data-lab-info]')) return;
+    labIntelHide();
   });
 
   // Public entry point so the Operations Center (a separate ES module with no
