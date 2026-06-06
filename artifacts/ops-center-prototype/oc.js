@@ -3225,6 +3225,10 @@ function renderIdentityPanel() {
   const c = getCareerState();
   const role = c.role;
 
+  // Keep the player's Analyst Roster entry in sync with their live career role.
+  const rosterRoleEl = document.getElementById('rosterPlayerRole');
+  if (rosterRoleEl) rosterRoleEl.textContent = role.name;
+
   const activeIncident = c.activeId ? INCIDENTS[c.activeId] : null;
   const activeRegion = activeIncident
     ? `${activeIncident.region.replace(' REGION', '')} — ${activeIncident.title}`

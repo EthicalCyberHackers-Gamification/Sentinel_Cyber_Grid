@@ -1303,6 +1303,26 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .roster-avatar--intel  { background: rgba(0,229,255,0.1); color: var(--cyan); border: 1px solid rgba(0,229,255,0.18); }
 .roster-avatar--cmd    { background: rgba(168,85,247,0.12); color: var(--purple); border: 1px solid rgba(168,85,247,0.2); }
 .roster-avatar--junior { background: rgba(255,215,0,0.08); color: var(--yellow); border: 1px solid rgba(255,215,0,0.18); }
+.roster-avatar--you    { background: rgba(0,229,255,0.16); color: var(--cyan); border: 1px solid rgba(0,229,255,0.35); }
+
+.roster-analyst--you {
+  background: rgba(0,229,255,0.05);
+  border-left: 2px solid var(--cyan);
+}
+
+.roster-you-tag {
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--cyan);
+  background: rgba(0,229,255,0.12);
+  border: 1px solid rgba(0,229,255,0.3);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  vertical-align: middle;
+}
 
 .roster-info {
   display: flex;
