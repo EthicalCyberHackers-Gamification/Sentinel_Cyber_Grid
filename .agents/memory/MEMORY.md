@@ -21,3 +21,4 @@
 - [Ops Center map projection](ech-ops-map-projection.md) — the Global Ops Map (both apps) is an exact equirectangular plate carrée (viewBox 1000x500); compute node/arc/land geometry from lat/long, don't eyeball it.
 - [pnpm lockfile churn](pnpm-lockfile-churn.md) — temp pnpm add/remove rewrites pnpm-lock.yaml (strips catalogs, adds tarball); restore via `git show HEAD:pnpm-lock.yaml > pnpm-lock.yaml`.
 - [Generic mission engine (M4/5/6)](ech-generic-mission-engine.md) — missions 004/005/006 are data-driven (one `gm*` engine + `GENERIC_MISSIONS`); deliberately bypasses M1-M3 hardcoded surfaces; deep-link-only discovery.
+- [Lab command verb routing](ech-lab-verb-routing.md) — progressive lab (`lab.js`, `?lab=mission-001`) routes on the FIRST typed word; key `LAB_VERB` on that word (e.g. `submit`→report), not the tool name, or multi-word cmds dead-end.

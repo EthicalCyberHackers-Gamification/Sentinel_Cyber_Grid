@@ -2508,3 +2508,188 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .sc-tool { justify-content: center; }
   .sc-tool-icon { width: auto; }
 }
+
+/* =============================================
+   PROGRESSIVE TRAINING LAB (Mission 001)
+   Isolated surfaces; reuses the .sc-* chrome.
+   ============================================= */
+
+/* Stage 1–2: virtual file workspace */
+.lab-files {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lab-files[hidden] { display: none; }
+.lab-files-head {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lab-files-head code {
+  color: var(--cyan);
+  background: rgba(0,229,255,0.1);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.lab-file-grid { display: flex; flex-direction: column; gap: 6px; }
+.lab-file {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-alt);
+  text-align: left;
+  transition: all var(--transition);
+}
+.lab-file:hover { border-color: var(--cyan-dim); background: var(--bg-hover); transform: translateX(2px); }
+.lab-file-icon { font-size: 17px; line-height: 1; flex: none; }
+.lab-file-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.lab-file-name { font-family: var(--font-mono); font-size: 13px; color: var(--text-bright); }
+.lab-file-desc { font-size: 11px; color: var(--text-dim); }
+.lab-file.is-suspect { border-color: rgba(255,107,0,0.4); background: rgba(255,107,0,0.05); }
+.lab-file.is-suspect .lab-file-name { color: var(--orange); }
+.lab-file.is-read { opacity: 0.62; }
+.lab-file-flag {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--orange);
+  border: 1px solid rgba(255,107,0,0.3);
+  background: rgba(255,107,0,0.1);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  flex: none;
+}
+
+/* Stage 3+: campaign topology — fades in */
+.lab-topo {
+  opacity: 0;
+  transition: opacity 900ms ease;
+}
+.lab-topo[hidden] { display: none; }
+.lab-topo.is-live { opacity: 1; }
+.lab-topo-cap {
+  position: absolute;
+  top: 10px; left: 12px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.lab-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 116px;
+  text-align: center;
+  animation: labNodeIn 420ms ease;
+}
+@keyframes labNodeIn { from { opacity: 0; transform: translate(-50%,-50%) scale(0.7); } to { opacity: 1; transform: translate(-50%,-50%) scale(1); } }
+.lab-node-dot {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cyan-dim);
+  background: var(--bg-panel);
+  box-shadow: 0 0 12px rgba(0,229,255,0.25);
+}
+.lab-node-label { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-bright); line-height: 1.2; }
+.lab-node-sub { font-size: 9px; color: var(--text-dim); line-height: 1.2; }
+.lab-node.is-threat .lab-node-dot { border-color: var(--red); color: var(--red); box-shadow: 0 0 14px rgba(255,51,68,0.35); }
+.lab-node.is-victim .lab-node-dot { border-color: var(--orange); color: var(--orange); box-shadow: 0 0 14px rgba(255,107,0,0.35); }
+.lab-node.is-blocked .lab-node-dot { border-color: var(--text-muted); color: var(--text-muted); box-shadow: none; filter: grayscale(1); }
+.lab-node.is-blocked .lab-node-label { color: var(--text-dim); text-decoration: line-through; }
+.lab-node.is-cleared .lab-node-dot { border-color: var(--text-muted); color: var(--text-muted); box-shadow: none; opacity: 0.6; }
+.lab-node.is-secured .lab-node-dot { border-color: var(--green); color: var(--green); box-shadow: 0 0 14px rgba(0,255,136,0.35); }
+.lab-node.is-secured .lab-node-label { color: var(--green); }
+.lab-node-tag {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+}
+.lab-node.is-blocked .lab-node-tag { color: var(--text-muted); border: 1px solid var(--border); }
+.lab-node.is-cleared .lab-node-tag { color: var(--text-muted); border: 1px solid var(--border); }
+.lab-node.is-secured .lab-node-tag { color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+
+.lab-link { stroke: var(--cyan-dim); stroke-width: 0.5; opacity: 0.55; }
+.lab-link.is-danger { stroke: var(--red); stroke-width: 0.7; stroke-dasharray: 2 1.5; opacity: 0.8; }
+.lab-link.is-blocked { stroke: var(--text-muted); opacity: 0.3; stroke-dasharray: 1 1.5; }
+
+/* Evidence rail — discovered vs pinned (reuses .sc-ev base) */
+.sc-ev.lab-ev { cursor: pointer; }
+.sc-ev.lab-ev.is-pinned { border-left-color: var(--green); }
+.sc-ev.lab-ev.is-pinned .sc-ev-tag { color: var(--green); }
+.sc-ev.lab-ev .sc-ev-teach { font-size: 10.5px; color: var(--text-dim); margin-top: 4px; line-height: 1.45; }
+
+/* Scorecard */
+.lab-card {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+  box-shadow: 0 0 40px rgba(0,0,0,0.6);
+}
+.lab-card-grade {
+  font-family: var(--font-hud);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--green);
+  text-transform: uppercase;
+}
+.lab-card-title { font-family: var(--font-hud); font-size: 21px; color: var(--text-bright); margin: 6px 0 4px; }
+.lab-card-sub { font-size: 12.5px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; }
+.lab-card-sec { margin-top: 16px; }
+.lab-card-sec-head {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--cyan);
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+.lab-card-list { display: flex; flex-direction: column; gap: 5px; }
+.lab-card-row { display: flex; gap: 9px; font-size: 12.5px; color: var(--text); line-height: 1.4; }
+.lab-card-row .ic { flex: none; }
+.lab-card-row.is-miss { color: var(--text-dim); }
+.lab-card-actions { margin-top: 22px; display: flex; gap: 10px; }
+.lab-card-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--cyan-dim);
+  background: rgba(0,229,255,0.08);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  transition: all var(--transition);
+}
+.lab-card-btn:hover { background: rgba(0,229,255,0.16); }
+.lab-card-btn--primary { border-color: var(--green); background: rgba(0,255,136,0.1); color: var(--green); }
+.lab-card-btn--primary:hover { background: rgba(0,255,136,0.18); }
+
+/* Highlighted token in terminal output (grep hit / IOC) */
+.sc-term-line .lab-hit { color: var(--orange); background: rgba(255,107,0,0.12); padding: 0 3px; border-radius: 2px; }

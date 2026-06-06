@@ -563,6 +563,84 @@
     </div>
   </div>
 
+  <!-- ===== PROGRESSIVE TRAINING LAB (Mission 001) — isolated, deep-link only ===== -->
+  <div id="labConsole" class="screen screen--console" style="display:none;" aria-label="Guided Phishing Investigation">
+
+    <div class="sc-header">
+      <button class="sc-back-btn" id="labBackBtn" type="button">
+        ← RETURN TO OPERATIONS CENTER
+      </button>
+      <div class="sc-incident-strip">
+        <span class="sc-severity" id="labSeverity">HIGH</span>
+        <span class="sc-region">TRAINING LAB</span>
+        <span class="sc-sep" aria-hidden="true">—</span>
+        <span class="sc-opid">OPS-2026-001</span>
+        <span class="sc-sep" aria-hidden="true">—</span>
+        <span class="sc-title">Credential Phishing — Guided Investigation</span>
+      </div>
+      <div class="sc-status">
+        <span class="sc-status-dot" aria-hidden="true"></span>
+        <span id="labStageBadge">STAGE 1 / 5</span>
+      </div>
+    </div>
+
+    <div class="sc-objective">
+      <span class="sc-objective-icon" aria-hidden="true">▸</span>
+      <span class="sc-objective-text" id="labObjectiveText">List the files in your mailbox — type <code>ls</code>.</span>
+      <span class="sc-objective-progress" id="labObjectiveProgress"></span>
+    </div>
+
+    <div class="sc-main">
+
+      <nav class="sc-dock" id="labDock" aria-label="Available commands"></nav>
+
+      <section class="sc-center">
+        <div class="sc-stage" id="labStage">
+
+          <!-- Stage 1–2: virtual file workspace -->
+          <div class="lab-files" id="labFiles" aria-label="Mailbox files"></div>
+
+          <!-- Stage 3+: reactive campaign topology (fades in) -->
+          <div class="sc-map lab-topo" id="labTopo" hidden aria-label="Campaign topology">
+            <div class="sc-map-grid" aria-hidden="true"></div>
+            <svg class="sc-map-svg" id="labTopoSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+            <div class="sc-map-nodes" id="labTopoNodes"></div>
+            <div class="lab-topo-cap" id="labTopoCap">CAMPAIGN MAP — grows as you uncover evidence</div>
+          </div>
+
+          <!-- Scorecard overlay -->
+          <div class="sc-overlay" id="labOutcome" hidden role="dialog" aria-modal="true" aria-label="Learning scorecard"></div>
+        </div>
+
+        <div class="sc-terminal">
+          <div class="sc-term-bar" aria-hidden="true">
+            <span class="sc-term-dot"></span><span class="sc-term-dot"></span><span class="sc-term-dot"></span>
+            <span class="sc-term-bar-label" id="labTermLabel">intern@cybercorp: ~/mailbox</span>
+          </div>
+          <div class="sc-term-out" id="labTermOut" aria-live="polite"></div>
+          <form class="sc-term-form" id="labTermForm">
+            <span class="sc-term-prompt" id="labPrompt" aria-hidden="true">intern@cybercorp:~/mailbox$</span>
+            <input class="sc-term-input" id="labTermInput" type="text" autocomplete="off"
+                   autocapitalize="off" spellcheck="false"
+                   placeholder="type a command — try `ls`" aria-label="Command input" />
+          </form>
+        </div>
+      </section>
+
+      <aside class="sc-rail" aria-label="Evidence board">
+        <div class="sc-rail-head">
+          <span class="sc-rail-head-title">EVIDENCE</span>
+          <span class="sc-rail-count" id="labRailCount">0</span>
+        </div>
+        <div class="sc-rail-list" id="labRailList">
+          <div class="sc-rail-empty">No evidence yet. Investigate the files, then pin the indicators you find.</div>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
   <script type="module" src="./oc.js"></script>
+  <script type="module" src="./lab.js"></script>
 </body>
 </html>
