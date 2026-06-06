@@ -199,6 +199,52 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 /* =============================================
+   SOUND TOGGLE BUTTON
+   ============================================= */
+.sound-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.sound-toggle:hover {
+  color: var(--text-dim);
+  border-color: rgba(100, 116, 160, 0.4);
+}
+
+.sound-toggle--on {
+  color: var(--green);
+  border-color: rgba(0, 255, 136, 0.25);
+  background: var(--green-dark);
+}
+
+.sound-toggle--on:hover {
+  border-color: rgba(0, 255, 136, 0.45);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.1);
+}
+
+.sound-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.sound-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+/* =============================================
    THREE-PANEL BODY
    ============================================= */
 .oc-body {

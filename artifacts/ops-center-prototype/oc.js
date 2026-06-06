@@ -264,6 +264,101 @@ const REAL_MISSION_MAP = {
 };
 
 /* ============================================================
+   SOUND ENGINE  (Web Audio API — no audio files needed)
+   ============================================================ */
+const SoundEngine = (() => {
+  let ctx = null;
+
+  // Sound is OFF by default. Persisted in sessionStorage so it survives
+  // page reloads within the session but resets on new sessions.
+  const STORAGE_KEY = 'oc.sound.muted';
+  let _muted = sessionStorage.getItem(STORAGE_KEY) !== 'false';
+
+  function _getCtx() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  function _canPlay() {
+    return !_muted && !document.hidden;
+  }
+
+  // Short ascending two-tone chime — pitch mapped to severity
+  function playAlertChime(severity) {
+    if (!_canPlay()) return;
+    const ac = _getCtx();
+    const pairs = {
+      critical: [1047, 1319],
+      high:     [784,  988],
+      medium:   [659,  784],
+      low:      [523,  659],
+      info:     [440,  523],
+    };
+    const [f1, f2] = pairs[severity] ?? pairs.info;
+    [f1, f2].forEach((freq, i) => {
+      const osc  = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t = ac.currentTime + i * 0.13;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.1, t + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.38);
+      osc.start(t);
+      osc.stop(t + 0.42);
+    });
+  }
+
+  // Sonar-style descending ping — matches the 4 s radar sweep period
+  function playRadarPing() {
+    if (!_canPlay()) return;
+    const ac = _getCtx();
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(520, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(260, ac.currentTime + 0.55);
+    gain.gain.setValueAtTime(0.07, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.55);
+    osc.start(ac.currentTime);
+    osc.stop(ac.currentTime + 0.6);
+  }
+
+  // Minimal click/blip for the ticker — very quiet
+  function playTickerBeep() {
+    if (!_canPlay()) return;
+    const ac = _getCtx();
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.type = 'square';
+    osc.frequency.value = 1400;
+    gain.gain.setValueAtTime(0.012, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.055);
+    osc.start(ac.currentTime);
+    osc.stop(ac.currentTime + 0.06);
+  }
+
+  function isMuted() { return _muted; }
+
+  function toggle() {
+    _muted = !_muted;
+    sessionStorage.setItem(STORAGE_KEY, String(_muted));
+    return _muted;
+  }
+
+  return { playAlertChime, playRadarPing, playTickerBeep, isMuted, toggle };
+})();
+
+/* ============================================================
    STATE
    ============================================================ */
 let activeNodeId = null;
@@ -512,13 +607,10 @@ function scheduleRollingAlerts() {
   // New alert every 18–28 seconds
   const delay = 18000 + Math.random() * 10000;
   setTimeout(() => {
-    if (alertRollIndex < ROLLING_ALERTS.length) {
-      renderAlert(ROLLING_ALERTS[alertRollIndex++], true);
-    } else {
-      // Cycle
-      alertRollIndex = 0;
-      renderAlert(ROLLING_ALERTS[alertRollIndex++], true);
-    }
+    if (alertRollIndex >= ROLLING_ALERTS.length) alertRollIndex = 0;
+    const alert = ROLLING_ALERTS[alertRollIndex++];
+    renderAlert(alert, true);
+    SoundEngine.playAlertChime(alert.severity);
     scheduleRollingAlerts();
   }, delay);
 }
@@ -535,6 +627,47 @@ function scheduleRollingComms() {
     }
     scheduleRollingComms();
   }, delay);
+}
+
+/* ============================================================
+   SOUND TOGGLE UI
+   ============================================================ */
+function updateSoundToggleUI() {
+  const btn = document.getElementById('soundToggle');
+  if (!btn) return;
+  const muted = SoundEngine.isMuted();
+  btn.querySelector('.sound-icon--off').style.display = muted ? '' : 'none';
+  btn.querySelector('.sound-icon--on').style.display  = muted ? 'none' : '';
+  btn.setAttribute('aria-label', `Toggle sound (currently ${muted ? 'off' : 'on'})`);
+  btn.setAttribute('title', muted ? 'Sound off — click to enable' : 'Sound on — click to mute');
+  btn.classList.toggle('sound-toggle--on', !muted);
+}
+
+/* ============================================================
+   RADAR PING SCHEDULER
+   The EMEA critical node radar sweep is 4 s per rotation (CSS).
+   We fire a sonar ping every 4 s to align with the sweep.
+   ============================================================ */
+function scheduleRadarPing() {
+  const SWEEP_MS = 4000;
+  setInterval(() => {
+    SoundEngine.playRadarPing();
+  }, SWEEP_MS);
+}
+
+/* ============================================================
+   TICKER BEEP SCHEDULER
+   Soft blip every 10–14 s while the IOC ticker scrolls.
+   ============================================================ */
+function scheduleTickerBeeps() {
+  function next() {
+    const delay = 10000 + Math.random() * 4000;
+    setTimeout(() => {
+      SoundEngine.playTickerBeep();
+      next();
+    }, delay);
+  }
+  next();
 }
 
 /* ============================================================
@@ -601,12 +734,23 @@ function init() {
     }
   });
 
+  // Sound toggle
+  updateSoundToggleUI();
+  document.getElementById('soundToggle').addEventListener('click', () => {
+    SoundEngine.toggle();
+    updateSoundToggleUI();
+  });
+
   // Threat ticker
   initThreatTicker();
 
   // Start rolling live feed
   scheduleRollingAlerts();
   scheduleRollingComms();
+
+  // Start sound schedulers
+  scheduleRadarPing();
+  scheduleTickerBeeps();
 }
 
 document.addEventListener('DOMContentLoaded', init);
