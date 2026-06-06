@@ -8868,6 +8868,18 @@ function showMission2Overview() {
   if (mapEl) mapEl.style.display = "none";
   overview.style.display = "";
   overview.scrollTop = 0;
+  // Task 26 — when M2 was launched from the Operations Center (deep-link or OC
+  // map launch button), label the overview's "exit" back button "← Operations
+  // Center" so the flow reflects where the player came from (matches M1's
+  // openMission1Dashboard pattern). Otherwise keep the default. The button's
+  // click behavior (hideMission2Overview → #moduleLanding/Ops Center) is
+  // unchanged; this is a label-only change.
+  const m2OverviewBackBtn = document.getElementById("mission2BackBtn");
+  if (m2OverviewBackBtn) {
+    m2OverviewBackBtn.textContent = launchedFromOC
+      ? "←\u00a0 Operations Center"
+      : "←\u00a0 Back to Module Overview";
+  }
   // Milestone 24I — render the Mission 2 Briefing Room on entry.
   renderBriefingRoom("mission-002");
   renderAllMiniMaps();
@@ -10231,6 +10243,18 @@ function showMission3Overview() {
   if (mapEl) mapEl.style.display = "none";
   overview.style.display = "";
   overview.scrollTop = 0;
+  // Task 26 — when M3 was launched from the Operations Center (deep-link or OC
+  // map launch button), label the overview's "exit" back button "← Operations
+  // Center" so the flow reflects where the player came from (matches M1's
+  // openMission1Dashboard pattern). Otherwise keep the default. The button's
+  // click behavior (hideMission3Overview → #moduleLanding/Ops Center) is
+  // unchanged; this is a label-only change.
+  const m3OverviewBackBtn = document.getElementById("mission3BackBtn");
+  if (m3OverviewBackBtn) {
+    m3OverviewBackBtn.textContent = launchedFromOC
+      ? "←\u00a0 Operations Center"
+      : "←\u00a0 Back to Module Overview";
+  }
   // Milestone 24I — render the Mission 3 Briefing Room on entry.
   renderBriefingRoom("mission-003");
   renderAllMiniMaps();
