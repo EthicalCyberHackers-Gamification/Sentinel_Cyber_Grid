@@ -11,11 +11,19 @@ reasoning gate → analyst review → quiz → scorecard), and ONE engine in `sc
 (`gm*` functions, own `#genMissionDashboard` DOM, `gmActive`/`gmState`) renders
 every phase generically.
 
-**Why it stays minimal-blast-radius:** the engine is deliberately NOT added to
-`missionRegistry`, `renderCourseProgress`, or the OC-home V2 panel (those hardcode
-3 missions). Discovery is via the prototype Ops Center deep-link only
-(`/?mission=mission-004`). It writes only `mission4/5/6Complete` + `currentXP`
-through the `saveProgress()` chokepoint — never touches the M1-M3 surfaces.
+**Why it stays minimal-blast-radius:** the engine writes only
+`mission4/5/6Complete` + `currentXP` through the `saveProgress()` chokepoint —
+never touches the M1-M3 gameplay surfaces. Discovery surfaces, current state:
+- **Surfaced (main game OC home):** the OCV2 map nodes (`ocv2Node*`, all 6 in
+  index.html + `OCV2_NODE_META` 004-006) AND the Alert Queue feed in
+  `renderOcPanelV2` now show all six, gated by `missionMapStatus()`; clicking an
+  unlocked one opens the incident card → LAUNCH → `launchMissionFromMap` →
+  `isGenericMission` branch (same as the deep-link).
+- **Still hardcode 3 (deliberately not touched):** `missionRegistry` /
+  `renderCourseProgress` (the in-mission Course Progress drawer) — coupled to the
+  on-demand self-test (`getNextMissionId('mission3')===null`, sequential orders)
+  and save/load sync, so adding 4-6 there is higher-risk; and the legacy
+  `MISSION_MAP` Missions Map, which has its own retirement task.
 
 **How to apply:** to add mission 7+, append a data object to `GENERIC_MISSIONS`
 and wire one `mission-00N` branch in `launchMissionFromMap`, `missionMapStatus`

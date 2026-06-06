@@ -7700,10 +7700,6 @@ function initOcv2() {
  * Called at the end of renderOperationsCenter() — idempotent, read-only.
  */
 function renderOcPanelV2() {
-  const m1Done = !!missionComplete;
-  const m2Done = !!mission2Complete;
-  const m3Done = !!mission3Complete;
-
   // Analyst name in header
   const nameEl = document.getElementById("ocv2AnalystName");
   if (nameEl) {
@@ -7762,30 +7758,43 @@ function renderOcPanelV2() {
     trustEl.textContent = `TRUST ${trustVal}`;
   }
 
-  // Alert feed — 3 mission-derived items
+  // Alert feed — Task 29: all SIX assignments appear in the queue (not just the
+  // map), so players can find missions 004/005/006 from the main game's home and
+  // click straight into their incident card. State derives from the canonical
+  // missionMapStatus() chain; the baseline severity tier comes from
+  // OCV2_NODE_META (UPPERCASE → lowercase for the CSS/sev key — see
+  // ech-ocv2-severity-casing). Names/regions mirror the map nodes.
   const feed = document.getElementById("ocv2AlertFeed");
   if (feed) {
-    const m2Avail  = m1Done;
-    const m3Avail  = m2Done;
-    const m1Sev    = m1Done ? "ok"       : "critical";
-    const m2Sev    = m2Done ? "ok"       : (m2Avail ? "high" : "locked");
-    const m3Sev    = m3Done ? "ok"       : (m3Avail ? "high" : "locked");
-
-    // Names and regions sourced from MISSION_MAP (canonical) and OCV2_NODE_META.
-    const alerts = [
-      { id: "mission-001", sev: m1Sev,
-        name:   (MISSION_MAP["mission-001"] || {}).title  || "Mission 001",
-        region: ((OCV2_NODE_META["mission-001"] || {}).region || "EMEA").split(" ")[0],
-        time: "06:14" },
-      { id: "mission-002", sev: m2Sev,
-        name:   (MISSION_MAP["mission-002"] || {}).title  || "Mission 002",
-        region: ((OCV2_NODE_META["mission-002"] || {}).region || "APAC").split(" ")[0],
-        time: "04:38" },
-      { id: "mission-003", sev: m3Sev,
-        name:   (MISSION_MAP["mission-003"] || {}).title  || "Mission 003",
-        region: ((OCV2_NODE_META["mission-003"] || {}).region || "NA-EAST").split(" ")[0],
-        time: "03:52" },
+    const ALERT_ORDER  = [
+      "mission-001", "mission-002", "mission-003",
+      "mission-004", "mission-005", "mission-006",
     ];
+    // Short region codes match the map node labels (avoids "SE ASIA" → "SE").
+    const ALERT_REGION = {
+      "mission-001": "EMEA", "mission-002": "APAC", "mission-003": "NA-EAST",
+      "mission-004": "LATAM", "mission-005": "MENA", "mission-006": "SEA",
+    };
+    const ALERT_TIME = {
+      "mission-001": "06:14", "mission-002": "04:38", "mission-003": "03:52",
+      "mission-004": "02:47", "mission-005": "02:19", "mission-006": "01:05",
+    };
+    const alerts = ALERT_ORDER.map((id) => {
+      const status  = missionMapStatus(id);
+      const meta    = OCV2_NODE_META[id] || {};
+      const baseSev = (meta.severity || "high").toLowerCase();
+      // completed → "ok"; locked → "locked"; available → baseline tier.
+      const sev = status === "completed" ? "ok"
+                : status === "locked"    ? "locked"
+                : baseSev;
+      const gen  = isGenericMission(id) ? (getGenericMission(id) || {}) : null;
+      const name = (MISSION_MAP[id] || {}).title || (gen && gen.title) || id;
+      return {
+        id, sev, name,
+        region: ALERT_REGION[id] || (meta.region || "GLOBAL").split(" ")[0],
+        time:   ALERT_TIME[id]   || "--:--",
+      };
+    });
 
     feed.innerHTML = "";
     alerts.forEach((a) => {

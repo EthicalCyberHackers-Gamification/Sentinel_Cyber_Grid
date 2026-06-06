@@ -9713,6 +9713,7 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 .ocv2-alert-sev--critical { background: rgba(255,51,68,0.18);  color: var(--color-red);    border: 1px solid rgba(255,51,68,0.3); }
 .ocv2-alert-sev--high     { background: rgba(255,107,0,0.15);  color: var(--color-orange); border: 1px solid rgba(255,107,0,0.3); }
 .ocv2-alert-sev--medium   { background: rgba(255,215,0,0.12);  color: var(--color-yellow); border: 1px solid rgba(255,215,0,0.25); }
+.ocv2-alert-sev--low      { background: rgba(0,180,255,0.12);  color: var(--color-cyan);   border: 1px solid rgba(0,180,255,0.25); }
 .ocv2-alert-sev--ok       { background: rgba(0,255,136,0.08);  color: var(--color-green);  border: 1px solid rgba(0,255,136,0.2); }
 .ocv2-alert-sev--locked   { background: rgba(74,85,104,0.15);  color: var(--color-text-muted); border: 1px solid rgba(74,85,104,0.25); }
 
