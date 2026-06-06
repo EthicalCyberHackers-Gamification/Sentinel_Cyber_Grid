@@ -7498,7 +7498,32 @@ function renderOcPanelV2() {
   const trustEl = document.getElementById("ocv2AnalystTrust");
   if (trustEl) {
     const trust = clampTrust(typeof trustScore === "number" ? trustScore : DEFAULT_TRUST_SCORE);
-    trustEl.textContent = `TRUST ${Math.round(trust)}`;
+    const trustVal = Math.round(trust);
+    // Color-code the chip by trust tier (mirrors renderTrustScore tiers).
+    const tier =
+      trust >= 75 ? "high"   :
+      trust >= 50 ? "medium" :
+      trust >= 25 ? "low"    : "critical";
+    trustEl.classList.remove(
+      "ocv2-agent-stat--trust-high",
+      "ocv2-agent-stat--trust-medium",
+      "ocv2-agent-stat--trust-low",
+      "ocv2-agent-stat--trust-critical"
+    );
+    trustEl.classList.add("ocv2-agent-stat--trust", `ocv2-agent-stat--trust-${tier}`);
+    // Pulse when the value changes between renders (up = good, down = warning).
+    const prev = trustEl.dataset.trustVal;
+    if (prev !== undefined && prev !== "") {
+      const prevVal = Number(prev);
+      if (isFinite(prevVal) && prevVal !== trustVal) {
+        const dir = trustVal > prevVal ? "up" : "down";
+        trustEl.classList.remove("ocv2-trust-pulse-up", "ocv2-trust-pulse-down");
+        void trustEl.offsetWidth; // restart the animation
+        trustEl.classList.add(`ocv2-trust-pulse-${dir}`);
+      }
+    }
+    trustEl.dataset.trustVal = String(trustVal);
+    trustEl.textContent = `TRUST ${trustVal}`;
   }
 
   // Alert feed — 3 mission-derived items

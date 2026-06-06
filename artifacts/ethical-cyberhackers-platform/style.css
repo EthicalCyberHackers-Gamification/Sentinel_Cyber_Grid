@@ -9438,6 +9438,49 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
   color: var(--color-border);
 }
 
+/* Trust chip color-coding by tier (at-a-glance manager-trust trend). */
+.ocv2-agent-stat--trust {
+  transition: color 0.4s ease, text-shadow 0.4s ease;
+}
+.ocv2-agent-stat--trust-high {
+  color: var(--color-green);
+  text-shadow: 0 0 6px var(--color-green-dark);
+}
+.ocv2-agent-stat--trust-medium {
+  color: var(--color-yellow);
+  text-shadow: 0 0 6px rgba(255, 215, 0, 0.18);
+}
+.ocv2-agent-stat--trust-low {
+  color: var(--color-orange);
+  text-shadow: 0 0 6px rgba(255, 107, 0, 0.2);
+}
+.ocv2-agent-stat--trust-critical {
+  color: var(--color-red);
+  text-shadow: 0 0 6px rgba(255, 51, 51, 0.25);
+}
+
+/* Brief pulse when the trust value changes between renders. */
+.ocv2-trust-pulse-up {
+  animation: ocv2-trust-pulse-up 0.7s ease;
+}
+.ocv2-trust-pulse-down {
+  animation: ocv2-trust-pulse-down 0.7s ease;
+}
+@keyframes ocv2-trust-pulse-up {
+  0%   { transform: scale(1); text-shadow: 0 0 0 transparent; }
+  35%  { transform: scale(1.18); color: var(--color-green); text-shadow: 0 0 10px var(--color-green); }
+  100% { transform: scale(1); }
+}
+@keyframes ocv2-trust-pulse-down {
+  0%   { transform: scale(1); text-shadow: 0 0 0 transparent; }
+  35%  { transform: scale(1.18); color: var(--color-red); text-shadow: 0 0 10px var(--color-red); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ocv2-trust-pulse-up,
+  .ocv2-trust-pulse-down { animation: none; }
+}
+
 /* ---- THREE-PANEL BODY ---- */
 .ocv2-body {
   flex: 1;
