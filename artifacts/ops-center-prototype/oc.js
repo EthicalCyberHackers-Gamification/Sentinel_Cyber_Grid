@@ -2508,17 +2508,19 @@ function launchWorkspace() {
   const realMissionId = REAL_MISSION_MAP[activeNodeId];
   if (!realMissionId) return;
 
-  // Mission 001 opens the progressive, terminal-first Linux→SOC lab (an isolated
-  // module). It exposes window.openMission001Lab; call it and return before the
-  // console/holotable routing so M1 no longer falls through to the SOC console.
-  // The old console is still reachable for reference via ?console=mission-001.
-  if (realMissionId === 'mission-001') {
-    if (typeof window.openMission001Lab === 'function') {
-      window.openMission001Lab();
+  // Missions with a progressive, terminal-first Linux→SOC lab dataset open that
+  // isolated lab module (lab.js). It exposes window.openMissionLab(id) and the
+  // set window.LAB_MISSION_IDS of missions that have a lab. We check this BEFORE
+  // the console/holotable routing so a lab-backed mission (e.g. mission-002,
+  // which also has a HOLOTABLE console block) routes to the lab, not the old
+  // console. The old interiors stay reachable for reference via ?console=/?lab=.
+  if (Array.isArray(window.LAB_MISSION_IDS) && window.LAB_MISSION_IDS.includes(realMissionId)) {
+    if (typeof window.openMissionLab === 'function') {
+      window.openMissionLab(realMissionId);
     } else {
       // Hook not loaded yet (partial script-load) — fall back to the deep-link so
-      // M1 still opens the lab rather than silently dropping to the old console.
-      window.location.href = '/ops-center/?lab=mission-001';
+      // the lab still opens rather than silently dropping to the old console.
+      window.location.href = '/ops-center/?lab=' + encodeURIComponent(realMissionId);
     }
     return;
   }
