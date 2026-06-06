@@ -2071,12 +2071,18 @@ function labInit() {
   });
 
   // Deep-link support carried over from the prototype: /?lab=mission-001 opens
-  // a lab directly. Harmless in the shipping game (host wires hooks before this
-  // runs via initLab), useful for QA.
+  // a lab directly. In the shipping game this MUST respect host gating (student
+  // onboarding + mission unlock), otherwise it bypasses the gate enforced by the
+  // host's launchMissionFromMap. The host supplies LAB_HOOKS.canOpen(missionId);
+  // when present it is authoritative and must return true before we auto-open.
   try {
     const params = new URLSearchParams(window.location.search);
     const labId = params.get('lab');
-    if (labId && LAB_MISSIONS[labId]) openLab(labId);
+    if (labId && LAB_MISSIONS[labId]) {
+      const gate = LAB_HOOKS.canOpen;
+      const allowed = typeof gate === 'function' ? !!gate(labId) : true;
+      if (allowed) openLab(labId);
+    }
   } catch (_) { /* ignore malformed query strings */ }
 }
 

@@ -16,6 +16,10 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/style.css" />
+    <!-- Progressive Training Lab — graduated from the ops-center-prototype.
+         Scoped to .screen / .sc-* / .lab-* selectors (no collisions with
+         style.css). See lab.js for behaviour. -->
+    <link rel="stylesheet" href="/lab.css" />
   </head>
   <body>
     <!-- Milestone 24E-2 — Interactive Alert Modal root.
@@ -2173,6 +2177,106 @@
          commands, reasoning, analyst review, quiz, and scorecard into
          this container. Hidden until launched from the Ops Center. -->
     <main id="genMissionDashboard" class="gm-dashboard" aria-label="Mission Dashboard" style="display:none;"></main>
+
+    <!-- ===== PROGRESSIVE TRAINING LAB =====
+         Graduated from the ops-center-prototype. A data-driven, terminal-first
+         interior for assignments that have a lab dataset (mission-001,
+         mission-002). Hidden until launched from the Operations Center map.
+         Behaviour lives in lab.js; styling in lab.css. Completion is wired to
+         real host persistence via configureLab() hooks in script.js boot(). -->
+    <div id="labConsole" class="screen screen--console" style="display:none;" aria-label="Guided Investigation Lab">
+
+      <div class="sc-header">
+        <button class="sc-back-btn" id="labBackBtn" type="button">
+          ← RETURN TO OPERATIONS CENTER
+        </button>
+        <div class="sc-incident-strip">
+          <span class="sc-severity" id="labSeverity">HIGH</span>
+          <span class="sc-region">TRAINING LAB</span>
+          <span class="sc-sep" aria-hidden="true">—</span>
+          <span class="sc-opid" id="labOpId">OPS-2026-001</span>
+          <span class="sc-sep" aria-hidden="true">—</span>
+          <span class="sc-title" id="labTitle">Credential Phishing — Guided Investigation</span>
+          <span class="sc-sep sc-context-sep" aria-hidden="true">—</span>
+          <span class="sc-context" id="labContext">Finance Operations · Sup: Sarah Reyes</span>
+        </div>
+        <div class="sc-status">
+          <span class="sc-status-dot" aria-hidden="true"></span>
+          <span id="labStageBadge">STAGE 1 / 5</span>
+        </div>
+      </div>
+
+      <div class="sc-objective">
+        <span class="sc-objective-icon" aria-hidden="true">▸</span>
+        <span class="sc-objective-text" id="labObjectiveText">List the files in your mailbox — type <code>ls</code>.</span>
+        <span class="sc-objective-progress" id="labObjectiveProgress"></span>
+      </div>
+
+      <div class="sc-main">
+
+        <div class="sc-dock-col">
+          <nav class="sc-dock" id="labDock" aria-label="Available commands"></nav>
+          <div class="sc-dock-foot">
+            <button class="sc-dock-action" id="labKitBtn" type="button" title="Open the SOC Tool Kit — what every available command does">
+              <span class="sc-dock-action-ico" aria-hidden="true">🧰</span>
+              <span class="sc-dock-action-txt">SOC TOOL KIT</span>
+            </button>
+            <button class="sc-dock-action sc-dock-action--hint" id="labHintBtn" type="button" title="Get a gradual hint — ask again for more">
+              <span class="sc-dock-action-ico" aria-hidden="true">💡</span>
+              <span class="sc-dock-action-txt">HINT</span>
+            </button>
+          </div>
+        </div>
+
+        <section class="sc-center">
+          <div class="sc-stage" id="labStage">
+
+            <!-- Stage 1–2: virtual file workspace -->
+            <div class="lab-files" id="labFiles" aria-label="Mailbox files"></div>
+
+            <!-- Stage 3+: reactive campaign topology (fades in) -->
+            <div class="sc-map lab-topo" id="labTopo" hidden aria-label="Campaign topology">
+              <div class="sc-map-grid" aria-hidden="true"></div>
+              <svg class="sc-map-svg" id="labTopoSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+              <div class="sc-map-nodes" id="labTopoNodes"></div>
+              <div class="lab-topo-cap" id="labTopoCap">CAMPAIGN MAP — grows as you uncover evidence</div>
+            </div>
+
+            <!-- Scorecard overlay -->
+            <div class="sc-overlay" id="labOutcome" hidden role="dialog" aria-modal="true" aria-label="Learning scorecard"></div>
+          </div>
+
+          <div class="sc-terminal">
+            <div class="sc-term-bar" aria-hidden="true">
+              <span class="sc-term-dot"></span><span class="sc-term-dot"></span><span class="sc-term-dot"></span>
+              <span class="sc-term-bar-label" id="labTermLabel">intern@cybercorp: ~/mailbox</span>
+            </div>
+            <div class="sc-term-out" id="labTermOut" aria-live="polite"></div>
+            <form class="sc-term-form" id="labTermForm">
+              <span class="sc-term-prompt" id="labPrompt" aria-hidden="true">intern@cybercorp:~/mailbox$</span>
+              <input class="sc-term-input" id="labTermInput" type="text" autocomplete="off"
+                     autocapitalize="off" spellcheck="false"
+                     placeholder="type a command — or press HINT if you're stuck" aria-label="Command input" />
+            </form>
+          </div>
+        </section>
+
+        <aside class="sc-rail" aria-label="Evidence board">
+          <div class="sc-rail-head">
+            <span class="sc-rail-head-title">EVIDENCE</span>
+            <span class="sc-rail-count" id="labRailCount">0</span>
+          </div>
+          <div class="sc-rail-list" id="labRailList">
+            <div class="sc-rail-empty">No evidence yet. Investigate the files, then pin the indicators you find.</div>
+          </div>
+        </aside>
+
+      </div>
+
+      <!-- Teaching popups (presentation-only — never run a command) -->
+      <div class="lab-modal" id="labExplain" hidden role="dialog" aria-modal="true" aria-label="Command explanation"></div>
+      <div class="lab-modal" id="labKit" hidden role="dialog" aria-modal="true" aria-label="SOC Tool Kit"></div>
+    </div>
 
     <!-- Scripts -->
     <script type="module" src="/missions.js"></script>

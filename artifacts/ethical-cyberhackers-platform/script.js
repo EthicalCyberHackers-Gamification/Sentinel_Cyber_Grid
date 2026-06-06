@@ -12549,6 +12549,39 @@ function backendMissionScore(missionId) {
   return typeof m1Confidence === "number" ? m1Confidence : null;
 }
 
+/* Progressive Training Lab → host persistence bridge. Called (via the
+   configureLab onComplete hook) when the player submits the lab report. This is
+   the lab's real completion chokepoint: it sets the host mission-completion flag,
+   awards the assignment XP, persists, and fires notifyAssignmentComplete so the
+   Operations Center map repaints and the next assignment unlocks.
+
+   Idempotent: a second submit for an already-complete assignment is a no-op
+   (the flag is already set), so XP is never double-awarded. We deliberately
+   bypass the monolithic dashboard `completeMission()` path — the lab renders its
+   own scorecard, so the minimal, faithful completion is flag + XP + save +
+   notify. (Known limitation: rank/trust meters and mid-lab resume are not
+   wired; a fresh open restarts the lab at stage 1.) */
+function notifyLabComplete(missionId) {
+  let xp = 0;
+  if (missionId === "mission-001") {
+    if (missionComplete) return;        // already complete — no double award
+    missionComplete = true;
+    xp = (typeof QUIZ === "object" && QUIZ && typeof QUIZ.xpReward === "number") ? QUIZ.xpReward : 0;
+  } else if (missionId === "mission-002") {
+    if (mission2Complete) return;       // already complete — no double award
+    // Prerequisite guard (defense in depth): Assignment 2 cannot be completed
+    // before Assignment 1, even if some alternate entrypoint opened its lab.
+    if (!missionComplete) return;
+    mission2Complete = true;
+    xp = (typeof M2_QUIZ === "object" && M2_QUIZ && typeof M2_QUIZ.xpReward === "number") ? M2_QUIZ.xpReward : 0;
+  } else {
+    return;                             // no lab-completion semantics for other ids
+  }
+  if (xp > 0) awardXP(xp);              // awardXP persists (saveProgress) + animates
+  saveProgress();                        // ensure the freshly-set flag is persisted
+  try { notifyAssignmentComplete(missionId); } catch (_) { /* non-fatal */ }
+}
+
 /* Phase B0 — close the open cloud attempt as completed. Idempotent across the
    game's multiple completion code paths (quiz path + engine path). Never throws. */
 function notifyAssignmentComplete(missionId) {
@@ -12788,6 +12821,41 @@ function boot() {
   renderAllMiniMaps(); // Milestone 25D — initial compact route map render.
   initOpsStrips();     // Milestone 29A — inject the persistent operations strip.
   initRedTeamPanels(); // Milestone 30A — inject the RED TEAM ACTIVITY panel.
+
+  // Progressive Training Lab — wire host hooks, then initialise the lab's own
+  // DOM listeners. onOpen tears down every host screen so only #labConsole is
+  // visible; onReturn restores the Operations Center (repaint + unlock via
+  // showModuleLanding → renderOperationsCenter); onComplete records real
+  // completion (flag + XP + save + notify). Hooks reference hoisted function
+  // declarations, so the forward references are safe.
+  configureLab({
+    // Gate the lab's own ?lab= deep-link through the SAME rules as the Ops
+    // Center map (launchMissionFromMap): the student must be onboarded and the
+    // assignment must be unlocked. Without this, /?lab=mission-002 would bypass
+    // gating and let notifyLabComplete persist out-of-order progression.
+    canOpen: (missionId) => {
+      if (!studentName || !studentName.trim()) return false;
+      return missionMapStatus(missionId) !== "locked";
+    },
+    onOpen: () => {
+      // Defensive teardown of any live host UI before showing the lab.
+      try { endGuidedRun(); } catch (_) {}
+      if (moduleLandingEl) moduleLandingEl.style.display = "none";
+      [dashboardEl, simLoaderEl].forEach((el) => { if (el) el.style.display = "none"; });
+      [
+        "mission2Overview", "mission2Dashboard",
+        "mission3Overview", "mission3Dashboard",
+        "genMissionDashboard", "missionsMap",
+      ].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+      });
+      window.scrollTo(0, 0);
+    },
+    onReturn: () => { showModuleLanding(); },
+    onComplete: (missionId) => { notifyLabComplete(missionId); },
+  });
+  initLab();
 
   // Milestone 17 — Student Name input gating.
   // The button starts disabled (set in index.html) and becomes enabled
