@@ -55,11 +55,13 @@ const LAB_FS = {
     'A user reported a suspicious email. Your job: confirm whether it is',
     'phishing and find out why.',
     '',
-    '  1. list the files in this mailbox     ->  ls',
-    '  2. read the reported message          ->  cat suspicious_email.txt',
-    '  3. pull every link out of it          ->  grep http suspicious_email.txt',
+    '  1. list the files in this mailbox',
+    '  2. read the reported message',
+    '  3. pull every link out of it and see where it really points',
     '',
     'A real link should match the sender. Watch for one that does not.',
+    '',
+    'Not sure how? Press HINT, or open the SOC TOOL KIT for the commands.',
   ],
   'inbox_summary.txt': [
     'Mailbox: r.okafor@cybercorp.com',
@@ -374,7 +376,7 @@ function labRevealCampaign() {
     { t: 'This is not a single email. The same lure domain is being used in a', c: 'warn' },
     { t: 'wider credential-phishing CAMPAIGN against CyberCorp.', c: 'warn' },
     { t: 'A campaign map is opening above the terminal — it will grow as you', c: 'dim' },
-    { t: 'uncover more. Begin SOC correlation: try `lookup domain`.', c: 'dim' },
+    { t: 'uncover more. Investigate the lure domain to expose the attacker\'s infrastructure.', c: 'dim' },
   ]);
 }
 
@@ -384,7 +386,7 @@ function labUnlockContainment() {
     { t: '', },
     { t: '── CONTAINMENT AUTHORIZED ────────────────────────', c: 'head' },
     { t: 'Enough evidence is pinned to act. Containment tools are now unlocked.', c: 'ok' },
-    { t: 'Each action changes the campaign map. Finish with `submit report`.', c: 'dim' },
+    { t: 'Each action changes the campaign map. When it\'s contained, file your incident report to close out.', c: 'dim' },
   ]);
 }
 
@@ -570,7 +572,7 @@ function labFileCmd(cmd, args) {
     if (name === 'suspicious_email.txt') {
       labPrint([{ t: '[!] Note the pressure to act "within 24 hours" — that urgency is a red flag.', c: 'warn' }]);
       labDiscover('urgency');
-      labPrint([{ t: 'Now extract the links: `grep http suspicious_email.txt`', c: 'dim' }]);
+      labPrint([{ t: 'Next, pull every link out of this message and check where they really lead.', c: 'dim' }]);
     }
     labRenderFiles();
     labRenderDock();
