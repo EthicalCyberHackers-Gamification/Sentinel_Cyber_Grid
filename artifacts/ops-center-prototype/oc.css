@@ -594,6 +594,17 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   to   { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
+/* HIGH-severity radar: orange sweep, slower rotation */
+.incident-node--high .node-radar {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 107, 0, 0.4) 18deg,
+    transparent 36deg
+  );
+  animation-duration: 6s;
+}
+
 .node-pulse {
   position: absolute;
   top: 50%;
