@@ -742,6 +742,39 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   text-shadow: 0 0 6px var(--green);
   font-weight: bold;
 }
+.node-status-glyph--progress {
+  color: var(--purple);
+  text-shadow: 0 0 6px var(--purple);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+/* In-progress real-mission node — started but not yet finished. Keep its
+   severity colour/radar (still an open incident) but add a purple ring + glow
+   so it reads as "you've been here" versus an untouched-but-available node. */
+.incident-node.node--in-progress .node-core {
+  box-shadow: 0 0 14px currentColor, 0 0 0 2px var(--purple);
+}
+.incident-node.node--in-progress .node-core::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1.5px dashed var(--purple);
+  opacity: 0.85;
+  animation: node-progress-spin 6s linear infinite;
+  pointer-events: none;
+}
+@keyframes node-progress-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
 
 /* Completed real-mission node — incident resolved: calm it down, tint green */
 .incident-node.node--completed { color: var(--green); }

@@ -317,15 +317,39 @@ function getMissionStates() {
   };
 }
 
+// Read-only "in progress" signal for the three hardcoded missions (1–3). A
+// mission counts as in progress when the player has launched it (the durable
+// `missionLaunched` flag) or accrued any Evidence Confidence — both derived
+// purely from ech.progress.v1, never written. Generic missions (4–6) persist
+// no mid-mission state, so they have no in-progress signal and stay plain
+// "active" until completed. Returns { nodeId: { started, pct } }.
+function getMissionProgress() {
+  const p = readGameProgress() || {};
+  const launched = (p.missionLaunched && typeof p.missionLaunched === "object")
+    ? p.missionLaunched : {};
+  const conf = {
+    "mission-001": Number(p.m1Confidence) || 0,
+    "mission-002": Number(p.m2Confidence) || 0,
+    "mission-003": Number(p.m3Confidence) || 0,
+  };
+  const out = {};
+  Object.entries(REAL_MISSION_MAP).forEach(([nodeId, mid]) => {
+    const pct = Math.max(0, Math.min(100, Math.round(conf[mid] || 0)));
+    out[nodeId] = { started: !!launched[mid] || pct > 0, pct };
+  });
+  return out;
+}
+
 // Paint each real-mission node with its current progress state. Safe to
 // call repeatedly (e.g. on focus after returning from the main game).
 function applyMissionProgress() {
   const states = getMissionStates();
+  const progress = getMissionProgress();
   Object.entries(states).forEach(([nodeId, status]) => {
     const node = document.getElementById(`node-${nodeId}`);
     if (!node) return;
 
-    node.classList.remove("node--completed", "node--locked");
+    node.classList.remove("node--completed", "node--locked", "node--in-progress");
     node.removeAttribute("aria-disabled");
     node.querySelector(".node-status-glyph")?.remove();
 
@@ -350,6 +374,19 @@ function applyMissionProgress() {
       g.textContent = "🔒";
       node.appendChild(g);
       node.setAttribute("aria-label", `${baseLabel} — Locked`);
+    } else if (progress[nodeId] && progress[nodeId].started) {
+      // Active mission the player has already started but not finished — set it
+      // apart from untouched-but-available nodes with an "in progress" badge.
+      const pct = progress[nodeId].pct;
+      node.classList.add("node--in-progress");
+      const g = document.createElement("span");
+      g.className = "node-status-glyph node-status-glyph--progress";
+      g.setAttribute("aria-hidden", "true");
+      g.textContent = pct > 0 ? `${pct}%` : "•••";
+      node.appendChild(g);
+      node.setAttribute("aria-label", pct > 0
+        ? `${baseLabel} — In progress (${pct}% confidence)`
+        : `${baseLabel} — In progress`);
     } else {
       node.setAttribute("aria-label", baseLabel);
     }
@@ -677,6 +714,8 @@ function showIncidentCard(incidentId) {
     launchBtn.innerHTML = '🔒&nbsp; LOCKED — COMPLETE PRIOR MISSION';
   } else if (status === 'completed') {
     launchBtn.innerHTML = '▶&nbsp; REPLAY INVESTIGATION';
+  } else if (getMissionProgress()[incidentId]?.started) {
+    launchBtn.innerHTML = '▶&nbsp; RESUME INVESTIGATION';
   } else {
     launchBtn.innerHTML = '▶&nbsp; LAUNCH INVESTIGATION';
   }
