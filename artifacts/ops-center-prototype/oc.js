@@ -443,6 +443,111 @@ const HOLOTABLE_MISSIONS = {
     ],
     takeaway:
       "Credential phishing relies on look-alike domains, spoofed sender names, and urgency to trick users into typing real passwords into fake login pages. Cross-check the sending domain, the message headers (SPF/Return-Path), and where links actually resolve before trusting any 're-verify your account' request.",
+    console: {
+      stage: "mail",
+      host: "r.okafor@cybercorp.com",
+      termLabel: "mail-sec console",
+      intro: [
+        { t: "CyberCorp SOC Console — OPS-2026-001  (Phishing Report)", c: "head" },
+        { t: "Analyze the reported email using the tools on the left, or type a command." },
+        { t: "Start with `triage`. Type `help` for the full list.", c: "dim" },
+      ],
+      scanAgainMsg: "Message already open.",
+      notReadyMsg:  "No message open yet — run `triage` first.",
+      containLine:  "[+] Credentials reset and sender domain blocked. Campaign purged org-wide.",
+      objectives: {
+        start:       "Run `triage` to open the user-reported message.",
+        investigate: "Analyze it: run `headers` and `links` to expose the spoofing.",
+        classify:    "Inspect each item in the evidence queue and classify it.",
+        ready:       "All malicious evidence flagged. Run `contain` to shut down the campaign.",
+        done:        "Incident closed. Review the outcome or return to the Operations Center.",
+      },
+      tools: [
+        { cmd: "triage", kind: "scan", key: "triage", icon: "📂", name: "Open Report", hint: "triage",
+          desc: "open the user-reported message      (start here)" },
+        { cmd: "headers", kind: "reveal", key: "headers", icon: "⚙", name: "Header Analysis", hint: "headers",
+          desc: "inspect SPF/DKIM & routing          (needs triage)" },
+        { cmd: "links", kind: "reveal", key: "links", icon: "🔗", name: "Link Analysis", hint: "links",
+          desc: "expand where links really resolve   (needs triage)" },
+        { cmd: "intel cybercorp-support.net", kind: "intel", needs: "headers", icon: "⚲", name: "Threat Intel", hint: "intel <domain>",
+          helpCmd: "intel <domain>", desc: "look up a domain against threat feeds" },
+        { cmd: "contain", kind: "contain", icon: "⊘", name: "Containment", hint: "contain",
+          desc: "neutralize the threat (after flagging the evidence)" },
+      ],
+      mail: {
+        mailbox: "r.okafor@cybercorp.com — Reported Items",
+        from:    "IT Helpdesk <it-helpdesk@cybercorp.com>",
+        fromNote:"display name only — verify in headers",
+        to:      "r.okafor@cybercorp.com",
+        subject: "ACTION REQUIRED — Re-verify your VPN access (24h)",
+        received:"Today 06:14 UTC · relayed via mail.unknown-relay-83.ru",
+        body: [
+          "Our records show your VPN credentials expire today. To avoid losing remote access, confirm your username and password using the secure portal below within 24 hours:",
+          "{link}",
+          "Failure to act will suspend your account.",
+          "— CyberCorp IT Helpdesk",
+        ],
+        link: {
+          text: "https://sso.cybercorp-support.net/verify",
+          real: "45.139.x.x · clone of CyberCorp SSO, POSTs to /collect.php",
+        },
+        headers: [
+          { k: "Display-From", v: "it-helpdesk@cybercorp.com", bad: false },
+          { k: "Return-Path",  v: "bounce@cybercorp-support.net", bad: true },
+          { k: "Reply-To",     v: "support@cybercorp-support.net", bad: true },
+          { k: "Received",     v: "mail.unknown-relay-83.ru (45.139.x.x)", bad: true },
+          { k: "SPF",          v: "FAIL — cybercorp.com did not authorize sender", bad: true },
+          { k: "DKIM",         v: "none", bad: true },
+        ],
+      },
+      reveal: {
+        triage:  ["lure-email", "it-newsletter"],
+        headers: ["spoofed-headers"],
+        links:   ["harvest-url", "lookalike-domain", "vpn-portal"],
+      },
+      out: {
+        triage: [
+          { t: "triage --report user-report-8842", c: "cmd" },
+          { t: "[*] Pulling the reported message into the analyzer…", c: "dim" },
+          { t: "  subject: ACTION REQUIRED — Re-verify your VPN access (24h)", c: "warn" },
+          { t: "  also in mailbox: Monthly Security Newsletter (security@cybercorp.com)" },
+          { t: "[+] Message loaded. 2 items queued — run `headers` and `links` to dig in.", c: "ok" },
+        ],
+        headers: [
+          { t: "headers", c: "cmd" },
+          { t: "Display-From: it-helpdesk@cybercorp.com", c: "" },
+          { t: "Return-Path: bounce@cybercorp-support.net", c: "warn" },
+          { t: "Received:    mail.unknown-relay-83.ru (45.139.x.x)", c: "warn" },
+          { t: "SPF: FAIL    DKIM: none", c: "warn" },
+          { t: "[+] Sender is spoofed — the real domain did not authorize it.", c: "ok" },
+          { t: "[+] 1 artifact added to the evidence queue. Inspect & classify it.", c: "ok" },
+        ],
+        links: [
+          { t: "links --expand", c: "cmd" },
+          { t: "shown:    https://sso.cybercorp-support.net/verify", c: "" },
+          { t: "resolves: 45.139.x.x → clone of CyberCorp SSO (/collect.php)", c: "warn" },
+          { t: "domain:   cybercorp-support.net registered 2 days ago", c: "warn" },
+          { t: "compare:  vpn.cybercorp.com (real, EV cert) — legitimate", c: "" },
+          { t: "[+] Link harvests credentials to external infrastructure.", c: "ok" },
+          { t: "[+] 3 artifacts added to the evidence queue. Inspect & classify them.", c: "ok" },
+        ],
+        intel: {
+          "cybercorp-support.net": [
+            { t: "intel cybercorp-support.net", c: "cmd" },
+            { t: "cybercorp-support.net → 45.139.x.x", c: "" },
+            { t: "  registered 2 days ago · privacy-shielded WHOIS", c: "" },
+            { t: "  AS8003 — flagged bulletproof host", c: "warn" },
+            { t: "verdict: KNOWN-MALICIOUS (phishing)", c: "warn" },
+          ],
+          "vpn.cybercorp.com": [
+            { t: "intel vpn.cybercorp.com", c: "cmd" },
+            { t: "vpn.cybercorp.com  ·  CyberCorp IT Infrastructure", c: "" },
+            { t: "  registry-verified asset, EV cert issued to CyberCorp Inc.", c: "" },
+            { t: "verdict: KNOWN-GOOD", c: "ok" },
+          ],
+        },
+      },
+    },
   },
 
   "mission-002": {
@@ -573,6 +678,99 @@ const HOLOTABLE_MISSIONS = {
     ],
     takeaway:
       "Lateral movement shows up as credential reuse (pass-the-hash), unexpected east-west SMB/RPC traffic, and remotely-created services. Separate it from legitimate admin work by checking logon type, auth protocol, source host, and whether the activity matches a known, signed, scheduled job.",
+    console: {
+      stage: "network",
+      host: "APAC-SEG-3",
+      termLabel: "siem console",
+      flowCmd: "netflow",
+      focusCmd: "sessions",
+      intro: [
+        { t: "CyberCorp SOC Console — OPS-2026-002  (APAC-EAST)", c: "head" },
+        { t: "Trace the lateral movement using the tools on the left, or type a command." },
+        { t: "Start with `scan`. Type `help` for the full list.", c: "dim" },
+      ],
+      scanAgainMsg: "Segment already mapped.",
+      notReadyMsg:  "Segment not mapped yet — run `scan` first.",
+      containLine:  "[+] Host chain isolated and svc_backup rotated on the map. Movement stopped.",
+      objectives: {
+        start:       "Run `scan` to map the APAC-EAST segment.",
+        investigate: "Trace the movement: run `netflow` and `sessions` to surface evidence.",
+        classify:    "Inspect each item in the evidence queue and classify it.",
+        ready:       "All malicious evidence flagged. Run `contain` to sever the chain.",
+        done:        "Incident closed. Review the outcome or return to the Operations Center.",
+      },
+      tools: [
+        { cmd: "scan", kind: "scan", key: "scan", icon: "◎", name: "Segment Scan", hint: "scan",
+          desc: "map live hosts on the segment" },
+        { cmd: "netflow APAC-SEG-3", kind: "reveal", key: "netflow", icon: "↔", name: "Netflow", hint: "netflow APAC-SEG-3",
+          desc: "trace east-west connections          (needs scan)" },
+        { cmd: "sessions APAC-SEG-7", kind: "reveal", key: "sessions", icon: "🔑", name: "Logon Audit", hint: "sessions APAC-SEG-7",
+          desc: "audit logons & new services          (needs scan)" },
+        { cmd: "intel 10.44.2.19", kind: "intel", needs: "netflow", icon: "⚲", name: "Threat Intel", hint: "intel <host>",
+          helpCmd: "intel <host>", desc: "look up a host or account against intel" },
+        { cmd: "contain", kind: "contain", icon: "⊘", name: "Containment", hint: "contain",
+          desc: "neutralize the threat (after flagging the evidence)" },
+      ],
+      nodes: [
+        { id: "dc",   label: "DC / KDC",      type: "gateway", x: 50, y: 16 },
+        { id: "soc",  label: "SOC / SIEM",    type: "sensor",  x: 16, y: 47 },
+        { id: "seg3", label: "APAC-SEG-3",    type: "host",    x: 50, y: 56, focus: true },
+        { id: "jump", label: "JUMP-HOST",     type: "host",    x: 16, y: 14 },
+        { id: "file", label: "APAC-FILE-02",  type: "host",    x: 30, y: 84 },
+        { id: "seg7", label: "APAC-SEG-7",    type: "host",    x: 80, y: 80, external: true },
+      ],
+      infraLinks: [["dc", "soc"], ["dc", "seg3"], ["dc", "jump"], ["dc", "file"]],
+      threatLink: { from: "seg3", to: "seg7", label: "LATERAL · SMB/RPC" },
+      benignLink: { from: "jump", to: "file", label: "ADMIN RDP" },
+      reveal: {
+        netflow:  ["east-west", "pth-auth", "admin-rdp"],
+        sessions: ["remote-svc", "scheduled-backup"],
+      },
+      out: {
+        scan: [
+          { t: "scan --segment APAC-EAST", c: "cmd" },
+          { t: "[*] Sweeping APAC-EAST for live hosts…", c: "dim" },
+          { t: "  APAC-FILE-02   up    nightly backup window" },
+          { t: "  JUMP-HOST      up    bastion, healthy" },
+          { t: "  APAC-SEG-3     up    off-hours SMB/RPC to other segments", c: "warn" },
+          { t: "[+] 3 hosts online. APAC-SEG-3 is reaching segments it normally can't.", c: "ok" },
+          { t: "    Next: run `netflow` and `sessions` to investigate it.", c: "dim" },
+        ],
+        netflow: [
+          { t: "netflow APAC-SEG-3", c: "cmd" },
+          { t: "TIME      FLOW                          PORT  NOTE", c: "head" },
+          { t: "02:11  10.44.2.19 → 10.44.7.55          445   NTLM, off-hours", c: "warn" },
+          { t: "02:14  10.44.7.55 → 10.44.7.61          135   RPC chain", c: "warn" },
+          { t: "09:40  10.44.0.5  → 10.44.2.8           3389  approved bastion RDP" },
+          { t: "[+] East-west SMB/RPC chain off-hours — textbook lateral movement.", c: "ok" },
+          { t: "[+] 3 artifacts added to the evidence queue. Inspect & classify them.", c: "ok" },
+        ],
+        sessions: [
+          { t: "sessions --host APAC-SEG-7", c: "cmd" },
+          { t: "EVENT  DETAIL                              SIGNED", c: "head" },
+          { t: "4624   svc_backup  Type 3 (NTLM)  src 10.44.2.19   —", c: "warn" },
+          { t: "7045   new service WinHelpSvc  C:\\Windows\\Temp\\wh.exe  NO", c: "warn" },
+          { t: "T-Sched CorpBackup-Nightly  01:00 daily  signed by Veeam  YES" },
+          { t: "[+] Remote service created seconds after a pass-the-hash logon.", c: "ok" },
+          { t: "[+] 2 artifacts added to the evidence queue. Inspect & classify them.", c: "ok" },
+        ],
+        intel: {
+          "10.44.2.19": [
+            { t: "intel 10.44.2.19", c: "cmd" },
+            { t: "10.44.2.19  ·  APAC-SEG-3 workstation", c: "" },
+            { t: "  flagged patient-zero in this incident", c: "warn" },
+            { t: "  host fingerprint matches threat actor group FIN-12", c: "warn" },
+            { t: "verdict: COMPROMISED", c: "warn" },
+          ],
+          "svc_backup": [
+            { t: "intel svc_backup", c: "cmd" },
+            { t: "svc_backup  ·  service account (backup tier)", c: "" },
+            { t: "  expected on APAC-FILE-02 only — seen authenticating to SEG-7", c: "warn" },
+            { t: "verdict: CREDENTIAL ABUSE", c: "warn" },
+          ],
+        },
+      },
+    },
   },
 
   "mission-003": {
@@ -706,7 +904,36 @@ const HOLOTABLE_MISSIONS = {
     // ---- Live SOC Console config (vertical slice). Drives the reactive network
     // map + terminal interior. Holotable ignores this block entirely. ----
     console: {
+      stage: "network",
       host: "NA-WS-1092",
+      termLabel: "analyst console",
+      intro: [
+        { t: "CyberCorp SOC Console — OPS-2026-003  (NA-WS-1092)", c: "head" },
+        { t: "Investigate the alert using the tools on the left, or type a command." },
+        { t: "Start with `scan`. Type `help` for the full list.", c: "dim" },
+      ],
+      scanAgainMsg: "Segment already mapped.",
+      notReadyMsg:  "Network not mapped yet — run `scan` first.",
+      containLine:  "[+] C2 channel severed on the network map. Incident closed.",
+      objectives: {
+        start:       "Run `scan` to discover live hosts on the segment.",
+        investigate: "Investigate NA-WS-1092: run `netflow` and `procscan` to surface evidence.",
+        classify:    "Inspect each item in the evidence queue and classify it.",
+        ready:       "All malicious evidence flagged. Run `contain` to neutralize the threat.",
+        done:        "Incident closed. Review the outcome or return to the Operations Center.",
+      },
+      tools: [
+        { cmd: "scan", kind: "scan", key: "scan", icon: "◎", name: "Network Scan", hint: "scan",
+          desc: "discover live hosts on the segment" },
+        { cmd: "netflow NA-WS-1092", kind: "reveal", key: "netflow", icon: "⇄", name: "Netflow", hint: "netflow NA-WS-1092",
+          desc: "inspect NA-WS-1092 outbound connections  (needs scan)" },
+        { cmd: "procscan NA-WS-1092", kind: "reveal", key: "procscan", icon: "▤", name: "Process Audit", hint: "procscan NA-WS-1092",
+          desc: "audit processes & persistence            (needs scan)" },
+        { cmd: "intel update-svc-cdn.net", kind: "intel", needs: "netflow", icon: "⚲", name: "Threat Intel", hint: "intel <ioc>",
+          helpCmd: "intel <ioc>", desc: "look up a domain or IP against threat feeds" },
+        { cmd: "contain", kind: "contain", icon: "⊘", name: "Containment", hint: "contain",
+          desc: "neutralize the threat (after flagging the evidence)" },
+      ],
       // Map nodes (x/y are % of the map area). type drives styling.
       nodes: [
         { id: "fw",     label: "PERIMETER FW",   type: "gateway", x: 50, y: 16 },
@@ -910,6 +1137,99 @@ const HOLOTABLE_MISSIONS = {
     ],
     takeaway:
       "Reconnaissance looks like ordered port sweeps, banner grabbing, and probing from flagged IP ranges. The dangerous part is what it finds — like internet-facing RDP. Separate hostile scanning from your own approved monitors and vuln scans by checking source, schedule, and change tickets, then close real exposures fast.",
+    console: {
+      stage: "network",
+      host: "latam-edge-03",
+      termLabel: "perimeter console",
+      flowCmd: "idslog",
+      focusCmd: "fwaudit",
+      intro: [
+        { t: "CyberCorp SOC Console — OPS-2026-004  (LATAM PERIMETER)", c: "head" },
+        { t: "Triage the scanning using the tools on the left, or type a command." },
+        { t: "Start with `scan`. Type `help` for the full list.", c: "dim" },
+      ],
+      scanAgainMsg: "Perimeter already mapped.",
+      notReadyMsg:  "Perimeter not mapped yet — run `scan` first.",
+      containLine:  "[+] Source range blocked and exposed RDP closed on the map. Recon shut down.",
+      objectives: {
+        start:       "Run `scan` to sweep the LATAM perimeter.",
+        investigate: "Triage the scanning: run `idslog` and `fwaudit` to surface evidence.",
+        classify:    "Inspect each item in the evidence queue and classify it.",
+        ready:       "All malicious evidence flagged. Run `contain` to block the source & close exposures.",
+        done:        "Incident closed. Review the outcome or return to the Operations Center.",
+      },
+      tools: [
+        { cmd: "scan", kind: "scan", key: "scan", icon: "◎", name: "Perimeter Scan", hint: "scan",
+          desc: "sweep the perimeter for live edge hosts" },
+        { cmd: "idslog", kind: "reveal", key: "idslog", icon: "🔎", name: "IDS / Proxy Log", hint: "idslog",
+          desc: "review scan & banner-grab alerts     (needs scan)" },
+        { cmd: "fwaudit", kind: "reveal", key: "fwaudit", icon: "🚪", name: "Firewall Audit", hint: "fwaudit",
+          desc: "audit exposure & internal scans      (needs scan)" },
+        { cmd: "intel 203.0.113.42", kind: "intel", needs: "idslog", icon: "⚲", name: "Threat Intel", hint: "intel <ip>",
+          helpCmd: "intel <ip>", desc: "look up a source IP against threat feeds" },
+        { cmd: "contain", kind: "contain", icon: "⊘", name: "Containment", hint: "contain",
+          desc: "neutralize the threat (after flagging the evidence)" },
+      ],
+      nodes: [
+        { id: "edge",   label: "LATAM EDGE",     type: "gateway", x: 50, y: 16 },
+        { id: "soc",    label: "SOC / IDS",      type: "sensor",  x: 16, y: 47 },
+        { id: "edge03", label: "latam-edge-03",  type: "host",    x: 50, y: 56, focus: true },
+        { id: "web",    label: "latam-web-01",   type: "host",    x: 30, y: 84 },
+        { id: "nessus", label: "NESSUS (int)",   type: "host",    x: 70, y: 84 },
+        { id: "pingdom",label: "PINGDOM",        type: "cloud",   x: 16, y: 14, external: true },
+        { id: "scanner",label: "203.0.113.42",   type: "threat",  x: 86, y: 14, external: true },
+      ],
+      infraLinks: [["edge", "soc"], ["edge", "edge03"], ["edge", "web"], ["edge", "nessus"]],
+      threatLink: { from: "scanner", to: "edge03", label: "PORT SWEEP" },
+      benignLink: { from: "pingdom", to: "web",    label: "UPTIME /health" },
+      reveal: {
+        idslog:  ["port-sweep", "banner-grab", "uptime-monitor"],
+        fwaudit: ["exposed-rdp", "internal-vulnscan"],
+      },
+      out: {
+        scan: [
+          { t: "scan --perimeter LATAM/24", c: "cmd" },
+          { t: "[*] Sweeping LATAM perimeter for live edge hosts…", c: "dim" },
+          { t: "  latam-web-01    up    normal web traffic" },
+          { t: "  NESSUS (int)    up    internal scanner, idle" },
+          { t: "  latam-edge-03   up    answered an inbound 3389 probe", c: "warn" },
+          { t: "[+] Inbound probing from 203.0.113.42 across the perimeter.", c: "ok" },
+          { t: "    Next: run `idslog` and `fwaudit` to investigate it.", c: "dim" },
+        ],
+        idslog: [
+          { t: "idslog --since 02:00", c: "cmd" },
+          { t: "TIME      SRC             ACTIVITY", c: "head" },
+          { t: "02:00  203.0.113.42     sequential ports 22/80/443/8080/3389", c: "warn" },
+          { t: "02:10  203.0.113.42     HTTP HEAD banner-grab, Shodan-like UA", c: "warn" },
+          { t: "—:—    198.51.100.10    HTTPS GET /health every 60s (Pingdom)" },
+          { t: "[+] Ordered port sweep + banner grabbing from a flagged range.", c: "ok" },
+          { t: "[+] 3 artifacts added to the evidence queue. Inspect & classify them.", c: "ok" },
+        ],
+        fwaudit: [
+          { t: "fwaudit latam-edge-03", c: "cmd" },
+          { t: "RULE                          STATE", c: "head" },
+          { t: "3389/tcp → 0.0.0.0/0          OPEN  (not in approved list)", c: "warn" },
+          { t: "Nessus 10.60.0.30  Sun 03:00  CHG-2026-0412, authenticated" },
+          { t: "[+] Internet-facing RDP found — the real exposure recon would exploit.", c: "ok" },
+          { t: "[+] 2 artifacts added to the evidence queue. Inspect & classify them.", c: "ok" },
+        ],
+        intel: {
+          "203.0.113.42": [
+            { t: "intel 203.0.113.42", c: "cmd" },
+            { t: "203.0.113.42  ·  203.0.113.0/24", c: "" },
+            { t: "  listed on 3 feeds: mass-scanning / recon infrastructure", c: "warn" },
+            { t: "  no business relationship — not an approved vendor", c: "warn" },
+            { t: "verdict: HOSTILE-SCANNER", c: "warn" },
+          ],
+          "198.51.100.10": [
+            { t: "intel 198.51.100.10", c: "cmd" },
+            { t: "198.51.100.10  ·  Pingdom uptime monitor", c: "" },
+            { t: "  on the perimeter allow-list / vendor registry", c: "" },
+            { t: "verdict: KNOWN-GOOD", c: "ok" },
+          ],
+        },
+      },
+    },
   },
 
   "mission-005": {
@@ -1035,6 +1355,89 @@ const HOLOTABLE_MISSIONS = {
     ],
     takeaway:
       "Account takeover shows up as MFA-fatigue bursts, low-and-slow password spraying, and impossible-travel sign-ins reaching for legacy (no-MFA) protocols. Tell it apart from real travelers and maintenance blips by checking device, MFA status, source ASN, and corroborating travel/change records — then reset credentials and kill legacy auth.",
+    console: {
+      stage: "auth",
+      host: "MENA / privileged",
+      termLabel: "identity console",
+      flowCmd: "geoip",
+      focusCmd: "mfa",
+      intro: [
+        { t: "CyberCorp SOC Console — OPS-2026-005  (Identity / MENA)", c: "head" },
+        { t: "Analyze the sign-in evidence using the tools on the left, or type a command." },
+        { t: "Start with `signins`. Type `help` for the full list.", c: "dim" },
+      ],
+      scanAgainMsg: "Sign-in log already loaded.",
+      notReadyMsg:  "Sign-in log not loaded — run `signins` first.",
+      containLine:  "[+] Targeted accounts locked, MFA re-enrolled, AS12345 blocked. Takeover stopped.",
+      objectives: {
+        start:       "Run `signins` to pull recent privileged sign-ins.",
+        investigate: "Analyze them: run `geoip` and `mfa` to resolve the anomalies.",
+        classify:    "Inspect each item in the evidence queue and classify it.",
+        ready:       "All malicious attempts flagged. Run `contain` to lock the accounts.",
+        done:        "Incident closed. Review the outcome or return to the Operations Center.",
+      },
+      tools: [
+        { cmd: "signins", kind: "scan", key: "signins", icon: "📋", name: "Pull Sign-Ins", hint: "signins",
+          desc: "load recent privileged sign-ins    (start here)" },
+        { cmd: "geoip", kind: "reveal", key: "geoip", icon: "🌍", name: "Geo Analysis", hint: "geoip",
+          desc: "resolve locations & travel         (needs signins)" },
+        { cmd: "mfa", kind: "reveal", key: "mfa", icon: "📲", name: "MFA Audit", hint: "mfa",
+          desc: "audit MFA challenges & spraying     (needs signins)" },
+        { cmd: "intel AS12345", kind: "intel", needs: "geoip", icon: "⚲", name: "Threat Intel", hint: "intel <asn>",
+          helpCmd: "intel <asn>", desc: "look up a source ASN against threat feeds" },
+        { cmd: "contain", kind: "contain", icon: "⊘", name: "Containment", hint: "contain",
+          desc: "neutralize the threat (after flagging the evidence)" },
+      ],
+      auth: {
+        title: "Privileged Sign-In Monitor — MENA",
+        events: [
+          { time: "02:00–03:30", account: "many users",  src: "AS12345 (off-geo)",       flagBy: "mfa",   sev: "bad", result: "password spray — 2 valid, MFA blocked" },
+          { time: "02:40",       account: "9 admin accts", src: "AS12345 (off-geo)",      flagBy: "mfa",   sev: "bad", result: "47 MFA pushes / 20min — all denied" },
+          { time: "07:55",       account: "corp users",   src: "corp VPN range",          flagBy: "mfa",   sev: "ok",  result: "VPN failover — auto-recovered" },
+          { time: "08:19",       account: "f.haddad-adm", src: "AS12345 (off-geo)",       flagBy: "geoip", sev: "bad", result: "impossible travel — 5,000km / 17min, legacy IMAP" },
+          { time: "11:30",       account: "n.said",       src: "Riyadh (registered dev)", flagBy: "geoip", sev: "ok",  result: "matches approved travel itinerary, MFA ok" },
+        ],
+      },
+      reveal: {
+        geoip: ["impossible-travel", "traveling-vp"],
+        mfa:   ["mfa-fatigue", "pw-spray", "vpn-reconnect"],
+      },
+      out: {
+        signins: [
+          { t: "signins --priv --region MENA --since 02:00", c: "cmd" },
+          { t: "[*] Pulling privileged sign-in events…", c: "dim" },
+          { t: "  9 admin/finance accounts with denied MFA challenges", c: "warn" },
+          { t: "  multiple sign-ins from AS12345 (outside operating geos)", c: "warn" },
+          { t: "[+] Log loaded. Run `geoip` and `mfa` to resolve each anomaly.", c: "ok" },
+        ],
+        geoip: [
+          { t: "geoip --resolve", c: "cmd" },
+          { t: "ACCOUNT        TRAVEL", c: "head" },
+          { t: "f.haddad-adm   Dubai 08:02 → AS12345 08:19  (5,000km / 17min)", c: "warn" },
+          { t: "n.said         Cairo → Riyadh  (itinerary on file, MFA ok)" },
+          { t: "[+] One impossible-travel sign-in; one legitimate traveler.", c: "ok" },
+          { t: "[+] 2 artifacts added to the evidence queue. Inspect & classify them.", c: "ok" },
+        ],
+        mfa: [
+          { t: "mfa --audit", c: "cmd" },
+          { t: "PATTERN                                   SOURCE", c: "head" },
+          { t: "47 push challenges / 20min vs 9 admins     AS12345  (all denied)", c: "warn" },
+          { t: "1 password × many users, 2 valid           AS12345  (MFA blocked)", c: "warn" },
+          { t: "07:55 cluster — VPN failover, recovered     corp ranges" },
+          { t: "[+] MFA fatigue + spray from AS12345; the VPN blip is benign.", c: "ok" },
+          { t: "[+] 3 artifacts added to the evidence queue. Inspect & classify them.", c: "ok" },
+        ],
+        intel: {
+          "AS12345": [
+            { t: "intel AS12345", c: "cmd" },
+            { t: "AS12345  ·  hosting/VPS, not in any approved geo", c: "" },
+            { t: "  source of the MFA bursts and password spray this window", c: "warn" },
+            { t: "  listed on 2 feeds: credential-attack infrastructure", c: "warn" },
+            { t: "verdict: KNOWN-MALICIOUS", c: "warn" },
+          ],
+        },
+      },
+    },
   },
 
   "mission-006": {
@@ -1161,6 +1564,99 @@ const HOLOTABLE_MISSIONS = {
     ],
     takeaway:
       "Low-priority scan queues still hide real attacks. Triage means separating benign crawlers, search bots, and health checks (verifiable by source, rate, and attribution) from hostile probes carrying exploit payloads or credential-stuffing — and acting on the latter even when the overall alert is 'low'.",
+    console: {
+      stage: "network",
+      host: "sea-dmz-01",
+      termLabel: "waf console",
+      flowCmd: "waflog",
+      focusCmd: "authlog",
+      intro: [
+        { t: "CyberCorp SOC Console — OPS-2026-006  (SEA DMZ)", c: "head" },
+        { t: "Triage the scan noise using the tools on the left, or type a command." },
+        { t: "Start with `scan`. Type `help` for the full list.", c: "dim" },
+      ],
+      scanAgainMsg: "DMZ already mapped.",
+      notReadyMsg:  "DMZ not mapped yet — run `scan` first.",
+      containLine:  "[+] Hostile source blocked at the WAF on the map. Benign scanners logged.",
+      objectives: {
+        start:       "Run `scan` to list DMZ services under scan.",
+        investigate: "Triage the noise: run `waflog` and `authlog` to surface evidence.",
+        classify:    "Inspect each item in the evidence queue and classify it.",
+        ready:       "Real threats flagged. Run `contain` to block the hostile source.",
+        done:        "Incident closed. Review the outcome or return to the Operations Center.",
+      },
+      tools: [
+        { cmd: "scan", kind: "scan", key: "scan", icon: "◎", name: "DMZ Scan", hint: "scan",
+          desc: "list DMZ services receiving scan traffic" },
+        { cmd: "waflog", kind: "reveal", key: "waflog", icon: "🛡", name: "WAF Log", hint: "waflog",
+          desc: "review probes & crawler traffic      (needs scan)" },
+        { cmd: "authlog", kind: "reveal", key: "authlog", icon: "🗝", name: "Auth Log", hint: "authlog",
+          desc: "review login-endpoint hits           (needs scan)" },
+        { cmd: "intel 198.51.100.77", kind: "intel", needs: "waflog", icon: "⚲", name: "Threat Intel", hint: "intel <ip>",
+          helpCmd: "intel <ip>", desc: "look up a source IP against threat feeds" },
+        { cmd: "contain", kind: "contain", icon: "⊘", name: "Containment", hint: "contain",
+          desc: "neutralize the threat (after flagging the evidence)" },
+      ],
+      nodes: [
+        { id: "edge",   label: "SEA DMZ EDGE",   type: "gateway", x: 50, y: 16 },
+        { id: "waf",    label: "WAF / SOC",      type: "sensor",  x: 16, y: 47 },
+        { id: "dmz01",  label: "sea-dmz-01",     type: "host",    x: 50, y: 56, focus: true },
+        { id: "lb",     label: "INTERNAL LB",    type: "host",    x: 30, y: 84 },
+        { id: "portal", label: "DMZ PORTAL",     type: "host",    x: 70, y: 84 },
+        { id: "cdn",    label: "CDN / BOTS",     type: "cloud",   x: 16, y: 14, external: true },
+        { id: "atk",    label: "198.51.100.77",  type: "threat",  x: 86, y: 14, external: true },
+      ],
+      infraLinks: [["edge", "waf"], ["edge", "dmz01"], ["edge", "lb"], ["edge", "portal"]],
+      threatLink: { from: "atk", to: "dmz01",  label: "EXPLOIT PROBE" },
+      benignLink: { from: "cdn", to: "dmz01",  label: "CRAWL / BOTS" },
+      reveal: {
+        waflog:  ["exploit-probe", "cdn-crawl", "search-bot"],
+        authlog: ["credential-stuff", "health-probe"],
+      },
+      out: {
+        scan: [
+          { t: "scan --dmz SEA", c: "cmd" },
+          { t: "[*] Listing DMZ services receiving scan traffic…", c: "dim" },
+          { t: "  DMZ PORTAL     up    public login portal" },
+          { t: "  INTERNAL LB    up    health checks only" },
+          { t: "  sea-dmz-01     up    mixed scan traffic, mostly low-rate", c: "warn" },
+          { t: "[+] Low-rate scanning across the DMZ — mostly background noise.", c: "ok" },
+          { t: "    Next: run `waflog` and `authlog` to check for real threats.", c: "dim" },
+        ],
+        waflog: [
+          { t: "waflog --dmz sea-dmz-01", c: "cmd" },
+          { t: "SRC              REQUEST", c: "head" },
+          { t: "198.51.100.77    GET /../../etc/passwd  &  ?cmd=whoami", c: "warn" },
+          { t: "198.51.100.20    GET /  (0.3 req/s, known CDN exit node)" },
+          { t: "Googlebot        crawl /marketing  (verified rDNS)" },
+          { t: "[+] Exploit payloads hiding in otherwise benign scan noise.", c: "ok" },
+          { t: "[+] 3 artifacts added to the evidence queue. Inspect & classify them.", c: "ok" },
+        ],
+        authlog: [
+          { t: "authlog --dmz-portal", c: "cmd" },
+          { t: "SRC              ACTIVITY", c: "head" },
+          { t: "198.51.100.77    POST /login  leaked cred pairs, real accounts", c: "warn" },
+          { t: "10.70.0.4        GET /healthz every 10s  (internal LB)" },
+          { t: "[+] Credential stuffing from the same hostile source.", c: "ok" },
+          { t: "[+] 2 artifacts added to the evidence queue. Inspect & classify them.", c: "ok" },
+        ],
+        intel: {
+          "198.51.100.77": [
+            { t: "intel 198.51.100.77", c: "cmd" },
+            { t: "198.51.100.77  ·  source of exploit probe + credential stuffing", c: "" },
+            { t: "  path-traversal & command-injection payloads this window", c: "warn" },
+            { t: "  listed on threat feeds: active web-attack source", c: "warn" },
+            { t: "verdict: KNOWN-MALICIOUS", c: "warn" },
+          ],
+          "198.51.100.20": [
+            { t: "intel 198.51.100.20", c: "cmd" },
+            { t: "198.51.100.20  ·  known CDN exit node", c: "" },
+            { t: "  attribution confirmed, reachability checks only", c: "" },
+            { t: "verdict: KNOWN-GOOD", c: "ok" },
+          ],
+        },
+      },
+    },
   },
 };
 
@@ -2581,19 +3077,24 @@ function openSocConsole(missionId) {
     const el = document.getElementById(id); if (el) { el.hidden = true; el.innerHTML = ''; }
   });
 
-  // Reset terminal + map + rail.
+  // Terminal bar label (data-driven per incident type).
+  const cfg = mission.console;
+  const barLabel = document.getElementById('scTermBarLabel');
+  if (barLabel) barLabel.textContent = cfg.termLabel || `analyst console — ${mission.opId}`;
+
+  // Reset terminal + stage + rail.
   const out = document.getElementById('scTermOut');
   if (out) out.innerHTML = '';
-  scTermPrint([
-    { t: `CyberCorp SOC Console — ${mission.opId}  (${mission.host || ''})`, c: 'head' },
+  scTermPrint(cfg.intro || [
+    { t: `CyberCorp SOC Console — ${mission.opId}`, c: 'head' },
     { t: 'Investigate the alert using the tools on the left, or type a command.' },
-    { t: 'Start with `scan`. Type `help` for the full list.', c: 'dim' },
+    { t: 'Type `help` for the full list of commands.', c: 'dim' },
   ]);
-  scRenderMap();
-  scApplyMapState();
+  scRenderStage();
+  scApplyStageState();
   scRenderDock();
   scRenderRail();
-  setScObjective('Run `scan` to discover live hosts on the segment.', '');
+  scRefreshObjective();
 
   const hint = document.getElementById('scMapHint');
   if (hint) hint.classList.remove('is-hidden');
@@ -2619,6 +3120,128 @@ function returnFromSocConsole() {
   scMissionId = null;
   SoundEngine.playCloseSound();
 }
+
+/* ---- Stage dispatch ----
+   The investigation loop (dock / terminal / evidence rail / inspector /
+   decision / outcome) is identical across incident types. Only the CENTER
+   "stage" and the analysis commands differ. cfg.stage selects the renderer:
+   'network' (reactive map), 'mail' (phishing analyzer), 'auth' (sign-in log). */
+function scStageKind() { const c = scConfig(); return (c && c.stage) || 'network'; }
+
+function scRenderStage() {
+  const k = scStageKind();
+  const map  = document.getElementById('scMap');
+  const mail = document.getElementById('scMail');
+  const auth = document.getElementById('scAuth');
+  if (map)  map.hidden  = k !== 'network';
+  if (mail) mail.hidden = k !== 'mail';
+  if (auth) auth.hidden = k !== 'auth';
+  if (k === 'network')   scRenderMap();
+  else if (k === 'mail') scRenderMail();
+  else if (k === 'auth') scRenderAuth();
+}
+
+function scApplyStageState() {
+  const k = scStageKind();
+  if (k === 'network')   scApplyMapState();
+  else if (k === 'mail') scApplyMailState();
+  else if (k === 'auth') scApplyAuthState();
+}
+
+/* ---- Stage: phishing email analyzer (mission-001) ---- */
+function scRenderMail() {
+  const cfg  = scConfig();
+  const host = document.getElementById('scMail');
+  if (!host) return;
+  const mail = (cfg && cfg.mail) || null;
+  if (!mail) { host.innerHTML = ''; return; }
+
+  if (!scScanned) {
+    host.innerHTML = `<div class="sc-mail-empty">Reported message not loaded — run <code>triage</code> to open it</div>`;
+    return;
+  }
+
+  const headersRan = scRanCmds.has('headers');
+  const linksRan   = scRanCmds.has('links');
+
+  const bodyHtml = (mail.body || [])
+    .map(p => p.replace('{link}', `<span class="sc-mail-link">${mail.link ? mail.link.text : ''}</span>`))
+    .join('\n\n');
+
+  let analysis = '';
+  if (headersRan && mail.headers) {
+    analysis += `<div class="sc-mail-analysis is-bad">
+      <div class="sc-mail-analysis-head">⚙ HEADER ANALYSIS</div>
+      ${mail.headers.map(h =>
+        `<div class="sc-mail-kv ${h.bad ? 'is-bad' : 'is-ok'}"><span class="k">${h.k}</span><span class="v">${h.v}</span></div>`
+      ).join('')}
+    </div>`;
+  }
+  if (linksRan && mail.link) {
+    analysis += `<div class="sc-mail-analysis is-bad">
+      <div class="sc-mail-analysis-head">🔗 LINK DESTINATION</div>
+      <div class="sc-mail-kv"><span class="k">Shown link</span><span class="v">${mail.link.text}</span></div>
+      <div class="sc-mail-kv is-bad"><span class="k">Resolves to</span><span class="v">${mail.link.real}</span></div>
+    </div>`;
+  }
+  if (!headersRan && !linksRan) {
+    analysis = `<div class="sc-mail-empty" style="position:static;transform:none;margin-top:6px;">Run <code>headers</code> and <code>links</code> to analyze this message.</div>`;
+  }
+
+  host.innerHTML = `
+    <div class="sc-mail-app">
+      <div class="sc-mail-toolbar">📥 ${mail.mailbox || 'Inbox'}<span class="sc-mail-tag">REPORTED</span></div>
+      <div class="sc-mail-msg">
+        <div class="sc-mail-row"><span class="k">From</span><span class="v">${mail.from}${mail.fromNote ? `<em>${mail.fromNote}</em>` : ''}</span></div>
+        <div class="sc-mail-row"><span class="k">To</span><span class="v">${mail.to}</span></div>
+        <div class="sc-mail-row"><span class="k">Subject</span><span class="v subj">${mail.subject}</span></div>
+        ${mail.received ? `<div class="sc-mail-row"><span class="k">Received</span><span class="v">${mail.received}</span></div>` : ''}
+        <div class="sc-mail-body">${bodyHtml}</div>
+      </div>
+      ${analysis}
+    </div>`;
+}
+function scApplyMailState() { scRenderMail(); }
+
+/* ---- Stage: sign-in / auth-log timeline (mission-005) ---- */
+function scRenderAuth() {
+  const cfg  = scConfig();
+  const host = document.getElementById('scAuth');
+  if (!host) return;
+  const auth = (cfg && cfg.auth) || null;
+  if (!auth) { host.innerHTML = ''; return; }
+
+  if (!scScanned) {
+    host.innerHTML = `<div class="sc-auth-empty">Sign-in log not loaded — run <code>signins</code> to pull it</div>`;
+    return;
+  }
+
+  const rows = (auth.events || []).map(ev => {
+    const ran = scRanCmds.has(ev.flagBy);
+    let cls = 'is-pending', result = 'analyzing…';
+    if (ran) {
+      cls = ev.sev === 'bad' ? 'is-bad' : (ev.sev === 'ok' ? 'is-ok' : '');
+      result = ev.result;
+      if (scContained && ev.sev === 'bad') { cls = 'is-bad is-contained'; result = 'BLOCKED — ' + ev.result; }
+    }
+    return `<tr class="sc-auth-row ${cls}">
+      <td>${ev.time}</td>
+      <td class="sc-auth-acct">${ev.account}</td>
+      <td>${ev.src}</td>
+      <td class="sc-auth-result">${result}</td>
+    </tr>`;
+  }).join('');
+
+  host.innerHTML = `
+    <div class="sc-auth-app">
+      <div class="sc-auth-title">📋 ${auth.title || 'Sign-In Monitor'}</div>
+      <table class="sc-auth-table">
+        <thead><tr><th>TIME (UTC)</th><th>ACCOUNT</th><th>LOCATION / SOURCE</th><th>RESULT</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+function scApplyAuthState() { scRenderAuth(); }
 
 /* ---- Network map ---- */
 const SC_NODE_GLYPH = { gateway: '⊟', sensor: '◎', host: '▢', cloud: '◇', threat: '⊗' };
@@ -2665,16 +3288,20 @@ function scRenderMap() {
 function scApplyMapState() {
   const cfg = scConfig();
   if (!cfg) return;
-  const netflowRan  = scRanCmds.has('netflow');
-  const procscanRan = scRanCmds.has('procscan');
+  // Which reveal command lights external flows (threat/benign links + external
+  // nodes) and which one flags the focus host. Defaults preserve mission-003.
+  const flowCmd  = cfg.flowCmd  || 'netflow';
+  const focusCmd = cfg.focusCmd || 'procscan';
+  const flowRan  = scRanCmds.has(flowCmd);
+  const focusRan = scRanCmds.has(focusCmd);
 
   cfg.nodes.forEach(n => {
     const el = document.getElementById(`scNode-${n.id}`);
     if (!el) return;
-    const live = scScanned && (!n.external || (n.external && netflowRan));
+    const live = scScanned && (!n.external || (n.external && flowRan));
     el.classList.toggle('is-live', live);
     if (n.focus) {
-      el.classList.toggle('is-flagged', procscanRan && !scContained);
+      el.classList.toggle('is-flagged', focusRan && !scContained);
       el.classList.toggle('is-contained', scContained);
     }
   });
@@ -2685,11 +3312,11 @@ function scApplyMapState() {
     if (el) el.classList.toggle('is-live', scScanned);
   });
   const benign = document.getElementById('scLinkBenign');
-  if (benign) benign.setAttribute('class', 'sc-link' + (netflowRan ? ' is-benign' : ''));
+  if (benign) benign.setAttribute('class', 'sc-link' + (flowRan ? ' is-benign' : ''));
   const threat = document.getElementById('scLinkThreat');
   if (threat) {
     threat.setAttribute('class', 'sc-link'
-      + (netflowRan ? (scContained ? ' is-severed' : ' is-threat') : ''));
+      + (flowRan ? (scContained ? ' is-severed' : ' is-threat') : ''));
   }
 }
 
@@ -2720,20 +3347,27 @@ function scClassifyProgressText() {
 }
 
 function scRefreshObjective() {
-  if (scContained) { setScObjective('Incident closed. Review the outcome or return to the Operations Center.', ''); return; }
-  if (!scScanned) { setScObjective('Run `scan` to discover live hosts on the segment.', ''); return; }
+  const cfg = scConfig();
+  const obj = (cfg && cfg.objectives) || {};
+  if (scContained) { setScObjective(obj.done || 'Incident closed. Review the outcome or return to the Operations Center.', ''); return; }
+  if (!scScanned) { setScObjective(obj.start || 'Run the discovery command to begin.', ''); return; }
   if (!scAllRevealed()) {
-    setScObjective('Investigate NA-WS-1092: run `netflow` and `procscan` to surface evidence.', scClassifyProgressText());
+    setScObjective(obj.investigate || 'Run your analysis tools to surface the remaining evidence.', scClassifyProgressText());
     return;
   }
   if (scAllMaliciousPinned()) {
-    setScObjective('All malicious evidence flagged. Run `contain` to neutralize the threat.', scClassifyProgressText());
+    setScObjective(obj.ready || 'All malicious evidence flagged. Run `contain` to neutralize the threat.', scClassifyProgressText());
   } else {
-    setScObjective('Inspect each item in the evidence queue and classify it.', scClassifyProgressText());
+    setScObjective(obj.classify || 'Inspect each item in the evidence queue and classify it.', scClassifyProgressText());
   }
 }
 
-/* ---- Command runner ---- */
+/* ---- Command runner (data-driven from cfg.tools) ---- */
+function scToolFor(word) {
+  const cfg = scConfig();
+  return ((cfg && cfg.tools) || []).find(t => t.cmd.split(/\s+/)[0].toLowerCase() === word) || null;
+}
+
 function scRunCommand(raw) {
   const text = (raw || '').trim();
   if (!text) return;
@@ -2741,59 +3375,70 @@ function scRunCommand(raw) {
   const cmd = parts[0].toLowerCase();
   const arg = parts.slice(1).join(' ').toLowerCase();
 
-  switch (cmd) {
-    case 'help':     scCmdHelp(); break;
-    case 'clear':    { const o = document.getElementById('scTermOut'); if (o) o.innerHTML = ''; break; }
-    case 'scan':     scCmdScan(); break;
-    case 'netflow':  scCmdReveal('netflow'); break;
-    case 'procscan': scCmdReveal('procscan'); break;
-    case 'intel':    scCmdIntel(arg); break;
-    case 'contain':  scCmdContain(); break;
-    default:
-      scTermPrint([
-        { t: text, c: 'cmd' },
-        { t: `command not found: ${cmd}. Type \`help\` for available commands.`, c: 'err' },
-      ]);
+  if (cmd === 'help')  { scCmdHelp(); return; }
+  if (cmd === 'clear') { const o = document.getElementById('scTermOut'); if (o) o.innerHTML = ''; return; }
+
+  const tool = scToolFor(cmd);
+  if (!tool) {
+    scTermPrint([
+      { t: text, c: 'cmd' },
+      { t: `command not found: ${cmd}. Type \`help\` for available commands.`, c: 'err' },
+    ]);
+    return;
+  }
+  switch (tool.kind) {
+    case 'scan':    scCmdScan(tool); break;
+    case 'reveal':  scCmdReveal(tool.key, tool); break;
+    case 'intel':   scCmdIntel(arg, tool); break;
+    case 'contain': scCmdContain(); break;
+    default: /* no-op */ break;
   }
 }
 
 function scCmdHelp() {
-  scTermPrint([
+  const cfg = scConfig();
+  const lines = [
     { t: 'help', c: 'cmd' },
     { t: '[ available commands ]', c: 'head' },
-    { t: '  scan          discover live hosts on the segment' },
-    { t: '  netflow       inspect NA-WS-1092 outbound connections  (needs scan)' },
-    { t: '  procscan      audit processes & persistence            (needs scan)' },
-    { t: '  intel <ioc>   look up a domain or IP against threat feeds' },
-    { t: '  contain       neutralize the threat (after flagging the evidence)' },
-    { t: '  clear         clear the screen' },
-    { t: 'Tip: click an item in the EVIDENCE panel to inspect & classify it.', c: 'dim' },
-  ]);
+  ];
+  ((cfg && cfg.tools) || []).forEach(t => {
+    const label = (t.helpCmd || t.cmd.split(/\s+/)[0]);
+    lines.push({ t: '  ' + label.padEnd(14) + (t.desc || '') });
+  });
+  lines.push({ t: '  ' + 'clear'.padEnd(14) + 'clear the screen' });
+  lines.push({ t: 'Tip: click an item in the EVIDENCE panel to inspect & classify it.', c: 'dim' });
+  scTermPrint(lines);
 }
 
-function scCmdScan() {
+function scCmdScan(tool) {
   const cfg = scConfig();
   if (!cfg) return;
-  if (scScanned) { scTermPrint([{ t: 'scan', c: 'cmd' }, { t: 'Segment already mapped.', c: 'dim' }]); return; }
+  const key = tool.key || 'scan';
+  if (scScanned) { scTermPrint([{ t: tool.cmd, c: 'cmd' }, { t: cfg.scanAgainMsg || 'Already loaded.', c: 'dim' }]); return; }
   scScanned = true;
   SoundEngine.playRadarPing();
   const hint = document.getElementById('scMapHint');
   if (hint) hint.classList.add('is-hidden');
-  scTermPrint(cfg.out.scan || []);
-  scApplyMapState();
+  scTermPrint(cfg.out[key] || []);
+  // A discovery command may itself surface evidence (e.g. mail `triage`).
+  const ids = (cfg.reveal && cfg.reveal[key]) || [];
+  ids.forEach(id => scRevealed.add(id));
+  scApplyStageState();
+  scRenderRail(ids.length ? ids : undefined);
   scRenderDock();
   scRefreshObjective();
 }
 
-function scCmdReveal(key) {
+function scCmdReveal(key, tool) {
   const cfg = scConfig();
   if (!cfg) return;
+  const label = (tool && tool.cmd) || key;
   if (!scScanned) {
-    scTermPrint([{ t: key, c: 'cmd' }, { t: 'Network not mapped yet — run `scan` first.', c: 'err' }]);
+    scTermPrint([{ t: label, c: 'cmd' }, { t: cfg.notReadyMsg || 'Run the discovery command first.', c: 'err' }]);
     return;
   }
   if (scRanCmds.has(key)) {
-    scTermPrint([{ t: key, c: 'cmd' }, { t: 'Already run — evidence is in the queue.', c: 'dim' }]);
+    scTermPrint([{ t: label, c: 'cmd' }, { t: 'Already run — evidence is in the queue.', c: 'dim' }]);
     return;
   }
   scRanCmds.add(key);
@@ -2803,17 +3448,27 @@ function scCmdReveal(key) {
   const ids = (cfg.reveal && cfg.reveal[key]) || [];
   ids.forEach(id => scRevealed.add(id));
 
-  scApplyMapState();
+  scApplyStageState();
   scRenderRail(ids);   // animate the just-revealed items
   scRenderDock();
   scRefreshObjective();
 }
 
-function scCmdIntel(arg) {
+function scCmdIntel(arg, tool) {
   const cfg = scConfig();
   if (!cfg) return;
+  // Gate typed intel the same way the dock button is disabled: a prerequisite
+  // reveal command must have run first (so there is an IOC to look up).
+  if (tool && tool.needs && !scRanCmds.has(tool.needs)) {
+    scTermPrint([
+      { t: (tool && tool.cmd) || 'intel', c: 'cmd' },
+      { t: `Run \`${tool.needs}\` first — no indicator to look up yet.`, c: 'err' },
+    ]);
+    return;
+  }
   if (!arg) {
-    scTermPrint([{ t: 'intel', c: 'cmd' }, { t: 'usage: intel <domain|ip>   e.g. intel update-svc-cdn.net', c: 'dim' }]);
+    const usage = (tool && tool.cmd) || 'intel update-svc-cdn.net';
+    scTermPrint([{ t: 'intel', c: 'cmd' }, { t: `usage: intel <ioc>   e.g. ${usage}`, c: 'dim' }]);
     return;
   }
   const table = (cfg.out.intel) || {};
@@ -2874,40 +3529,38 @@ function scRenderRail(justRevealed) {
   });
 }
 
-/* ---- Tool dock ---- */
+/* ---- Tool dock (data-driven from cfg.tools) ---- */
 function scRenderDock() {
   const dock = document.getElementById('scDock');
-  if (!dock) return;
-  const netflowRan  = scRanCmds.has('netflow');
-  const procscanRan = scRanCmds.has('procscan');
-  const canContain  = scAllMaliciousPinned() && !scContained;
+  const cfg  = scConfig();
+  if (!dock || !cfg) return;
+  const tools = cfg.tools || [];
+  const canContain = scAllMaliciousPinned() && !scContained;
 
-  const tool = (cmd, icon, name, hint, opts = {}) => {
-    const dis = opts.disabled ? 'disabled' : '';
-    const cls = ['sc-tool', opts.cls || ''].filter(Boolean).join(' ');
+  const render = (t) => {
+    let disabled = false, cls = '';
+    if (t.kind === 'scan') {
+      disabled = scScanned; cls = scScanned ? 'is-done' : 'sc-tool--primary';
+    } else if (t.kind === 'reveal') {
+      disabled = !scScanned; cls = scRanCmds.has(t.key) ? 'is-done' : '';
+    } else if (t.kind === 'intel') {
+      disabled = t.needs ? !scRanCmds.has(t.needs) : !scScanned;
+    } else if (t.kind === 'contain') {
+      disabled = !canContain; cls = canContain ? 'sc-tool--ready' : '';
+    }
+    const dis = disabled ? 'disabled' : '';
+    const c = ['sc-tool', cls].filter(Boolean).join(' ');
     return `
-      <button class="${cls}" type="button" data-sc-cmd="${cmd}" ${dis}>
-        <span class="sc-tool-icon" aria-hidden="true">${icon}</span>
+      <button class="${c}" type="button" data-sc-cmd="${t.cmd}" ${dis}>
+        <span class="sc-tool-icon" aria-hidden="true">${t.icon}</span>
         <span class="sc-tool-body">
-          <span class="sc-tool-name">${name}</span>
-          <span class="sc-tool-cmd">${hint}</span>
+          <span class="sc-tool-name">${t.name}</span>
+          <span class="sc-tool-cmd">${t.hint}</span>
         </span>
       </button>`;
   };
 
-  dock.innerHTML = `
-    <div class="sc-dock-head">ANALYST TOOLS</div>
-    ${tool('scan', '◎', 'Network Scan', 'scan',
-        { disabled: scScanned, cls: scScanned ? 'is-done' : 'sc-tool--primary' })}
-    ${tool('netflow', '⇄', 'Netflow', 'netflow NA-WS-1092',
-        { disabled: !scScanned, cls: netflowRan ? 'is-done' : '' })}
-    ${tool('procscan', '▤', 'Process Audit', 'procscan NA-WS-1092',
-        { disabled: !scScanned, cls: procscanRan ? 'is-done' : '' })}
-    ${tool('intel update-svc-cdn.net', '⚲', 'Threat Intel', 'intel <ioc>',
-        { disabled: !netflowRan })}
-    ${tool('contain', '⊘', 'Containment', 'contain',
-        { disabled: !canContain, cls: canContain ? 'sc-tool--ready' : '' })}
-  `;
+  dock.innerHTML = `<div class="sc-dock-head">ANALYST TOOLS</div>` + tools.map(render).join('');
 
   dock.querySelectorAll('[data-sc-cmd]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -3046,13 +3699,14 @@ function scChooseDecision(decisionId) {
   const panel = document.getElementById('scDecision');
   if (panel) { panel.hidden = true; panel.innerHTML = ''; }
 
-  // Sever the C2 link + quarantine the host on the map.
-  scApplyMapState();
+  // Reflect containment on the active stage (sever links / quarantine / block).
+  const cfg = scConfig();
+  scApplyStageState();
   scRenderDock();
   scTermPrint([
     { t: 'contain', c: 'cmd' },
     { t: `[+] ${decision.label}.`, c: 'ok' },
-    { t: '[+] C2 channel severed on the network map. Incident closed.', c: 'ok' },
+    { t: (cfg && cfg.containLine) || '[+] Threat neutralized. Incident closed.', c: 'ok' },
   ]);
 
   showScOutcome(decision);

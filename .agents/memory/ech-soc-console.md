@@ -1,27 +1,47 @@
 ---
 name: Live SOC Console interior (sc* prefix)
-description: Prototype-only terminal+reactive-map mission interior, parallel to the holotable; routing, isolation, and the SVG className gotcha.
+description: Prototype-only stage-aware investigation engine (terminal + per-incident center stage), parallel to the dormant holotable; routing, stages, and the SVG className gotcha.
 ---
 
-# Live SOC Console (ops-center-prototype, mission-003 slice)
+# Live SOC Console (ops-center-prototype — stage-aware engine, all six missions)
 
-A second mission interior in `ops-center-prototype` that runs **parallel** to the
-holotable. Terminal-driven investigation over a reactive SVG network map:
-`scan → netflow → procscan → intel → inspect/classify → contain → outcome`.
-Built as a vertical slice on mission-003 (C2 Beacon) to validate the concept
-before rolling out; the holotable stays the interior for every other mission.
+The mission interior in `ops-center-prototype`. Terminal-driven investigation:
+`scan → reveal cmds → inspect/classify → contain → outcome`. Started as a
+mission-003 vertical slice, then **generalized into a stage-aware engine** that
+now serves all six prototype missions (holotable code stays intact but **dormant**
+— every mission with a `console:{}` block routes here, and all six have one).
+
+## Stages — `cfg.stage` picks the center surface (default `network`)
+- `network` — reactive SVG map (002/003/004/006). `scRenderMap`/`scApplyMapState`,
+  driven by nodes/infraLinks/threatLink/benignLink + `flowCmd`/`focusCmd`.
+- `mail` — phishing email analyzer (001). `scRenderMail` reads `cfg.mail{mailbox,
+  from,fromNote,to,subject,received,body[]` w/ `{link}` token,`link{text,real},
+  headers[]{k,v,bad}}`; header/link panels gate on `scRanCmds.has('headers'/'links')`.
+- `auth` — sign-in timeline (005). `scRenderAuth` reads `cfg.auth{title,events[]
+  {time,account,src,flagBy,sev:'bad'|'ok',result}}`; a row resolves only once
+  `scRanCmds.has(ev.flagBy)`, else shows "analyzing…"; contained bad rows → "BLOCKED —".
+- Dispatch: `scStageKind`→`scRenderStage`/`scApplyStageState`. Command runner is
+  fully data-driven — `scToolFor(word)` matches typed first-word to `cfg.tools[].cmd`;
+  dock/help/objectives/containLine all read from cfg, so reveal command **names
+  differ per mission**.
+
+## Config-correctness invariants (so contain can unlock)
+- Every id in `mission.artifacts` must be covered **exactly once** across the
+  `reveal{}` map, or `scAllRevealed()` never satisfies and contain stays locked.
+- `intel` tools may declare `needs:'<revealKey>'`; the dock disables until met AND
+  typed `intel` is gated in `scCmdIntel` (both paths must agree — fixed an asymmetry
+  where typed intel bypassed the gate).
 
 ## Conventions
 - Prefix `sc*` mirrors the holotable's `ht*` (state, render, overlay, run-token).
   When extending, copy the `ht*` shape — same reset-on-open + run-token discipline.
-- Data lives in a `console:{}` block on the mission inside `HOLOTABLE_MISSIONS`
-  (nodes/infraLinks/threatLink/benignLink/reveal/nodeOf/out scripts). It reuses
-  the mission's existing `artifacts`/`decisions`/`takeaway`. The holotable ignores
-  this block entirely.
+- Data lives in a `console:{}` block on the mission inside `HOLOTABLE_MISSIONS`.
+  It reuses the mission's existing `artifacts`/`decisions`/`takeaway`. The holotable
+  ignores this block entirely.
 - **Routing switch:** a mission opens the console (not the holotable) iff its
-  `HOLOTABLE_MISSIONS[id].console` exists. That single check in `launchWorkspace`
-  (and the `?console=<id>` deep-link) is what keeps the two interiors isolated —
-  to roll the console out to more missions, just add a `console` block to them.
+  `HOLOTABLE_MISSIONS[id].console` exists — `console` takes precedence over the
+  `holo` deep-link. That single check (and `?console=<id>`) keeps the interiors
+  isolated. All six currently have a `console` block, so the holotable is dormant.
 
 ## Gotcha — SVG elements have a read-only `className`
 `svgEl.className = '...'` throws `Cannot set property className ... only a getter`

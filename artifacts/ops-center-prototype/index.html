@@ -508,15 +508,25 @@
       <!-- Analyst tool dock (each button auto-runs its command) -->
       <nav class="sc-dock" id="scDock" aria-label="Analyst tools"></nav>
 
-      <!-- Center: live network map (top) + command terminal (bottom) -->
+      <!-- Center: investigation stage (top) + command terminal (bottom).
+           The stage swaps per incident type: network map / mail / auth. -->
       <section class="sc-center">
-        <div class="sc-map" id="scMap" aria-label="Live network map">
-          <div class="sc-map-grid" aria-hidden="true"></div>
-          <svg class="sc-map-svg" id="scMapSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
-          <div class="sc-map-nodes" id="scMapNodes"></div>
-          <div class="sc-map-hint" id="scMapHint">Network offline — run <code>scan</code> to discover hosts</div>
+        <div class="sc-stage" id="scStage">
+          <!-- Stage: live network map -->
+          <div class="sc-map" id="scMap" aria-label="Live network map">
+            <div class="sc-map-grid" aria-hidden="true"></div>
+            <svg class="sc-map-svg" id="scMapSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+            <div class="sc-map-nodes" id="scMapNodes"></div>
+            <div class="sc-map-hint" id="scMapHint">Network offline — run <code>scan</code> to discover hosts</div>
+          </div>
 
-          <!-- Overlays (populated dynamically) -->
+          <!-- Stage: phishing email analyzer -->
+          <div class="sc-mail" id="scMail" hidden aria-label="Email analysis"></div>
+
+          <!-- Stage: sign-in / auth-log timeline -->
+          <div class="sc-auth" id="scAuth" hidden aria-label="Sign-in analysis"></div>
+
+          <!-- Overlays (populated dynamically) — cover whichever stage is active -->
           <div class="sc-overlay" id="scInspector" hidden role="dialog" aria-modal="true" aria-label="Artifact inspector"></div>
           <div class="sc-overlay" id="scDecision" hidden role="dialog" aria-modal="true" aria-label="Containment decision"></div>
           <div class="sc-overlay" id="scOutcome" hidden role="dialog" aria-modal="true" aria-label="Mission outcome"></div>
@@ -525,7 +535,7 @@
         <div class="sc-terminal">
           <div class="sc-term-bar" aria-hidden="true">
             <span class="sc-term-dot"></span><span class="sc-term-dot"></span><span class="sc-term-dot"></span>
-            <span class="sc-term-bar-label">analyst console — NA-WS-1092 investigation</span>
+            <span class="sc-term-bar-label" id="scTermBarLabel">analyst console</span>
           </div>
           <div class="sc-term-out" id="scTermOut" aria-live="polite"></div>
           <form class="sc-term-form" id="scTermForm">
