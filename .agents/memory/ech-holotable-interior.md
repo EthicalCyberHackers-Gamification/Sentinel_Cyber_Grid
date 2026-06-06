@@ -34,6 +34,15 @@ interior; each entry sets its own `briefing` (falls back to `htDefaultBriefing()
   malicious). Reclassify is always allowed; outcome never hard-fails (tier from
   classification accuracy + decision quality).
 
+## Gotcha — perpetual radar reads as "scan in progress"
+The holotable center has perpetual decorative animations (`htSweep` sweep +
+`htCorePulse` core). Players mistook this for an active/looping scan and never
+found the real trigger (a small side-dock `FORENSIC SCAN` button), getting stuck
+on the first beat (Briefing → continue just loops back). Fix: the prominent
+center stage hint (`#htStageHint`) is itself a clickable scan trigger ("▶ RUN
+FORENSIC SCAN") wired to `htRunScan`, in addition to the dock button. Any first
+required action behind perpetual ambient motion needs an obvious, non-dock CTA.
+
 ## Gotcha — stale timers across open/return/replay
 `htRunScan` staggers token-materialize `setTimeout`s and the inspector
 auto-closes after a correct verdict. Exiting/replaying mid-animation would let

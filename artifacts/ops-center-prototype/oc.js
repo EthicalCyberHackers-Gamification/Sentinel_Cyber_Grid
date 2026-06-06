@@ -2346,6 +2346,10 @@ function init() {
   // Evidence Holotable — return to ops center
   document.getElementById('htBackBtn').addEventListener('click', returnFromHolotable);
 
+  // Evidence Holotable — the prominent center hint is also a scan trigger
+  // (so the path forward isn't only the side-dock button).
+  document.getElementById('htStageHint').addEventListener('click', htRunScan);
+
   // Keyboard: Escape closes card or returns from workspace / holotable
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
