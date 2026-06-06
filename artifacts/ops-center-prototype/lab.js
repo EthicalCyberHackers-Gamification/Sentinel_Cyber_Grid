@@ -948,6 +948,10 @@ function labInit() {
   const back = $lab('labBackBtn');
   if (back) back.addEventListener('click', returnFromLab);
 
+  // Public entry point so the Operations Center (a separate ES module with no
+  // shared scope) can open the lab on a mission launch without a full reload.
+  window.openMission001Lab = openLab;
+
   try {
     const params = new URLSearchParams(window.location.search);
     if (params.get('lab') === 'mission-001') openLab();

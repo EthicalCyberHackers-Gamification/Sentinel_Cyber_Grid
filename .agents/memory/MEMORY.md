@@ -22,3 +22,4 @@
 - [pnpm lockfile churn](pnpm-lockfile-churn.md) — temp pnpm add/remove rewrites pnpm-lock.yaml (strips catalogs, adds tarball); restore via `git show HEAD:pnpm-lock.yaml > pnpm-lock.yaml`.
 - [Generic mission engine (M4/5/6)](ech-generic-mission-engine.md) — missions 004/005/006 are data-driven (one `gm*` engine + `GENERIC_MISSIONS`); deliberately bypasses M1-M3 hardcoded surfaces; deep-link-only discovery.
 - [Lab command verb routing](ech-lab-verb-routing.md) — progressive lab (`lab.js`, `?lab=mission-001`) routes on the FIRST typed word; key `LAB_VERB` on that word (e.g. `submit`→report), not the tool name, or multi-word cmds dead-end.
+- [oc.js ↔ lab.js bridge](ech-lab-console-bridge.md) — separate ES modules, no shared scope; lab publishes `window.openMission001Lab`, `launchWorkspace` calls it (early-return before console/holotable) with a deep-link fallback.

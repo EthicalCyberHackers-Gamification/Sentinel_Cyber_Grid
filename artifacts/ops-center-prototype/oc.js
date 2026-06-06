@@ -2195,6 +2195,21 @@ function launchWorkspace() {
   const realMissionId = REAL_MISSION_MAP[activeNodeId];
   if (!realMissionId) return;
 
+  // Mission 001 opens the progressive, terminal-first Linux→SOC lab (an isolated
+  // module). It exposes window.openMission001Lab; call it and return before the
+  // console/holotable routing so M1 no longer falls through to the SOC console.
+  // The old console is still reachable for reference via ?console=mission-001.
+  if (realMissionId === 'mission-001') {
+    if (typeof window.openMission001Lab === 'function') {
+      window.openMission001Lab();
+    } else {
+      // Hook not loaded yet (partial script-load) — fall back to the deep-link so
+      // M1 still opens the lab rather than silently dropping to the old console.
+      window.location.href = '/ops-center/?lab=mission-001';
+    }
+    return;
+  }
+
   // Experimental Live SOC Console interior (vertical slice). Missions carrying a
   // `console` config open the terminal + reactive-map interior instead of the
   // holotable. (Currently mission-003 — the C2 Beacon showcase.)
