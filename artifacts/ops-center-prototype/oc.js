@@ -362,10 +362,12 @@ function applyMissionProgress() {
 const SoundEngine = (() => {
   let ctx = null;
 
-  // Sound is OFF by default. Persisted in sessionStorage so it survives
-  // page reloads within the session but resets on new sessions.
-  const STORAGE_KEY = 'oc.sound.muted';
-  let _muted = sessionStorage.getItem(STORAGE_KEY) !== 'false';
+  // Sound is OFF by default. The mute preference is shared with the main
+  // Ethical CyberHackers game via localStorage under a single key, so muting
+  // in either app carries over to the other. Absent key keeps each app's own
+  // default (here: muted/OFF). Only an explicit 'false' un-mutes.
+  const STORAGE_KEY = 'ech.sound.muted';
+  let _muted = localStorage.getItem(STORAGE_KEY) !== 'false';
 
   function _getCtx() {
     if (!ctx) {
@@ -473,11 +475,17 @@ const SoundEngine = (() => {
 
   function toggle() {
     _muted = !_muted;
-    sessionStorage.setItem(STORAGE_KEY, String(_muted));
+    localStorage.setItem(STORAGE_KEY, String(_muted));
     return _muted;
   }
 
-  return { playAlertChime, playRadarPing, playNodeSelect, playTickerBeep, isMuted, toggle };
+  // Re-read the shared preference (e.g. after another tab/app changed it).
+  function refresh() {
+    _muted = localStorage.getItem(STORAGE_KEY) !== 'false';
+    return _muted;
+  }
+
+  return { playAlertChime, playRadarPing, playNodeSelect, playTickerBeep, isMuted, toggle, refresh, STORAGE_KEY };
 })();
 
 /* ============================================================
@@ -903,6 +911,14 @@ function init() {
   document.getElementById('soundToggle').addEventListener('click', () => {
     SoundEngine.toggle();
     updateSoundToggleUI();
+  });
+  // Live-sync the shared mute preference if the main game (or another tab)
+  // changes it while the Ops Center is open.
+  window.addEventListener('storage', (e) => {
+    if (e.key === SoundEngine.STORAGE_KEY) {
+      SoundEngine.refresh();
+      updateSoundToggleUI();
+    }
   });
 
   // Threat ticker

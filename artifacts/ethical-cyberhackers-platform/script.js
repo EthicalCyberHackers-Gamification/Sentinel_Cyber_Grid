@@ -90,7 +90,17 @@ const SOUNDTRACK_VOLUME   = 0.35; // gentle background level
 let soundtrackAudio       = null;
 let soundtrackBreakTimer  = null;
 let soundtrackStarted     = false;
-let soundtrackMuted       = false;
+
+// The mute preference is shared with the Operations Center prototype via
+// localStorage under a single key, so muting in either app carries over to the
+// other. An absent key keeps this app's own default (music ON); only an
+// explicit 'true' mutes.
+const SOUND_MUTED_KEY = "ech.sound.muted";
+function readSharedMuted() {
+  try { return localStorage.getItem(SOUND_MUTED_KEY) === "true"; }
+  catch (_) { return false; }
+}
+let soundtrackMuted       = readSharedMuted();
 
 function initSoundtrack() {
   if (soundtrackAudio) return soundtrackAudio;
@@ -124,9 +134,13 @@ function startSoundtrack() {
   audio.play().catch(() => { soundtrackStarted = false; });
 }
 
-function setSoundtrackMuted(muted) {
+function setSoundtrackMuted(muted, persist = true) {
   soundtrackMuted = !!muted;
   if (soundtrackAudio) soundtrackAudio.muted = soundtrackMuted;
+  if (persist) {
+    try { localStorage.setItem(SOUND_MUTED_KEY, String(soundtrackMuted)); }
+    catch (_) { /* storage disabled — in-memory mute still applies */ }
+  }
   const btn = document.getElementById("soundtrackToggle");
   if (btn) {
     btn.textContent = soundtrackMuted ? "Music: Off" : "Music: On";
@@ -134,6 +148,12 @@ function setSoundtrackMuted(muted) {
     btn.setAttribute("aria-pressed", String(soundtrackMuted));
   }
 }
+
+// Live-sync the shared mute preference if the Operations Center (or another
+// tab) changes it while the game is open.
+window.addEventListener("storage", (e) => {
+  if (e.key === SOUND_MUTED_KEY) setSoundtrackMuted(readSharedMuted(), false);
+});
 
 function toggleSoundtrackMuted() {
   setSoundtrackMuted(!soundtrackMuted);
