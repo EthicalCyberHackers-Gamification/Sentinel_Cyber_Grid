@@ -7158,6 +7158,14 @@ let ocv2Initialized  = false;
  */
 let pendingDeepLinkMission = null;
 
+/**
+ * Task 11 — tracks whether the most recent mission launch originated from the
+ * Operations Center (deep-link ?mission= param or the OC map's launch button)
+ * vs. the legacy Missions Map. Used to label the M1 dashboard back button
+ * "← Operations Center" so the launched-from-the-map flow feels seamless.
+ */
+let launchedFromOC = false;
+
 /** Return HH:MM UTC string for comms timestamps. */
 function ocv2NowTime() {
   const n = new Date();
@@ -7404,7 +7412,7 @@ function initOcv2() {
       const mid = ocv2ActiveNodeId;
       if (!mid) return;
       hideOcv2IncidentCard();
-      launchMissionFromMap(mid);
+      launchMissionFromMap(mid, true); // Task 11 — launched from the OC map.
     });
   }
 
@@ -8038,7 +8046,7 @@ function enterModule() {
     if (pendingDeepLinkMission) {
       const mid = pendingDeepLinkMission;
       pendingDeepLinkMission = null;
-      launchMissionFromMap(mid);
+      launchMissionFromMap(mid, true); // Task 11 — deep-link arrives from the OC.
     } else {
       showModuleLanding();
     }
@@ -8307,7 +8315,10 @@ function renderMapTransmission(missionId) {
  * (their buttons are disabled, but guard defensively). Otherwise hand off
  * to the existing flow.
  */
-function launchMissionFromMap(missionId) {
+function launchMissionFromMap(missionId, fromOC = false) {
+  // Task 11 — remember whether this launch came from the Operations Center so
+  // the M1 dashboard can label its back button "← Operations Center".
+  launchedFromOC = !!fromOC;
   // Defensive onboarding gate — route through the signin strip if called
   // before enterModule() has run (new player, no studentName set).
   if (!studentName || !studentName.trim()) {
@@ -8408,6 +8419,13 @@ function openMission1Dashboard() {
   if (m2d) m2d.style.display = "none";
 
   if (dashboardEl) dashboardEl.style.display = "";
+  // Task 11 — when M1 was launched from the Operations Center (deep-link or
+  // OC map launch button), label the back button "← Operations Center" so the
+  // flow reflects where the player came from. Otherwise keep the default.
+  const backBtn = document.getElementById("backToModuleBtn");
+  if (backBtn) {
+    backBtn.textContent = launchedFromOC ? "← Operations Center" : "← Module Overview";
+  }
   // Milestone 24I — render the Mission 1 Briefing Room on entry.
   renderBriefingRoom("mission-001");
   updateMission1CTA();
@@ -12569,7 +12587,7 @@ function boot() {
   if (pendingDeepLinkMission && studentName && studentName.trim()) {
     const mid = pendingDeepLinkMission;
     pendingDeepLinkMission = null;
-    launchMissionFromMap(mid);
+    launchMissionFromMap(mid, true); // Task 11 — deep-link arrives from the OC.
   }
 }
 
