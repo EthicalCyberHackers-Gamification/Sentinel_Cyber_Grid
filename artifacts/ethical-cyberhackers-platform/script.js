@@ -7443,6 +7443,18 @@ function renderOcPanelV2() {
       : "GHOST_ZERO";
   }
 
+  // Analyst XP + Trust sub-chips (derived from existing state, no new persistence)
+  const xpEl = document.getElementById("ocv2AnalystXp");
+  if (xpEl) {
+    const xp = (typeof currentXP === "number" && isFinite(currentXP)) ? Math.max(0, Math.round(currentXP)) : 0;
+    xpEl.textContent = `XP ${xp}`;
+  }
+  const trustEl = document.getElementById("ocv2AnalystTrust");
+  if (trustEl) {
+    const trust = clampTrust(typeof trustScore === "number" ? trustScore : DEFAULT_TRUST_SCORE);
+    trustEl.textContent = `TRUST ${Math.round(trust)}`;
+  }
+
   // Alert feed — 3 mission-derived items
   const feed = document.getElementById("ocv2AlertFeed");
   if (feed) {

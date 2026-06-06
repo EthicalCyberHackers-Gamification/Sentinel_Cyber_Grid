@@ -9415,6 +9415,29 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
   letter-spacing: 1px;
 }
 
+.ocv2-agent-stats {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 8px;
+  margin-left: 6px;
+  border-left: 1px solid var(--color-border);
+}
+
+.ocv2-agent-stat {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+}
+
+.ocv2-agent-stat-sep {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-border);
+}
+
 /* ---- THREE-PANEL BODY ---- */
 .ocv2-body {
   flex: 1;
