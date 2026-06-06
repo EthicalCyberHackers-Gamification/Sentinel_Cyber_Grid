@@ -7125,6 +7125,13 @@ function ocv2BuildInitialComms() {
 let ocv2ActiveNodeId = null;
 let ocv2Initialized  = false;
 
+/**
+ * Deep-link mission ID set when the player arrives from the prototype OC via
+ * a ?mission= URL param.  Cleared once the auto-launch fires so it doesn't
+ * re-trigger on subsequent navigations.
+ */
+let pendingDeepLinkMission = null;
+
 /** Return HH:MM UTC string for comms timestamps. */
 function ocv2NowTime() {
   const n = new Date();
@@ -7951,8 +7958,16 @@ function enterModule() {
   // Milestone 25C — after the loader, the student lands on the Cyber Missions
   // Map (selection screen) instead of dropping straight into Mission 1. The
   // map hands off to the existing M1 / M2 flow via launchMissionFromMap().
+  // Deep-link: if the player arrived from the prototype OC with ?mission=,
+  // skip the map and go straight to the requested investigation.
   runSimulationLoader(() => {
-    showMissionsMap();
+    if (pendingDeepLinkMission) {
+      const mid = pendingDeepLinkMission;
+      pendingDeepLinkMission = null;
+      launchMissionFromMap(mid);
+    } else {
+      showMissionsMap();
+    }
   });
 }
 
@@ -12146,6 +12161,20 @@ function notifyAssignmentComplete(missionId) {
 }
 
 function boot() {
+  // Deep-link: read ?mission= URL param before any page manipulation.
+  // The prototype OC sends the player here with e.g. ?mission=mission-001
+  // so the right investigation auto-launches after progress is loaded.
+  {
+    const _dlParams = new URLSearchParams(window.location.search);
+    const _dlMission = _dlParams.get("mission");
+    const _valid = ["mission-001", "mission-002", "mission-003"];
+    if (_dlMission && _valid.includes(_dlMission)) {
+      pendingDeepLinkMission = _dlMission;
+      // Strip the param from the URL so reloads don't re-trigger it.
+      history.replaceState(null, "", window.location.pathname);
+    }
+  }
+
   // Phase B0 — initialize the local-first backend foundation (all best-effort):
   // ensure an anonymous id exists, mount the subtle dev status indicator, and
   // warm the connection. loadCloudProgress does NOT overwrite local state.
@@ -12415,6 +12444,17 @@ function boot() {
   // Phase UF-2 — mount the always-available, learning-only SOC Toolkit
   // reference panel (does not run commands or touch mission state).
   initSocToolkit();
+
+  // Deep-link: if a ?mission= URL param arrived from the prototype OC AND the
+  // player already has a saved session (studentName is set), skip the map and
+  // launch the requested mission directly.  If there is no saved name the
+  // player still needs to sign in — pendingDeepLinkMission is left set so
+  // enterModule() can pick it up after the onboarding flow completes.
+  if (pendingDeepLinkMission && studentName && studentName.trim()) {
+    const mid = pendingDeepLinkMission;
+    pendingDeepLinkMission = null;
+    launchMissionFromMap(mid);
+  }
 }
 
 /* ============================================================

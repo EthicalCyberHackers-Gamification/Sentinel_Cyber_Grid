@@ -250,6 +250,20 @@ const TICKER_IOCS = [
 ];
 
 /* ============================================================
+   REAL-MISSION DEEP LINKS
+   ------------------------------------------------------------
+   These three incident nodes correspond to playable missions in
+   the main Ethical CyberHackers game. Clicking "Launch
+   Investigation" for them navigates to the real investigation
+   terminal instead of the mocked workspace.
+   ============================================================ */
+const REAL_MISSION_MAP = {
+  "emea":    "mission-001",
+  "apac":    "mission-002",
+  "na-east": "mission-003",
+};
+
+/* ============================================================
    STATE
    ============================================================ */
 let activeNodeId = null;
@@ -396,6 +410,15 @@ function launchWorkspace() {
   if (!activeNodeId) return;
   const incident = INCIDENTS[activeNodeId];
   if (!incident) return;
+
+  // If this incident maps to a real playable mission, navigate to the main
+  // game with a ?mission= deep-link so the actual investigation terminal
+  // opens immediately. Progress and completion are handled by the main game.
+  const realMissionId = REAL_MISSION_MAP[activeNodeId];
+  if (realMissionId) {
+    window.location.href = '/?mission=' + encodeURIComponent(realMissionId);
+    return;
+  }
 
   // Populate workspace header
   const sevEl = document.getElementById('wsSeverity');
