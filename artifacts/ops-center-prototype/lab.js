@@ -221,11 +221,11 @@ const LAB_TOOL_DOC = {
 };
 
 const LAB_OBJECTIVE = {
-  1: 'Investigate the reported file. Read it (<code>cat suspicious_email.txt</code>), then pull its links (<code>grep http suspicious_email.txt</code>).',
-  2: 'Analyze the email: run <code>headers</code>, <code>links</code>, <code>sender</code>, <code>domain</code> — then PIN the indicators you find (pin 3 to continue).',
-  3: 'This is a campaign. Begin SOC correlation — try <code>lookup domain</code>.',
-  4: 'Correlate the campaign: <code>check recipients</code>, <code>trace url</code>, <code>inspect login</code>, <code>review alerts</code>. Pin 3 SOC findings to unlock containment.',
-  5: 'Contain it: <code>block domain</code>, <code>quarantine email</code>, <code>reset account</code>, <code>contain host</code>, then <code>submit report</code>.',
+  1: 'Triage the report: open the flagged message and find out where it really wants the user to go.',
+  2: 'Prove it is phishing — surface the tells hidden in the email, then pin the indicators that matter (3 to continue).',
+  3: 'This was not a lone email. Begin SOC correlation and confirm the attacker\'s infrastructure.',
+  4: 'Map the campaign\'s full scope, then pin your key SOC findings to unlock containment (3 to continue).',
+  5: 'Shut it down: cut off the attacker, clean up the mail, secure the user — then file your incident report.',
 };
 
 /* ------------------------------------------------------------------ *
@@ -272,13 +272,14 @@ function openLab() {
 
   labPrint([
     { t: 'CyberCorp Security Training — Lab 001 · Credential Phishing', c: 'head' },
-    { t: 'A user reported a suspicious email. It is sitting in a mailbox folder.' },
-    { t: 'You are at a Linux terminal. Start by listing the folder: type `ls`.', c: 'dim' },
-    { t: 'New here? Click any command on the left to learn what it does (it', c: 'dim' },
-    { t: 'will not run until you type it), or open the SOC TOOL KIT for the', c: 'dim' },
-    { t: 'full list. Type `help` to see what is available right now.', c: 'dim' },
-    { t: 'Stuck? Click the HINT button (or type `hint`) for a gradual nudge —', c: 'dim' },
-    { t: 'ask again and each hint gets more specific, ending with the command.', c: 'dim' },
+    { t: 'A user reported a suspicious email. As the SOC analyst on duty, it lands with you.' },
+    { t: 'Your mission: decide whether this is a genuine phishing attack — and if it is,', c: 'dim' },
+    { t: 'uncover how far it reached and shut it down. Work like an investigator, not a', c: 'dim' },
+    { t: 'guesser: a message\'s wording can lie, but its technical fingerprints cannot.', c: 'dim' },
+    { t: 'New here? Click any command on the left to learn what it does (it will not run', c: 'dim' },
+    { t: 'until you type it), or open the SOC TOOL KIT for the full list of what you have.', c: 'dim' },
+    { t: 'Not sure where to begin? Click HINT (or type `hint`) — the first nudge frames', c: 'dim' },
+    { t: 'your approach, and each one after gets more specific, ending with the command.', c: 'dim' },
   ]);
 
   labRenderStageSurface();
@@ -423,59 +424,71 @@ function labRun(raw) {
 }
 
 /* ------------------------------------------------------------------ *
- * HINTS — gradual, never the answer first. Each sub-goal carries three
- * tiers: (1) a conceptual nudge, (2) a directional push, (3) the exact
- * command. Asking `hint` again escalates one tier; making progress (the
- * sub-goal changes) resets back to tier 1.
+ * HINTS — gradual, never the answer first. Each sub-goal carries four
+ * tiers: (1) an orientation that frames the phase's goal/approach with no
+ * specifics, (2) a conceptual nudge, (3) a directional push that names the
+ * tool/approach but not the syntax, and (4) the exact command. Asking `hint`
+ * again escalates one tier; making progress (the sub-goal changes) resets back
+ * to tier 1. Only the LAST tier may contain a literal runnable command.
  * ------------------------------------------------------------------ */
 const LAB_HINTS = {
   ls: { id: 'ls', tiers: [
-    'You need to see what you are working with. A mailbox folder holds files — your first job is to find out which files are here.',
+    'Every investigation starts with orientation — get your bearings before you touch anything. You are standing in the user\'s mailbox folder.',
+    'A mailbox folder holds files, and you cannot reason about what you cannot see. Your first job is to find out which files are actually here.',
     'In Linux, one short two-letter command lists the files in the current folder.',
     'Type `ls` and press Enter to list the files.',
   ] },
   cat: { id: 'cat', tiers: [
-    'One file is marked REPORTED — that is the message a user flagged. You cannot judge it without reading what it actually says.',
+    'A good analyst reads the evidence first-hand and never trusts a summary. One file here is flagged REPORTED — that is your subject.',
+    'You cannot tell whether the reported message is malicious without seeing exactly what it says and what it asks the reader to do.',
     "Use the command that prints a file's contents to the screen, followed by the reported file's name.",
     'Type `cat suspicious_email.txt` to read the reported email.',
   ] },
   grep: { id: 'grep', tiers: [
-    'The email pressures the reader to click a link. Wording can lie — a link\'s destination cannot. Pull the links out so you can examine them.',
-    'There is a Linux tool that prints only the lines of a file matching a pattern. Use it on the reported email to surface the web link hiding in the text.',
+    'Phishing works by getting someone to click. The email\'s wording can lie, but where a link actually points cannot — that contrast is the heart of this case.',
+    'Separate the claim from the link: pull the web link out of the email so you can examine its real destination instead of trusting the surrounding text.',
+    'There is a Linux tool that prints only the lines of a file matching a pattern. Use it on the reported email to surface the link hiding in the text.',
     'Type `grep http suspicious_email.txt` to extract the link.',
   ] },
   emailTools: { id: 'emailTools', tiers: [
-    'You suspect phishing — now prove it with evidence hiding in the email itself: who really sent it, and where the link really points.',
+    'Your job now shifts from reading to proving. The proof is technical evidence the attacker tried to hide inside the email itself.',
+    'Establish two things the attacker disguised: who really sent this, and where its link really goes.',
     'The dock now has an EMAIL ANALYSIS group. Each tool there exposes a different tell — the routing metadata, the real sender address, the domain, and the true link target. Work through them one at a time.',
     'Type `headers` first, then try `sender`, `domain`, and `links`.',
   ] },
   pinPhish: { id: 'pinPhish', tiers: [
-    'Good — indicators are appearing on the EVIDENCE board to the right. Investigating finds them; you still have to commit the ones that matter.',
+    'Investigating surfaces evidence, but findings only count once they are recorded. An analyst builds a case from committed indicators, not loose observations.',
+    'Indicators are appearing on the EVIDENCE board to the right — commit the ones that matter to build your case.',
     'Pin at least 3 indicators. You can click an evidence card, or use the pin command in the terminal.',
     'Type `pin all` to pin every indicator you have surfaced.',
   ] },
   socStart: { id: 'socStart', tiers: [
-    'This was not a single email — it is a campaign. Switch to a SOC analyst\'s job and confirm the attacker\'s infrastructure first.',
+    'Zoom out. A single reported email is rarely the whole story — find out whether this is part of a larger campaign and where the attacker\'s infrastructure lives.',
+    'Start with the attacker\'s infrastructure: confirm whether the malicious domain is known-bad before you map anything else.',
     'Use the SOC tools that just unlocked. Start by checking the malicious domain\'s reputation.',
     'Type `lookup domain` to begin the correlation.',
   ] },
   socTools: { id: 'socTools', tiers: [
-    'Map the full scope: who else was targeted, where the link leads, and who actually fell for it.',
+    'Correlation is about scope: an incident you only half-understand is one you cannot fully contain. Widen the lens from one inbox to the whole campaign.',
+    'Map who else was targeted, where the link really leads, and whether anyone actually fell for it.',
     'The SOC CORRELATION group in the dock widens the lens — who else got the lure, where the link really leads, whether anyone signed in for the attacker, and what the SIEM recorded. Run each one.',
     'Try `check recipients`, then `trace url`, `inspect login`, and `review alerts`.',
   ] },
   pinSoc: { id: 'pinSoc', tiers: [
-    'You have the campaign picture — now record the findings so you are authorized to act.',
+    'Before you are allowed to act, you have to justify it. Containment without recorded findings is a guess; recorded findings make it an authorized response.',
+    'Record the campaign findings you just uncovered so your response is backed by evidence.',
     'Pin at least 3 of your SOC findings on the evidence board.',
     'Type `pin all` to pin your SOC findings.',
   ] },
   contain: { id: 'contain', tiers: [
-    'Time to shut it down. Think in order: cut off the attacker\'s infrastructure, clean up the mail, then secure the person who was compromised.',
+    'Now you act — but order matters. Containment follows a logic: cut the attacker off, clean up what they sent, then secure whoever was compromised.',
+    'Work through the response in that order: attacker infrastructure first, then the malicious mail, then the affected user.',
     'The CONTAINMENT group in the dock holds your response actions — one cuts off the attacker\'s infrastructure, one pulls the lure from every inbox, and two secure the compromised user. Take them all.',
     'Type `block domain`, `quarantine email`, `reset account`, then `contain host`.',
   ] },
   report: { id: 'report', tiers: [
-    'The threat is contained. A SOC analyst always closes an incident with a written record so others can learn from it.',
+    'An incident is not closed until it is documented. The written record is how the next analyst learns from what you did.',
+    'Close out the investigation with a written incident report.',
     'Submit your incident report to finish the investigation.',
     'Type `submit report` to close the incident.',
   ] },

@@ -9,19 +9,31 @@ run a command, mutate lab state, or write localStorage — the prototype is
 in-memory only and progression is driven solely by typed terminal commands, file
 clicks, and pinning.
 
+## Objective-first framing (the steps live in HINT / Tool Kit, nowhere else)
+The intro banner and the always-on objective bar (`LAB_OBJECTIVE`, per stage) must
+state the assignment's GOAL and the teachable concept ("a message's wording can
+lie, but its technical fingerprints cannot") — never the literal commands. Exact
+commands belong only in HINT's final tier and the SOC Tool Kit.
+**Why:** spelling out `cat ...`/`grep ...` in the banner/objective bar removes the
+"figure it out" moment that makes the lab a teaching tool.
+**How to apply:** keep `LAB_OBJECTIVE` and the boot banner command-free; the
+input placeholder too ("press HINT if you're stuck", not "try `ls`").
+
 ## Gradual hints
 A `hint` command + HINT button give context-aware, escalating hints keyed per
-sub-goal to a 3-tier array: conceptual nudge → directional push → exact command.
-The current sub-goal is derived from live state so the hint always matches where
-the player actually is; the tier escalates one step per call and resets when the
+sub-goal to a **4-tier** array: orientation (frames the phase goal/approach, no
+specifics) → conceptual nudge → directional push (names the tool, not the syntax)
+→ exact command. `labHint()` reads `goal.tiers.length` dynamically (renders
+"HINT n of N"), so tier counts can vary per sub-goal. The current sub-goal is
+derived from live state; the tier escalates one step per call and resets when the
 sub-goal changes.
 
-**Rule — do not leak the exact command before the final tier.** Tiers 1–2 must be
-conceptual/directional; only the last tier may contain a literal runnable command
-(or `pin all`, `submit report`, etc.).
-**Why:** an architect review failed the first pass because tier-2 strings listed
-the exact command words, collapsing the gradual progression for a beginner.
-**How to apply:** never put a string matching a tool's `cmd` into tier 1 or 2.
+**Rule — do not leak the exact command before the final tier.** Only the LAST tier
+may contain a literal runnable command (or `pin all`, `submit report`, etc.).
+**Why:** an architect review once failed because non-final tiers listed the exact
+command words, collapsing the gradual progression for a beginner.
+**How to apply:** never put a string matching a tool's `cmd` into any tier except
+the last.
 
 ## Click-to-explain dock + SOC Tool Kit
 Dock command buttons are teaching-first: clicking opens an explanation popup
