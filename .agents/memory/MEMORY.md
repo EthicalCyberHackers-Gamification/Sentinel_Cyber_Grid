@@ -14,3 +14,5 @@
 - [Supabase migration apply/verify](ech-supabase-migrations.md) — drift gotcha: a migration's effects can exist while it's unrecorded in remote history; trust `migration list`, reconcile with idempotent `db push`.
 - [Replay vs live spotlight exclusivity](ech-replay-vs-live-spotlight.md) — separate dim/coach ids aren't enough; on-demand replay must both guard igShow AND igTeardown() any live overlay on start (they share `.ig-spotlight-target`).
 - [Persistence chokepoint](ech-persistence-chokepoint.md) — `saveProgress()` is the one place that writes `ech.progress.v1` AND enqueues cloud sync (and `awardXP`→`saveProgress`); presentation-only features must reach neither (briefing-review path persists — don't reuse for replay).
+- [Ops Center map projection](ech-ops-map-projection.md) — the Global Ops Map (both apps) is an exact equirectangular plate carrée (viewBox 1000x500); compute node/arc/land geometry from lat/long, don't eyeball it.
+- [pnpm lockfile churn](pnpm-lockfile-churn.md) — temp pnpm add/remove rewrites pnpm-lock.yaml (strips catalogs, adds tarball); restore via `git show HEAD:pnpm-lock.yaml > pnpm-lock.yaml`.
