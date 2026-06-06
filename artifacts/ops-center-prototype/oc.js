@@ -282,8 +282,9 @@ const REAL_MISSION_MAP = {
    to localStorage / the real game's progress (the map remains a
    read-only mirror). State here is in-memory and resets each open.
 
-   First vertical slice: mission-001 (Credential Phishing). Other
-   nodes still deep-link into the main game (see launchWorkspace).
+   All six prototype missions (001–006) have a holotable interior;
+   each is fully data-driven from the entries below (see
+   launchWorkspace for routing).
    ============================================================ */
 const HOLOTABLE_MISSIONS = {
   "mission-001": {
@@ -291,6 +292,12 @@ const HOLOTABLE_MISSIONS = {
     region:   "EMEA REGION",
     opId:     "OPS-2026-001",
     title:    "Credential Phishing Campaign",
+    briefing:
+      "SOC LEAD — Sarah Reyes:\n\n" +
+      "A user reported a \"re-verify your VPN\" email. Several look-alike\n" +
+      "artifacts surfaced around this incident. Inspect each one on the\n" +
+      "holotable, flag the malicious items, then choose how to contain\n" +
+      "the threat. Take your time — re-inspect anything you're unsure of.",
     // Artifacts arranged in a ring around the incident core. `verdict` is the
     // ground truth used to grade classification. `notes` are neutral analyst
     // observations (clues), never a verdict giveaway.
@@ -436,6 +443,644 @@ const HOLOTABLE_MISSIONS = {
     ],
     takeaway:
       "Credential phishing relies on look-alike domains, spoofed sender names, and urgency to trick users into typing real passwords into fake login pages. Cross-check the sending domain, the message headers (SPF/Return-Path), and where links actually resolve before trusting any 're-verify your account' request.",
+  },
+
+  "mission-002": {
+    severity: "HIGH",
+    region:   "APAC REGION",
+    opId:     "OPS-2026-002",
+    title:    "Lateral Movement Detected",
+    briefing:
+      "THREAT INTEL — Marcus Chen:\n\n" +
+      "We're seeing east-west traffic between APAC segments that should\n" +
+      "not be talking to each other. Looks like an attacker reusing stolen\n" +
+      "credentials to hop host-to-host. Inspect the evidence, flag the\n" +
+      "malicious activity, and separate it from normal admin work before\n" +
+      "you decide how to contain.",
+    artifacts: [
+      {
+        id: "pth-auth",
+        kind: "AUTH LOG",
+        icon: "🔑",
+        label: "Pass-the-Hash Logon",
+        verdict: "malicious",
+        detail:
+          "Host:    APAC-SEG-7 (10.44.7.55)\n" +
+          "Account: svc_backup\n" +
+          "Logon:   Type 3 (network) — NTLM\n" +
+          "Source:  APAC-SEG-3 host 10.44.2.19\n" +
+          "Flag:    NTLM hash reused, no interactive logon, 02:11 UTC",
+        notes: [
+          "A service account logging in over the network from a workstation segment.",
+          "NTLM hash reuse with no matching interactive logon — classic pass-the-hash.",
+          "Source host is the one already flagged as patient zero.",
+        ],
+      },
+      {
+        id: "east-west",
+        kind: "NETFLOW",
+        icon: "↔",
+        label: "East-West Traffic Burst",
+        verdict: "malicious",
+        detail:
+          "Flow:    10.44.2.19 → 10.44.7.55 → 10.44.7.61\n" +
+          "Ports:   445 (SMB), 135 (RPC)\n" +
+          "Volume:  short bursts, off-hours (02:00–02:30 UTC)\n" +
+          "Baseline: these segments do not normally communicate",
+        notes: [
+          "SMB/RPC connections chaining across segments that are normally isolated.",
+          "Activity is off-hours and bursty — consistent with hands-on-keyboard movement.",
+          "The chain matches the credential-reuse pattern.",
+        ],
+      },
+      {
+        id: "remote-svc",
+        kind: "PROCESS",
+        icon: "⚙",
+        label: "Remote Service Creation",
+        verdict: "malicious",
+        detail:
+          "Host:   APAC-SEG-7 (10.44.7.55)\n" +
+          "Event:  7045 — new service installed\n" +
+          "Name:   \"WinHelpSvc\"  Path: C:\\Windows\\Temp\\wh.exe\n" +
+          "By:     svc_backup over SMB\n" +
+          "Sig:    unsigned binary, created 02:13 UTC",
+        notes: [
+          "A new service installed remotely, named to look like a Windows component.",
+          "Binary runs from a Temp folder and is unsigned.",
+          "Created by the same reused service account, seconds after the logon.",
+        ],
+      },
+      {
+        id: "scheduled-backup",
+        kind: "TASK",
+        icon: "🗓",
+        label: "Nightly Backup Job",
+        verdict: "benign",
+        detail:
+          "Host:   APAC-FILE-02\n" +
+          "Task:   \"CorpBackup-Nightly\"\n" +
+          "Runs:   01:00 UTC daily, signed by Veeam\n" +
+          "Account: svc_backup (expected here)\n" +
+          "Status: completed normally, registered in CMDB",
+        notes: [
+          "A signed, scheduled backup that runs on its normal nightly cadence.",
+          "Uses the backup account on the file server where it's expected.",
+          "Registered in the asset/config database as a known job.",
+        ],
+      },
+      {
+        id: "admin-rdp",
+        kind: "AUTH LOG",
+        icon: "🖥",
+        label: "Admin RDP Session",
+        verdict: "benign",
+        detail:
+          "Host:    APAC-SEG-2 (10.44.2.8)\n" +
+          "Account: m.chen-adm\n" +
+          "Logon:   Type 10 (RemoteInteractive) — Kerberos\n" +
+          "Source:  jump-host 10.44.0.5 (approved bastion)\n" +
+          "Time:    09:40 UTC, MFA satisfied",
+        notes: [
+          "Interactive RDP from the approved jump host during business hours.",
+          "Kerberos (not NTLM hash reuse) and MFA was satisfied.",
+          "Matches a named admin's normal working pattern.",
+        ],
+      },
+    ],
+    decisions: [
+      {
+        id: "isolate-rotate",
+        quality: "excellent",
+        label: "Isolate the host chain & rotate the service account",
+        sub: "Network-isolate the three implicated hosts, disable and rotate svc_backup, kill the rogue service, and escalate to the Incident Commander.",
+        outcome: "The movement chain is severed before it reaches the domain core. The abused account is rotated and the rogue service removed — attacker access is cut.",
+      },
+      {
+        id: "monitor-only",
+        quality: "weak",
+        label: "Increase monitoring, take no isolation action",
+        sub: "Add alerting on the affected segments but leave hosts and the service account online.",
+        outcome: "You'll see more of the attack, but the attacker keeps moving in real time. Visibility without containment lets the breach widen.",
+      },
+      {
+        id: "reboot-host",
+        quality: "poor",
+        label: "Reboot the source host and close the ticket",
+        sub: "Restart 10.44.2.19 and assume that clears it.",
+        outcome: "A reboot doesn't remove reused credentials or the remote service. The attacker simply reconnects — the incident continues unseen.",
+      },
+    ],
+    takeaway:
+      "Lateral movement shows up as credential reuse (pass-the-hash), unexpected east-west SMB/RPC traffic, and remotely-created services. Separate it from legitimate admin work by checking logon type, auth protocol, source host, and whether the activity matches a known, signed, scheduled job.",
+  },
+
+  "mission-003": {
+    severity: "HIGH",
+    region:   "NA-EAST REGION",
+    opId:     "OPS-2026-003",
+    title:    "Malware Outbreak — C2 Beacon",
+    briefing:
+      "INCIDENT COMMANDER — Cmdr. Brooks:\n\n" +
+      "EDR lit up with Cobalt Strike beacon activity on NA-East endpoints —\n" +
+      "this is likely a ransomware precursor and our window is narrow.\n" +
+      "Inspect the artifacts, flag the malicious C2 indicators, and keep the\n" +
+      "legitimate software out of your evidence pile, then choose containment.",
+    artifacts: [
+      {
+        id: "beacon-proc",
+        kind: "PROCESS",
+        icon: "📡",
+        label: "Beaconing Process",
+        verdict: "malicious",
+        detail:
+          "Host:   NA-WS-1092\n" +
+          "Proc:   rundll32.exe → C:\\Users\\Public\\msupd.dll\n" +
+          "Parent: winword.exe (macro-spawned)\n" +
+          "Net:    HTTPS to 185.220.101.47 every 60s (± jitter)\n" +
+          "Sig:    unsigned DLL, created today 03:50 UTC",
+        notes: [
+          "rundll32 loading an unsigned DLL from a public folder, spawned by Word.",
+          "Regular 60-second callbacks with jitter — textbook beacon behavior.",
+          "Process tree starts from a macro-enabled document.",
+        ],
+      },
+      {
+        id: "c2-domain",
+        kind: "DOMAIN",
+        icon: "🌐",
+        label: "update-svc-cdn.net",
+        verdict: "malicious",
+        detail:
+          "Domain:     update-svc-cdn.net\n" +
+          "Resolves:   185.220.101.47\n" +
+          "Registered: 6 days ago, privacy-shielded\n" +
+          "Intel:      listed on 3 feeds as Cobalt Strike C2\n" +
+          "ASN:        AS47337 — flagged bulletproof host",
+        notes: [
+          "A newly-registered domain masquerading as a software-update CDN.",
+          "Resolves to the same IP the beacon is calling.",
+          "Already on multiple threat feeds as known C2 infrastructure.",
+        ],
+      },
+      {
+        id: "persist-task",
+        kind: "TASK",
+        icon: "🗓",
+        label: "Persistence Scheduled Task",
+        verdict: "malicious",
+        detail:
+          "Host:  NA-WS-1092\n" +
+          "Task:  \"GoogleUpdaterTaskCore\"\n" +
+          "Runs:  at logon → powershell -enc <base64>\n" +
+          "Sig:   not signed by Google; created 03:51 UTC\n" +
+          "Decoded: downloads stage-2 from update-svc-cdn.net",
+        notes: [
+          "A task impersonating a Google updater but not signed by Google.",
+          "Runs an encoded PowerShell command at every logon (persistence).",
+          "Decoded payload pulls a second stage from the C2 domain.",
+        ],
+      },
+      {
+        id: "edr-agent",
+        kind: "SYSTEM",
+        icon: "🛡",
+        label: "EDR Agent Service",
+        verdict: "benign",
+        detail:
+          "Host:   NA-WS-1092\n" +
+          "Proc:   CrowdStrike Falcon Sensor (CSFalconService)\n" +
+          "Sig:    valid, signed by CrowdStrike Inc.\n" +
+          "Path:   C:\\Program Files\\CrowdStrike\\\n" +
+          "Status: healthy — this is what raised the alert",
+        notes: [
+          "The endpoint protection agent itself, signed and in its normal path.",
+          "This is the sensor that detected the beacon.",
+          "Quarantining or killing it would blind you to the attack.",
+        ],
+      },
+      {
+        id: "win-update",
+        kind: "PROCESS",
+        icon: "⬇",
+        label: "Windows Update Service",
+        verdict: "benign",
+        detail:
+          "Host:   NA-WS-1092\n" +
+          "Proc:   svchost.exe -k netsvcs (wuauserv)\n" +
+          "Net:    HTTPS to *.windowsupdate.microsoft.com\n" +
+          "Sig:    signed Microsoft binary, normal path\n" +
+          "Pattern: bursty downloads, not periodic beaconing",
+        notes: [
+          "Genuine Windows Update traffic to Microsoft's own domains.",
+          "Signed system binary running from its expected location.",
+          "Download pattern is bursty, not the steady beacon cadence.",
+        ],
+      },
+    ],
+    decisions: [
+      {
+        id: "quarantine-block",
+        quality: "excellent",
+        label: "Quarantine the host & block the C2 at the firewall",
+        sub: "Network-quarantine NA-WS-1092 via EDR, block update-svc-cdn.net / 185.220.101.47 at the perimeter, and remove the persistence task before ransomware stage-2 lands.",
+        outcome: "The beacon is severed and the host is contained inside the response window. Persistence is removed and stage-2 can't download — the ransomware drop is prevented.",
+      },
+      {
+        id: "av-scan",
+        quality: "weak",
+        label: "Run a full AV scan, leave the host online",
+        sub: "Kick off an on-demand scan but keep the workstation connected to the network.",
+        outcome: "A scan may flag files, but the beacon keeps calling out and can fetch stage-2 mid-scan. Leaving it online keeps the C2 channel open.",
+      },
+      {
+        id: "ignore-edr",
+        quality: "poor",
+        label: "Disable the EDR alert as a false positive",
+        sub: "Assume the 'updater' traffic is benign and silence the detection.",
+        outcome: "Silencing your own sensor blinds the SOC while the attacker stages ransomware. This is exactly how outbreaks spread.",
+      },
+    ],
+    takeaway:
+      "C2 beacons reveal themselves through regular jittered callbacks, unsigned DLLs loaded by office apps, and persistence tasks impersonating trusted updaters. Confirm the destination against threat intel and never silence or quarantine your own EDR — it's the sensor that sees the attack.",
+  },
+
+  "mission-004": {
+    severity: "MEDIUM",
+    region:   "LATAM REGION",
+    opId:     "OPS-2026-004",
+    title:    "Reconnaissance Sweep",
+    briefing:
+      "JUNIOR ANALYST SUPPORT — Sarah Reyes:\n\n" +
+      "Good learning op. Someone is mapping our LATAM perimeter from an\n" +
+      "unfamiliar IP range — port scans and service fingerprinting, the\n" +
+      "kind of activity that comes before an attack. Inspect the evidence,\n" +
+      "flag the recon, and tell it apart from our own scheduled scans.",
+    artifacts: [
+      {
+        id: "port-sweep",
+        kind: "IDS ALERT",
+        icon: "🔎",
+        label: "Sequential Port Scan",
+        verdict: "malicious",
+        detail:
+          "Source: 203.0.113.42\n" +
+          "Target: LATAM perimeter /24\n" +
+          "Ports:  22, 80, 443, 8080, 3389 (in order, per host)\n" +
+          "Rate:   ~40 hosts/min, 02:00–02:40 UTC\n" +
+          "Intel:  203.0.113.0/24 flagged on 3 feeds",
+        notes: [
+          "A tight, ordered sweep of common service ports across the whole subnet.",
+          "Methodical host-by-host pattern — automated reconnaissance, not browsing.",
+          "Source range is already flagged across multiple threat feeds.",
+        ],
+      },
+      {
+        id: "banner-grab",
+        kind: "PROXY LOG",
+        icon: "🏷",
+        label: "Service Banner Grabbing",
+        verdict: "malicious",
+        detail:
+          "Source: 203.0.113.42\n" +
+          "Action: HTTP HEAD / + odd User-Agent (Shodan-like)\n" +
+          "Goal:   collect server version banners\n" +
+          "Hosts:  every responsive web service on the perimeter\n" +
+          "Note:   no real content fetched, only headers",
+        notes: [
+          "Requests only grab version banners, never real page content.",
+          "User-Agent matches mass-scanning / fingerprinting tools.",
+          "Aimed at every responsive service — building a target inventory.",
+        ],
+      },
+      {
+        id: "exposed-rdp",
+        kind: "FIREWALL",
+        icon: "🚪",
+        label: "Exposed RDP Service",
+        verdict: "malicious",
+        detail:
+          "Asset:  latam-edge-03 : 3389 OPEN to 0.0.0.0/0\n" +
+          "Note:   RDP should never be internet-facing\n" +
+          "Hits:   answered the scanner's 3389 probe\n" +
+          "Owner:  misconfig — not in approved exposure list",
+        notes: [
+          "Remote Desktop is exposed directly to the entire internet.",
+          "It answered the scanner — now a known, attackable target.",
+          "Not on the approved external-exposure list; a real misconfiguration.",
+        ],
+      },
+      {
+        id: "uptime-monitor",
+        kind: "SYSTEM",
+        icon: "💚",
+        label: "External Uptime Monitor",
+        verdict: "benign",
+        detail:
+          "Source: 198.51.100.10 (Pingdom, approved)\n" +
+          "Action: HTTPS GET /health every 60s\n" +
+          "Scope:  only the public status endpoint\n" +
+          "Listed: in the perimeter allow-list / vendor registry",
+        notes: [
+          "A contracted uptime service hitting only the health endpoint.",
+          "Predictable 60-second checks, not a port sweep.",
+          "Source is on the approved vendor allow-list.",
+        ],
+      },
+      {
+        id: "internal-vulnscan",
+        kind: "SCAN",
+        icon: "🗓",
+        label: "Scheduled Vulnerability Scan",
+        verdict: "benign",
+        detail:
+          "Source: 10.60.0.30 (internal Nessus, IT Security)\n" +
+          "Window: Sundays 03:00–05:00 UTC (change-approved)\n" +
+          "Scope:  internal LATAM subnets, authenticated\n" +
+          "Ticket: CHG-2026-0412 on file",
+        notes: [
+          "Our own authenticated vulnerability scanner on its approved schedule.",
+          "Runs from an internal IP within a change-approved window.",
+          "Backed by a change ticket — expected, sanctioned activity.",
+        ],
+      },
+    ],
+    decisions: [
+      {
+        id: "block-harden",
+        quality: "excellent",
+        label: "Block the source range & close the exposed RDP",
+        sub: "Add 203.0.113.0/24 to the perimeter block list, remove latam-edge-03's internet-facing 3389, and document the recon for trending.",
+        outcome: "The scanning source is blocked and the exposed RDP — the one real foothold — is closed before recon turns into exploitation. Clean, proportionate response.",
+      },
+      {
+        id: "watchlist",
+        quality: "weak",
+        label: "Add the IP to a watchlist, leave RDP as-is",
+        sub: "Monitor 203.0.113.42 but don't change the firewall yet.",
+        outcome: "You'll notice if it comes back, but the exposed RDP stays open and the scanner already has the map. Partial response leaves the door ajar.",
+      },
+      {
+        id: "no-action-recon",
+        quality: "poor",
+        label: "Close the ticket — just a scan, no breach",
+        sub: "Treat recon as harmless noise and take no action.",
+        outcome: "Recon is the rehearsal for the attack. Ignoring it — especially with RDP exposed — hands the attacker a tested target list.",
+      },
+    ],
+    takeaway:
+      "Reconnaissance looks like ordered port sweeps, banner grabbing, and probing from flagged IP ranges. The dangerous part is what it finds — like internet-facing RDP. Separate hostile scanning from your own approved monitors and vuln scans by checking source, schedule, and change tickets, then close real exposures fast.",
+  },
+
+  "mission-005": {
+    severity: "MEDIUM",
+    region:   "MENA REGION",
+    opId:     "OPS-2026-005",
+    title:    "Account Takeover Attempt",
+    briefing:
+      "SOC LEAD — Sarah Reyes:\n\n" +
+      "MENA is seeing a wave of failed MFA challenges against privileged\n" +
+      "accounts from places we don't operate. Looks like an account-takeover\n" +
+      "push. Inspect the auth evidence, flag the malicious attempts, and\n" +
+      "don't confuse them with legitimate traveling users, then contain.",
+    artifacts: [
+      {
+        id: "mfa-fatigue",
+        kind: "AUTH LOG",
+        icon: "📲",
+        label: "MFA Fatigue Bursts",
+        verdict: "malicious",
+        detail:
+          "Accounts: 9 privileged (admin/finance)\n" +
+          "Events:   47 push challenges in 20 min, all denied\n" +
+          "Source:   AS12345 — not in approved geo-list\n" +
+          "Pattern:  repeated pushes hoping a user taps 'approve'",
+        notes: [
+          "Dozens of MFA prompts hammered at admins in minutes — push fatigue.",
+          "All from an ASN outside any region you operate in.",
+          "Goal is to get one tired user to approve by accident.",
+        ],
+      },
+      {
+        id: "pw-spray",
+        kind: "AUTH LOG",
+        icon: "💦",
+        label: "Password Spray",
+        verdict: "malicious",
+        detail:
+          "Source:  AS12345 (same as MFA bursts)\n" +
+          "Method:  one common password vs many usernames\n" +
+          "Window:  low-and-slow, ~1 attempt/account/15min\n" +
+          "Result:  2 valid passwords found (MFA then blocked)",
+        notes: [
+          "One password tried against many accounts — spray, not brute force.",
+          "Deliberately slow to dodge lockout thresholds.",
+          "Same hostile source already correlated with the MFA bursts.",
+        ],
+      },
+      {
+        id: "impossible-travel",
+        kind: "IAM",
+        icon: "✈",
+        label: "Impossible Travel Sign-In",
+        verdict: "malicious",
+        detail:
+          "Account: f.haddad-adm\n" +
+          "Sign-in: Dubai 08:02 UTC, then AS12345 08:19 UTC\n" +
+          "Gap:     17 min apart, ~5,000 km\n" +
+          "Token:   legacy IMAP (no MFA path) attempted",
+        notes: [
+          "Two sign-ins too far apart in time to be the same person.",
+          "The second hop comes from the hostile ASN.",
+          "It reaches for a legacy protocol that bypasses MFA.",
+        ],
+      },
+      {
+        id: "traveling-vp",
+        kind: "IAM",
+        icon: "🧳",
+        label: "Traveling Exec Sign-In",
+        verdict: "benign",
+        detail:
+          "Account: n.said\n" +
+          "Sign-in: Cairo → Riyadh (flight itinerary on file)\n" +
+          "MFA:     satisfied on registered device\n" +
+          "Travel:  approved trip in HR calendar, ~1,300 km/4h",
+        notes: [
+          "A geo change that's consistent with a real, scheduled flight.",
+          "MFA satisfied on the user's own registered device.",
+          "Backed by an approved travel record — plausible, not impossible.",
+        ],
+      },
+      {
+        id: "vpn-reconnect",
+        kind: "AUTH LOG",
+        icon: "🔌",
+        label: "VPN Reconnect Failures",
+        verdict: "benign",
+        detail:
+          "Account: corp users (broad)\n" +
+          "Events:  brief cluster of failed logons 07:55 UTC\n" +
+          "Cause:   VPN concentrator failover (known maint.)\n" +
+          "Recovery: auto-success on retry, all from corp ranges",
+        notes: [
+          "A short burst of failures that all recovered on retry.",
+          "Traced to a known VPN failover, not an attacker.",
+          "All from corporate IP ranges, no geo anomaly.",
+        ],
+      },
+    ],
+    decisions: [
+      {
+        id: "lock-reenroll",
+        quality: "excellent",
+        label: "Lock targeted accounts & force MFA re-enrollment",
+        sub: "Disable the two sprayed accounts, force password reset + MFA re-enrollment for all targeted admins, block AS12345, and disable legacy auth protocols.",
+        outcome: "The compromised credentials are reset before use, legacy MFA-bypass paths are closed, and the hostile source is blocked. The takeover attempt is stopped cold.",
+      },
+      {
+        id: "notify-users",
+        quality: "weak",
+        label: "Notify users to ignore unexpected MFA prompts",
+        sub: "Send guidance but leave accounts and legacy auth enabled for now.",
+        outcome: "Awareness helps against MFA fatigue, but the sprayed passwords and legacy bypass remain usable. The attacker still has a path in.",
+      },
+      {
+        id: "raise-threshold",
+        quality: "poor",
+        label: "Raise the lockout threshold to stop the noise",
+        sub: "Reduce alerting by loosening lockout so the failed-logon alarms quiet down.",
+        outcome: "Loosening lockout makes spraying easier and hides the attack. You've removed the alarm, not the threat.",
+      },
+    ],
+    takeaway:
+      "Account takeover shows up as MFA-fatigue bursts, low-and-slow password spraying, and impossible-travel sign-ins reaching for legacy (no-MFA) protocols. Tell it apart from real travelers and maintenance blips by checking device, MFA status, source ASN, and corroborating travel/change records — then reset credentials and kill legacy auth.",
+  },
+
+  "mission-006": {
+    severity: "LOW",
+    region:   "SE ASIA REGION",
+    opId:     "OPS-2026-006",
+    title:    "Anomalous Scan Triage",
+    briefing:
+      "THREAT INTEL — Marcus Chen:\n\n" +
+      "Low-priority one, but good triage practice. There's scanning against\n" +
+      "the SEA DMZ — most of it is harmless background noise, but make sure\n" +
+      "nothing hostile is hiding in it. Inspect the evidence, flag anything\n" +
+      "genuinely malicious, and log the rest.",
+    artifacts: [
+      {
+        id: "exploit-probe",
+        kind: "WAF ALERT",
+        icon: "🧨",
+        label: "Exploit Probe in Scan",
+        verdict: "malicious",
+        detail:
+          "Source: 198.51.100.77\n" +
+          "Request: GET /../../etc/passwd & ?cmd=whoami\n" +
+          "Target:  SEA DMZ web app (sea-dmz-01)\n" +
+          "Note:    path traversal + command injection attempts\n" +
+          "Mixed in with otherwise low-rate scanning",
+        notes: [
+          "Not just scanning — actual exploit payloads (traversal, command injection).",
+          "Aimed at a specific DMZ app, probing for a real weakness.",
+          "Hidden inside low-rate noise to avoid standing out.",
+        ],
+      },
+      {
+        id: "credential-stuff",
+        kind: "AUTH LOG",
+        icon: "🗝",
+        label: "Login Endpoint Hits",
+        verdict: "malicious",
+        detail:
+          "Source:  198.51.100.77 (same as exploit probe)\n" +
+          "Action:  POST /login with leaked cred pairs\n" +
+          "Rate:    bursts against the DMZ portal\n" +
+          "Result:  all failed, but targeted real accounts",
+        notes: [
+          "Reused breach credentials thrown at the login page.",
+          "Same source as the exploit probe — coordinated, not random.",
+          "Targets real account names, not gibberish.",
+        ],
+      },
+      {
+        id: "cdn-crawl",
+        kind: "WAF LOG",
+        icon: "🕸",
+        label: "CDN Crawler Scan",
+        verdict: "benign",
+        detail:
+          "Source: 198.51.100.20 (known CDN exit node)\n" +
+          "Action: GET / on ports 80,443, 0.3 req/s\n" +
+          "Attrib: Shodan-adjacent crawl, attribution confirmed\n" +
+          "Note:   no payloads, just reachability checks",
+        notes: [
+          "A known internet-wide crawler doing reachability checks.",
+          "Very low rate and no exploit payloads — just GET /.",
+          "Attribution to a benign CDN/scanner is confirmed.",
+        ],
+      },
+      {
+        id: "search-bot",
+        kind: "WAF LOG",
+        icon: "🔍",
+        label: "Search Engine Bot",
+        verdict: "benign",
+        detail:
+          "Source: Googlebot (verified via reverse DNS)\n" +
+          "Action: crawl of public marketing pages\n" +
+          "Rate:   polite, respects robots.txt\n" +
+          "Note:   indexes public content only",
+        notes: [
+          "A verified search-engine crawler indexing public pages.",
+          "Reverse DNS confirms it's genuinely Googlebot.",
+          "Polite crawl that honors robots.txt — expected traffic.",
+        ],
+      },
+      {
+        id: "health-probe",
+        kind: "SYSTEM",
+        icon: "💚",
+        label: "Load Balancer Health Check",
+        verdict: "benign",
+        detail:
+          "Source: 10.70.0.4 (internal LB)\n" +
+          "Action: GET /healthz every 10s\n" +
+          "Scope:  DMZ app health endpoint only\n" +
+          "Status: internal, expected, always 200",
+        notes: [
+          "The internal load balancer checking app health.",
+          "Hits only the health endpoint on a fixed cadence.",
+          "Internal source — normal infrastructure traffic.",
+        ],
+      },
+    ],
+    decisions: [
+      {
+        id: "block-investigate",
+        quality: "excellent",
+        label: "Block the hostile IP & open an investigation",
+        sub: "Block 198.51.100.77 at the WAF, confirm no exploit succeeded, alert on the targeted accounts, and log the benign scanners for trending.",
+        outcome: "The real threat hiding in the noise is blocked and verified as unsuccessful, while harmless crawlers are correctly logged. Sharp triage on a low-priority queue.",
+      },
+      {
+        id: "log-all",
+        quality: "weak",
+        label: "Log everything for the trending report",
+        sub: "Record all the scanning activity but take no blocking action.",
+        outcome: "Logging is fine for the benign crawlers, but the exploit-and-credential source needed action now. You documented an attack instead of stopping it.",
+      },
+      {
+        id: "auto-close",
+        quality: "poor",
+        label: "Auto-close — it's a known CDN scanner",
+        sub: "Assume all the traffic is the benign CDN crawl and close the ticket.",
+        outcome: "Lumping the exploit probes in with benign scanning misses a live attack. Triage means separating the signal from the noise, not closing both.",
+      },
+    ],
+    takeaway:
+      "Low-priority scan queues still hide real attacks. Triage means separating benign crawlers, search bots, and health checks (verifiable by source, rate, and attribution) from hostile probes carrying exploit payloads or credential-stuffing — and acting on the latter even when the overall alert is 'low'.",
   },
 };
 
@@ -974,9 +1619,9 @@ function launchWorkspace() {
   const realMissionId = REAL_MISSION_MAP[activeNodeId];
   if (!realMissionId) return;
 
-  // Experimental Evidence Holotable interior — currently mission-001 only.
-  // Missions backed by a holotable open the in-prototype interior instead of
-  // deep-linking into the main game.
+  // Experimental Evidence Holotable interior. Missions backed by a holotable
+  // open the in-prototype interior instead of deep-linking into the main game.
+  // (All six prototype missions now have a holotable interior.)
   if (HOLOTABLE_MISSIONS[realMissionId]) {
     openHolotable(realMissionId);
     return;
@@ -1321,6 +1966,14 @@ function renderHtDock() {
 }
 
 /* ---- Briefing recap (presentation-only) ---- */
+function htDefaultBriefing() {
+  return "SOC LEAD — Sarah Reyes:\n\n" +
+    "Several artifacts surfaced around this incident. Inspect each one\n" +
+    "on the holotable, flag the malicious items, then choose how to\n" +
+    "contain the threat. Take your time — re-inspect anything you're\n" +
+    "unsure of.";
+}
+
 function openHtBriefing() {
   const m = htMission();
   if (!m) return;
@@ -1334,12 +1987,7 @@ function openHtBriefing() {
         <button class="ht-panel-close" type="button" data-ht-close aria-label="Close briefing">✕</button>
       </div>
       <div class="ht-panel-body">
-        <pre class="ht-artifact-detail">SOC LEAD — Sarah Reyes:
-
-A user reported a "re-verify your VPN" email. Several look-alike
-artifacts surfaced around this incident. Inspect each one on the
-holotable, flag the malicious items, then choose how to contain
-the threat. Take your time — re-inspect anything you're unsure of.</pre>
+        <pre class="ht-artifact-detail">${m.briefing || htDefaultBriefing()}</pre>
         <div class="ht-notes">
           <div class="ht-notes-head">OBJECTIVE</div>
           <ul>

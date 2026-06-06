@@ -10,7 +10,8 @@ An experimental, re-skinnable mission interior built in the PROTOTYPE app
 `ethical-cyberhackers-platform`. A dark top-down holographic table: phishing
 artifacts materialize as ring-placed tokens you inspect → classify
 (malicious/benign) → pin malicious to an evidence rail → choose a containment
-action → outcome scorecard. First slice = `mission-001`.
+action → outcome scorecard. All six prototype missions (001–006) now have an
+interior; each entry sets its own `briefing` (falls back to `htDefaultBriefing()`).
 
 ## Where / how it's wired
 - Data-driven from a `HOLOTABLE_MISSIONS` map in `oc.js` (artifacts, decisions,
