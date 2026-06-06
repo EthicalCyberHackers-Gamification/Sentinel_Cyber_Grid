@@ -23,4 +23,4 @@
 - [Generic mission engine (M4/5/6)](ech-generic-mission-engine.md) — missions 004/005/006 are data-driven (one `gm*` engine + `GENERIC_MISSIONS`); deliberately bypasses M1-M3 hardcoded surfaces; deep-link-only discovery.
 - [Lab command verb routing](ech-lab-verb-routing.md) — progressive lab (`lab.js`, `?lab=mission-001`) routes on the FIRST typed word; key `LAB_VERB` on that word (e.g. `submit`→report), not the tool name, or multi-word cmds dead-end.
 - [oc.js ↔ lab.js bridge](ech-lab-console-bridge.md) — separate ES modules, no shared scope; lab publishes `window.openMission001Lab`, `launchWorkspace` calls it (early-return before console/holotable) with a deep-link fallback.
-- [Lab gradual hints](ech-lab-gradual-hints.md) — Mission-001 lab `hint` command/button: state-aware 3-tier escalation (nudge→directional→exact); never put a literal command in tier 1–2.
+- [Lab teaching surfaces](ech-lab-gradual-hints.md) — Mission-001 lab hints/explain-popups/tool-kit are presentation-only; 3-tier hints never leak the command early; bind persistent-host modal listeners ONCE in init, not per open.

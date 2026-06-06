@@ -588,12 +588,23 @@
       <span class="sc-objective-icon" aria-hidden="true">▸</span>
       <span class="sc-objective-text" id="labObjectiveText">List the files in your mailbox — type <code>ls</code>.</span>
       <span class="sc-objective-progress" id="labObjectiveProgress"></span>
-      <button class="lab-hint-btn" id="labHintBtn" type="button" title="Get a gradual hint — ask again for more">💡 HINT</button>
     </div>
 
     <div class="sc-main">
 
-      <nav class="sc-dock" id="labDock" aria-label="Available commands"></nav>
+      <div class="sc-dock-col">
+        <nav class="sc-dock" id="labDock" aria-label="Available commands"></nav>
+        <div class="sc-dock-foot">
+          <button class="sc-dock-action" id="labKitBtn" type="button" title="Open the SOC Tool Kit — what every available command does">
+            <span class="sc-dock-action-ico" aria-hidden="true">🧰</span>
+            <span class="sc-dock-action-txt">SOC TOOL KIT</span>
+          </button>
+          <button class="sc-dock-action sc-dock-action--hint" id="labHintBtn" type="button" title="Get a gradual hint — ask again for more">
+            <span class="sc-dock-action-ico" aria-hidden="true">💡</span>
+            <span class="sc-dock-action-txt">HINT</span>
+          </button>
+        </div>
+      </div>
 
       <section class="sc-center">
         <div class="sc-stage" id="labStage">
@@ -639,6 +650,10 @@
       </aside>
 
     </div>
+
+    <!-- Teaching popups (presentation-only — never run a command) -->
+    <div class="lab-modal" id="labExplain" hidden role="dialog" aria-modal="true" aria-label="Command explanation"></div>
+    <div class="lab-modal" id="labKit" hidden role="dialog" aria-modal="true" aria-label="SOC Tool Kit"></div>
   </div>
 
   <script type="module" src="./oc.js"></script>

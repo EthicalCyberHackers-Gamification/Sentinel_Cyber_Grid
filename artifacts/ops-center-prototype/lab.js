@@ -181,6 +181,45 @@ const LAB_VERB = {
   block: 'block', quarantine: 'quar', reset: 'reset', contain: 'host', submit: 'report',
 };
 
+// Plain-language teaching cards for every command in the dock + tool kit.
+// purpose = one line on WHAT it does; learn = WHY it matters in this case.
+const LAB_TOOL_DOC = {
+  ls:     { purpose: 'Lists every file in the folder you are currently in.',
+            learn: 'Before you can investigate anything, you have to know what is in front of you. `ls` ("list") prints the contents of the current folder so you can spot the reported message among the other files.' },
+  cat:    { purpose: 'Prints the full contents of a file to the screen.',
+            learn: '`cat` reads a file out to the terminal. Point it at the reported email to see exactly what the user received — who it claims to be from, the wording, and the link they were urged to click.' },
+  grep:   { purpose: 'Searches inside a file and shows only the matching lines.',
+            learn: 'A phishing email buries its real destination inside a link. `grep` pulls out just the lines containing a pattern (like `http`) so you can read the true web address without scrolling the whole message.' },
+  headers:{ purpose: 'Reveals the hidden routing metadata of the email.',
+            learn: 'Every email carries headers — a behind-the-scenes record of where it really travelled from. Attackers fake the friendly "From" name but struggle to fake this trail. Read it to find the true origin.' },
+  links:  { purpose: 'Extracts and shows the real target of every link.',
+            learn: 'The text you click and the address it actually points to can be completely different. This exposes the real destination so you can judge whether it is the genuine company or an attacker-controlled site.' },
+  sender: { purpose: 'Shows the real sender address behind the display name.',
+            learn: 'A message can say "IT Helpdesk" while coming from a stranger\'s mailbox. This isolates the actual email address so you can check whether it truly belongs to your organisation.' },
+  domain: { purpose: 'Inspects the web domain the email and its links use.',
+            learn: 'The domain is the part after the @ or inside a link (e.g. cybercorp.com). Look-alike domains like cybercorp-support.net are a classic phishing tell — this helps you catch one.' },
+  lookup: { purpose: 'Checks the reputation and age of the suspect domain.',
+            learn: 'A domain registered only days ago and flagged by threat feeds is a strong sign of attack. Looking it up confirms the infrastructure is malicious before you start hunting for victims.' },
+  recips: { purpose: 'Lists everyone else who received the same email.',
+            learn: 'One report rarely means one target. Checking recipients reveals the real scope of the campaign — how many colleagues were hit by the same lure.' },
+  trace:  { purpose: 'Follows the link to see where it ultimately leads.',
+            learn: 'Attackers chain redirects to hide the final page. Tracing the URL walks that trail and reveals the fake login site waiting at the end.' },
+  login:  { purpose: 'Inspects sign-in activity tied to the attack.',
+            learn: 'The whole point of phishing is stolen credentials being used. Inspecting logins shows whether anyone actually entered their password and let the attacker in.' },
+  alerts: { purpose: 'Reviews related alerts the security tools raised.',
+            learn: 'Your SIEM (the system watching everything) may have already flagged pieces of this attack. Reviewing alerts ties the campaign together and corroborates your findings.' },
+  block:  { purpose: 'Blocks the malicious domain across the company.',
+            learn: 'Cutting off the attacker\'s domain stops new victims from reaching the fake site. Removing the attacker\'s reach is the first move in containment.' },
+  quar:   { purpose: 'Quarantines the phishing email from all inboxes.',
+            learn: 'Pulling the message out of every mailbox removes the lure so no one else can click it — even people who have not opened it yet.' },
+  reset:  { purpose: 'Forces a password reset on the compromised account.',
+            learn: 'If credentials were stolen, resetting the password locks the attacker out and hands control of the account back to its owner.' },
+  host:   { purpose: 'Isolates the affected machine from the network.',
+            learn: 'Containing the host stops any malware or attacker session on that device from spreading while it is investigated and cleaned.' },
+  report: { purpose: 'Writes up and closes the incident.',
+            learn: 'Every investigation ends with a record: what happened, what you found, and what you did. The report lets the whole team learn and proves the threat was handled.' },
+};
+
 const LAB_OBJECTIVE = {
   1: 'Investigate the reported file. Read it (<code>cat suspicious_email.txt</code>), then pull its links (<code>grep http suspicious_email.txt</code>).',
   2: 'Analyze the email: run <code>headers</code>, <code>links</code>, <code>sender</code>, <code>domain</code> — then PIN the indicators you find (pin 3 to continue).',
@@ -235,9 +274,11 @@ function openLab() {
     { t: 'CyberCorp Security Training — Lab 001 · Credential Phishing', c: 'head' },
     { t: 'A user reported a suspicious email. It is sitting in a mailbox folder.' },
     { t: 'You are at a Linux terminal. Start by listing the folder: type `ls`.', c: 'dim' },
-    { t: 'Type `help` anytime to see the commands available right now.', c: 'dim' },
-    { t: 'Stuck? Type `hint` (or click the HINT button) for a nudge — ask again', c: 'dim' },
-    { t: 'and each hint gets more specific, ending with the exact command.', c: 'dim' },
+    { t: 'New here? Click any command on the left to learn what it does (it', c: 'dim' },
+    { t: 'will not run until you type it), or open the SOC TOOL KIT for the', c: 'dim' },
+    { t: 'full list. Type `help` to see what is available right now.', c: 'dim' },
+    { t: 'Stuck? Click the HINT button (or type `hint`) for a gradual nudge —', c: 'dim' },
+    { t: 'ask again and each hint gets more specific, ending with the command.', c: 'dim' },
   ]);
 
   labRenderStageSurface();
@@ -806,23 +847,142 @@ function labRenderDock() {
     const done = labToolDone(t.key);
     const cls = ['sc-tool', done ? 'is-done' : ''].filter(Boolean).join(' ');
     html += `
-      <button class="${cls}" type="button" data-lab-cmd="${t.cmd}">
+      <button class="${cls}" type="button" data-lab-key="${t.key}" title="Click to learn what this command does">
         <span class="sc-tool-icon" aria-hidden="true">${t.icon}</span>
         <span class="sc-tool-body">
           <span class="sc-tool-name">${t.name}</span>
           <span class="sc-tool-cmd">${t.hint}</span>
         </span>
+        <span class="sc-tool-info" aria-hidden="true">ⓘ</span>
       </button>`;
   });
   dock.innerHTML = html;
 
-  dock.querySelectorAll('[data-lab-cmd]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const input = $lab('labTermInput');
-      labRun(btn.dataset.labCmd);
-      if (input) { input.value = ''; input.focus(); }
-    });
+  // Teaching-first: a dock click EXPLAINS the command instead of running it.
+  // The student still runs it by typing in the terminal (or via the popup's
+  // "Load into terminal" button), so they learn the purpose before acting.
+  dock.querySelectorAll('[data-lab-key]').forEach((btn) => {
+    btn.addEventListener('click', () => labOpenExplain(btn.dataset.labKey));
   });
+}
+
+/* ------------------------------------------------------------------ *
+ * TEACHING POPUPS — command explainer + SOC Tool Kit reference.
+ * Both are presentation-only: they never run a command or mutate lab
+ * state; the student must type (or "load") the command to actually run.
+ * ------------------------------------------------------------------ */
+function labCloseModals() {
+  ['labExplain', 'labKit'].forEach((id) => {
+    const el = $lab(id);
+    if (el) { el.hidden = true; el.innerHTML = ''; }
+  });
+  const input = $lab('labTermInput');
+  if (input) input.focus();
+}
+
+function labOpenExplain(key) {
+  const tool = LAB_TOOLS.find((t) => t.key === key);
+  const doc = LAB_TOOL_DOC[key];
+  const host = $lab('labExplain');
+  if (!tool || !doc || !host) return;
+  const locked = tool.unlock > LAB.stage;
+  host.innerHTML = `
+    <div class="lab-modal-card" role="document">
+      <div class="lab-modal-head">
+        <span class="lab-modal-ico" aria-hidden="true">${tool.icon}</span>
+        <div class="lab-modal-titles">
+          <div class="lab-modal-title">${labEsc(tool.name)}</div>
+          <div class="lab-modal-sub">${labEsc(tool.cmd)}</div>
+        </div>
+        <button class="lab-modal-close" type="button" data-lab-close aria-label="Close">×</button>
+      </div>
+      <div class="lab-modal-body">
+        <div class="lab-modal-section-head">WHAT IT DOES</div>
+        <div class="lab-modal-purpose">${labEsc(doc.purpose)}</div>
+        <div class="lab-modal-learn">${labDocText(doc.learn)}</div>
+        <div class="lab-modal-usage"><b>How to use it:</b>  ${labEsc(tool.cmd)}</div>
+        ${locked ? '<div class="lab-kit-locked-note">This command is not unlocked yet — keep investigating and it will become available.</div>' : ''}
+      </div>
+      <div class="lab-modal-foot">
+        ${locked ? '' : '<button class="lab-modal-btn lab-modal-btn--primary" type="button" data-lab-load="' + labEsc(tool.cmd) + '">Load into terminal</button>'}
+        <button class="lab-modal-btn" type="button" data-lab-close>Got it</button>
+      </div>
+    </div>`;
+  host.hidden = false;
+  labBindModal(host);
+}
+
+function labOpenKit() {
+  const host = $lab('labKit');
+  if (!host) return;
+  const groupLabel = (u) => ({ 1: 'LINUX BASICS', 2: 'EMAIL ANALYSIS', 3: 'SOC CORRELATION', 5: 'CONTAINMENT' }[u] || '');
+  const visible = LAB_TOOLS.filter((t) => t.unlock <= LAB.stage);
+  const locked = LAB_TOOLS.filter((t) => t.unlock > LAB.stage);
+
+  let body = '';
+  let lastGroup = null;
+  visible.forEach((t) => {
+    if (t.unlock !== lastGroup) { body += `<div class="lab-kit-group">${groupLabel(t.unlock)}</div>`; lastGroup = t.unlock; }
+    const doc = LAB_TOOL_DOC[t.key] || {};
+    body += `
+      <div class="lab-kit-item">
+        <span class="lab-kit-ico" aria-hidden="true">${t.icon}</span>
+        <div class="lab-kit-body">
+          <div><span class="lab-kit-name">${labEsc(t.name)}</span><span class="lab-kit-cmd">${labEsc(t.cmd)}</span></div>
+          <div class="lab-kit-desc">${labEsc(doc.purpose || '')}</div>
+        </div>
+      </div>`;
+  });
+  const lockedNote = locked.length
+    ? `<div class="lab-kit-locked-note">+ ${locked.length} more command${locked.length === 1 ? '' : 's'} unlock as the investigation progresses.</div>`
+    : '';
+
+  host.innerHTML = `
+    <div class="lab-modal-card lab-modal-card--kit" role="document">
+      <div class="lab-modal-head">
+        <span class="lab-modal-ico" aria-hidden="true">🧰</span>
+        <div class="lab-modal-titles">
+          <div class="lab-modal-title">SOC Tool Kit</div>
+          <div class="lab-modal-sub">Every command available to you right now — click a tool on the left for the full story.</div>
+        </div>
+        <button class="lab-modal-close" type="button" data-lab-close aria-label="Close">×</button>
+      </div>
+      <div class="lab-modal-body">
+        ${body}
+        ${lockedNote}
+        <div class="lab-kit-group">UTILITIES</div>
+        <div class="lab-kit-item"><span class="lab-kit-ico" aria-hidden="true">📌</span><div class="lab-kit-body"><div><span class="lab-kit-name">Pin evidence</span><span class="lab-kit-cmd">pin &lt;indicator|all&gt;</span></div><div class="lab-kit-desc">Commit a discovered indicator to the evidence board (or click a card on the right).</div></div></div>
+        <div class="lab-kit-item"><span class="lab-kit-ico" aria-hidden="true">💡</span><div class="lab-kit-body"><div><span class="lab-kit-name">Hint</span><span class="lab-kit-cmd">hint</span></div><div class="lab-kit-desc">A gradual nudge toward your next step — ask again for a stronger one.</div></div></div>
+        <div class="lab-kit-item"><span class="lab-kit-ico" aria-hidden="true">🧽</span><div class="lab-kit-body"><div><span class="lab-kit-name">Clear</span><span class="lab-kit-cmd">clear</span></div><div class="lab-kit-desc">Wipe the terminal screen.</div></div></div>
+      </div>
+      <div class="lab-modal-foot">
+        <button class="lab-modal-btn lab-modal-btn--primary" type="button" data-lab-close>Close</button>
+      </div>
+    </div>`;
+  host.hidden = false;
+  labBindModal(host);
+}
+
+// Wire close buttons and "Load into terminal" for a modal. These live on the
+// freshly-rendered innerHTML (replaced each open), so they do not accumulate.
+// The backdrop (host) click is bound ONCE in labInit — the host node persists
+// across opens, so re-binding here would leak listeners.
+function labBindModal(host) {
+  host.querySelectorAll('[data-lab-close]').forEach((b) => b.addEventListener('click', labCloseModals));
+  host.querySelectorAll('[data-lab-load]').forEach((b) => b.addEventListener('click', () => {
+    const input = $lab('labTermInput');
+    labCloseModals();
+    if (input) { input.value = b.dataset.labLoad; input.focus(); }
+  }));
+}
+
+// Escape HTML for safe interpolation of command strings into innerHTML.
+function labEsc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+// Render the teaching text with `code` spans, escaping everything else.
+function labDocText(s) {
+  return labEsc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
 function labToolDone(key) {
@@ -1061,6 +1221,23 @@ function labInit() {
     labHint();
     const inp = $lab('labTermInput');
     if (inp) inp.focus();
+  });
+
+  const kitBtn = $lab('labKitBtn');
+  if (kitBtn) kitBtn.addEventListener('click', labOpenKit);
+
+  // Backdrop click closes the popup. Bound ONCE here (the host nodes persist
+  // across opens; only their innerHTML is replaced), so listeners never leak.
+  ['labExplain', 'labKit'].forEach((id) => {
+    const m = $lab(id);
+    if (m) m.addEventListener('mousedown', (e) => { if (e.target === m) labCloseModals(); });
+  });
+
+  // Esc closes whichever teaching popup is open.
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const open = ['labExplain', 'labKit'].some((id) => { const el = $lab(id); return el && !el.hidden; });
+    if (open) labCloseModals();
   });
 
   // Public entry point so the Operations Center (a separate ES module with no
