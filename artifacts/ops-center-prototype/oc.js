@@ -424,6 +424,35 @@ const SoundEngine = (() => {
     osc.stop(ac.currentTime + 0.6);
   }
 
+  // Sharp confirmatory click/select when an incident node is opened —
+  // a quick two-stage blip whose pitch is mapped to severity.
+  function playNodeSelect(severity) {
+    if (!_canPlay()) return;
+    const ac = _getCtx();
+    const pitches = {
+      critical: 1175,
+      high:     988,
+      medium:   784,
+      low:      659,
+      info:     587,
+    };
+    const base = pitches[severity] ?? pitches.info;
+    const t = ac.currentTime;
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.type = 'triangle';
+    // Crisp upward snap then a fast decay for a "select" feel.
+    osc.frequency.setValueAtTime(base, t);
+    osc.frequency.exponentialRampToValueAtTime(base * 1.5, t + 0.04);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.09, t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    osc.start(t);
+    osc.stop(t + 0.14);
+  }
+
   // Minimal click/blip for the ticker — very quiet
   function playTickerBeep() {
     if (!_canPlay()) return;
@@ -448,7 +477,7 @@ const SoundEngine = (() => {
     return _muted;
   }
 
-  return { playAlertChime, playRadarPing, playTickerBeep, isMuted, toggle };
+  return { playAlertChime, playRadarPing, playNodeSelect, playTickerBeep, isMuted, toggle };
 })();
 
 /* ============================================================
@@ -557,6 +586,10 @@ function renderCommsMsg(data) {
 function showIncidentCard(incidentId) {
   const incident = INCIDENTS[incidentId];
   if (!incident) return;
+
+  // Sharp confirmatory click when the node is opened (respects mute + Page
+  // Visibility guard internally).
+  SoundEngine.playNodeSelect(incident.severity);
 
   activeNodeId = incidentId;
 
