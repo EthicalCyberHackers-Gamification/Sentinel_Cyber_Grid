@@ -529,6 +529,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .intel-item--malware { border-left-color: var(--red); }
 .intel-item--network { border-left-color: var(--yellow); }
 .intel-item--info    { border-left-color: var(--green); }
+.intel-item--memory  { border-left-color: var(--purple); background: rgba(168,85,247,0.05); }
 
 .intel-dot {
   width: 5px;
@@ -544,6 +545,43 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .intel-item--malware .intel-dot { color: var(--red); }
 .intel-item--network .intel-dot { color: var(--yellow); }
 .intel-item--info    .intel-dot { color: var(--green); }
+.intel-item--memory  .intel-dot { color: var(--purple); }
+
+/* ============================================================
+   PHASE 3 — SECURITY BULLETIN (atmospheric Ops Center notice)
+   ============================================================ */
+.oc-bulletin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  background: var(--green-dark);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--cyan);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+.oc-bulletin--in { opacity: 1; }
+.oc-bulletin-icon { color: var(--cyan); flex-shrink: 0; }
+.oc-bulletin-tag {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.oc-bulletin-text {
+  color: var(--text);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .intel-text {
   font-size: 11px;
@@ -883,6 +921,33 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+/* Phase 3 — persistent-world continuity links inside the incident card. */
+.incident-links {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+  padding: 9px 10px;
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--cyan);
+  border-radius: var(--radius-sm);
+}
+.incident-link-row {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  letter-spacing: 0.2px;
+}
+.incident-link-row .il-key {
+  color: var(--cyan);
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 1px;
+  margin-right: 4px;
 }
 
 .incident-meta-label {

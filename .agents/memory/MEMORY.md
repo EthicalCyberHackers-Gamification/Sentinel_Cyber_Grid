@@ -27,3 +27,4 @@
 - [oc.js ↔ lab.js bridge](ech-lab-console-bridge.md) — separate ES modules, no shared scope; lab publishes `window.openMission001Lab`, `launchWorkspace` calls it (early-return before console/holotable) with a deep-link fallback.
 - [Lab teaching surfaces](ech-lab-gradual-hints.md) — Mission-001 lab hints/explain-popups/tool-kit are presentation-only; 3-tier hints never leak the command early; bind persistent-host modal listeners ONCE in init, not per open.
 - [CyberCorp identity layer](ech-cybercorp-identity.md) — prototype-only immersion: CYBERCORP_IDENTITY + OP_CONTEXT(keyed by opId) drive identity panel, pre-mission briefing, mission-header context; recurring Reyes + J. Okafor.
+- [Persistent world (Phase 3 prototype)](ech-persistent-world.md) — read-only continuity layer; mission-link edges must point to an EARLIER and SAME-ACTOR mission (first op of any actor gets no `connects`).

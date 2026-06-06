@@ -340,6 +340,122 @@ const TICKER_IOCS = [
 ];
 
 /* ============================================================
+   PHASE 3 — PERSISTENT OPERATIONAL WORLD  (presentation-only)
+   ------------------------------------------------------------
+   CyberCorp is a living, persistent organization: the same
+   employees, departments and adversary infrastructure recur,
+   and earlier incidents are referenced later. All of this is
+   AUTHORED data surfaced READ-ONLY and keyed on the existing
+   completed-mission mirror (getMissionStates()). Nothing here
+   ever writes localStorage or introduces a new persisted store.
+   ============================================================ */
+
+// Canonical department set — the single source of truth referenced across
+// incidents, comms, bulletins and reactive callbacks.
+const DEPARTMENTS = {
+  finance:     "Finance",
+  hr:          "Human Resources",
+  engineering: "Engineering",
+  exec:        "Executive Operations",
+  itinfra:     "IT Infrastructure",
+  legal:       "Legal",
+  secops:      "Security Operations",
+};
+function deptName(key) { return DEPARTMENTS[key] || "Security Operations"; }
+
+// Recurring CyberCorp employees — organizational memory. The same people show
+// up across incidents, bulletins and reactive notes so the world feels staffed.
+const EMPLOYEES = {
+  okafor:    { name: "J. Okafor",    title: "Finance Manager",          dept: "finance" },
+  whitfield: { name: "D. Whitfield", title: "VP, Executive Operations", dept: "exec" },
+  nwosu:     { name: "P. Nwosu",     title: "Infrastructure Engineer",  dept: "itinfra" },
+  park:      { name: "L. Park",      title: "HR Business Partner",      dept: "hr" },
+};
+
+// Recurring adversary infrastructure / TTP clusters — NOT named villains.
+// Missions reuse the same domains, ASNs and tradecraft so attribution carries
+// across assignments.
+const THREAT_ACTORS = {
+  fin12: {
+    label: "FIN-12",
+    summary: "Financially-motivated phishing crew — spoofed executive domains, credential harvesting.",
+    infra: ["cybercorp-support[.]net", "AS8003 (bulletproof hosting)"],
+    ttps:  ["spoofed executive domains", "MFA-failure bursts", "credential theft"],
+  },
+  redbeacon: {
+    label: "Cobalt Strike cluster",
+    summary: "Hands-on-keyboard intrusion set — Cobalt Strike beacons, ransomware precursors.",
+    infra: ["185.220.101.47", "AS47337 (RU)", "203.0.113.0/24"],
+    ttps:  ["Cobalt Strike C2", "pass-the-hash lateral movement", "Black Basta precursors"],
+  },
+};
+function actorLabel(key) { return THREAT_ACTORS[key]?.label || "unattributed activity"; }
+
+// Per-node continuity. `dept`/`employee`/`actor` tie an incident to the world
+// model; `resolved` is a short trace shown ONCE that mission is complete
+// (reactive world state); `connects` links to a PRIOR node and only surfaces
+// when that prior mission is complete (mission connections that reward memory).
+const WORLD_CONTINUITY = {
+  "emea":    { dept: "finance",     employee: "okafor",    actor: "fin12",
+               resolved: "FIN-12 phishing domain cybercorp-support[.]net blocked at the perimeter." },
+  "apac":    { dept: "itinfra",     employee: "nwosu",     actor: "redbeacon",
+               resolved: "APAC source host 10.44.2.19 isolated; pass-the-hash playbook updated." },
+  "na-east": { dept: "engineering", actor: "redbeacon",    connects: "apac",
+               resolved: "Cobalt Strike C2 185.220.101.47 sinkholed; AS47337 range geo-blocked." },
+  "latam":   { dept: "itinfra",     actor: "redbeacon",    connects: "na-east",
+               resolved: "Recon range 203.0.113.0/24 added to the perimeter blocklist." },
+  "mena":    { dept: "exec",        employee: "whitfield", actor: "fin12",     connects: "emea",
+               resolved: "Privileged-account MFA hardened after the 47-failure burst." },
+  "sea":     { dept: "secops",      actor: "redbeacon",    connects: "latam",
+               resolved: "DMZ exposure closed; CDN probe baseline re-tuned." },
+};
+
+// Security bulletins — short, atmospheric Operations Center notices. A bulletin
+// with `after` (a node id) is REACTIVE: it only enters rotation once that real
+// mission is complete. Bulletins without `after` are always in rotation.
+const SECURITY_BULLETINS = [
+  { tag: "PHISHING", text: "Reminder: CyberCorp will never request VPN credentials by email. Forward suspicious mail to Security Operations." },
+  { tag: "ADVISORY", text: "Patch advisory — apply the CVE-2026-1033 VPN appliance fix. Active exploitation observed in the wild." },
+  { tag: "FINANCE",  text: "Finance reports increased invoice-fraud attempts. Verify any payment-detail change out-of-band." },
+  { tag: "IT INFRA", text: "Scheduled maintenance: IT Infrastructure rotates resolver-02 at 13:00 UTC." },
+  { tag: "HR",       text: "Mandatory security-awareness refresher is due this quarter — see the HR portal." },
+  { tag: "EXEC OPS", text: "Executive Operations: heightened spear-phishing risk targeting finance approvers." },
+  { tag: "RESOLVED", text: "FIN-12 phishing infrastructure blocked. Stay alert for re-registered look-alike domains.", after: "emea" },
+  { tag: "RESOLVED", text: "Cobalt Strike C2 sinkholed on NA-East. AS47337 reuse is being monitored across regions.", after: "na-east" },
+];
+
+// Dev guard: a `connects` edge must reference a PRIOR mission in NODE_CHAIN,
+// otherwise the "resembles infrastructure from …" link could only appear after a
+// LATER mission completes. Warns on violation; silent (clean console) when valid.
+Object.entries(WORLD_CONTINUITY).forEach(([id, cont]) => {
+  if (cont.connects && NODE_CHAIN.indexOf(cont.connects) >= NODE_CHAIN.indexOf(id)) {
+    console.warn(`[continuity] ${id}.connects "${cont.connects}" is not a prior mission in NODE_CHAIN.`);
+  }
+});
+
+// Read-only snapshot of the persistent world derived from completed missions.
+function getWorldState() {
+  const states = getMissionStates();
+  const completed = new Set(NODE_CHAIN.filter(id => states[id] === "completed"));
+  return { states, completed };
+}
+
+// Reactive intel: the "resolved" traces for completed missions, surfaced in the
+// Intel feed as organizational memory. Derived read-only each render.
+function getWorldMemoryIntel() {
+  const { completed } = getWorldState();
+  const items = [];
+  NODE_CHAIN.forEach(id => {
+    const cont = WORLD_CONTINUITY[id];
+    if (completed.has(id) && cont?.resolved) {
+      const opId = INCIDENTS[id]?.opId || id.toUpperCase();
+      items.push({ kind: "memory", text: `Case file ${opId}: ${cont.resolved}` });
+    }
+  });
+  return items;
+}
+
+/* ============================================================
    REAL-MISSION DEEP LINKS
    ------------------------------------------------------------
    These three incident nodes correspond to playable missions in
@@ -2172,6 +2288,61 @@ function renderIntelItem(data) {
   feed.appendChild(el);
 }
 
+// Rebuild the Intel feed = authored updates + reactive "world memory" entries
+// for completed missions. Idempotent (clears first), so it is safe to re-run on
+// resync when the player returns from completing a mission.
+function renderIntelFeed() {
+  const feed = document.getElementById('intelFeed');
+  if (!feed) return;
+  feed.innerHTML = '';
+  [...INTEL_UPDATES, ...getWorldMemoryIntel()].forEach(renderIntelItem);
+}
+
+/* ============================================================
+   SECURITY BULLETINS — atmospheric Operations Center notices
+   ============================================================ */
+let _bulletinTimer = null;
+let _bulletinIdx = 0;
+
+// Bulletins currently eligible to show — reactive ones appear only after their
+// gating mission is complete (read-only).
+function activeBulletins() {
+  const { completed } = getWorldState();
+  return SECURITY_BULLETINS.filter(b => !b.after || completed.has(b.after));
+}
+
+function renderBulletin() {
+  const el = document.getElementById('ocBulletin');
+  if (!el) return;
+  const list = activeBulletins();
+  if (!list.length) { el.hidden = true; return; }
+  el.hidden = false;
+  const b = list[_bulletinIdx % list.length];
+  const tagEl = el.querySelector('.oc-bulletin-tag');
+  const textEl = el.querySelector('.oc-bulletin-text');
+  if (!tagEl || !textEl) return;
+  // Fade out, swap content, fade back in (reflow forces the transition).
+  el.classList.remove('oc-bulletin--in');
+  void el.offsetWidth;
+  tagEl.textContent = b.tag;
+  textEl.textContent = b.text;
+  requestAnimationFrame(() => el.classList.add('oc-bulletin--in'));
+}
+
+function initBulletins() {
+  const el = document.getElementById('ocBulletin');
+  if (!el) return;
+  _bulletinIdx = 0;
+  renderBulletin();
+  if (_bulletinTimer) clearInterval(_bulletinTimer);
+  _bulletinTimer = setInterval(() => {
+    const list = activeBulletins();
+    if (!list.length) return;
+    _bulletinIdx = (_bulletinIdx + 1) % list.length;
+    renderBulletin();
+  }, 13000);
+}
+
 /* ============================================================
    SOC COMMS
    ============================================================ */
@@ -2247,6 +2418,37 @@ function showIncidentCard(incidentId) {
   }
   const tierEl = document.getElementById('incidentTier');
   if (tierEl) tierEl.textContent = `${band.name} · ${band.scope}`;
+
+  // Phase 3 — persistent-world continuity. Surface attribution to recurring
+  // adversary infrastructure, recurring employees, and (reactively) a link to a
+  // prior assignment once that mission is complete — rewarding player memory.
+  // All read-only from getMissionStates(); never persisted.
+  const linkEl = document.getElementById('incidentLinks');
+  if (linkEl) {
+    const cont = WORLD_CONTINUITY[incidentId];
+    const { completed } = getWorldState();
+    const rows = [];
+    if (cont?.actor) {
+      rows.push(`<span class="il-key">Attribution</span> ${actorLabel(cont.actor)} — recurring infrastructure.`);
+    }
+    if (cont?.connects && completed.has(cont.connects)) {
+      const prior = INCIDENTS[cont.connects];
+      if (prior) {
+        rows.push(`<span class="il-key">Linked</span> resembles infrastructure from ${prior.opId} (${prior.region}) — shared ${actorLabel(cont.actor)} tradecraft.`);
+      }
+    }
+    if (cont?.employee && EMPLOYEES[cont.employee]) {
+      const e = EMPLOYEES[cont.employee];
+      rows.push(`<span class="il-key">Reported by</span> ${e.name}, ${e.title} · ${deptName(e.dept)}.`);
+    }
+    if (rows.length) {
+      linkEl.hidden = false;
+      linkEl.innerHTML = rows.map(r => `<div class="incident-link-row">${r}</div>`).join('');
+    } else {
+      linkEl.hidden = true;
+      linkEl.innerHTML = '';
+    }
+  }
 
   // Reflect real-mission progress on the launch button (completed → replay,
   // locked → disabled). Mock-only nodes fall through to the default label.
@@ -3134,8 +3336,8 @@ function init() {
   // Render initial alerts
   INITIAL_ALERTS.forEach(a => renderAlert(a, false));
 
-  // Render initial intel
-  INTEL_UPDATES.forEach(item => renderIntelItem(item));
+  // Render intel = authored updates + reactive world-memory entries (Phase 3).
+  renderIntelFeed();
 
   // Render initial comms
   INITIAL_COMMS.forEach(msg => renderCommsMsg(msg));
@@ -3145,7 +3347,7 @@ function init() {
   // Re-sync when the player returns from the main game (e.g. after completing a
   // mission), so completion/lock badges AND the career panel (role, clearance,
   // advancement, promotion notice) update without a manual reload.
-  const resyncOpsState = () => { applyMissionProgress(); renderIdentityPanel(); };
+  const resyncOpsState = () => { applyMissionProgress(); renderIdentityPanel(); renderIntelFeed(); renderBulletin(); };
   window.addEventListener('focus', resyncOpsState);
   window.addEventListener('pageshow', resyncOpsState);
 
@@ -3244,6 +3446,9 @@ function init() {
 
   // Threat ticker
   initThreatTicker();
+
+  // Persistent-world security bulletins (Phase 3 — atmospheric, read-only).
+  initBulletins();
 
   // Start rolling live feed
   scheduleRollingAlerts();

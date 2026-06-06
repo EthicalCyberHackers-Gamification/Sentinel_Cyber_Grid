@@ -1,0 +1,207 @@
+# Phase 3 Prompt — Persistent Operational World & Reactive Organizational Environment
+
+Goal:
+Make CyberCorp feel like:
+a living operational environment.
+
+This phase creates:
+persistent organizational memory across missions.
+
+The world should feel:
+connected, operational, and evolving.
+
+NOT like isolated mission scenarios.
+
+---
+
+## WHAT STAYS THE SAME
+
+Keep:
+
+* current terminal architecture
+* mission structure
+* mission flow
+* assignment logic
+* operations center structure
+* evidence systems
+* investigation systems
+
+Do NOT:
+
+* create open-world gameplay
+* create RPG dialogue systems
+* add cinematic story mode
+* interrupt investigation pacing
+
+This phase enhances:
+world continuity.
+
+---
+
+## WHY THIS FEATURE IS BEING ADDED
+
+Current issue:
+
+Missions feel self-contained.
+
+After completion:
+the world forgets what happened.
+
+This weakens:
+
+* realism
+* continuity
+* emotional investment
+* organizational immersion
+
+Real cybersecurity operations environments are persistent.
+
+Events leave traces.
+
+Employees recur.
+
+Threats evolve.
+
+Departments remember incidents.
+
+This phase introduces:
+persistent operational continuity.
+
+---
+
+## PERSISTENT EMPLOYEE SYSTEM
+
+Employees should recur naturally.
+
+Example:
+An employee from Mission 001 later:
+
+* reports another issue
+* appears in access logs
+* becomes phishing victim
+* escalates suspicious activity
+
+This creates:
+organizational memory.
+
+---
+
+## PERSISTENT DEPARTMENTS
+
+Create recurring departments:
+
+* Finance
+* HR
+* Engineering
+* Executive Operations
+* IT Infrastructure
+* Legal
+* Security Operations
+
+Missions should reference:
+real departments consistently.
+
+---
+
+## SECURITY BULLETINS
+
+Operations Center may occasionally show:
+short security bulletins.
+
+Examples:
+
+* phishing warning
+* suspicious activity notice
+* infrastructure alert
+* patch advisory
+
+These should be lightweight and atmospheric.
+
+Do NOT turn them into gameplay interruptions.
+
+---
+
+## REACTIVE WORLD STATE
+
+Mission outcomes should occasionally affect future assignments.
+
+Examples:
+
+* blocked domain referenced later
+* recurring attacker infrastructure
+* repeat phishing campaigns
+* compromised employee referenced again
+
+This creates:
+cause-and-effect continuity.
+
+---
+
+## RECURRING THREAT ACTORS
+
+Introduce recurring adversary patterns.
+
+Not named supervillains.
+
+Instead:
+
+* infrastructure reuse
+* repeated domains
+* repeated TTPs
+* repeated malware family indicators
+
+This creates:
+realistic threat evolution.
+
+---
+
+## MISSION CONNECTIONS
+
+Assignments should occasionally reference:
+previous incidents.
+
+Example:
+
+“This domain resembles infrastructure seen in Assignment 003.”
+
+This rewards:
+player memory and operational awareness.
+
+---
+
+## DESIGN RULES
+
+Keep:
+
+* operational tone
+* realism
+* subtlety
+* mission focus
+
+Avoid:
+
+* excessive exposition
+* RPG systems
+* branching dialogue trees
+* cinematic storytelling
+* clutter
+
+The player should feel:
+they are operating inside a persistent cybersecurity environment.
+
+NOT:
+playing through scripted story chapters.
+
+---
+
+## SUCCESS CRITERIA
+
+This phase succeeds if:
+
+* CyberCorp feels alive
+* missions feel connected
+* players remember employees and departments
+* prior investigations feel meaningful
+* operational realism increases
+* immersion increases without slowing gameplay
+* the game still prioritizes investigation and analysis above narrative

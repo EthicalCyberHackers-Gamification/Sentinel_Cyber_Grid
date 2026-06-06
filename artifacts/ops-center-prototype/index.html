@@ -119,6 +119,12 @@
           </div>
         </div>
 
+        <div class="oc-bulletin" id="ocBulletin" role="status" aria-live="polite" hidden>
+          <span class="oc-bulletin-icon" aria-hidden="true">⚑</span>
+          <span class="oc-bulletin-tag">NOTICE</span>
+          <span class="oc-bulletin-text"></span>
+        </div>
+
         <div class="map-container">
           <svg class="world-svg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" shape-rendering="geometricPrecision" aria-hidden="true">
             <defs>
@@ -239,6 +245,7 @@
                 <span class="incident-meta-val" id="incidentTier">—</span>
               </div>
             </div>
+            <div class="incident-links" id="incidentLinks" hidden></div>
             <button class="incident-launch-btn" id="incidentLaunchBtn" type="button">
               ▶&nbsp; LAUNCH INVESTIGATION
             </button>
