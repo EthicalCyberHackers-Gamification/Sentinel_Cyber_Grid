@@ -635,7 +635,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   box-shadow: 0 0 22px currentColor;
 }
 
-/* Radar sweep — critical nodes only */
+/* Radar sweep — base (CRITICAL nodes). Sweep width scales with severity:
+   the more severe the threat, the wider the sweep wedge. CRITICAL is widest. */
 .node-radar {
   position: absolute;
   top: 50%;
@@ -647,8 +648,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background: conic-gradient(
     from 0deg,
     transparent 0deg,
-    rgba(255, 51, 68, 0.4) 18deg,
-    transparent 36deg
+    rgba(255, 51, 68, 0.4) 30deg,
+    transparent 60deg
   );
   animation: radar-sweep 4s linear infinite;
   z-index: 0;
@@ -660,7 +661,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   to   { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
-/* HIGH-severity radar: orange sweep, slower rotation */
+/* HIGH-severity radar: orange sweep, medium width, slower rotation */
 .incident-node--high .node-radar {
   background: conic-gradient(
     from 0deg,
@@ -669,6 +670,17 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
     transparent 36deg
   );
   animation-duration: 6s;
+}
+
+/* MEDIUM-severity radar: yellow sweep, narrowest width, slowest rotation */
+.incident-node--medium .node-radar {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 215, 0, 0.4) 10deg,
+    transparent 20deg
+  );
+  animation-duration: 8s;
 }
 
 .node-pulse {

@@ -120,7 +120,7 @@
         </div>
 
         <div class="map-container">
-          <svg class="world-svg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <svg class="world-svg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" shape-rendering="geometricPrecision" aria-hidden="true">
             <defs>
               <pattern id="mapGrid" width="50" height="50" patternUnits="userSpaceOnUse">
                 <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(0,255,136,0.06)" stroke-width="0.5"/>
@@ -187,11 +187,13 @@
               <span class="node-label">NA-EAST</span>
             </button>
             <button class="incident-node incident-node--medium" id="node-latam" style="left:36.1%;top:58.3%" data-id="latam" aria-label="LATAM — Medium">
+              <span class="node-radar" aria-hidden="true"></span>
               <span class="node-pulse" aria-hidden="true"></span>
               <span class="node-core" aria-hidden="true"></span>
               <span class="node-label">LATAM</span>
             </button>
             <button class="incident-node incident-node--medium" id="node-mena" style="left:61.7%;top:35.6%" data-id="mena" aria-label="MENA — Medium">
+              <span class="node-radar" aria-hidden="true"></span>
               <span class="node-pulse" aria-hidden="true"></span>
               <span class="node-core" aria-hidden="true"></span>
               <span class="node-label">MENA</span>

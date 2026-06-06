@@ -470,6 +470,28 @@ const SoundEngine = (() => {
     osc.stop(t + 0.14);
   }
 
+  // Soft descending "close" blip when an incident card is dismissed — a
+  // gentle two-step downward glide so dismissing feels distinct from the
+  // sharper upward select snap.
+  function playCloseSound() {
+    if (!_canPlay()) return;
+    const ac = _getCtx();
+    const t = ac.currentTime;
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.type = 'sine';
+    // Downward glide for a soft "dismiss" feel.
+    osc.frequency.setValueAtTime(660, t);
+    osc.frequency.exponentialRampToValueAtTime(330, t + 0.14);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.05, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    osc.start(t);
+    osc.stop(t + 0.22);
+  }
+
   // Minimal click/blip for the ticker — very quiet
   function playTickerBeep() {
     if (!_canPlay()) return;
@@ -511,7 +533,7 @@ const SoundEngine = (() => {
     return _volume;
   }
 
-  return { playAlertChime, playRadarPing, playNodeSelect, playTickerBeep, isMuted, toggle, refresh, getVolume, setVolume, STORAGE_KEY, VOLUME_KEY };
+  return { playAlertChime, playRadarPing, playNodeSelect, playCloseSound, playTickerBeep, isMuted, toggle, refresh, getVolume, setVolume, STORAGE_KEY, VOLUME_KEY };
 })();
 
 /* ============================================================
@@ -671,7 +693,11 @@ function showIncidentCard(incidentId) {
 }
 
 function hideIncidentCard() {
-  document.getElementById('incidentCard').style.display = 'none';
+  const card = document.getElementById('incidentCard');
+  // Soft "close" blip only when a card was actually open (respects mute +
+  // Page Visibility guard internally). Avoids a stray sound on no-op calls.
+  if (card.style.display !== 'none') SoundEngine.playCloseSound();
+  card.style.display = 'none';
   document.querySelectorAll('.incident-node').forEach(n => n.classList.remove('node--active'));
   activeNodeId = null;
 }

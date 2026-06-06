@@ -164,7 +164,7 @@
           </div>
 
           <div class="ocv2-map-container" id="ocv2MapContainer">
-            <svg class="ocv2-world-svg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <svg class="ocv2-world-svg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" shape-rendering="geometricPrecision" aria-hidden="true">
               <defs>
                 <pattern id="ocv2MapGrid" width="50" height="50" patternUnits="userSpaceOnUse">
                   <path d="M 50 0 L 0 0 0 50" fill="none" stroke="rgba(0,255,136,0.06)" stroke-width="0.5"/>
@@ -199,7 +199,7 @@
               </circle>
             </svg>
 
-            <!-- Mission Nodes (3 active + 3 decorative) -->
+            <!-- Mission Nodes (6 active assignments) -->
             <div class="ocv2-map-nodes" aria-label="Mission incident nodes">
               <!-- M1: EMEA — Credential Phishing (CRITICAL) -->
               <button class="ocv2-node ocv2-node--critical" id="ocv2NodeEmea"
@@ -235,22 +235,38 @@
                 <span class="ocv2-node-label">NA-EAST</span>
               </button>
 
-              <!-- Decorative / atmospheric nodes (no incident card) -->
-              <div class="ocv2-node ocv2-node--medium ocv2-node--deco" style="left:36.1%;top:58.3%" aria-hidden="true">
-                <span class="ocv2-node-pulse"></span>
-                <span class="ocv2-node-core"></span>
+              <!-- M4: LATAM — Reconnaissance Sweep (MEDIUM) -->
+              <button class="ocv2-node ocv2-node--medium" id="ocv2NodeLatam"
+                      data-mission="mission-004"
+                      style="left:36.1%;top:58.3%"
+                      type="button"
+                      aria-label="LATAM Region — Reconnaissance Sweep — Click to view incident">
+                <span class="ocv2-node-pulse" aria-hidden="true"></span>
+                <span class="ocv2-node-core" aria-hidden="true"></span>
                 <span class="ocv2-node-label">LATAM</span>
-              </div>
-              <div class="ocv2-node ocv2-node--medium ocv2-node--deco" style="left:61.7%;top:35.6%" aria-hidden="true">
-                <span class="ocv2-node-pulse"></span>
-                <span class="ocv2-node-core"></span>
+              </button>
+
+              <!-- M5: MENA — Account Takeover Investigation (MEDIUM) -->
+              <button class="ocv2-node ocv2-node--medium" id="ocv2NodeMena"
+                      data-mission="mission-005"
+                      style="left:61.7%;top:35.6%"
+                      type="button"
+                      aria-label="MENA Region — Account Takeover Investigation — Click to view incident">
+                <span class="ocv2-node-pulse" aria-hidden="true"></span>
+                <span class="ocv2-node-core" aria-hidden="true"></span>
                 <span class="ocv2-node-label">MENA</span>
-              </div>
-              <div class="ocv2-node ocv2-node--low ocv2-node--deco" style="left:82.8%;top:51.1%" aria-hidden="true">
-                <span class="ocv2-node-pulse"></span>
-                <span class="ocv2-node-core"></span>
+              </button>
+
+              <!-- M6: SE ASIA — Anomalous Scan Triage (LOW) -->
+              <button class="ocv2-node ocv2-node--low" id="ocv2NodeSea"
+                      data-mission="mission-006"
+                      style="left:82.8%;top:51.1%"
+                      type="button"
+                      aria-label="SE Asia Region — Anomalous Scan Triage — Click to view incident">
+                <span class="ocv2-node-pulse" aria-hidden="true"></span>
+                <span class="ocv2-node-core" aria-hidden="true"></span>
                 <span class="ocv2-node-label">SEA</span>
-              </div>
+              </button>
             </div>
 
             <!-- Incident Card (populated by showOcv2IncidentCard in script.js) -->
@@ -289,7 +305,7 @@
 
           <!-- Map Footer Stats -->
           <div class="ocv2-map-footer">
-            <div class="ocv2-map-stat"><span class="ocv2-stat-label">ASSIGNMENTS</span><span class="ocv2-stat-val ocv2-stat--warn">3 ACTIVE</span></div>
+            <div class="ocv2-map-stat"><span class="ocv2-stat-label">ASSIGNMENTS</span><span class="ocv2-stat-val ocv2-stat--warn">6 TOTAL</span></div>
             <div class="ocv2-map-stat"><span class="ocv2-stat-label">CRITICAL</span><span class="ocv2-stat-val ocv2-stat--critical">1</span></div>
             <div class="ocv2-map-stat"><span class="ocv2-stat-label">HIGH</span><span class="ocv2-stat-val ocv2-stat--high">2</span></div>
             <div class="ocv2-map-stat"><span class="ocv2-stat-label">COVERAGE</span><span class="ocv2-stat-val ocv2-stat--ok">GLOBAL</span></div>
@@ -407,107 +423,13 @@
 
     </section>
 
-    <!-- ===== CYBER MISSIONS MAP (Milestone 25C) =====
-         Shown AFTER Enter Module + the simulation loader, BEFORE the
-         investigation. A 2D dark cyber mission-selection screen: glowing
-         mission nodes connected by path lines, a mission details panel,
-         and a Sarah Reyes transmission panel. Selection only — launching a
-         mission hands off to the existing M1 / M2 flow. Hidden by default;
-         toggled by showMissionsMap() in script.js. -->
-    <section id="missionsMap" class="missions-map-screen" aria-label="Cyber Operations Map" style="display:none;">
-      <div class="missions-map-gridbg" aria-hidden="true"></div>
-      <div class="missions-map-scanline" aria-hidden="true"></div>
+    <!-- ===== CYBER MISSIONS MAP — RETIRED (Task 22) =====
+         The legacy "Cyber Operations Map" (#missionsMap) was removed once the
+         three-panel Operations Center (#moduleLanding) became the single hub.
+         All former entry points (mission "Back" buttons, completion "Next
+         Step", and "Open Full Map") now route to the Operations Center via
+         showModuleLanding(). showMissionsMap() remains as a thin redirect. -->
 
-      <div class="missions-map-inner">
-        <header class="missions-map-header">
-          <div class="missions-map-eyebrow">
-            <span class="missions-map-eyebrow-label">CYBER RANGE</span>
-            <span class="missions-map-eyebrow-sep">—</span>
-            <span class="missions-map-eyebrow-value">Operations Command</span>
-          </div>
-          <h1 class="missions-map-title">Cyber Operations Map</h1>
-          <p class="missions-map-subtitle" id="missionsMapWelcome">
-            Select an assignment to view its briefing.
-          </p>
-        </header>
-
-        <div class="missions-map-layout">
-          <!-- LEFT: mission board with glowing nodes + path lines -->
-          <div class="missions-map-board" aria-label="Mission nodes">
-            <svg class="missions-map-paths" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <line class="map-path-line" id="mapPath12" x1="22" y1="20" x2="50" y2="50" />
-              <line class="map-path-line" id="mapPath23" x1="50" y1="50" x2="78" y2="80" />
-            </svg>
-
-            <button class="mission-node mission-node--available" id="mapNode1"
-                    data-mission="mission-001" type="button"
-                    style="--node-x:22%; --node-y:20%;"
-                    aria-label="Assignment 1 — Credential Phishing Investigation">
-              <span class="mission-node-ring" aria-hidden="true"></span>
-              <span class="mission-node-core">
-                <span class="mission-node-num">01</span>
-                <span class="mission-node-check" aria-hidden="true">✓</span>
-              </span>
-              <span class="mission-node-meta">
-                <span class="mission-node-label">Credential Phishing Investigation</span>
-                <span class="mission-node-status" id="mapNode1Status">Available</span>
-              </span>
-            </button>
-
-            <button class="mission-node mission-node--locked" id="mapNode2"
-                    data-mission="mission-002" type="button"
-                    style="--node-x:50%; --node-y:50%;"
-                    aria-label="Assignment 2 — Network Exposure Review">
-              <span class="mission-node-ring" aria-hidden="true"></span>
-              <span class="mission-node-core">
-                <span class="mission-node-num">02</span>
-                <span class="mission-node-check" aria-hidden="true">✓</span>
-              </span>
-              <span class="mission-node-meta">
-                <span class="mission-node-label">Network Exposure Review</span>
-                <span class="mission-node-status" id="mapNode2Status">Locked</span>
-              </span>
-            </button>
-
-            <button class="mission-node mission-node--locked" id="mapNode3"
-                    data-mission="mission-003" type="button"
-                    style="--node-x:78%; --node-y:80%;"
-                    aria-label="Assignment 3 — Reconnaissance Detection">
-              <span class="mission-node-ring" aria-hidden="true"></span>
-              <span class="mission-node-core">
-                <span class="mission-node-num">03</span>
-                <span class="mission-node-check" aria-hidden="true">✓</span>
-              </span>
-              <span class="mission-node-meta">
-                <span class="mission-node-label">Reconnaissance Detection</span>
-                <span class="mission-node-status" id="mapNode3Status">Coming Next</span>
-              </span>
-            </button>
-          </div>
-
-          <!-- RIGHT: mission details + manager transmission -->
-          <aside class="missions-map-side">
-            <div class="mission-details-panel" id="missionDetailsPanel" aria-live="polite">
-              <!-- Populated by renderMissionDetails() -->
-            </div>
-
-            <div class="manager-transmission-panel">
-              <div class="transmission-header">
-                <div class="transmission-avatar" aria-hidden="true">SR</div>
-                <div class="transmission-meta">
-                  <span class="transmission-name">Sarah Reyes</span>
-                  <span class="transmission-role">Lead Analyst</span>
-                </div>
-                <span class="transmission-status">
-                  <span class="transmission-dot" aria-hidden="true"></span>TRANSMISSION ACTIVE
-                </span>
-              </div>
-              <p class="transmission-text" id="mapTransmissionText" aria-live="polite"></p>
-            </div>
-          </aside>
-        </div>
-      </div>
-    </section>
 
     <!-- ===== MISSION 2 OVERVIEW SCREEN (Milestone 19) =====
          Shown when the student clicks "Start Mission 2" from the
@@ -633,7 +555,7 @@
             <div class="mini-map-head">
               <span class="mini-map-label">Mission Control</span>
               <button id="m2OpenFullMapBtn" class="mini-map-open-btn" type="button">
-                Open Full Map
+                Open Operations Center
               </button>
             </div>
             <div class="mini-map" id="m2MiniMap">
@@ -1195,7 +1117,7 @@
             <div class="mini-map-head">
               <span class="mini-map-label">Mission Control</span>
               <button id="m3OpenFullMapBtn" class="mini-map-open-btn" type="button">
-                Open Full Map
+                Open Operations Center
               </button>
             </div>
             <div class="mini-map" id="m3MiniMap">
@@ -1679,7 +1601,7 @@
             <div class="mini-map-head">
               <span class="mini-map-label">Mission Control</span>
               <button id="m1OpenFullMapBtn" class="mini-map-open-btn" type="button">
-                Open Full Map
+                Open Operations Center
               </button>
             </div>
             <div class="mini-map" id="m1MiniMap">

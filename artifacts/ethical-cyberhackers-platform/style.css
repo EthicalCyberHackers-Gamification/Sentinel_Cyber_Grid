@@ -5503,6 +5503,7 @@ body.focus-mode .center-column { flex: 1 1 100%; }
   /* The focus bar spans full width here, so lift the Music toggle above it
      (only while a mission is active) to keep the bottom controls from overlapping. */
   body.mission-running .soundtrack-toggle { bottom: 56px; }
+  body.mission-running .soundtrack-volume { bottom: 94px; }
 }
 
 /* ======================================================
@@ -6535,7 +6536,8 @@ body.mission-running .mini-node--active.mini-node--completed .mini-node-dot {
 /* During the opt-in demo, hide the floating focus bar and music toggle so
    they can never overlap / intercept the demo coach's nav buttons. */
 body.demo-active .focus-control-bar,
-body.demo-active .soundtrack-toggle {
+body.demo-active .soundtrack-toggle,
+body.demo-active .soundtrack-volume {
   display: none !important;
 }
 .demo-coach-head {
@@ -6642,6 +6644,28 @@ body.demo-active .soundtrack-toggle {
 }
 @media (prefers-reduced-motion: reduce) {
   .soundtrack-toggle { transition: none; }
+}
+
+/* #32 — master-volume slider, parked just above the Music toggle. */
+.soundtrack-volume {
+  position: fixed;
+  right: 16px;
+  bottom: 54px;
+  z-index: 9999;
+  width: 116px;
+  height: 24px;
+  padding: 0 10px;
+  cursor: pointer;
+  accent-color: #6ef3c5;
+  background: rgba(8, 18, 24, 0.82);
+  border: 1px solid rgba(110, 243, 197, 0.45);
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 0 14px rgba(110, 243, 197, 0.18);
+}
+.soundtrack-volume:focus-visible {
+  outline: 2px solid rgba(110, 243, 197, 0.8);
+  outline-offset: 2px;
 }
 
 /* ============================================================
@@ -9441,6 +9465,44 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 /* Trust chip color-coding by tier (at-a-glance manager-trust trend). */
 .ocv2-agent-stat--trust {
   transition: color 0.4s ease, text-shadow 0.4s ease;
+  position: relative;
+  cursor: help;
+}
+
+/* #33 — hover/focus legend explaining the trust tiers. Reads from data-tip. */
+.ocv2-agent-stat--trust::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 10010;
+  width: 248px;
+  padding: 9px 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.3px;
+  text-align: left;
+  white-space: normal;
+  color: var(--color-text);
+  background: rgba(8, 18, 24, 0.97);
+  border: 1px solid var(--color-border-glow, rgba(110, 243, 197, 0.45));
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  pointer-events: none;
+}
+.ocv2-agent-stat--trust:hover::after,
+.ocv2-agent-stat--trust:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ocv2-agent-stat--trust::after { transition: none; transform: none; }
 }
 .ocv2-agent-stat--trust-high {
   color: var(--color-green);

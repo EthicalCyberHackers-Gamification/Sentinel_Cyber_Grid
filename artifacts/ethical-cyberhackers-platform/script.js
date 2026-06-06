@@ -53,6 +53,10 @@ import {
   isGenericMission,
 } from "/missions.js";
 
+// Context-aware mission "back" button labels, extracted so the labelling logic
+// can be unit-tested under node without a DOM (see tests/back-button-labels.test.js).
+import { missionBackLabel } from "/uiLabels.js";
+
 // Phase B0 — best-effort, local-first Supabase backend foundation. Every call
 // here is fire-and-forget and safe in "local-only mode"; gameplay never depends
 // on it (localStorage remains authoritative).
@@ -102,12 +106,29 @@ function readSharedMuted() {
 }
 let soundtrackMuted       = readSharedMuted();
 
+// The master volume (0–1) is shared under the same-origin key
+// `ech.sound.volume` (mirrors the Operations Center prototype's slider). An
+// absent/invalid key falls back to this app's gentle default. Stored in
+// localStorage so it persists across reloads and live-syncs across tabs (see
+// the storage listener below).
+const SOUND_VOLUME_KEY = "ech.sound.volume";
+function readSharedVolume() {
+  try {
+    const raw = localStorage.getItem(SOUND_VOLUME_KEY);
+    if (raw === null) return SOUNDTRACK_VOLUME;
+    const v = Number(raw);
+    if (!Number.isFinite(v)) return SOUNDTRACK_VOLUME;
+    return Math.min(1, Math.max(0, v));
+  } catch (_) { return SOUNDTRACK_VOLUME; }
+}
+let soundtrackVolume      = readSharedVolume();
+
 function initSoundtrack() {
   if (soundtrackAudio) return soundtrackAudio;
   soundtrackAudio = new Audio(soundtrackUrl);
   soundtrackAudio.preload = "auto";
   soundtrackAudio.loop = false; // we restart manually after a break
-  soundtrackAudio.volume = SOUNDTRACK_VOLUME;
+  soundtrackAudio.volume = soundtrackVolume;
   // When the track finishes, wait out the break, then start it over.
   soundtrackAudio.addEventListener("ended", () => {
     if (soundtrackBreakTimer) clearTimeout(soundtrackBreakTimer);
@@ -149,10 +170,29 @@ function setSoundtrackMuted(muted, persist = true) {
   }
 }
 
-// Live-sync the shared mute preference if the Operations Center (or another
-// tab) changes it while the game is open.
+// Set the master music volume (0–1), apply it live to the audio element, and
+// (optionally) persist + reflect it on the slider. `persist=false` is used by
+// the cross-tab storage listener so an inbound change doesn't echo back out.
+function setSoundtrackVolume(vol, persist = true) {
+  const v = Math.min(1, Math.max(0, Number(vol)));
+  soundtrackVolume = Number.isFinite(v) ? v : SOUNDTRACK_VOLUME;
+  if (soundtrackAudio) soundtrackAudio.volume = soundtrackVolume;
+  if (persist) {
+    try { localStorage.setItem(SOUND_VOLUME_KEY, String(soundtrackVolume)); }
+    catch (_) { /* storage disabled — in-memory volume still applies */ }
+  }
+  const slider = document.getElementById("soundtrackVolume");
+  // Don't fight the user while they're dragging the control.
+  if (slider && document.activeElement !== slider) {
+    slider.value = String(Math.round(soundtrackVolume * 100));
+  }
+}
+
+// Live-sync the shared mute + volume preferences if the Operations Center (or
+// another tab) changes them while the game is open.
 window.addEventListener("storage", (e) => {
   if (e.key === SOUND_MUTED_KEY) setSoundtrackMuted(readSharedMuted(), false);
+  if (e.key === SOUND_VOLUME_KEY) setSoundtrackVolume(readSharedVolume(), false);
 });
 
 function toggleSoundtrackMuted() {
@@ -173,6 +213,20 @@ function ensureSoundtrackToggle() {
   btn.setAttribute("aria-label", "Toggle background music");
   btn.addEventListener("click", toggleSoundtrackMuted);
   document.body.appendChild(btn);
+
+  // Master-volume slider (0–100 → 0–1), mirroring the Operations Center
+  // prototype. Lives just above the mute toggle in the bottom-right corner.
+  const slider = document.createElement("input");
+  slider.id = "soundtrackVolume";
+  slider.type = "range";
+  slider.min = "0";
+  slider.max = "100";
+  slider.step = "1";
+  slider.value = String(Math.round(soundtrackVolume * 100));
+  slider.className = "soundtrack-volume";
+  slider.setAttribute("aria-label", "Background music volume");
+  slider.addEventListener("input", () => setSoundtrackVolume(Number(slider.value) / 100));
+  document.body.appendChild(slider);
 }
 
 
@@ -4062,6 +4116,9 @@ function restoreSavedProgress() {
  */
 function clearSavedProgress() {
   try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+  // Task 24 — also clear the persisted completion-comms cache so a fresh start
+  // doesn't replay acknowledgements for assignments that no longer count.
+  ocv2ClearCommsLog();
 
   // Reset student name + input + Enter Module button
   studentName = "";
@@ -5625,11 +5682,11 @@ function completeMission(newRank) {
    point back to the Mission Map.
    ============================================================ */
 const NEXT_STEP_TEXT = {
-  "mission-001": "Assignment 1 complete. Return to the Operations Map to unlock and start Assignment 2.",
-  "mission-002": "Assignment 2 complete. Return to the Operations Map to review your progress and see the next locked assignment.",
+  "mission-001": "Assignment 1 complete. Return to the Operations Center to unlock and start Assignment 2.",
+  "mission-002": "Assignment 2 complete. Return to the Operations Center to review your progress and see the next locked assignment.",
 };
-const COMPLETION_OBJECTIVE = "Assignment complete. Open the Operations Map to continue.";
-const COMPLETION_MANAGER   = "Good work. Return to the Mission Map to continue your training path.";
+const COMPLETION_OBJECTIVE = "Assignment complete. Open the Operations Center to continue.";
+const COMPLETION_MANAGER   = "Good work. Return to the Operations Center to continue your training path.";
 
 function buildNextStepHTML(missionId) {
   const text = NEXT_STEP_TEXT[missionId] || COMPLETION_OBJECTIVE;
@@ -5640,7 +5697,7 @@ function buildNextStepHTML(missionId) {
       <p class="next-step-text">${escapeHtml(text)}</p>
       <div class="next-step-actions">
         <button type="button" class="next-step-btn next-step-btn--primary" id="nextStepMap${sfx}">
-          Open Mission Map
+          Open Operations Center
         </button>
         <button type="button" class="next-step-btn next-step-btn--secondary" id="nextStepScore${sfx}">
           Review Scorecard
@@ -5656,7 +5713,7 @@ function buildNextStepHTML(missionId) {
 function wireNextStepButtons(missionId) {
   const sfx = missionId === "mission-003" ? "M3" : missionId === "mission-002" ? "M2" : "M1";
   const mapBtn = document.getElementById(`nextStepMap${sfx}`);
-  if (mapBtn) mapBtn.addEventListener("click", showMissionsMap);
+  if (mapBtn) mapBtn.addEventListener("click", showModuleLanding);
   const scoreBtn = document.getElementById(`nextStepScore${sfx}`);
   if (scoreBtn) scoreBtn.addEventListener("click", () => {
     const hostId = missionId === "mission-003" ? "m3AnalystReview" : missionId === "mission-002" ? "m2AnalystReview" : "quizPanel";
@@ -7114,6 +7171,33 @@ const OCV2_NODE_META = {
     commsName:   "Cmdr. Brooks",
     commsRole:   "Incident Cmd",
   },
+  // Task 29 — data-driven assignments 004/005/006 surfaced on the OC map.
+  // `threat` supplies the card's THREAT TYPE (GENERIC_MISSIONS has no such
+  // field); region/severity mirror the GENERIC_MISSIONS entries.
+  "mission-004": {
+    severity:    "MEDIUM",
+    region:      "LATAM REGION",
+    threat:      "External Reconnaissance Sweep",
+    commsAuthor: "intel",
+    commsName:   "Marcus Chen",
+    commsRole:   "Threat Intel",
+  },
+  "mission-005": {
+    severity:    "MEDIUM",
+    region:      "MENA REGION",
+    threat:      "Account Takeover",
+    commsAuthor: "lead",
+    commsName:   "Sarah Reyes",
+    commsRole:   "SOC Lead",
+  },
+  "mission-006": {
+    severity:    "LOW",
+    region:      "SE ASIA REGION",
+    threat:      "Anomalous Scanning",
+    commsAuthor: "cmd",
+    commsName:   "Cmdr. Brooks",
+    commsRole:   "Incident Cmd",
+  },
 };
 
 const OCV2_TICKER_IOCS = [
@@ -7161,6 +7245,17 @@ const OCV2_COMPLETION_COMMS = {
     delayed:   "NA-East recon assignment closed — right recommendation reached after some drift. Source is on the monitor list.",
     weak:      "NA-East reconnaissance reported, but the optimal call was missed. Source is monitored — review the decision tree with me.",
   },
+  // Task 29 — generic missions resolve to the neutral `excellent` line (the
+  // tier detector in ocv2PostCompletionComms only refines 001/002/003).
+  "mission-004": {
+    excellent: "LATAM perimeter sweep classified and logged — clean attribution of the recon stage. Solid work, analyst.",
+  },
+  "mission-005": {
+    excellent: "MENA account-takeover investigation closed — compromise scoped and contained. Sharp triage, analyst.",
+  },
+  "mission-006": {
+    excellent: "SE-Asia scan triaged and escalated correctly — right call on a noisy alert. Good judgment, analyst.",
+  },
 };
 
 /**
@@ -7183,6 +7278,41 @@ function ocv2BuildInitialComms() {
     { author: "junior", name: "Alex Torres",  role: "Junior Analyst",
       time: "06:13", text: "All assignments queued. Standing by for analyst deployment." },
   ];
+}
+
+/**
+ * localStorage key for the persisted completion-comms log (Task 24). This is a
+ * presentation-only cache that lets the team's assignment-completion
+ * acknowledgements survive a page refresh. It is SEPARATE from the
+ * authoritative game-progress blob (`ech.progress.v1`) and the cloud sync
+ * layer — writes here never touch saveProgress()/Supabase, and a corrupt or
+ * absent value degrades gracefully to "no replayed comms".
+ */
+const OCV2_COMMS_LOG_KEY = "ech.ocv2.comms.v1";
+
+/** Read the persisted completion-comms log (newest-capped at 14). */
+function ocv2LoadCommsLog() {
+  try {
+    const raw = localStorage.getItem(OCV2_COMMS_LOG_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.slice(-14) : [];
+  } catch (_) { return []; }
+}
+
+/** Append one completion-comms entry to the persisted log (caps at 14). */
+function ocv2AppendCommsLog(entry) {
+  try {
+    const log = ocv2LoadCommsLog();
+    log.push(entry);
+    while (log.length > 14) log.shift();
+    localStorage.setItem(OCV2_COMMS_LOG_KEY, JSON.stringify(log));
+  } catch (_) { /* presentation-only — never block on storage failures */ }
+}
+
+/** Clear the persisted completion-comms log (used on full progress reset). */
+function ocv2ClearCommsLog() {
+  try { localStorage.removeItem(OCV2_COMMS_LOG_KEY); } catch (_) { /* non-fatal */ }
 }
 
 /** Module-level state for the ops center panel. */
@@ -7298,26 +7428,32 @@ function showOcv2IncidentCard(missionId) {
   const meta = OCV2_NODE_META[missionId];
   if (!meta) return;
 
-  // Narrative content sourced from the canonical MISSION_MAP entry.
-  const mapData = MISSION_MAP[missionId] || {};
+  // Narrative content: live missions (001-003) come from the canonical
+  // MISSION_MAP; data-driven missions (004-006) from GENERIC_MISSIONS. Both
+  // are normalized into one shape so the card-fill code below stays uniform.
+  const gen = isGenericMission(missionId) ? (getGenericMission(missionId) || {}) : null;
+  const mapData = gen
+    ? {
+        title:        gen.title,
+        briefing:     gen.briefing,
+        threat:       meta.threat || gen.severity,
+        transmission: gen.supervisorIntro,
+      }
+    : (MISSION_MAP[missionId] || {});
 
   ocv2ActiveNodeId = missionId;
 
   // Highlight the selected node; deselect all others.
   document.querySelectorAll(".ocv2-node[data-mission]").forEach((n) =>
     n.classList.remove("ocv2-node--active"));
-  const nodeIds = { "mission-001": "ocv2NodeEmea", "mission-002": "ocv2NodeApac", "mission-003": "ocv2NodeNaEast" };
-  const node = document.getElementById(nodeIds[missionId] || "");
+  const node = document.querySelector(`.ocv2-node[data-mission="${missionId}"]`);
   if (node) node.classList.add("ocv2-node--active");
 
-  const m1Done = !!missionComplete;
-  const m2Done = !!mission2Complete;
-  const m3Done = !!mission3Complete;
-  const isLocked = (missionId === "mission-002" && !m1Done) ||
-                   (missionId === "mission-003" && !m2Done);
-  const isDone   = (missionId === "mission-001" && m1Done) ||
-                   (missionId === "mission-002" && m2Done) ||
-                   (missionId === "mission-003" && m3Done);
+  // Gating + completion are unified across all six assignments via the
+  // canonical missionMapStatus() chain (m4←m3, m5←m4, m6←m5).
+  const status   = missionMapStatus(missionId);
+  const isLocked = status === "locked";
+  const isDone   = status === "completed";
 
   const card = document.getElementById("ocv2IncidentCard");
   if (!card) return;
@@ -7391,13 +7527,18 @@ function ocv2PostCompletionComms(missionId) {
   const byTier = OCV2_COMPLETION_COMMS[missionId] || {};
   const text = byTier[tier] || byTier.excellent || "Assignment closed. Good work, analyst.";
 
-  ocv2RenderCommsMsg({
+  // Capture the timestamp once so the rendered message and the persisted copy
+  // share the same time after a refresh (Task 24).
+  const entry = {
     author: meta.commsAuthor,
     name:   meta.commsName,
     role:   meta.commsRole,
     text,
-    time:   null,
-  });
+    time:   ocv2NowTime(),
+  };
+  ocv2RenderCommsMsg(entry);
+  // Persist so the acknowledgement reappears on reload (presentation-only).
+  ocv2AppendCommsLog({ ...entry, missionId });
 }
 
 /**
@@ -7422,6 +7563,10 @@ function initOcv2() {
   const feed = document.getElementById("ocv2CommsFeed");
   if (feed && !feed.children.length) {
     ocv2BuildInitialComms().forEach((msg) => ocv2RenderCommsMsg(msg));
+    // Replay persisted completion acknowledgements (Task 24) so finished
+    // assignments still show their team comms after a page refresh. The feed
+    // self-caps at 14, so the most recent messages win.
+    ocv2LoadCommsLog().forEach((msg) => ocv2RenderCommsMsg(msg));
   }
 
   // Wire mission-node buttons (EMEA / APAC / NA-EAST)
@@ -7511,6 +7656,19 @@ function renderOcPanelV2() {
       "ocv2-agent-stat--trust-critical"
     );
     trustEl.classList.add("ocv2-agent-stat--trust", `ocv2-agent-stat--trust-${tier}`);
+    // #33 — explain what the score means on hover/focus (tier name + bands).
+    const tierLabel =
+      tier === "high"   ? "Trusted"  :
+      tier === "medium" ? "Solid"    :
+      tier === "low"    ? "Watch"    : "At Risk";
+    const trustTip =
+      `Manager trust: ${trustVal}/100 — ${tierLabel}. ` +
+      `Sound Blue Team calls raise it; wrong or rushed ones drop it. ` +
+      `Bands: 75+ Trusted · 50–74 Solid · 25–49 Watch · <25 At Risk.`;
+    trustEl.dataset.tip = trustTip;
+    trustEl.setAttribute("title", trustTip);
+    trustEl.setAttribute("aria-label", trustTip);
+    trustEl.setAttribute("tabindex", "0");
     // Pulse when the value changes between renders (up = good, down = warning).
     const prev = trustEl.dataset.trustVal;
     if (prev !== undefined && prev !== "") {
@@ -7588,21 +7746,20 @@ function renderOcPanelV2() {
     if (badge) badge.textContent = `${activeN} ACTIVE`;
   }
 
-  // Update node locked / completed visual state
+  // Update node locked / completed visual state for all six assignments,
+  // unified via the canonical missionMapStatus() chain.
   const nodeIds = {
     "mission-001": "ocv2NodeEmea",
     "mission-002": "ocv2NodeApac",
     "mission-003": "ocv2NodeNaEast",
-  };
-  const nodeStates = {
-    "mission-001": m1Done ? "completed" : "active",
-    "mission-002": m2Done ? "completed" : (m1Done ? "active" : "locked"),
-    "mission-003": m3Done ? "completed" : (m2Done ? "active" : "locked"),
+    "mission-004": "ocv2NodeLatam",
+    "mission-005": "ocv2NodeMena",
+    "mission-006": "ocv2NodeSea",
   };
   Object.entries(nodeIds).forEach(([mid, nid]) => {
     const node = document.getElementById(nid);
     if (!node) return;
-    const state = nodeStates[mid];
+    const state = missionMapStatus(mid);
     node.classList.toggle("ocv2-node--locked", state === "locked");
     node.classList.toggle("ocv2-node--done",   state === "completed");
     // aria-disabled prevents interaction on locked nodes (no pointer-events)
@@ -8416,41 +8573,10 @@ function launchMissionFromMap(missionId, fromOC = false) {
 
 /** Hide every other screen and show the Missions Map. Resume-safe. */
 function showMissionsMap() {
-  try { trackGameEvent("mission_map_opened", {}); } catch (_) { /* non-fatal */ }
-  // Leave any active mission UI cleanly (parity with backToModuleOverview).
-  setMissionRunning(false);
-  endGuidedRun();
-  clearAllMapButtonsAttention(); // FIX 4 — student followed the Next Step prompt.
-  if (moduleLandingEl) moduleLandingEl.style.display = "none";
-  if (dashboardEl)     dashboardEl.style.display     = "none";
-  if (simLoaderEl)     simLoaderEl.style.display     = "none";
-  const m2o = document.getElementById("mission2Overview");
-  if (m2o) m2o.style.display = "none";
-  const m2d = document.getElementById("mission2Dashboard");
-  if (m2d) m2d.style.display = "none";
-  const m3o = document.getElementById("mission3Overview");
-  if (m3o) m3o.style.display = "none";
-  const m3d = document.getElementById("mission3Dashboard");
-  if (m3d) m3d.style.display = "none";
-  const gmd = document.getElementById("genMissionDashboard");
-  if (gmd) gmd.style.display = "none";
-  const map = document.getElementById("missionsMap");
-  if (map) {
-    map.style.display = "";
-    map.scrollTop = 0;
-  }
-  window.scrollTo({ top: 0, behavior: "instant" });
-
-  const welcome = document.getElementById("missionsMapWelcome");
-  if (welcome) {
-    welcome.textContent = studentName
-      ? `Welcome, ${studentName}. Select an assignment to view its briefing.`
-      : "Select an assignment to view its briefing.";
-  }
-
-  renderMissionMapStates();
-  renderAllMiniMaps();
-  selectMissionNode(currentMapSelection);
+  // Legacy "Cyber Operations Map" retired (Task 22). The global Operations
+  // Center is now the single hub: every former entry point routes here. Kept
+  // as a thin redirect so any lingering caller still lands somewhere valid.
+  showModuleLanding();
 }
 
 /**
@@ -8507,7 +8633,7 @@ function openMission1Dashboard() {
   // flow reflects where the player came from. Otherwise keep the default.
   const backBtn = document.getElementById("backToModuleBtn");
   if (backBtn) {
-    backBtn.textContent = launchedFromOC ? "← Operations Center" : "← Module Overview";
+    backBtn.textContent = missionBackLabel(launchedFromOC);
   }
   // Milestone 24I — render the Mission 1 Briefing Room on entry.
   renderBriefingRoom("mission-001");
@@ -8876,9 +9002,7 @@ function showMission2Overview() {
   // unchanged; this is a label-only change.
   const m2OverviewBackBtn = document.getElementById("mission2BackBtn");
   if (m2OverviewBackBtn) {
-    m2OverviewBackBtn.textContent = launchedFromOC
-      ? "←\u00a0 Operations Center"
-      : "←\u00a0 Back to Module Overview";
+    m2OverviewBackBtn.textContent = missionBackLabel(launchedFromOC, { compact: true });
   }
   // Milestone 24I — render the Mission 2 Briefing Room on entry.
   renderBriefingRoom("mission-002");
@@ -10251,9 +10375,7 @@ function showMission3Overview() {
   // unchanged; this is a label-only change.
   const m3OverviewBackBtn = document.getElementById("mission3BackBtn");
   if (m3OverviewBackBtn) {
-    m3OverviewBackBtn.textContent = launchedFromOC
-      ? "←\u00a0 Operations Center"
-      : "←\u00a0 Back to Module Overview";
+    m3OverviewBackBtn.textContent = missionBackLabel(launchedFromOC, { compact: true });
   }
   // Milestone 24I — render the Mission 3 Briefing Room on entry.
   renderBriefingRoom("mission-003");
@@ -12530,11 +12652,11 @@ function boot() {
   if (m3OvMapBack) m3OvMapBack.addEventListener("click", showModuleLanding);
   // Milestone 25D — "Open Full Map" buttons in the right control panels.
   const m1OpenFullMap = document.getElementById("m1OpenFullMapBtn");
-  if (m1OpenFullMap) m1OpenFullMap.addEventListener("click", showMissionsMap);
+  if (m1OpenFullMap) m1OpenFullMap.addEventListener("click", showModuleLanding);
   const m2OpenFullMap = document.getElementById("m2OpenFullMapBtn");
-  if (m2OpenFullMap) m2OpenFullMap.addEventListener("click", showMissionsMap);
+  if (m2OpenFullMap) m2OpenFullMap.addEventListener("click", showModuleLanding);
   const m3OpenFullMap = document.getElementById("m3OpenFullMapBtn");
-  if (m3OpenFullMap) m3OpenFullMap.addEventListener("click", showMissionsMap);
+  if (m3OpenFullMap) m3OpenFullMap.addEventListener("click", showModuleLanding);
   // Active-layout fix — "Jump to Next Action" buttons scroll to the current
   // interactive prompt (board action, decision, scorecard, Next Step).
   ["jumpNextBtn", "m2JumpNextBtn", "m3JumpNextBtn"].forEach((id) => {
@@ -15997,6 +16119,9 @@ function gmCompleteMission() {
 
   saveProgress(); // single chokepoint — also enqueues best-effort cloud sync.
   try { trackGameEvent("generic_mission_complete", { missionId: gmActive.id, xp: reward }); } catch (_) { /* non-fatal */ }
+  // Task 29/24 — post the team's completion acknowledgement to the SOC comms
+  // feed (presentation-only; persisted by Task 24 so it survives a refresh).
+  try { ocv2PostCompletionComms(gmActive.id); } catch (_) { /* non-fatal */ }
   try { fxToast(`+${reward} XP — ${gmActive.title} complete`, "success"); } catch (_) { /* non-fatal */ }
 
   gmRenderScorecard(reward);
