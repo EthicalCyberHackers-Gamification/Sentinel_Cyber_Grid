@@ -9895,7 +9895,10 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
   box-shadow: 0 0 22px currentColor;
 }
 
-/* Radar sweep (critical nodes only) */
+/* Radar sweep — severity-scaled. The sweep wedge gets WIDER and the rotation
+   FASTER the more severe the threat (CRITICAL widest/fastest → LOW
+   narrowest/slowest). Migrated from the Operations Center prototype. Base
+   rule = CRITICAL; high/medium/low override below. */
 .ocv2-node-radar {
   position: absolute;
   top: 50%;
@@ -9907,13 +9910,49 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
   background: conic-gradient(
     from 0deg,
     transparent 0deg,
-    rgba(255,51,68,0.4) 18deg,
-    transparent 36deg
+    rgba(255,51,68,0.4) 30deg,
+    transparent 60deg
   );
   animation: ocv2RadarSweep 4s linear infinite;
   z-index: 0;
   pointer-events: none;
 }
+
+/* HIGH — orange, medium wedge, slower rotation */
+.ocv2-node--high .ocv2-node-radar {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255,107,0,0.4) 18deg,
+    transparent 36deg
+  );
+  animation-duration: 6s;
+}
+
+/* MEDIUM — yellow, narrow wedge, slowest rotation */
+.ocv2-node--medium .ocv2-node-radar {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255,215,0,0.4) 10deg,
+    transparent 20deg
+  );
+  animation-duration: 8s;
+}
+
+/* LOW — cyan, narrowest, gentlest sweep */
+.ocv2-node--low .ocv2-node-radar {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(0,229,255,0.35) 8deg,
+    transparent 16deg
+  );
+  animation-duration: 10s;
+}
+
+/* Completed nodes stop sweeping — only live threats radar. */
+.ocv2-node--done .ocv2-node-radar { display: none; }
 
 @keyframes ocv2RadarSweep {
   from { transform: translate(-50%, -50%) rotate(0deg); }
@@ -9943,6 +9982,20 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 .ocv2-node--high     .ocv2-node-pulse { animation-duration: 2.2s; }
 .ocv2-node--medium   .ocv2-node-pulse { animation-duration: 2.8s; }
 .ocv2-node--low      .ocv2-node-pulse { animation-duration: 3.5s; }
+
+/* Node progress glyph — ✓ on completed, 🔒 on locked. Migrated from the
+   Operations Center prototype so map nodes show progress at a glance. */
+.ocv2-node-glyph {
+  position: absolute;
+  top: -11px;
+  right: -11px;
+  font-size: 11px;
+  line-height: 1;
+  z-index: 3;
+  pointer-events: none;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.85));
+}
+.ocv2-node--done .ocv2-node-glyph { color: var(--color-green); }
 
 @keyframes ocv2NodePulse {
   0%   { opacity: 0.8; transform: translate(-50%, -50%) scale(0.7); }

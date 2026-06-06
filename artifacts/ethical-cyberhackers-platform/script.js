@@ -195,6 +195,78 @@ window.addEventListener("storage", (e) => {
   if (e.key === SOUND_VOLUME_KEY) setSoundtrackVolume(readSharedVolume(), false);
 });
 
+// ============================================================
+// OCV2 SFX — a tiny Web Audio engine for Operations Center map cues
+// (incident-node select + card close). No audio files. Respects the same
+// shared mute (`ech.sound.muted`) and master volume (`ech.sound.volume`)
+// the soundtrack uses, read live on every play. The AudioContext is created
+// lazily on the first cue (always a user gesture — a node click), so it
+// never trips browser autoplay policy. Migrated from the Operations Center
+// prototype's SoundEngine.
+// ============================================================
+const ocv2Sfx = (() => {
+  let ctx = null;
+  let masterGain = null;
+
+  function _canPlay() {
+    return !readSharedMuted() && !document.hidden;
+  }
+  function _getCtx() {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      try {
+        ctx = new AC();
+        masterGain = ctx.createGain();
+        masterGain.connect(ctx.destination);
+      } catch (_) { ctx = null; return null; }
+    }
+    if (masterGain) masterGain.gain.value = readSharedVolume();
+    if (ctx.state === "suspended") { try { ctx.resume(); } catch (_) {} }
+    return ctx;
+  }
+
+  // Crisp upward two-stage blip when an incident node opens; pitch by severity.
+  function playSelect(severity) {
+    if (!_canPlay()) return;
+    const ac = _getCtx();
+    if (!ac) return;
+    const pitches = { critical: 1175, high: 988, medium: 784, low: 659, info: 587 };
+    const base = pitches[String(severity || "").toLowerCase()] ?? pitches.info;
+    const t = ac.currentTime;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(masterGain);
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(base, t);
+    osc.frequency.exponentialRampToValueAtTime(base * 1.5, t + 0.04);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.09, t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    osc.start(t); osc.stop(t + 0.14);
+  }
+
+  // Soft descending glide when the incident card is dismissed.
+  function playClose() {
+    if (!_canPlay()) return;
+    const ac = _getCtx();
+    if (!ac) return;
+    const t = ac.currentTime;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(masterGain);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(660, t);
+    osc.frequency.exponentialRampToValueAtTime(330, t + 0.14);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.05, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    osc.start(t); osc.stop(t + 0.22);
+  }
+
+  return { playSelect, playClose };
+})();
+
 function toggleSoundtrackMuted() {
   setSoundtrackMuted(!soundtrackMuted);
   // If music never managed to start (e.g. autoplay was blocked), unmuting
@@ -7441,6 +7513,9 @@ function showOcv2IncidentCard(missionId) {
       }
     : (MISSION_MAP[missionId] || {});
 
+  // Play the select cue only when opening a NEW node — not on the in-place
+  // refresh renderOcPanelV2 triggers for the already-open node.
+  const ocv2WasAlreadyOpen = ocv2ActiveNodeId === missionId;
   ocv2ActiveNodeId = missionId;
 
   // Highlight the selected node; deselect all others.
@@ -7448,6 +7523,7 @@ function showOcv2IncidentCard(missionId) {
     n.classList.remove("ocv2-node--active"));
   const node = document.querySelector(`.ocv2-node[data-mission="${missionId}"]`);
   if (node) node.classList.add("ocv2-node--active");
+  if (!ocv2WasAlreadyOpen) ocv2Sfx.playSelect(meta.severity);
 
   // Gating + completion are unified across all six assignments via the
   // canonical missionMapStatus() chain (m4←m3, m5←m4, m6←m5).
@@ -7494,10 +7570,12 @@ function showOcv2IncidentCard(missionId) {
 /** Hide the incident card and deselect all nodes. */
 function hideOcv2IncidentCard() {
   const card = document.getElementById("ocv2IncidentCard");
+  const wasOpen = !!card && card.style.display !== "none";
   if (card) card.style.display = "none";
   document.querySelectorAll(".ocv2-node[data-mission]").forEach((n) =>
     n.classList.remove("ocv2-node--active"));
   ocv2ActiveNodeId = null;
+  if (wasOpen) ocv2Sfx.playClose();
 }
 
 /**
@@ -7769,6 +7847,20 @@ function renderOcPanelV2() {
     } else {
       node.removeAttribute("aria-disabled");
       node.setAttribute("tabindex", "0");
+    }
+    // Progress glyph — ✓ on completed, 🔒 on locked (migrated from the Ops
+    // Center prototype). Active/available nodes carry no glyph.
+    let glyph = node.querySelector(".ocv2-node-glyph");
+    if (state === "completed" || state === "locked") {
+      if (!glyph) {
+        glyph = document.createElement("span");
+        glyph.className = "ocv2-node-glyph";
+        glyph.setAttribute("aria-hidden", "true");
+        node.appendChild(glyph);
+      }
+      glyph.textContent = state === "completed" ? "✓" : "🔒";
+    } else if (glyph) {
+      glyph.remove();
     }
   });
 
