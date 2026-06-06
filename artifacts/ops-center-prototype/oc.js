@@ -43,6 +43,61 @@ function opContext(opId) {
   return OP_CONTEXT[opId] || { dept: "Security Operations", ticket: "—", reportedBy: "SOC" };
 }
 
+/* ============================================================
+   PHASE 2 — CAREER PROGRESSION (presentation-only)
+   The analyst advances through a 7-tier cybersecurity career as
+   real missions are completed. Everything here is DERIVED on each
+   render from the existing read-only progress mirror — nothing is
+   ever written to localStorage or otherwise persisted.
+   ============================================================ */
+
+// The six real-mission nodes in unlock order. The player's tier is the number
+// of these that are completed, so each cleared assignment is one promotion.
+const NODE_CHAIN = ["emea", "apac", "na-east", "latam", "mena", "sea"];
+
+// The role ladder. `threshold` = missions completed required to hold the role;
+// `scope` frames the kind of assignment handled at that tier (framing only — it
+// does NOT change mission mechanics); `unlocked` is announced on promotion.
+const ROLE_LADDER = [
+  { name: "Cybersecurity Intern",        threshold: 0, clearance: "Tier 1 Operations Access", scope: "guided single-incident triage",        unlocked: "supervised incident triage" },
+  { name: "Junior SOC Analyst",          threshold: 1, clearance: "Tier 1 Operations Access", scope: "multi-host alert validation",          unlocked: "alert validation & containment drafting" },
+  { name: "SOC Analyst",                 threshold: 2, clearance: "Tier 2 Operations Access", scope: "multi-system correlation",             unlocked: "independent incident triage" },
+  { name: "Incident Response Analyst",   threshold: 3, clearance: "Tier 3 Response Access",   scope: "active containment & response",        unlocked: "live containment authority" },
+  { name: "Threat Hunter",               threshold: 4, clearance: "Tier 3 Response Access",   scope: "proactive threat hunting",            unlocked: "proactive hunt operations" },
+  { name: "Cloud Security Analyst",      threshold: 5, clearance: "Tier 4 Cloud Access",      scope: "cloud exposure & identity review",    unlocked: "cloud security operations" },
+  { name: "Senior Operations Analyst",   threshold: 6, clearance: "Tier 5 Command Access",    scope: "cross-region operations oversight",   unlocked: "operations oversight & mentoring" },
+];
+
+// Returns the assignment-framing role for a given incident node — the role the
+// analyst holds when that incident is their next step in the career arc.
+function roleForNode(nodeId) {
+  const i = NODE_CHAIN.indexOf(nodeId);
+  if (i < 0) return ROLE_LADDER[0];
+  return ROLE_LADDER[Math.min(i, ROLE_LADDER.length - 1)];
+}
+
+// Derive the player's current career standing from the read-only progress
+// mirror. Pure computation — no writes. Returns current role, next role (or
+// null at the top), completed count, the active assignment, and the in-progress
+// confidence of that assignment (used as smooth progress toward promotion).
+function getCareerState() {
+  const states = getMissionStates();
+  const progress = getMissionProgress();
+  const completed = NODE_CHAIN.reduce(
+    (n, id) => n + (states[id] === "completed" ? 1 : 0), 0);
+
+  let tierIdx = 0;
+  for (let i = 0; i < ROLE_LADDER.length; i++) {
+    if (completed >= ROLE_LADDER[i].threshold) tierIdx = i;
+  }
+  const role = ROLE_LADDER[tierIdx];
+  const next = ROLE_LADDER[tierIdx + 1] || null;
+  const activeId = NODE_CHAIN.find(id => states[id] === "active") || null;
+  const activePct = (activeId && progress[activeId]) ? progress[activeId].pct : 0;
+
+  return { tierIdx, role, next, completed, activeId, activePct };
+}
+
 const INCIDENTS = {
   "emea": {
     id: "emea",
@@ -2179,13 +2234,19 @@ function showIncidentCard(incidentId) {
   if (deptEl) deptEl.textContent = ctx.dept;
   const ticketEl = document.getElementById('incidentTicket');
   if (ticketEl) ticketEl.textContent = ctx.ticket;
+  // Phase 2 — frame the assignment by its career tier and scope (presentation
+  // only; this does NOT change mission mechanics). The tier role is the one the
+  // analyst holds when this incident is their step in the career arc.
+  const band = roleForNode(incidentId);
   const briefEl = document.getElementById('incidentBriefing');
   if (briefEl) {
     briefEl.textContent =
       `${CYBERCORP_IDENTITY.employer} ${CYBERCORP_IDENTITY.division} · ${incident.opId}. ` +
-      `As a ${CYBERCORP_IDENTITY.role}, inspect this incident, confirm the indicators, ` +
-      `and escalate verified evidence to ${CYBERCORP_IDENTITY.supervisor}.`;
+      `${band.name} assignment — ${band.scope}. Confirm the indicators and ` +
+      `escalate verified evidence to ${CYBERCORP_IDENTITY.supervisor}.`;
   }
+  const tierEl = document.getElementById('incidentTier');
+  if (tierEl) tierEl.textContent = `${band.name} · ${band.scope}`;
 
   // Reflect real-mission progress on the launch button (completed → replay,
   // locked → disabled). Mock-only nodes fall through to the default label.
@@ -2947,12 +3008,41 @@ function scheduleTickerBeeps() {
 /* ============================================================
    INIT
    ============================================================ */
-// Renders the persistent CyberCorp identity panel in the Operations Center from
-// the single CYBERCORP_IDENTITY source of truth (presentation-only).
+// Renders the persistent CyberCorp identity panel in the Operations Center. The
+// org identity comes from CYBERCORP_IDENTITY; the role, clearance, advancement,
+// and assignment readouts are DERIVED from progress (presentation-only).
+// Session-only memory of the last role tier the panel rendered. Lives in memory
+// for the page session only (never persisted) and exists solely to detect a
+// promotion crossing so the operational notice fires once per crossing.
+let _lastSeenRoleTier = null;
+
 function renderIdentityPanel() {
   const el = document.getElementById('ocIdentity');
   if (!el) return;
   const id = CYBERCORP_IDENTITY;
+  const c = getCareerState();
+  const role = c.role;
+
+  const activeIncident = c.activeId ? INCIDENTS[c.activeId] : null;
+  const activeRegion = activeIncident
+    ? `${activeIncident.region.replace(' REGION', '')} — ${activeIncident.title}`
+    : 'Standby — awaiting tasking';
+
+  // Advancement readout. The bar fills with the active assignment's confidence
+  // so it moves as the player works (each cleared assignment is one promotion).
+  const barPct = !c.next ? 100 : (c.activeId ? c.activePct : 0);
+  let advanceCap;
+  if (!c.next) {
+    advanceCap = 'Top role — division command';
+  } else if (c.activeId && c.activePct > 0) {
+    advanceCap = `${c.activePct}% toward ${c.next.name}`;
+  } else if (c.activeId) {
+    advanceCap = `Clear ${activeIncident.region.replace(' REGION', '')} to advance`;
+  } else {
+    advanceCap = `Awaiting next assignment`;
+  }
+  const nextLabel = c.next ? c.next.name : 'Highest tier attained';
+
   el.innerHTML = `
     <div class="oc-id-head">
       <span class="oc-id-badge" aria-hidden="true">ID</span>
@@ -2962,10 +3052,75 @@ function renderIdentityPanel() {
       </div>
     </div>
     <div class="oc-id-rows">
-      <div class="oc-id-row"><span class="oc-id-label">Role</span><span class="oc-id-val">${id.role}</span></div>
+      <div class="oc-id-row"><span class="oc-id-label">Role</span><span class="oc-id-val">${role.name}</span></div>
       <div class="oc-id-row"><span class="oc-id-label">Supervisor</span><span class="oc-id-val">${id.supervisor} · ${id.supervisorRole}</span></div>
-      <div class="oc-id-row"><span class="oc-id-label">Clearance</span><span class="oc-id-val oc-id-val--clear">${id.clearance}</span></div>
+      <div class="oc-id-row"><span class="oc-id-label">Clearance</span><span class="oc-id-val oc-id-val--clear">${role.clearance}</span></div>
+    </div>
+    <div class="oc-id-advance">
+      <div class="oc-id-advance-row">
+        <span class="oc-id-label">Advancement</span>
+        <span class="oc-id-advance-next">${nextLabel}</span>
+      </div>
+      <div class="oc-id-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${barPct}" aria-label="Promotion progress">
+        <span class="oc-id-bar-fill" style="width:${barPct}%"></span>
+      </div>
+      <div class="oc-id-advance-cap">${advanceCap}</div>
+    </div>
+    <div class="oc-id-rows oc-id-rows--status">
+      <div class="oc-id-row"><span class="oc-id-label">Queue</span><span class="oc-id-val">${activeRegion}</span></div>
+      <div class="oc-id-row"><span class="oc-id-label">Division</span><span class="oc-id-val">Active Ops · ${c.completed}/${NODE_CHAIN.length} resolved</span></div>
     </div>`;
+
+  maybeShowPromotion(c);
+}
+
+// Fire a one-time promotion notice when the derived role tier rises above the
+// last tier this session rendered. The first render only seeds the baseline
+// (no notice on load). A downward move (e.g. cleared storage) just re-seeds.
+function maybeShowPromotion(career) {
+  if (_lastSeenRoleTier === null) { _lastSeenRoleTier = career.tierIdx; return; }
+  if (career.tierIdx > _lastSeenRoleTier) {
+    _lastSeenRoleTier = career.tierIdx;
+    showPromotionNotice(career.role);
+  } else if (career.tierIdx < _lastSeenRoleTier) {
+    _lastSeenRoleTier = career.tierIdx;
+  }
+}
+
+// Professional, presentation-only promotion notice. A calm, dismissible card —
+// no cinematic. Auto-dismisses after a short window. Writes nothing.
+function showPromotionNotice(role) {
+  document.getElementById('ocPromoNotice')?.remove();
+  const el = document.createElement('div');
+  el.id = 'ocPromoNotice';
+  el.className = 'oc-promo-notice';
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.innerHTML = `
+    <div class="oc-promo-head">
+      <span class="oc-promo-org">CyberCorp · Operations Notice</span>
+      <button class="oc-promo-close" type="button" aria-label="Dismiss">✕</button>
+    </div>
+    <div class="oc-promo-title">Promotion Confirmed</div>
+    <div class="oc-promo-body">
+      You have been promoted to <strong>${role.name}</strong>.<br>
+      Clearance updated to <strong>${role.clearance}</strong>.<br>
+      New responsibilities: ${role.unlocked}.
+    </div>
+    <div class="oc-promo-foot">— ${CYBERCORP_IDENTITY.division}</div>
+    <button class="oc-promo-ack" type="button">Acknowledge</button>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('oc-promo-notice--in'));
+
+  let timer = null;
+  const dismiss = () => {
+    if (timer) clearTimeout(timer);
+    el.classList.remove('oc-promo-notice--in');
+    setTimeout(() => el.remove(), 320);
+  };
+  el.querySelector('.oc-promo-ack').addEventListener('click', dismiss);
+  el.querySelector('.oc-promo-close').addEventListener('click', dismiss);
+  timer = setTimeout(dismiss, 14000);
 }
 
 function init() {
@@ -2988,9 +3143,11 @@ function init() {
   // Reflect real game progress on the map (read-only mirror of localStorage).
   applyMissionProgress();
   // Re-sync when the player returns from the main game (e.g. after completing a
-  // mission), so completion/lock badges update without a manual reload.
-  window.addEventListener('focus', applyMissionProgress);
-  window.addEventListener('pageshow', applyMissionProgress);
+  // mission), so completion/lock badges AND the career panel (role, clearance,
+  // advancement, promotion notice) update without a manual reload.
+  const resyncOpsState = () => { applyMissionProgress(); renderIdentityPanel(); };
+  window.addEventListener('focus', resyncOpsState);
+  window.addEventListener('pageshow', resyncOpsState);
 
   // Wire up incident nodes
   document.querySelectorAll('.incident-node').forEach(btn => {

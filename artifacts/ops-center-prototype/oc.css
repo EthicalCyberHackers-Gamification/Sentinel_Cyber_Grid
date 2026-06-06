@@ -2904,3 +2904,89 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   color: var(--text-muted);
   letter-spacing: 0.3px;
 }
+
+/* Phase 2 — career advancement block inside the identity panel */
+.oc-id-advance {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.oc-id-advance-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.oc-id-advance-next {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  color: var(--green); text-align: right; letter-spacing: 0.3px;
+}
+.oc-id-bar {
+  height: 5px;
+  background: var(--green-dark);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.oc-id-bar-fill {
+  display: block; height: 100%;
+  background: var(--green);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.oc-id-advance-cap {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+.oc-id-rows--status {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+}
+
+/* Phase 2 — professional promotion notice (presentation-only, dismissible) */
+.oc-promo-notice {
+  position: fixed;
+  right: 20px; bottom: 20px;
+  z-index: 9999;
+  width: 320px; max-width: calc(100vw - 40px);
+  padding: 14px 15px 15px;
+  background: var(--bg-panel-alt, #11161b);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--green);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.oc-promo-notice--in { opacity: 1; transform: translateY(0); }
+.oc-promo-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.oc-promo-org {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.oc-promo-close {
+  flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: 12px; line-height: 1; padding: 2px;
+}
+.oc-promo-close:hover { color: var(--text); }
+.oc-promo-title {
+  font-size: 13px; font-weight: 700; color: var(--green);
+  letter-spacing: 0.3px; margin-bottom: 7px;
+}
+.oc-promo-body { font-size: 11px; line-height: 1.55; color: var(--text); }
+.oc-promo-body strong { color: var(--green); }
+.oc-promo-foot {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.4px;
+  color: var(--text-muted); margin-top: 9px;
+}
+.oc-promo-ack {
+  margin-top: 12px; width: 100%;
+  padding: 7px 10px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--green); background: var(--green-dark);
+  border: 1px solid var(--border-glow); border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.oc-promo-ack:hover { background: var(--green); color: var(--bg-panel-alt, #11161b); }

@@ -1,0 +1,222 @@
+# Phase 2 Prompt — Career Progression & Role Advancement
+
+Goal:
+Transform mission progression from:
+“unlocking levels”
+
+into:
+
+“advancing through a cybersecurity career.”
+
+This phase adds:
+
+* role progression
+* promotion structure
+* operational growth
+* increasing responsibility
+
+WITHOUT disrupting the current gameplay loop.
+
+---
+
+## WHAT STAYS THE SAME
+
+Keep:
+
+* current mission architecture
+* terminal gameplay
+* world map core structure
+* assignment mechanics
+* evidence systems
+* scoring systems
+* XP systems
+* investigation systems
+
+Do NOT:
+
+* redesign gameplay flow
+* rebuild missions
+* replace terminal mechanics
+
+This phase adds progression meaning, not new gameplay systems.
+
+---
+
+## WHY THIS FEATURE IS BEING ADDED
+
+Current issue:
+
+Mission progression currently feels like:
+a sequence of assignments.
+
+But the player should feel:
+professional advancement.
+
+Instead of:
+“Mission 4 unlocked”
+
+the player should feel:
+“I earned promotion into a new cybersecurity role.”
+
+This creates:
+
+* long-term motivation
+* identity progression
+* operational realism
+* emotional investment
+
+---
+
+## ROLE PROGRESSION STRUCTURE
+
+Proposed role progression:
+
+Tier 1:
+Cybersecurity Intern
+
+Tier 2:
+Junior SOC Analyst
+
+Tier 3:
+SOC Analyst
+
+Tier 4:
+Incident Response Analyst
+
+Tier 5:
+Threat Hunter
+
+Tier 6:
+Cloud Security Analyst
+
+Tier 7:
+Senior Operations Analyst
+
+---
+
+## PROMOTION STRUCTURE
+
+Promotions should happen after:
+mission groups.
+
+Example:
+every 4 missions.
+
+Promotion requirements may include:
+
+* XP threshold
+* successful containment
+* evidence accuracy
+* low false positives
+* mission completion quality
+
+---
+
+## OPERATIONS CENTER ENHANCEMENTS
+
+The world map / operations center becomes:
+CyberCorp Operations Headquarters.
+
+Add:
+
+* current role display
+* promotion progress
+* assignment queue
+* analyst division
+* clearance level
+* division status
+
+Do NOT clutter the interface.
+
+Keep everything operational and minimal.
+
+---
+
+## MISSION SCALING BY ROLE
+
+Intern missions:
+
+* guided
+* narrow scope
+* beginner analysis
+
+Junior SOC missions:
+
+* multiple hosts
+* log analysis
+* alerts
+* correlation
+
+SOC Analyst missions:
+
+* broader campaigns
+* multi-system investigations
+* response decisions
+
+Incident Response missions:
+
+* active compromise
+* containment
+* escalation
+* damage assessment
+
+Threat Hunter missions:
+
+* stealth persistence
+* proactive detection
+* hidden attacker behavior
+
+---
+
+## ROLE-SPECIFIC IMMERSION
+
+Each promotion should subtly change:
+
+* responsibilities
+* assignment types
+* mission expectations
+* operational pressure
+
+Do NOT dramatically change the UI.
+
+Progression should feel:
+professional.
+
+NOT arcade-like.
+
+---
+
+## PROMOTION PRESENTATION
+
+Avoid flashy cinematic promotions.
+
+Instead use:
+professional operational notifications.
+
+Example:
+
+CyberCorp Operations Notice
+
+Based on your recent assignment performance,
+you have been promoted to:
+
+Junior SOC Analyst
+
+New assignment categories unlocked:
+
+* Multi-host investigations
+* Alert correlation
+* Incident escalation support
+
+---
+
+## SUCCESS CRITERIA
+
+This phase succeeds if:
+
+* progression feels like career advancement
+* missions gain operational meaning
+* players understand why difficulty increases
+* immersion improves without complexity overload
+* the game still feels clean and focused
+* players become emotionally invested in advancement
