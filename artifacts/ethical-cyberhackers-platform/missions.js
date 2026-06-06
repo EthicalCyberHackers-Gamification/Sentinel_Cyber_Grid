@@ -979,3 +979,530 @@ export function updateMissionStatus(missionId, status) {
   m.status = status;
   return true;
 }
+
+
+/* ============================================================
+   GENERIC MISSIONS  (mission-004 / 005 / 006)
+   ------------------------------------------------------------
+   These three missions connect the prototype's remaining incident
+   nodes (LATAM / MENA / SEA) to real, playable investigations.
+
+   Unlike Missions 1–3 — whose gameplay is hand-coded across hundreds
+   of lines of bespoke HTML + script.js branches — these missions are
+   fully DATA-DRIVEN. A single self-contained engine in script.js
+   (the `gm*` functions) reads these objects and renders the entire
+   experience: briefing → terminal commands (sequential unlock) →
+   per-step reasoning prompts (which raise an Analyst Confidence bar)
+   → analyst review → final quiz → completion scorecard.
+
+   Adding a fourth data-driven mission is just a matter of appending
+   another object here — no new HTML, no new engine branches.
+
+   COMMAND SHAPE:
+     key            unique id within the mission
+     label/icon/desc button presentation
+     cmd            the command string echoed into the terminal
+     output         array of result lines printed under the command
+     managerMsg     supervisor line shown after the command runs
+     unlockedAtStart true = clickable from the start
+     unlocks        keys revealed after this command resolves
+     isReview       true = running it opens the Analyst Review
+     reasoning      optional one-question gate; the listed `unlocks`
+                    fire only after it is answered correctly. Shape:
+                    { question, answers:[{letter,text}], correct,
+                      conf, correctMsg, wrongMsg, hint }
+   ============================================================ */
+
+export const GENERIC_MISSIONS = {
+  /* ---------- Mission 4 — Reconnaissance Sweep (LATAM) ---------- */
+  "mission-004": {
+    id:        "mission-004",
+    num:       "04",
+    title:     "Reconnaissance Sweep",
+    region:    "LATAM REGION",
+    opId:      "OPS-2026-004",
+    severity:  "MEDIUM",
+    role:      "You are a Blue Team SOC analyst. The LATAM perimeter sensors are lighting up with blocked connection attempts. Your manager wants you to confirm whether this is a coordinated reconnaissance sweep.",
+    briefing:  "Systematic port scanning has been observed against the LATAM external perimeter from an unknown IP range. Review the firewall logs, attribute the source, measure the scan footprint, and decide what stage of an attack this represents.",
+    learningObjective: "Practice reading perimeter firewall logs and recognizing a distributed reconnaissance sweep.",
+    supervisorIntro: "Welcome, analyst. OPS-2026-004 is a perimeter alert. Start by reviewing the firewall log — each command unlocks the next.",
+    objectives: [
+      "Review blocked perimeter connections",
+      "Attribute the scanning source range",
+      "Measure the port-scan footprint",
+      "Classify the activity",
+    ],
+    commands: [
+      {
+        key: "fw-log", label: "Review Firewall Log", icon: "🧱",
+        desc: "Inspect the latest blocked connections", cmd: "tail -n 6 /var/log/firewall.log",
+        output: [
+          "DENY 203.0.113.41 -> perimeter:22   (ssh)",
+          "DENY 203.0.113.58 -> perimeter:80   (http)",
+          "DENY 203.0.113.12 -> perimeter:443  (https)",
+          "DENY 203.0.113.90 -> perimeter:3389 (rdp)",
+          "DENY 203.0.113.41 -> perimeter:8080 (http-alt)",
+          "DENY 203.0.113.58 -> perimeter:3306 (mysql)",
+        ],
+        managerMsg: "Lots of denied attempts, and the source addresses all share the 203.0.113.x prefix. Find out who owns that range.",
+        nextHint: "Every blocked address sits in the same 203.0.113.x block. Look up who owns that range.",
+        unlockedAtStart: true,
+        unlocks: ["trace-range"],
+        reasoning: {
+          question: "What stands out about these blocked connections?",
+          answers: [
+            { letter: "A", text: "They all come from one shared external IP range." },
+            { letter: "B", text: "They are all internal, trusted hosts." },
+            { letter: "C", text: "The firewall is allowing every connection." },
+          ],
+          correct: "A", conf: 25,
+          correctMsg: "Right — many addresses, but all inside one external range hitting many ports. That's organized.",
+          wrongMsg:   "Look again — the addresses differ but all share the 203.0.113.x prefix, and each targets a different port.",
+          hint: "Compare the source addresses — they share a common prefix — and the ports — they're all different.",
+        },
+      },
+      {
+        key: "check-known", label: "Check Known Address", icon: "✅",
+        desc: "Rule out a familiar address first", cmd: "whois 8.8.8.8",
+        output: [
+          "OrgName: Google LLC",
+          "Status:  Well-known public DNS resolver",
+        ],
+        managerMsg: "That's Google's public DNS — legitimate. Ruling a source out is useful, but it isn't our scanner.",
+        nextHint: "A known resolver is normal traffic. Focus on the 203.0.113.x range instead.",
+        unlockedAtStart: true,
+        unlocks: [],
+        reasoning: {
+          question: "What does this lookup tell you?",
+          answers: [
+            { letter: "A", text: "8.8.8.8 is the attacker." },
+            { letter: "B", text: "8.8.8.8 is a known, legitimate public DNS resolver." },
+            { letter: "C", text: "The network has been breached." },
+          ],
+          correct: "B", conf: 10,
+          correctMsg: "Correct — a well-known resolver is normal traffic you can set aside.",
+          wrongMsg:   "Re-read it — this is Google's public DNS, a legitimate service, not our scanner.",
+          hint: "A well-known public DNS resolver is legitimate infrastructure, not an attacker.",
+        },
+      },
+      {
+        key: "trace-range", label: "Trace Source Range", icon: "🌐",
+        desc: "Look up the suspicious IP range", cmd: "whois 203.0.113.0/24",
+        output: [
+          "OrgName: Unallocated / Unknown",
+          "Country: --",
+          "Status:  Flagged in 3 active threat-intel feeds",
+        ],
+        managerMsg: "Unallocated space flagged across multiple threat feeds — that's hostile. Measure how many services it touched.",
+        nextHint: "An unknown, flagged range is a red flag. Count how many distinct ports it probed.",
+        unlockedAtStart: false,
+        unlocks: ["count-ports"],
+        reasoning: {
+          question: "Why is this source range concerning?",
+          answers: [
+            { letter: "A", text: "It belongs to a trusted partner." },
+            { letter: "B", text: "It is unallocated, unattributed, and flagged in threat-intel feeds." },
+            { letter: "C", text: "It has no recent activity." },
+          ],
+          correct: "B", conf: 30,
+          correctMsg: "Exactly — unallocated space appearing in threat feeds is a classic recon source.",
+          wrongMsg:   "Look again — the range is unallocated, has no owner, and is flagged across threat feeds.",
+          hint: "Check the OrgName and the threat-feed status — an unowned, flagged range is the danger sign.",
+        },
+      },
+      {
+        key: "count-ports", label: "Count Probed Ports", icon: "🔢",
+        desc: "Measure the scan footprint", cmd: "awk '{print $5}' firewall.log | sort -u | wc -l",
+        output: [
+          "Distinct destination ports probed: 27",
+          "Pattern: sequential sweep across common service ports",
+        ],
+        managerMsg: "Twenty-seven services swept in sequence — that's mapping our attack surface. Make the call.",
+        nextHint: "A wide, sequential sweep across many services is the signature of recon. Review your conclusion.",
+        unlockedAtStart: false,
+        unlocks: ["review"],
+        reasoning: {
+          question: "What does sweeping 27 different ports indicate?",
+          answers: [
+            { letter: "A", text: "The attacker is mapping which services are exposed." },
+            { letter: "B", text: "A single user mistyped a URL." },
+            { letter: "C", text: "The server is sending an email." },
+          ],
+          correct: "A", conf: 35,
+          correctMsg: "Right — broad, sequential probing maps the attack surface before a real attack.",
+          wrongMsg:   "Not quite — touching 27 services in sequence is deliberate enumeration, not an accident.",
+          hint: "One source touching many services in sequence is enumeration — it's mapping what's exposed.",
+        },
+      },
+      {
+        key: "review", label: "Review & Classify", icon: "🧭",
+        desc: "Correlate the findings", cmd: "review recon-sweep",
+        output: ["An unknown external range is systematically probing dozens of perimeter services."],
+        managerMsg: "Good work correlating the signals. Now classify what stage of an attack this is.",
+        nextHint: "Decide what this activity represents — answer the Analyst Review below.",
+        unlockedAtStart: false,
+        unlocks: [],
+        isReview: true,
+      },
+    ],
+    analystReview: {
+      question: "What does this activity represent?",
+      answers: [
+        { letter: "A", text: "An active data breach already in progress." },
+        { letter: "B", text: "A reconnaissance sweep — mapping exposed services before an attack." },
+        { letter: "C", text: "A routine software update." },
+        { letter: "D", text: "A denial-of-service attack." },
+      ],
+      correct: "B",
+      correctMsg: "Correct. Broad, sequential probing from an unknown range is a reconnaissance sweep — the attacker is mapping the attack surface.",
+      wrongMsg:   "Not quite. Nothing is being stolen or overwhelmed yet — this is information-gathering, i.e. a reconnaissance sweep.",
+      finding: "An unknown external range (203.0.113.0/24) is performing a systematic reconnaissance sweep of the LATAM perimeter.",
+    },
+    quiz: {
+      question: "What is the goal of a reconnaissance sweep?",
+      answers: [
+        { letter: "A", text: "To encrypt the victim's files." },
+        { letter: "B", text: "To discover which services are exposed so the attacker can plan an attack." },
+        { letter: "C", text: "To speed up the network." },
+        { letter: "D", text: "To send phishing emails." },
+      ],
+      correct: "B",
+      correctMsg: "Correct. A recon sweep maps the exposed attack surface so the attacker knows where to strike next.",
+      wrongMsg:   "Review the findings — a sweep maps which services are exposed, ahead of any real attack.",
+      xpReward: 100,
+      newRank:  "Cyber Analyst — Perimeter",
+    },
+    scorecard: {
+      threatIdentified: "External reconnaissance sweep mapping exposed perimeter services",
+      whatYouLearned:   "You learned how analysts read perimeter firewall logs, attribute a hostile source range, measure a port-scan footprint, and classify early-stage reconnaissance before it becomes an attack.",
+      certSkills: [
+        "Firewall log analysis",
+        "Source-range attribution",
+        "Port-scan footprinting",
+        "Reconnaissance classification",
+      ],
+    },
+  },
+
+  /* ---------- Mission 5 — Account Takeover Investigation (MENA) ---------- */
+  "mission-005": {
+    id:        "mission-005",
+    num:       "05",
+    title:     "Account Takeover Investigation",
+    region:    "MENA REGION",
+    opId:      "OPS-2026-005",
+    severity:  "MEDIUM",
+    role:      "You are a Blue Team SOC analyst. Identity monitoring flagged a burst of failed MFA challenges against privileged MENA accounts. Determine whether an attacker has taken over an account.",
+    briefing:  "Anomalous authentication events — repeated failed MFA challenges from unfamiliar locations — are targeting privileged accounts. Review the auth logs, geolocate the source, and find out whether any account was actually compromised.",
+    learningObjective: "Practice investigating authentication logs to detect and confirm an account-takeover attempt.",
+    supervisorIntro: "Welcome, analyst. OPS-2026-005 looks like an account-takeover attempt on admin accounts. Start with the failed-login records.",
+    objectives: [
+      "Review failed authentication events",
+      "Geolocate the source of the attempts",
+      "Check whether any login succeeded",
+      "Classify the incident",
+    ],
+    commands: [
+      {
+        key: "auth-fail", label: "Review Failed Logins", icon: "🔑",
+        desc: "Inspect failed MFA challenges", cmd: "grep FAILED auth.log | tail -n 6",
+        output: [
+          "FAILED mfa admin_svc   src=45.83.220.10",
+          "FAILED mfa admin_svc   src=45.83.220.10",
+          "FAILED mfa db_admin    src=45.83.220.10",
+          "FAILED mfa admin_svc   src=45.83.220.10",
+          "FAILED mfa net_admin   src=45.83.220.10",
+          "FAILED mfa admin_svc   src=45.83.220.10",
+        ],
+        managerMsg: "Dozens of MFA failures against admin accounts, all from one address. Find out where 45.83.220.10 is.",
+        nextHint: "The failures hammer privileged accounts from a single source. Geolocate that address.",
+        unlockedAtStart: true,
+        unlocks: ["geo-source"],
+        reasoning: {
+          question: "What pattern do these failures show?",
+          answers: [
+            { letter: "A", text: "One source repeatedly targeting privileged accounts." },
+            { letter: "B", text: "A single user who forgot their password once." },
+            { letter: "C", text: "Normal, successful logins." },
+          ],
+          correct: "A", conf: 25,
+          correctMsg: "Right — one source, many privileged accounts, repeated MFA failures. That's an attack, not a typo.",
+          wrongMsg:   "Look again — the same source is hitting several admin accounts over and over.",
+          hint: "Notice the source address and which accounts are targeted — repetition against admins is the signal.",
+        },
+      },
+      {
+        key: "check-user", label: "Check a Normal User", icon: "👤",
+        desc: "Rule out an ordinary login", cmd: "last jdoe",
+        output: [
+          "jdoe  pts/2  10.12.4.8 (office)  Mon 09:02 still logged in",
+        ],
+        managerMsg: "That's a normal employee on the office network — nothing wrong there. Stay on the admin accounts.",
+        nextHint: "A regular user from the office network is fine. Focus on the privileged-account attempts.",
+        unlockedAtStart: true,
+        unlocks: [],
+        reasoning: {
+          question: "Is jdoe's session suspicious?",
+          answers: [
+            { letter: "A", text: "Yes — it proves the breach." },
+            { letter: "B", text: "No — it's a normal user logging in from the office network." },
+            { letter: "C", text: "Yes — office logins are always attacks." },
+          ],
+          correct: "B", conf: 10,
+          correctMsg: "Correct — an ordinary user from the office IP is expected activity you can set aside.",
+          wrongMsg:   "Re-read it — jdoe is a normal user on the internal office network, not part of the attack.",
+          hint: "An ordinary account logging in from the internal office network is normal behaviour.",
+        },
+      },
+      {
+        key: "geo-source", label: "Geolocate Source", icon: "📍",
+        desc: "Look up the attacking address", cmd: "geoip 45.83.220.10",
+        output: [
+          "ASN:     AS-bulletproof-hosting",
+          "Country: Outside approved geo-list",
+          "Status:  Listed on credential-stuffing block lists",
+        ],
+        managerMsg: "Bulletproof hosting, outside our geo-list, on stuffing block lists. Now check whether any attempt actually succeeded.",
+        nextHint: "A hostile source location confirms intent. Check the logs for any SUCCESS — did one get through?",
+        unlockedAtStart: false,
+        unlocks: ["check-success"],
+        reasoning: {
+          question: "Why does this geolocation matter?",
+          answers: [
+            { letter: "A", text: "It is a trusted corporate data center." },
+            { letter: "B", text: "It is hostile hosting outside the approved geo-list, on block lists." },
+            { letter: "C", text: "Location never matters for logins." },
+          ],
+          correct: "B", conf: 30,
+          correctMsg: "Exactly — hostile hosting outside the approved geography strongly implies a deliberate attack.",
+          wrongMsg:   "Look again — the source is bulletproof hosting outside the geo-list and on stuffing block lists.",
+          hint: "Check the ASN and geo status — hostile hosting outside the approved region is the red flag.",
+        },
+      },
+      {
+        key: "check-success", label: "Check for Success", icon: "🚨",
+        desc: "Did any login get through?", cmd: "grep SUCCESS auth.log",
+        output: [
+          "SUCCESS login admin_svc  src=45.83.220.10  (after 46 failures)",
+          "SUCCESS mfa   admin_svc  src=45.83.220.10",
+        ],
+        managerMsg: "They got in — admin_svc was compromised after dozens of attempts. This is a confirmed takeover. Make the call.",
+        nextHint: "One account succeeded after many failures — that's a compromise. Review and classify the incident.",
+        unlockedAtStart: false,
+        unlocks: ["review"],
+        reasoning: {
+          question: "What does this successful login mean?",
+          answers: [
+            { letter: "A", text: "The attacker compromised admin_svc after repeated attempts." },
+            { letter: "B", text: "The system is working normally." },
+            { letter: "C", text: "Nothing was breached." },
+          ],
+          correct: "A", conf: 35,
+          correctMsg: "Right — a success after 46 failures from a hostile source means the account was taken over.",
+          wrongMsg:   "Not quite — a SUCCESS following dozens of failures from a hostile source is a compromise.",
+          hint: "A successful login from the attacking source, right after many failures, means they broke in.",
+        },
+      },
+      {
+        key: "review", label: "Review & Classify", icon: "🧭",
+        desc: "Correlate the findings", cmd: "review ato",
+        output: ["A hostile source brute-forced privileged accounts and compromised admin_svc."],
+        managerMsg: "Good — you've confirmed the takeover. Classify the incident and recommend containment.",
+        nextHint: "Decide what this incident is and what to do — answer the Analyst Review below.",
+        unlockedAtStart: false,
+        unlocks: [],
+        isReview: true,
+      },
+    ],
+    analystReview: {
+      question: "What does this activity represent?",
+      answers: [
+        { letter: "A", text: "A reconnaissance scan with no impact." },
+        { letter: "B", text: "An account-takeover attack — credentials brute-forced until one account was compromised." },
+        { letter: "C", text: "A routine password rotation." },
+        { letter: "D", text: "A denial-of-service attack." },
+      ],
+      correct: "B",
+      correctMsg: "Correct. Repeated MFA failures from a hostile source ending in a successful admin login is a confirmed account takeover.",
+      wrongMsg:   "Not quite. The attacker kept trying until an admin login succeeded — that is an account-takeover attack.",
+      finding: "A hostile source (45.83.220.10) brute-forced privileged MENA accounts and compromised admin_svc.",
+    },
+    quiz: {
+      question: "What is the best immediate containment for a compromised account?",
+      answers: [
+        { letter: "A", text: "Ignore it — the MFA failures already stopped." },
+        { letter: "B", text: "Disable the account, force a password reset, and re-enroll MFA." },
+        { letter: "C", text: "Email the attacker a warning." },
+        { letter: "D", text: "Speed up the login page." },
+      ],
+      correct: "B",
+      correctMsg: "Correct. Lock the compromised account, force new credentials, and re-enroll MFA to cut off the attacker.",
+      wrongMsg:   "Review the incident — a compromised account must be disabled, its password reset, and MFA re-enrolled.",
+      xpReward: 100,
+      newRank:  "Cyber Analyst — Identity",
+    },
+    scorecard: {
+      threatIdentified: "Account takeover of a privileged account via credential brute-forcing",
+      whatYouLearned:   "You learned how analysts triage authentication logs, separate normal logins from attacks, geolocate a hostile source, confirm a compromise, and recommend account-takeover containment.",
+      certSkills: [
+        "Authentication log analysis",
+        "Source geolocation",
+        "Compromise confirmation",
+        "Account-takeover response",
+      ],
+    },
+  },
+
+  /* ---------- Mission 6 — Anomalous Scan Triage (SEA) ---------- */
+  "mission-006": {
+    id:        "mission-006",
+    num:       "06",
+    title:     "Anomalous Scan Triage",
+    region:    "SE ASIA REGION",
+    opId:      "OPS-2026-006",
+    severity:  "LOW",
+    role:      "You are a Blue Team SOC analyst. A low-rate port scan tripped the SEA DMZ sensors. Triage it: confirm the source, verify there's no exploitation, and decide whether it needs to be escalated.",
+    briefing:  "Not every alert is an attack. A low-rate scan is hitting the SEA DMZ. Your job is triage — attribute the source, confirm whether any exploitation was attempted, and make the right call about escalation.",
+    learningObjective: "Practice alert triage: distinguishing benign automated noise from a genuine threat.",
+    supervisorIntro: "Welcome, analyst. OPS-2026-006 is low priority — a triage exercise. Start with the IDS log and work the evidence.",
+    objectives: [
+      "Review the IDS scan alert",
+      "Attribute the scanning source",
+      "Confirm no exploitation occurred",
+      "Decide on escalation",
+    ],
+    commands: [
+      {
+        key: "ids-log", label: "Review IDS Alert", icon: "📡",
+        desc: "Inspect the scan alert", cmd: "tail -n 4 /var/log/ids.log",
+        output: [
+          "PROBE 198.51.100.20 -> dmz:80   GET /",
+          "PROBE 198.51.100.20 -> dmz:443  GET /",
+          "Rate: 0.3 requests/sec (very low)",
+          "No payloads, no POST requests observed",
+        ],
+        managerMsg: "A very low-rate probe of just two ports, no payloads. Find out who 198.51.100.20 is.",
+        nextHint: "Low rate, only GET requests, two ports. Attribute the source address first.",
+        unlockedAtStart: true,
+        unlocks: ["attribute"],
+        reasoning: {
+          question: "What does the scan rate tell you?",
+          answers: [
+            { letter: "A", text: "It is very low and uses only harmless GET requests." },
+            { letter: "B", text: "It is a high-speed flood meant to crash the server." },
+            { letter: "C", text: "It is encrypting files." },
+          ],
+          correct: "A", conf: 25,
+          correctMsg: "Right — 0.3 req/s with only GETs and no payloads is gentle, automated probing.",
+          wrongMsg:   "Look again — 0.3 requests/sec with no payloads is a very low-rate, harmless-looking probe.",
+          hint: "Read the rate and request types — a fraction of a request per second with only GETs is low-impact.",
+        },
+      },
+      {
+        key: "attribute", label: "Attribute Source", icon: "🌐",
+        desc: "Look up the scanning address", cmd: "whois 198.51.100.20",
+        output: [
+          "OrgName: Global CDN / Internet Measurement",
+          "Status:  Known benign internet-wide scanner",
+        ],
+        managerMsg: "That's a known internet-measurement scanner — benign attribution. Still, confirm nothing was exploited.",
+        nextHint: "A known benign scanner is reassuring, but verify there were no exploitation attempts in the web log.",
+        unlockedAtStart: false,
+        unlocks: ["check-exploit"],
+        reasoning: {
+          question: "What does the attribution tell you?",
+          answers: [
+            { letter: "A", text: "It is a known, benign internet-measurement scanner." },
+            { letter: "B", text: "It is an unknown attacker we must block immediately." },
+            { letter: "C", text: "It is an internal admin host." },
+          ],
+          correct: "A", conf: 30,
+          correctMsg: "Correct — a registered, well-known scanner is benign, but you should still verify impact.",
+          wrongMsg:   "Re-read it — the source is a known, benign internet-wide measurement scanner.",
+          hint: "Check the OrgName and status — a registered, well-known scanner is benign infrastructure.",
+        },
+      },
+      {
+        key: "check-exploit", label: "Check for Exploitation", icon: "🛡️",
+        desc: "Verify no attack succeeded", cmd: "grep -E 'EXPLOIT|POST|500' web.log",
+        output: [
+          "(no matches)",
+          "Only HTTP 200 responses to GET / — no exploitation attempts found.",
+        ],
+        managerMsg: "Clean — no exploitation, no POSTs, no errors. You have everything you need to make the call.",
+        nextHint: "No exploitation found. Now make the triage decision in the Analyst Review.",
+        unlockedAtStart: false,
+        unlocks: ["review"],
+        reasoning: {
+          question: "What do these results confirm?",
+          answers: [
+            { letter: "A", text: "No exploitation was attempted — only harmless GET probes." },
+            { letter: "B", text: "The server was successfully breached." },
+            { letter: "C", text: "Data was stolen." },
+          ],
+          correct: "A", conf: 35,
+          correctMsg: "Right — no exploit attempts, only benign GETs. The impact is effectively zero.",
+          wrongMsg:   "Not quite — there are no exploit attempts in the log, only harmless GET requests.",
+          hint: "No EXPLOIT, POST, or 500 matches means nothing was attacked — only harmless probes.",
+        },
+      },
+      {
+        key: "review", label: "Review & Triage", icon: "🧭",
+        desc: "Make the triage decision", cmd: "review triage",
+        output: ["A known benign scanner performed a low-rate probe with no exploitation attempts."],
+        managerMsg: "Good triage. Now decide the right response — answer the Analyst Review below.",
+        nextHint: "Decide what to do with this alert — answer the Analyst Review below.",
+        unlockedAtStart: false,
+        unlocks: [],
+        isReview: true,
+      },
+    ],
+    analystReview: {
+      question: "What is the correct response to this alert?",
+      answers: [
+        { letter: "A", text: "Declare a major incident and page the whole team." },
+        { letter: "B", text: "Confirm attribution, log it for trending, and take no further action unless it escalates." },
+        { letter: "C", text: "Shut down all DMZ services immediately." },
+        { letter: "D", text: "Ignore the alert entirely and delete the logs." },
+      ],
+      correct: "B",
+      correctMsg: "Correct. A benign, low-rate scan with no exploitation is logged for trending — no escalation needed unless the pattern changes.",
+      wrongMsg:   "Not quite. This is benign low-rate noise — log it for trending and monitor, rather than over- or under-reacting.",
+      finding: "A known benign scanner (198.51.100.20) performed a low-rate SEA DMZ probe with no exploitation — logged for trending.",
+    },
+    quiz: {
+      question: "Why is triage an important SOC skill?",
+      answers: [
+        { letter: "A", text: "Because every alert is always a real attack." },
+        { letter: "B", text: "Because it separates harmless noise from genuine threats so analysts focus on what matters." },
+        { letter: "C", text: "Because it makes the network faster." },
+        { letter: "D", text: "Because it deletes old logs." },
+      ],
+      correct: "B",
+      correctMsg: "Correct. Triage keeps analysts focused on real threats by filtering out the constant stream of benign noise.",
+      wrongMsg:   "Review the mission — triage separates benign noise from real threats so the team isn't overwhelmed.",
+      xpReward: 100,
+      newRank:  "Cyber Analyst — Triage",
+    },
+    scorecard: {
+      threatIdentified: "Benign low-rate scan — triaged and logged, no escalation required",
+      whatYouLearned:   "You learned how analysts triage low-priority alerts: confirming source attribution, verifying there was no exploitation, and making a proportionate decision instead of over- or under-reacting.",
+      certSkills: [
+        "Alert triage",
+        "Source attribution",
+        "Exploitation verification",
+        "Proportionate escalation",
+      ],
+    },
+  },
+};
+
+/** Returns the data-driven mission object for the given id, or undefined. */
+export function getGenericMission(id) {
+  return GENERIC_MISSIONS[id];
+}
+
+/** True if `id` is one of the data-driven generic missions (004/005/006). */
+export function isGenericMission(id) {
+  return Object.prototype.hasOwnProperty.call(GENERIC_MISSIONS, id);
+}

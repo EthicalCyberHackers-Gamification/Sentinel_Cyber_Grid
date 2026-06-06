@@ -261,6 +261,11 @@ const REAL_MISSION_MAP = {
   "emea":    "mission-001",
   "apac":    "mission-002",
   "na-east": "mission-003",
+  // Task 13 — the remaining three incident nodes now map to real, playable
+  // data-driven missions in the main game (no more mocked workspace).
+  "latam":   "mission-004",
+  "mena":    "mission-005",
+  "sea":     "mission-006",
 };
 
 /* ============================================================
@@ -291,17 +296,24 @@ function readGameProgress() {
   }
 }
 
-// Returns { nodeId: "completed" | "active" | "locked" } for the three
-// real-mission nodes only. Other nodes (latam/mena/sea) are mock-only.
+// Returns { nodeId: "completed" | "active" | "locked" } for all six
+// real-mission nodes. The unlock chain mirrors the main game's gating:
+// emea→apac→na-east→latam→mena→sea (each needs the prior completed).
 function getMissionStates() {
   const p = readGameProgress() || {};
   const m1 = !!p.mission1Complete;
   const m2 = !!p.mission2Complete;
   const m3 = !!p.mission3Complete;
+  const m4 = !!p.mission4Complete;
+  const m5 = !!p.mission5Complete;
+  const m6 = !!p.mission6Complete;
   return {
     "emea":    m1 ? "completed" : "active",
     "apac":    m2 ? "completed" : (m1 ? "active" : "locked"),
     "na-east": m3 ? "completed" : (m2 ? "active" : "locked"),
+    "latam":   m4 ? "completed" : (m3 ? "active" : "locked"),
+    "mena":    m5 ? "completed" : (m4 ? "active" : "locked"),
+    "sea":     m6 ? "completed" : (m5 ? "active" : "locked"),
   };
 }
 
@@ -608,56 +620,14 @@ function launchWorkspace() {
   // Block locked real missions — their prerequisite isn't complete yet.
   if (getMissionStates()[activeNodeId] === 'locked') return;
 
-  // If this incident maps to a real playable mission, navigate to the main
-  // game with a ?mission= deep-link so the actual investigation terminal
-  // opens immediately. Progress and completion are handled by the main game.
+  // Task 13 — every incident node now maps to a real, playable mission in the
+  // main game. Navigate there with a ?mission= deep-link so the actual
+  // investigation terminal opens immediately; the main game owns progress and
+  // completion. (The previous mocked in-prototype workspace fallback has been
+  // removed now that all six nodes are backed by real missions.)
   const realMissionId = REAL_MISSION_MAP[activeNodeId];
-  if (realMissionId) {
-    window.location.href = '/?mission=' + encodeURIComponent(realMissionId);
-    return;
-  }
-
-  // Populate workspace header
-  const sevEl = document.getElementById('wsSeverity');
-  sevEl.textContent = incident.severity;
-  sevEl.setAttribute('data-sev', incident.severity);
-  document.getElementById('wsRegion').textContent = incident.region;
-  document.getElementById('wsTitle').textContent = incident.title;
-
-  // Populate sidebar
-  document.getElementById('wsOpId').textContent = incident.opId;
-  document.getElementById('wsThreatClass').textContent = incident.threatClass;
-  document.getElementById('wsPriority').textContent = incident.priority;
-  document.getElementById('wsManagerNote').textContent = incident.managerNote;
-
-  const sevClass = incident.severity.toLowerCase();
-  const prioEl = document.getElementById('wsPriority');
-  prioEl.className = `ws-brief-val ws-brief-val--${sevClass === 'critical' ? 'critical' : sevClass === 'high' ? 'high' : ''}`;
-
-  // Objectives
-  const objs = incident.objectives;
-  for (let i = 0; i < 4; i++) {
-    const el = document.getElementById(`wsObj${i + 1}`);
-    if (el && objs[i]) el.textContent = objs[i];
-  }
-
-  // Terminal welcome line
-  document.getElementById('termWelcome').textContent = `[${incident.opId}] ${incident.terminalBrief}`;
-
-  // Show workspace, hide ops center
-  document.getElementById('opsCenter').style.display = 'none';
-  document.getElementById('missionWorkspace').style.display = 'flex';
-
-  // Start timer
-  timerSeconds = 0;
-  clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    timerSeconds++;
-    const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
-    const s = String(timerSeconds % 60).padStart(2, '0');
-    const el = document.getElementById('wsTimer');
-    if (el) el.textContent = `${m}:${s}`;
-  }, 1000);
+  if (!realMissionId) return;
+  window.location.href = '/?mission=' + encodeURIComponent(realMissionId);
 }
 
 function returnToOpsCenter() {

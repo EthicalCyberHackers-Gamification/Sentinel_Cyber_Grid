@@ -2240,6 +2240,13 @@
       </span>
     </footer>
 
+    <!-- ===== GENERIC MISSION DASHBOARD =====
+         Single, data-driven shell shared by missions 004 / 005 / 006.
+         The `gm*` engine in script.js renders briefing, terminal,
+         commands, reasoning, analyst review, quiz, and scorecard into
+         this container. Hidden until launched from the Ops Center. -->
+    <main id="genMissionDashboard" class="gm-dashboard" aria-label="Mission Dashboard" style="display:none;"></main>
+
     <!-- Scripts -->
     <script type="module" src="/missions.js"></script>
     <script type="module" src="/script.js"></script>

@@ -16,3 +16,4 @@
 - [Persistence chokepoint](ech-persistence-chokepoint.md) — `saveProgress()` is the one place that writes `ech.progress.v1` AND enqueues cloud sync (and `awardXP`→`saveProgress`); presentation-only features must reach neither (briefing-review path persists — don't reuse for replay).
 - [Ops Center map projection](ech-ops-map-projection.md) — the Global Ops Map (both apps) is an exact equirectangular plate carrée (viewBox 1000x500); compute node/arc/land geometry from lat/long, don't eyeball it.
 - [pnpm lockfile churn](pnpm-lockfile-churn.md) — temp pnpm add/remove rewrites pnpm-lock.yaml (strips catalogs, adds tarball); restore via `git show HEAD:pnpm-lock.yaml > pnpm-lock.yaml`.
+- [Generic mission engine (M4/5/6)](ech-generic-mission-engine.md) — missions 004/005/006 are data-driven (one `gm*` engine + `GENERIC_MISSIONS`); deliberately bypasses M1-M3 hardcoded surfaces; deep-link-only discovery.

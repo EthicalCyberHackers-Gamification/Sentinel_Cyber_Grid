@@ -48,6 +48,9 @@ import {
   getNextMissionId,
   getMissionStatus,
   updateMissionStatus as setRegistryMissionStatus,
+  // Task 13 — data-driven generic missions (004 / 005 / 006).
+  getGenericMission,
+  isGenericMission,
 } from "/missions.js";
 
 // Phase B0 — best-effort, local-first Supabase backend foundation. Every call
@@ -3513,6 +3516,10 @@ function saveProgress() {
       mission2Unlocked: !!missionComplete, // mirrors completion in this build
       // Milestone 22 — Mission 2 completion flag (kept separate from M1).
       mission2Complete: !!mission2Complete,
+      // Task 13 — data-driven mission completion flags (004 / 005 / 006).
+      mission4Complete: !!mission4Complete,
+      mission5Complete: !!mission5Complete,
+      mission6Complete: !!mission6Complete,
       // Milestone 24A — persist collected evidence so it survives reload.
       evidence: (typeof evidenceLog === "object" && evidenceLog) ? evidenceLog : {},
       // Milestone 24B — persist per-mission threat level so it survives reload.
@@ -3697,6 +3704,13 @@ function restoreSavedProgress() {
     M3_STATUS.forEach((s) => m3CompletedStatus.add(s.id));
     renderCourseProgress();
   }
+
+  // Task 13 — restore data-driven mission completion flags (004 / 005 / 006).
+  // These gate each other (m4←m3, m5←m4, m6←m5) and surface on the prototype
+  // Ops Center nodes; gameplay state itself is re-derived when a mission opens.
+  if (data.mission4Complete) mission4Complete = true;
+  if (data.mission5Complete) mission5Complete = true;
+  if (data.mission6Complete) mission6Complete = true;
 
   // 6. Milestone 24A — restore evidence collected during prior sessions.
   //    Filtered to known mission ids so a corrupted/older save can't
@@ -4053,6 +4067,10 @@ function clearSavedProgress() {
     resetMission2();
     // Assignment 3 — also reset Mission 3 state + UI.
     resetMission3();
+    // Task 13 — clear data-driven mission completion (004 / 005 / 006).
+    mission4Complete = false;
+    mission5Complete = false;
+    mission6Complete = false;
     // Milestone 24C — Clear Saved Progress zeroes the trust score back to 50
     // (spec #12). Mission-restart does NOT reset it (spec #11).
     resetTrustScoreForDemo();
@@ -8157,6 +8175,19 @@ function missionMapStatus(missionId) {
     if (mission3Complete) return "completed";
     return mission2Complete ? "available" : "locked";
   }
+  // Task 13 — data-driven missions continue the unlock chain: m4←m3, m5←m4, m6←m5.
+  if (missionId === "mission-004") {
+    if (mission4Complete) return "completed";
+    return mission3Complete ? "available" : "locked";
+  }
+  if (missionId === "mission-005") {
+    if (mission5Complete) return "completed";
+    return mission4Complete ? "available" : "locked";
+  }
+  if (missionId === "mission-006") {
+    if (mission6Complete) return "completed";
+    return mission5Complete ? "available" : "locked";
+  }
   return "locked";
 }
 
@@ -8332,6 +8363,9 @@ function launchMissionFromMap(missionId, fromOC = false) {
     showMission2Overview();
   } else if (missionId === "mission-003") {
     showMission3Overview();
+  } else if (isGenericMission(missionId)) {
+    // Task 13 — data-driven missions 004 / 005 / 006 share one engine.
+    openGenericMission(missionId);
   }
 }
 
@@ -8353,6 +8387,8 @@ function showMissionsMap() {
   if (m3o) m3o.style.display = "none";
   const m3d = document.getElementById("mission3Dashboard");
   if (m3d) m3d.style.display = "none";
+  const gmd = document.getElementById("genMissionDashboard");
+  if (gmd) gmd.style.display = "none";
   const map = document.getElementById("missionsMap");
   if (map) {
     map.style.display = "";
@@ -8393,6 +8429,8 @@ function showModuleLanding() {
   if (m3o) m3o.style.display = "none";
   const m3d = document.getElementById("mission3Dashboard");
   if (m3d) m3d.style.display = "none";
+  const gmd = document.getElementById("genMissionDashboard");
+  if (gmd) gmd.style.display = "none";
   const map = document.getElementById("missionsMap");
   if (map) map.style.display = "none";
   if (moduleLandingEl) {
@@ -10231,6 +10269,14 @@ const M3_SCORECARD = {
 
 let mission3Complete    = false;
 let m3QuizAnswered      = false;
+
+// Task 13 — completion flags for the data-driven missions (004 / 005 / 006).
+// These are persisted (saveProgress/loadProgress), reset by clearSavedProgress,
+// gate one another (m4←m3, m5←m4, m6←m5) via missionMapStatus, and drive the
+// prototype Ops Center node states. The generic engine sets them on completion.
+let mission4Complete    = false;
+let mission5Complete    = false;
+let mission6Complete    = false;
 
 // Per-command: terminal output lines + hint shown AFTER the command runs +
 // commands this one unlocks next + supervisor message fired after the run.
@@ -12300,7 +12346,10 @@ function boot() {
   {
     const _dlParams = new URLSearchParams(window.location.search);
     const _dlMission = _dlParams.get("mission");
-    const _valid = ["mission-001", "mission-002", "mission-003"];
+    const _valid = [
+      "mission-001", "mission-002", "mission-003",
+      "mission-004", "mission-005", "mission-006",
+    ];
     if (_dlMission && _valid.includes(_dlMission)) {
       pendingDeepLinkMission = _dlMission;
       // Strip the param from the URL so reloads don't re-trigger it.
@@ -15486,6 +15535,450 @@ function startRedTeamMovement() {
 }
 function stopRedTeamMovement() {
   if (redTeamMoveTimer) { clearTimeout(redTeamMoveTimer); redTeamMoveTimer = null; }
+}
+
+/* ============================================================
+   GENERIC MISSION ENGINE  (Task 13 — missions 004 / 005 / 006)
+   ------------------------------------------------------------
+   A single, self-contained, DATA-DRIVEN engine that renders any
+   mission defined in GENERIC_MISSIONS (missions.js). It owns its
+   own DOM (#genMissionDashboard) and its own runtime state, so it
+   never touches the bespoke Mission 1–3 machinery. The only shared
+   state it writes is completion (mission4/5/6Complete) + XP, both
+   through the existing saveProgress() chokepoint.
+
+   Flow:  briefing → investigation (sequential commands + per-step
+   reasoning that raises an Analyst Confidence bar) → analyst review
+   → knowledge-check quiz → completion scorecard (awards XP, persists
+   the completion flag, returns to the Operations Center).
+   ============================================================ */
+
+let gmActive = null; // the active GENERIC_MISSIONS object, or null
+let gmState  = null; // runtime state for the active mission
+
+/** Hide every other top-level screen before showing the generic dashboard. */
+function gmHideOtherScreens() {
+  setMissionRunning(false);
+  endGuidedRun();
+  try { clearIncidentCinema(); } catch (_) { /* non-fatal */ }
+  clearAllMapButtonsAttention();
+  [
+    "mission2Overview", "mission2Dashboard",
+    "mission3Overview", "mission3Dashboard",
+    "missionsMap",
+  ].forEach((id) => {
+    const e = document.getElementById(id);
+    if (e) e.style.display = "none";
+  });
+  if (moduleLandingEl) moduleLandingEl.style.display = "none";
+  if (dashboardEl)     dashboardEl.style.display     = "none";
+  if (simLoaderEl)     simLoaderEl.style.display     = "none";
+}
+
+/** Entry point — open a data-driven mission by id. Resume-safe (replayable). */
+function openGenericMission(missionId) {
+  const m = getGenericMission(missionId);
+  if (!m) { showModuleLanding(); return; }
+  gmActive = m;
+  gmState = {
+    unlocked: new Set(),
+    run:      new Set(),
+    resolved: new Set(),
+    reasoned: new Set(),
+    conf:     0,
+    pendingReasoning: null,
+    complete: false,
+  };
+  m.commands.forEach((c) => { if (c.unlockedAtStart) gmState.unlocked.add(c.key); });
+
+  gmHideOtherScreens();
+  const c = document.getElementById("genMissionDashboard");
+  if (c) { c.style.display = ""; c.scrollTop = 0; }
+  window.scrollTo({ top: 0, behavior: "instant" });
+  try { trackGameEvent("generic_mission_opened", { missionId: m.id }); } catch (_) { /* non-fatal */ }
+  gmRenderBriefing();
+}
+
+/** Markup for the mission header (shared across every phase). */
+function gmHeaderHTML(m) {
+  return `
+    <div class="gm-header">
+      <div class="gm-header-id">
+        <span class="gm-op-num">${escapeHtml(m.num)}</span>
+        <span class="gm-title">${escapeHtml(m.title)}</span>
+      </div>
+      <div class="gm-meta">
+        <span class="gm-chip gm-chip--region">${escapeHtml(m.region)}</span>
+        <span class="gm-chip gm-chip--sev-${escapeHtml(m.severity)}">SEV ${escapeHtml(m.severity)}</span>
+        <span class="gm-chip">${escapeHtml(m.opId)}</span>
+        <button id="gmBackBtn" class="gm-back-btn" type="button">← Operations Center</button>
+      </div>
+    </div>`;
+}
+
+/** Wire the header back button (present in every phase). */
+function gmWireBack() {
+  const b = document.getElementById("gmBackBtn");
+  if (b) b.addEventListener("click", gmBackToOps);
+}
+
+/** Phase 1 — briefing room + objectives + "Begin Investigation". */
+function gmRenderBriefing() {
+  const c = document.getElementById("genMissionDashboard");
+  if (!c) return;
+  const m = gmActive;
+  c.innerHTML = gmHeaderHTML(m) + `
+    <div class="gm-panel">
+      <div class="gm-panel-label">Mission Briefing</div>
+      <p class="gm-lede">${escapeHtml(m.role)}</p>
+      <p class="gm-lede">${escapeHtml(m.briefing)}</p>
+      <div class="gm-panel-label">Objectives</div>
+      <ul class="gm-objectives">
+        ${m.objectives.map((o) => `<li>${escapeHtml(o)}</li>`).join("")}
+      </ul>
+      <div style="margin-top:24px">
+        <button id="gmBeginBtn" class="gm-primary-btn" type="button">▶&nbsp; Begin Investigation</button>
+      </div>
+    </div>`;
+  gmWireBack();
+  const begin = document.getElementById("gmBeginBtn");
+  if (begin) begin.addEventListener("click", gmBeginInvestigation);
+}
+
+/** Phase 2 — build the investigation layout (commands + terminal). */
+function gmBeginInvestigation() {
+  const c = document.getElementById("genMissionDashboard");
+  if (!c) return;
+  const m = gmActive;
+  c.innerHTML = gmHeaderHTML(m) + `
+    <div class="gm-confidence">
+      <div class="gm-conf-top">
+        <span>ANALYST CONFIDENCE</span><span id="gmConfPct">0%</span>
+      </div>
+      <div class="gm-conf-bar"><div class="gm-conf-fill" id="gmConfFill"></div></div>
+    </div>
+    <div class="gm-investigation">
+      <div class="gm-panel" style="padding:16px">
+        <div class="gm-panel-label">Available Commands</div>
+        <div class="gm-commands" id="gmCommands"></div>
+      </div>
+      <div class="gm-terminal" id="gmTerminal"></div>
+    </div>
+    <div id="gmReasonArea"></div>
+    <div id="gmPhaseArea"></div>`;
+  gmWireBack();
+  gmTermPush("sys", `Connected to ${m.region} SOC console.`);
+  if (m.supervisorIntro) gmTermPush("sup", m.supervisorIntro);
+  gmTermPush("spacer");
+  gmRenderCommands();
+  gmRenderConfidence();
+  gmRenderReasoning();
+}
+
+/** Append a line to the terminal and keep it scrolled to the bottom. */
+function gmTermPush(cls, text) {
+  const term = document.getElementById("gmTerminal");
+  if (!term) return;
+  const div = document.createElement("div");
+  if (cls === "spacer") {
+    div.className = "gm-term-spacer";
+  } else {
+    div.className = `gm-term-line gm-term-${cls}`;
+    div.textContent = text || "";
+  }
+  term.appendChild(div);
+  term.scrollTop = term.scrollHeight;
+}
+
+/** Re-render the command buttons from current unlocked/run state. */
+function gmRenderCommands() {
+  const el = document.getElementById("gmCommands");
+  if (!el) return;
+  el.innerHTML = gmActive.commands.map((c) => {
+    const unlocked = gmState.unlocked.has(c.key);
+    const run      = gmState.run.has(c.key);
+    const classes  = ["gm-cmd-btn"];
+    if (run) classes.push("gm-cmd--done");
+    const disabled = (!unlocked || run) ? "disabled" : "";
+    const icon     = run ? "✅" : (unlocked ? c.icon : "🔒");
+    const desc     = unlocked ? c.desc : "Locked — resolve the prior step first";
+    return `
+      <button class="${classes.join(" ")}" data-key="${escapeHtml(c.key)}" ${disabled} type="button">
+        <span class="gm-cmd-icon">${icon}</span>
+        <span>
+          <span class="gm-cmd-label">${escapeHtml(c.label)}</span><br>
+          <span class="gm-cmd-desc">${escapeHtml(desc)}</span>
+        </span>
+      </button>`;
+  }).join("");
+  el.querySelectorAll("button[data-key]").forEach((b) => {
+    b.addEventListener("click", () => gmRunCommand(b.getAttribute("data-key")));
+  });
+}
+
+/** Update the Analyst Confidence meter. */
+function gmRenderConfidence() {
+  const pct  = Math.min(100, Math.max(0, gmState.conf));
+  const fill = document.getElementById("gmConfFill");
+  const lbl  = document.getElementById("gmConfPct");
+  if (fill) fill.style.width = `${pct}%`;
+  if (lbl)  lbl.textContent  = `${pct}%`;
+}
+
+/** Mark a command resolved and reveal whatever it unlocks. */
+function gmResolveCommand(cmd) {
+  gmState.resolved.add(cmd.key);
+  (cmd.unlocks || []).forEach((k) => gmState.unlocked.add(k));
+}
+
+/** Run a command — echo it + its output into the terminal. */
+function gmRunCommand(key) {
+  const cmd = gmActive.commands.find((c) => c.key === key);
+  if (!cmd || !gmState.unlocked.has(key) || gmState.run.has(key)) return;
+  gmState.run.add(key);
+  gmTermPush("cmd", cmd.cmd);
+  (cmd.output || []).forEach((line) => gmTermPush("out", line));
+  if (cmd.managerMsg) gmTermPush("sup", cmd.managerMsg);
+  gmTermPush("spacer");
+
+  if (cmd.reasoning) {
+    // Gate: the command's unlocks fire only after correct reasoning.
+    gmState.pendingReasoning = key;
+    gmRenderReasoning();
+  } else {
+    gmResolveCommand(cmd);
+    if (cmd.isReview) gmShowAnalystReview();
+  }
+  gmRenderCommands();
+  gmRenderConfidence();
+}
+
+/** Render the per-step reasoning prompt (one at a time), if any is pending. */
+function gmRenderReasoning() {
+  const area = document.getElementById("gmReasonArea");
+  if (!area) return;
+  const key = gmState.pendingReasoning;
+  if (!key) { area.innerHTML = ""; return; }
+  const cmd = gmActive.commands.find((c) => c.key === key);
+  const r   = cmd.reasoning;
+  area.innerHTML = `
+    <div class="gm-panel">
+      <div class="gm-panel-label">Analyst Reasoning</div>
+      <div class="gm-quiz">
+        <div class="gm-quiz-q">${escapeHtml(r.question)}</div>
+        <div class="gm-answers" id="gmReasonAnswers">
+          ${r.answers.map((a) => `
+            <button class="gm-ans-btn" data-letter="${escapeHtml(a.letter)}" type="button">
+              <span class="gm-ans-letter">${escapeHtml(a.letter)}</span>
+              <span>${escapeHtml(a.text)}</span>
+            </button>`).join("")}
+        </div>
+        <div id="gmReasonFeedback"></div>
+      </div>
+    </div>`;
+  area.querySelectorAll("button[data-letter]").forEach((b) => {
+    b.addEventListener("click", () => gmAnswerReasoning(key, b.getAttribute("data-letter")));
+  });
+  area.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/** Handle a reasoning answer — correct unlocks the next step + raises confidence. */
+function gmAnswerReasoning(key, letter) {
+  const cmd = gmActive.commands.find((c) => c.key === key);
+  if (!cmd || gmState.reasoned.has(key)) return;
+  const r    = cmd.reasoning;
+  const fb   = document.getElementById("gmReasonFeedback");
+  const btns = document.querySelectorAll("#gmReasonAnswers button[data-letter]");
+
+  if (letter === r.correct) {
+    gmState.reasoned.add(key);
+    gmState.conf = Math.min(100, gmState.conf + (r.conf || 0));
+    gmResolveCommand(cmd);
+    gmState.pendingReasoning = null;
+    gmTermPush("sys", r.correctMsg);
+    btns.forEach((b) => {
+      b.disabled = true;
+      if (b.getAttribute("data-letter") === letter) b.classList.add("gm-ans--correct");
+    });
+    if (fb) fb.innerHTML = `<div class="gm-feedback gm-feedback--good">✓ ${escapeHtml(r.correctMsg)}</div>`;
+    gmRenderConfidence();
+    gmRenderCommands();
+    window.setTimeout(() => {
+      gmRenderReasoning();
+      if (cmd.isReview) gmShowAnalystReview();
+    }, 750);
+  } else {
+    btns.forEach((b) => {
+      if (b.getAttribute("data-letter") === letter) { b.classList.add("gm-ans--wrong"); b.disabled = true; }
+    });
+    const hint = r.hint ? `<br>Hint: ${escapeHtml(r.hint)}` : "";
+    if (fb) fb.innerHTML = `<div class="gm-feedback gm-feedback--bad">✗ ${escapeHtml(r.wrongMsg)}${hint}</div>`;
+  }
+}
+
+/** Phase 3 — analyst review: classify the incident. */
+function gmShowAnalystReview() {
+  const area = document.getElementById("gmPhaseArea");
+  if (!area) return;
+  const ar = gmActive.analystReview;
+  area.innerHTML = `
+    <div class="gm-panel">
+      <div class="gm-panel-label">Analyst Review</div>
+      <p class="gm-lede"><strong>Finding:</strong> ${escapeHtml(ar.finding)}</p>
+      <div class="gm-quiz">
+        <div class="gm-quiz-q">${escapeHtml(ar.question)}</div>
+        <div class="gm-answers" id="gmAnalystAnswers">
+          ${ar.answers.map((a) => `
+            <button class="gm-ans-btn" data-letter="${escapeHtml(a.letter)}" type="button">
+              <span class="gm-ans-letter">${escapeHtml(a.letter)}</span>
+              <span>${escapeHtml(a.text)}</span>
+            </button>`).join("")}
+        </div>
+        <div id="gmAnalystFeedback"></div>
+      </div>
+    </div>`;
+  area.querySelectorAll("button[data-letter]").forEach((b) => {
+    b.addEventListener("click", () => gmAnswerAnalyst(b.getAttribute("data-letter")));
+  });
+  area.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function gmAnswerAnalyst(letter) {
+  const ar   = gmActive.analystReview;
+  const fb   = document.getElementById("gmAnalystFeedback");
+  const btns = document.querySelectorAll("#gmAnalystAnswers button[data-letter]");
+  if (letter === ar.correct) {
+    btns.forEach((b) => {
+      b.disabled = true;
+      if (b.getAttribute("data-letter") === letter) b.classList.add("gm-ans--correct");
+    });
+    if (fb) fb.innerHTML = `<div class="gm-feedback gm-feedback--good">✓ ${escapeHtml(ar.correctMsg)}</div>`;
+    window.setTimeout(gmShowQuiz, 750);
+  } else {
+    btns.forEach((b) => {
+      if (b.getAttribute("data-letter") === letter) { b.classList.add("gm-ans--wrong"); b.disabled = true; }
+    });
+    if (fb) fb.innerHTML = `<div class="gm-feedback gm-feedback--bad">✗ ${escapeHtml(ar.wrongMsg)}</div>`;
+  }
+}
+
+/** Phase 4 — knowledge-check quiz. */
+function gmShowQuiz() {
+  const area = document.getElementById("gmPhaseArea");
+  if (!area) return;
+  const q = gmActive.quiz;
+  area.innerHTML = `
+    <div class="gm-panel">
+      <div class="gm-panel-label">Knowledge Check</div>
+      <div class="gm-quiz">
+        <div class="gm-quiz-q">${escapeHtml(q.question)}</div>
+        <div class="gm-answers" id="gmQuizAnswers">
+          ${q.answers.map((a) => `
+            <button class="gm-ans-btn" data-letter="${escapeHtml(a.letter)}" type="button">
+              <span class="gm-ans-letter">${escapeHtml(a.letter)}</span>
+              <span>${escapeHtml(a.text)}</span>
+            </button>`).join("")}
+        </div>
+        <div id="gmQuizFeedback"></div>
+      </div>
+    </div>`;
+  area.querySelectorAll("button[data-letter]").forEach((b) => {
+    b.addEventListener("click", () => gmAnswerQuiz(b.getAttribute("data-letter")));
+  });
+  area.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function gmAnswerQuiz(letter) {
+  const q    = gmActive.quiz;
+  const fb   = document.getElementById("gmQuizFeedback");
+  const btns = document.querySelectorAll("#gmQuizAnswers button[data-letter]");
+  if (letter === q.correct) {
+    btns.forEach((b) => {
+      b.disabled = true;
+      if (b.getAttribute("data-letter") === letter) b.classList.add("gm-ans--correct");
+    });
+    if (fb) fb.innerHTML = `<div class="gm-feedback gm-feedback--good">✓ ${escapeHtml(q.correctMsg)}</div>`;
+    window.setTimeout(gmCompleteMission, 800);
+  } else {
+    btns.forEach((b) => {
+      if (b.getAttribute("data-letter") === letter) { b.classList.add("gm-ans--wrong"); b.disabled = true; }
+    });
+    if (fb) fb.innerHTML = `<div class="gm-feedback gm-feedback--bad">✗ ${escapeHtml(q.wrongMsg)}</div>`;
+  }
+}
+
+/** Phase 5 — mark complete, award XP, persist, and show the scorecard. */
+function gmCompleteMission() {
+  if (!gmActive || gmState.complete) return;
+  gmState.complete = true;
+
+  // Persist completion (drives gating + the prototype Ops Center node states).
+  if      (gmActive.id === "mission-004") mission4Complete = true;
+  else if (gmActive.id === "mission-005") mission5Complete = true;
+  else if (gmActive.id === "mission-006") mission6Complete = true;
+
+  // Award XP through the same state used by the rest of the game.
+  const reward = (gmActive.quiz && gmActive.quiz.xpReward) || 100;
+  currentXP = Math.min(MAX_XP, currentXP + reward);
+  if (currentXPEl) currentXPEl.textContent = currentXP;
+  if (xpBarEl) {
+    xpBarEl.style.transition = "";
+    xpBarEl.style.width = `${Math.round((currentXP / MAX_XP) * 100)}%`;
+  }
+
+  saveProgress(); // single chokepoint — also enqueues best-effort cloud sync.
+  try { trackGameEvent("generic_mission_complete", { missionId: gmActive.id, xp: reward }); } catch (_) { /* non-fatal */ }
+  try { fxToast(`+${reward} XP — ${gmActive.title} complete`, "success"); } catch (_) { /* non-fatal */ }
+
+  gmRenderScorecard(reward);
+}
+
+/** Final scorecard summarizing the completed mission. */
+function gmRenderScorecard(reward) {
+  const c = document.getElementById("genMissionDashboard");
+  if (!c) return;
+  const m  = gmActive;
+  const sc = m.scorecard;
+  c.innerHTML = gmHeaderHTML(m) + `
+    <div class="gm-panel gm-scorecard">
+      <div class="gm-score-badge">✓ ASSIGNMENT COMPLETE</div>
+      <div class="gm-score-rank">${escapeHtml(m.title)} — ${escapeHtml(m.region)}</div>
+      <div class="gm-xp-pop">+${reward} XP&nbsp; ·&nbsp; Total ${currentXP} XP</div>
+      <div class="gm-score-grid">
+        <div>
+          <div class="gm-score-row-label">Threat Identified</div>
+          <div class="gm-score-row-val">${escapeHtml(sc.threatIdentified)}</div>
+        </div>
+        <div>
+          <div class="gm-score-row-label">What You Learned</div>
+          <div class="gm-score-row-val">${escapeHtml(sc.whatYouLearned)}</div>
+        </div>
+        ${m.quiz && m.quiz.newRank ? `
+        <div>
+          <div class="gm-score-row-label">Skill Path</div>
+          <div class="gm-score-row-val">${escapeHtml(m.quiz.newRank)}</div>
+        </div>` : ""}
+        <div>
+          <div class="gm-score-row-label">Skills Practiced</div>
+          <div class="gm-skill-tags">
+            ${sc.certSkills.map((s) => `<span class="gm-skill-tag">${escapeHtml(s)}</span>`).join("")}
+          </div>
+        </div>
+      </div>
+      <button id="gmDoneBtn" class="gm-primary-btn" type="button">← Return to Operations Center</button>
+    </div>`;
+  gmWireBack();
+  const done = document.getElementById("gmDoneBtn");
+  if (done) done.addEventListener("click", gmBackToOps);
+}
+
+/** Tear down the generic dashboard and return to the Operations Center home. */
+function gmBackToOps() {
+  gmActive = null;
+  gmState  = null;
+  const c = document.getElementById("genMissionDashboard");
+  if (c) { c.style.display = "none"; c.innerHTML = ""; }
+  showModuleLanding();
 }
 
 document.addEventListener("DOMContentLoaded", boot);
