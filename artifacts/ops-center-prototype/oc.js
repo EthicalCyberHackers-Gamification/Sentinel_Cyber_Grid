@@ -366,6 +366,8 @@ let timerInterval = null;
 let timerSeconds = 0;
 let alertRollIndex = 0;
 let commsRollIndex = 0;
+let tickerItemCount = 0; // items per half in the seamless-loop track
+const MAX_TICKER_ITEMS = 20;
 
 /* ============================================================
    CLOCK
@@ -598,6 +600,57 @@ function initThreatTicker() {
   // Two full copies so the CSS -50% translateX creates a seamless loop
   const allItems = [...TICKER_IOCS, ...TICKER_IOCS];
   allItems.forEach(ioc => track.appendChild(makeItem(ioc)));
+  tickerItemCount = TICKER_IOCS.length;
+}
+
+// Convert a rolling alert into a ticker IOC object
+function alertToIoc(alert) {
+  return {
+    sev: alert.severity,
+    text: `${alert.region} — ${alert.name}`
+  };
+}
+
+// Prepend a new live IOC item to both halves of the seamless ticker loop.
+// Inserts at position 0 of half-1 and position N+1 (start of half-2).
+// Trims the tail of each half when the cap is exceeded so the track stays
+// bounded and the CSS -50% loop remains accurate.
+function appendTickerItem(alert) {
+  const track = document.getElementById('tickerTrack');
+  if (!track) return;
+
+  const ioc = alertToIoc(alert);
+  const N = tickerItemCount;
+
+  function makeFlashItem() {
+    const el = document.createElement('span');
+    el.className = 'ticker-item ticker-item--new';
+    el.innerHTML = `<span class="ticker-sev ticker-sev--${ioc.sev}">${ioc.sev.toUpperCase()}</span>${ioc.text}`;
+    // Remove the flash class after animation ends (or via timeout for
+    // reduced-motion where animationend may not fire)
+    const cleanup = () => el.classList.remove('ticker-item--new');
+    el.addEventListener('animationend', cleanup, { once: true });
+    setTimeout(cleanup, 2200); // fallback for prefers-reduced-motion
+    return el;
+  }
+
+  const item1 = makeFlashItem();
+  const item2 = makeFlashItem();
+
+  // Insert at start of half-1
+  track.insertBefore(item1, track.children[0]);
+  // Insert at start of half-2 (now at index N+1 after the first insert)
+  track.insertBefore(item2, track.children[N + 1]);
+
+  tickerItemCount++;
+
+  // Trim the oldest item from each half when we exceed the cap
+  if (tickerItemCount > MAX_TICKER_ITEMS) {
+    const lastHalf1Idx = tickerItemCount - 1;
+    if (track.children[lastHalf1Idx]) track.removeChild(track.children[lastHalf1Idx]);
+    if (track.lastChild)              track.removeChild(track.lastChild);
+    tickerItemCount--;
+  }
 }
 
 /* ============================================================
@@ -611,6 +664,7 @@ function scheduleRollingAlerts() {
     const alert = ROLLING_ALERTS[alertRollIndex++];
     renderAlert(alert, true);
     SoundEngine.playAlertChime(alert.severity);
+    appendTickerItem(alert); // mirror to live IOC ticker
     scheduleRollingAlerts();
   }, delay);
 }
