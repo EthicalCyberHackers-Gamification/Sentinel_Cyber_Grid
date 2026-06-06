@@ -703,6 +703,86 @@ const HOLOTABLE_MISSIONS = {
     ],
     takeaway:
       "C2 beacons reveal themselves through regular jittered callbacks, unsigned DLLs loaded by office apps, and persistence tasks impersonating trusted updaters. Confirm the destination against threat intel and never silence or quarantine your own EDR — it's the sensor that sees the attack.",
+    // ---- Live SOC Console config (vertical slice). Drives the reactive network
+    // map + terminal interior. Holotable ignores this block entirely. ----
+    console: {
+      host: "NA-WS-1092",
+      // Map nodes (x/y are % of the map area). type drives styling.
+      nodes: [
+        { id: "fw",     label: "PERIMETER FW",   type: "gateway", x: 50, y: 16 },
+        { id: "soc",    label: "SOC / EDR",      type: "sensor",  x: 16, y: 47 },
+        { id: "ws1092", label: "NA-WS-1092",     type: "host",    x: 50, y: 56, focus: true },
+        { id: "ws1090", label: "NA-WS-1090",     type: "host",    x: 30, y: 84 },
+        { id: "srv04",  label: "NA-SRV-04",      type: "host",    x: 70, y: 84 },
+        { id: "msupd",  label: "MS UPDATE",      type: "cloud",   x: 16, y: 14, external: true },
+        { id: "c2",     label: "185.220.101.47", type: "threat",  x: 86, y: 14, external: true },
+      ],
+      // Internal segment links — appear after `scan`.
+      infraLinks: [["fw", "soc"], ["fw", "ws1092"], ["fw", "ws1090"], ["fw", "srv04"]],
+      // External flows — appear after `netflow`.
+      threatLink: { from: "ws1092", to: "c2",    label: "BEACON · 60s" },
+      benignLink: { from: "ws1092", to: "msupd", label: "WIN UPDATE" },
+      // Which command surfaces which artifacts, and which map node each lights up.
+      reveal: {
+        netflow:  ["beacon-proc", "c2-domain", "win-update"],
+        procscan: ["persist-task", "edr-agent"],
+      },
+      nodeOf: {
+        "beacon-proc": "ws1092",
+        "c2-domain":   "c2",
+        "win-update":  "msupd",
+        "persist-task": "ws1092",
+        "edr-agent":    "soc",
+      },
+      // Terminal output scripts. Each line: { t: text, c?: ok|warn|dim|head }.
+      out: {
+        scan: [
+          { t: "scan --subnet NA-EAST/24", c: "cmd" },
+          { t: "[*] Sweeping NA-EAST segment for live hosts…", c: "dim" },
+          { t: "  NA-WS-1090    up    baseline traffic" },
+          { t: "  NA-SRV-04     up    baseline traffic" },
+          { t: "  SOC / EDR     up    sensor healthy" },
+          { t: "  NA-WS-1092    up    anomalous periodic outbound (HTTPS)", c: "warn" },
+          { t: "[+] 4 hosts online. NA-WS-1092 is calling out on a timer.", c: "ok" },
+          { t: "    Next: run `netflow` and `procscan` to investigate it.", c: "dim" },
+        ],
+        netflow: [
+          { t: "netflow NA-WS-1092", c: "cmd" },
+          { t: "TIME      DST                      PORT  BYTES  PATTERN", c: "head" },
+          { t: "03:50:12  185.220.101.47           443   2.1K   every 60s ±jitter", c: "warn" },
+          { t: "03:51:40  *.windowsupdate.ms.com   443   48M    bursty download" },
+          { t: "03:52:13  185.220.101.47           443   2.0K   every 60s ±jitter", c: "warn" },
+          { t: "[+] Steady 60-second callbacks to 185.220.101.47 — textbook C2 beacon.", c: "ok" },
+          { t: "[+] 3 artifacts added to the evidence queue. Inspect & classify them.", c: "ok" },
+        ],
+        procscan: [
+          { t: "procscan NA-WS-1092", c: "cmd" },
+          { t: "PID   PROCESS                     SIGNED  NOTES", c: "head" },
+          { t: "6612  rundll32.exe (msupd.dll)    NO      parent: winword.exe", c: "warn" },
+          { t: " 980  CSFalconService             YES     CrowdStrike sensor" },
+          { t: "1224  svchost.exe -k netsvcs      YES     wuauserv" },
+          { t: "TASKS:", c: "head" },
+          { t: "  GoogleUpdaterTaskCore  logon  powershell -enc <b64>  NOT signed by Google", c: "warn" },
+          { t: "[+] 2 artifacts added to the evidence queue. Inspect & classify them.", c: "ok" },
+        ],
+        intel: {
+          "update-svc-cdn.net": [
+            { t: "intel update-svc-cdn.net", c: "cmd" },
+            { t: "update-svc-cdn.net → 185.220.101.47", c: "" },
+            { t: "  registered 6 days ago · privacy-shielded WHOIS" },
+            { t: "  listed on 3 feeds: Cobalt Strike C2 (HIGH confidence)", c: "warn" },
+            { t: "verdict: KNOWN-MALICIOUS", c: "warn" },
+          ],
+          "185.220.101.47": [
+            { t: "intel 185.220.101.47", c: "cmd" },
+            { t: "185.220.101.47  ·  AS47337 (flagged bulletproof host)" },
+            { t: "  reverse: update-svc-cdn.net" },
+            { t: "  threat feeds: Cobalt Strike C2 — active", c: "warn" },
+            { t: "verdict: KNOWN-MALICIOUS", c: "warn" },
+          ],
+        },
+      },
+    },
   },
 
   "mission-004": {
@@ -1619,9 +1699,16 @@ function launchWorkspace() {
   const realMissionId = REAL_MISSION_MAP[activeNodeId];
   if (!realMissionId) return;
 
+  // Experimental Live SOC Console interior (vertical slice). Missions carrying a
+  // `console` config open the terminal + reactive-map interior instead of the
+  // holotable. (Currently mission-003 — the C2 Beacon showcase.)
+  if (HOLOTABLE_MISSIONS[realMissionId] && HOLOTABLE_MISSIONS[realMissionId].console) {
+    openSocConsole(realMissionId);
+    return;
+  }
+
   // Experimental Evidence Holotable interior. Missions backed by a holotable
   // open the in-prototype interior instead of deep-linking into the main game.
-  // (All six prototype missions now have a holotable interior.)
   if (HOLOTABLE_MISSIONS[realMissionId]) {
     openHolotable(realMissionId);
     return;
@@ -2350,10 +2437,23 @@ function init() {
   // (so the path forward isn't only the side-dock button).
   document.getElementById('htStageHint').addEventListener('click', htRunScan);
 
-  // Keyboard: Escape closes card or returns from workspace / holotable
+  // Live SOC Console — return + terminal input.
+  document.getElementById('scBackBtn').addEventListener('click', returnFromSocConsole);
+  document.getElementById('scTermForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const input = document.getElementById('scTermInput');
+    const raw = input.value;
+    input.value = '';
+    scRunCommand(raw);
+  });
+
+  // Keyboard: Escape closes card or returns from workspace / holotable / console
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      if (document.getElementById('holotable').style.display !== 'none') {
+      if (document.getElementById('socConsole').style.display !== 'none') {
+        if (scCloseTopOverlay()) return;
+        returnFromSocConsole();
+      } else if (document.getElementById('holotable').style.display !== 'none') {
         // Close the top open overlay first; otherwise leave the holotable.
         if (htCloseTopOverlay()) return;
         returnFromHolotable();
@@ -2410,9 +2510,623 @@ function init() {
   // testing the prototype (e.g. /ops-center/?holo=mission-001). Read-only — no
   // progress is written either way.
   try {
-    const holoId = new URLSearchParams(window.location.search).get('holo');
-    if (holoId && HOLOTABLE_MISSIONS[holoId]) openHolotable(holoId);
+    const params = new URLSearchParams(window.location.search);
+    const consoleId = params.get('console');
+    const holoId = params.get('holo');
+    // `console` takes precedence so the two deep-links can't open two screens.
+    if (consoleId && HOLOTABLE_MISSIONS[consoleId] && HOLOTABLE_MISSIONS[consoleId].console) {
+      openSocConsole(consoleId);
+    } else if (holoId && HOLOTABLE_MISSIONS[holoId]) {
+      openHolotable(holoId);
+    }
   } catch (_) { /* ignore malformed query strings */ }
+}
+
+/* ============================================================
+   LIVE SOC CONSOLE  (vertical slice — mission-003 C2 Beacon)
+   A terminal-driven investigation over a reactive network map.
+   Commands surface artifacts AND animate the map; the analyst
+   inspects/classifies each, then contains the threat.
+   Prototype-only, in-memory. NEVER writes localStorage/progress.
+   ============================================================ */
+let scMissionId   = null;   // active console mission id
+let scScanned     = false;  // network scan run?
+let scContained   = false;  // containment decision made?
+const scClassified = {};    // artifactId -> "malicious" | "benign"
+const scRevealed   = new Set();   // artifactIds surfaced into the queue
+const scRanCmds    = new Set();   // reveal commands already run (netflow/procscan)
+let scRunToken     = 0;     // bumped on open/return → stray timers no-op
+let scInspectorTimer = null;
+
+function scMission()   { return scMissionId ? HOLOTABLE_MISSIONS[scMissionId] : null; }
+function scConfig()    { const m = scMission(); return m ? m.console : null; }
+function scArtifacts() { const m = scMission(); return m ? m.artifacts : []; }
+function scMaliciousArtifacts() { return scArtifacts().filter(a => a.verdict === 'malicious'); }
+function scArtifactById(id) { return scArtifacts().find(a => a.id === id) || null; }
+function scNodeById(id) { const c = scConfig(); return c ? c.nodes.find(n => n.id === id) : null; }
+
+// All truly-malicious artifacts that have been revealed are flagged malicious.
+function scAllMaliciousPinned() {
+  const mal = scMaliciousArtifacts();
+  return mal.length > 0
+    && mal.every(a => scRevealed.has(a.id))
+    && mal.every(a => scClassified[a.id] === 'malicious');
+}
+function scAllRevealed() {
+  return scArtifacts().length > 0 && scArtifacts().every(a => scRevealed.has(a.id));
+}
+
+function openSocConsole(missionId) {
+  const mission = HOLOTABLE_MISSIONS[missionId];
+  if (!mission || !mission.console) return;
+
+  scRunToken++;
+  if (scInspectorTimer) { clearTimeout(scInspectorTimer); scInspectorTimer = null; }
+  scMissionId = missionId;
+  scScanned   = false;
+  scContained = false;
+  Object.keys(scClassified).forEach(k => delete scClassified[k]);
+  scRevealed.clear();
+  scRanCmds.clear();
+
+  // Header strip.
+  document.getElementById('scSeverity').textContent = mission.severity;
+  document.getElementById('scRegion').textContent   = mission.region;
+  document.getElementById('scOpId').textContent     = mission.opId;
+  document.getElementById('scTitle').textContent    = mission.title;
+  document.getElementById('scStatusText').textContent = 'ANALYSIS ACTIVE';
+
+  // Reset overlays.
+  ['scInspector', 'scDecision', 'scOutcome'].forEach(id => {
+    const el = document.getElementById(id); if (el) { el.hidden = true; el.innerHTML = ''; }
+  });
+
+  // Reset terminal + map + rail.
+  const out = document.getElementById('scTermOut');
+  if (out) out.innerHTML = '';
+  scTermPrint([
+    { t: `CyberCorp SOC Console — ${mission.opId}  (${mission.host || ''})`, c: 'head' },
+    { t: 'Investigate the alert using the tools on the left, or type a command.' },
+    { t: 'Start with `scan`. Type `help` for the full list.', c: 'dim' },
+  ]);
+  scRenderMap();
+  scApplyMapState();
+  scRenderDock();
+  scRenderRail();
+  setScObjective('Run `scan` to discover live hosts on the segment.', '');
+
+  const hint = document.getElementById('scMapHint');
+  if (hint) hint.classList.remove('is-hidden');
+
+  document.getElementById('opsCenter').style.display = 'none';
+  document.getElementById('socConsole').style.display = 'flex';
+
+  const input = document.getElementById('scTermInput');
+  if (input) {
+    const token = scRunToken;
+    setTimeout(() => { if (token === scRunToken) input.focus(); }, 60);
+  }
+
+  SoundEngine.playNodeSelect('high');
+}
+
+function returnFromSocConsole() {
+  scRunToken++;
+  if (scInspectorTimer) { clearTimeout(scInspectorTimer); scInspectorTimer = null; }
+  document.getElementById('socConsole').style.display = 'none';
+  document.getElementById('opsCenter').style.display = 'flex';
+  applyMissionProgress();   // re-sync read-only map badges
+  scMissionId = null;
+  SoundEngine.playCloseSound();
+}
+
+/* ---- Network map ---- */
+const SC_NODE_GLYPH = { gateway: '⊟', sensor: '◎', host: '▢', cloud: '◇', threat: '⊗' };
+
+function scRenderMap() {
+  const cfg = scConfig();
+  const svg = document.getElementById('scMapSvg');
+  const host = document.getElementById('scMapNodes');
+  if (!cfg || !svg || !host) return;
+  svg.innerHTML = '';
+  host.innerHTML = '';
+
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const line = (id, a, b, cls) => {
+    const na = scNodeById(a), nb = scNodeById(b);
+    if (!na || !nb) return;
+    const el = document.createElementNS(SVGNS, 'line');
+    el.setAttribute('x1', na.x); el.setAttribute('y1', na.y);
+    el.setAttribute('x2', nb.x); el.setAttribute('y2', nb.y);
+    el.setAttribute('vector-effect', 'non-scaling-stroke');
+    el.setAttribute('class', cls);
+    if (id) el.id = id;
+    svg.appendChild(el);
+  };
+  (cfg.infraLinks || []).forEach(([a, b]) => line(`scLink-${a}-${b}`, a, b, 'sc-link sc-link--infra'));
+  if (cfg.threatLink) line('scLinkThreat', cfg.threatLink.from, cfg.threatLink.to, 'sc-link');
+  if (cfg.benignLink) line('scLinkBenign', cfg.benignLink.from, cfg.benignLink.to, 'sc-link');
+
+  cfg.nodes.forEach(n => {
+    const el = document.createElement('div');
+    el.className = `sc-node sc-node--${n.type}`;
+    el.id = `scNode-${n.id}`;
+    el.style.left = `${n.x}%`;
+    el.style.top  = `${n.y}%`;
+    el.innerHTML = `
+      <span class="sc-node-dot" aria-hidden="true">${SC_NODE_GLYPH[n.type] || '▢'}</span>
+      <span class="sc-node-label">${n.label}</span>
+    `;
+    host.appendChild(el);
+  });
+}
+
+// Toggle map node/link classes to reflect the current investigation state.
+function scApplyMapState() {
+  const cfg = scConfig();
+  if (!cfg) return;
+  const netflowRan  = scRanCmds.has('netflow');
+  const procscanRan = scRanCmds.has('procscan');
+
+  cfg.nodes.forEach(n => {
+    const el = document.getElementById(`scNode-${n.id}`);
+    if (!el) return;
+    const live = scScanned && (!n.external || (n.external && netflowRan));
+    el.classList.toggle('is-live', live);
+    if (n.focus) {
+      el.classList.toggle('is-flagged', procscanRan && !scContained);
+      el.classList.toggle('is-contained', scContained);
+    }
+  });
+
+  // Infra links live once scanned.
+  (cfg.infraLinks || []).forEach(([a, b]) => {
+    const el = document.getElementById(`scLink-${a}-${b}`);
+    if (el) el.classList.toggle('is-live', scScanned);
+  });
+  const benign = document.getElementById('scLinkBenign');
+  if (benign) benign.setAttribute('class', 'sc-link' + (netflowRan ? ' is-benign' : ''));
+  const threat = document.getElementById('scLinkThreat');
+  if (threat) {
+    threat.setAttribute('class', 'sc-link'
+      + (netflowRan ? (scContained ? ' is-severed' : ' is-threat') : ''));
+  }
+}
+
+/* ---- Terminal ---- */
+function scTermPrint(lines) {
+  const out = document.getElementById('scTermOut');
+  if (!out) return;
+  (Array.isArray(lines) ? lines : [lines]).forEach(ln => {
+    const div = document.createElement('div');
+    div.className = 'sc-term-line' + (ln.c ? ` ${ln.c}` : '');
+    div.textContent = ln.t;
+    out.appendChild(div);
+  });
+  out.scrollTop = out.scrollHeight;
+}
+
+function setScObjective(text, progress) {
+  const t = document.getElementById('scObjectiveText');
+  const p = document.getElementById('scObjectiveProgress');
+  if (t) t.textContent = text;
+  if (p) p.textContent = progress || '';
+}
+
+function scClassifyProgressText() {
+  const revealed = scArtifacts().filter(a => scRevealed.has(a.id)).length;
+  const done = Object.keys(scClassified).length;
+  return revealed ? `${done} / ${revealed} classified` : '';
+}
+
+function scRefreshObjective() {
+  if (scContained) { setScObjective('Incident closed. Review the outcome or return to the Operations Center.', ''); return; }
+  if (!scScanned) { setScObjective('Run `scan` to discover live hosts on the segment.', ''); return; }
+  if (!scAllRevealed()) {
+    setScObjective('Investigate NA-WS-1092: run `netflow` and `procscan` to surface evidence.', scClassifyProgressText());
+    return;
+  }
+  if (scAllMaliciousPinned()) {
+    setScObjective('All malicious evidence flagged. Run `contain` to neutralize the threat.', scClassifyProgressText());
+  } else {
+    setScObjective('Inspect each item in the evidence queue and classify it.', scClassifyProgressText());
+  }
+}
+
+/* ---- Command runner ---- */
+function scRunCommand(raw) {
+  const text = (raw || '').trim();
+  if (!text) return;
+  const parts = text.split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+  const arg = parts.slice(1).join(' ').toLowerCase();
+
+  switch (cmd) {
+    case 'help':     scCmdHelp(); break;
+    case 'clear':    { const o = document.getElementById('scTermOut'); if (o) o.innerHTML = ''; break; }
+    case 'scan':     scCmdScan(); break;
+    case 'netflow':  scCmdReveal('netflow'); break;
+    case 'procscan': scCmdReveal('procscan'); break;
+    case 'intel':    scCmdIntel(arg); break;
+    case 'contain':  scCmdContain(); break;
+    default:
+      scTermPrint([
+        { t: text, c: 'cmd' },
+        { t: `command not found: ${cmd}. Type \`help\` for available commands.`, c: 'err' },
+      ]);
+  }
+}
+
+function scCmdHelp() {
+  scTermPrint([
+    { t: 'help', c: 'cmd' },
+    { t: '[ available commands ]', c: 'head' },
+    { t: '  scan          discover live hosts on the segment' },
+    { t: '  netflow       inspect NA-WS-1092 outbound connections  (needs scan)' },
+    { t: '  procscan      audit processes & persistence            (needs scan)' },
+    { t: '  intel <ioc>   look up a domain or IP against threat feeds' },
+    { t: '  contain       neutralize the threat (after flagging the evidence)' },
+    { t: '  clear         clear the screen' },
+    { t: 'Tip: click an item in the EVIDENCE panel to inspect & classify it.', c: 'dim' },
+  ]);
+}
+
+function scCmdScan() {
+  const cfg = scConfig();
+  if (!cfg) return;
+  if (scScanned) { scTermPrint([{ t: 'scan', c: 'cmd' }, { t: 'Segment already mapped.', c: 'dim' }]); return; }
+  scScanned = true;
+  SoundEngine.playRadarPing();
+  const hint = document.getElementById('scMapHint');
+  if (hint) hint.classList.add('is-hidden');
+  scTermPrint(cfg.out.scan || []);
+  scApplyMapState();
+  scRenderDock();
+  scRefreshObjective();
+}
+
+function scCmdReveal(key) {
+  const cfg = scConfig();
+  if (!cfg) return;
+  if (!scScanned) {
+    scTermPrint([{ t: key, c: 'cmd' }, { t: 'Network not mapped yet — run `scan` first.', c: 'err' }]);
+    return;
+  }
+  if (scRanCmds.has(key)) {
+    scTermPrint([{ t: key, c: 'cmd' }, { t: 'Already run — evidence is in the queue.', c: 'dim' }]);
+    return;
+  }
+  scRanCmds.add(key);
+  scTermPrint(cfg.out[key] || []);
+  SoundEngine.playTickerBeep();
+
+  const ids = (cfg.reveal && cfg.reveal[key]) || [];
+  ids.forEach(id => scRevealed.add(id));
+
+  scApplyMapState();
+  scRenderRail(ids);   // animate the just-revealed items
+  scRenderDock();
+  scRefreshObjective();
+}
+
+function scCmdIntel(arg) {
+  const cfg = scConfig();
+  if (!cfg) return;
+  if (!arg) {
+    scTermPrint([{ t: 'intel', c: 'cmd' }, { t: 'usage: intel <domain|ip>   e.g. intel update-svc-cdn.net', c: 'dim' }]);
+    return;
+  }
+  const table = (cfg.out.intel) || {};
+  const key = Object.keys(table).find(k => k.toLowerCase() === arg);
+  if (key) { scTermPrint(table[key]); SoundEngine.playNodeSelect('low'); }
+  else scTermPrint([{ t: `intel ${arg}`, c: 'cmd' }, { t: `no threat-intel records for "${arg}".`, c: 'dim' }]);
+}
+
+function scCmdContain() {
+  if (scContained) { scTermPrint([{ t: 'contain', c: 'cmd' }, { t: 'Threat already contained.', c: 'dim' }]); return; }
+  if (!scAllMaliciousPinned()) {
+    scTermPrint([
+      { t: 'contain', c: 'cmd' },
+      { t: 'Flag every malicious artifact in the evidence queue first.', c: 'err' },
+    ]);
+    return;
+  }
+  openScDecision();
+}
+
+/* ---- Evidence queue / rail ---- */
+function scRenderRail(justRevealed) {
+  const list  = document.getElementById('scRailList');
+  const count = document.getElementById('scRailCount');
+  if (!list) return;
+  const revealed = scArtifacts().filter(a => scRevealed.has(a.id));
+  if (count) count.textContent = String(revealed.length);
+
+  if (revealed.length === 0) {
+    list.innerHTML = `<div class="sc-rail-empty" id="scRailEmpty">No evidence yet. Run commands to surface artifacts, then inspect &amp; classify each one here.</div>`;
+    return;
+  }
+
+  const fresh = new Set(justRevealed || []);
+  list.innerHTML = revealed.map(a => {
+    const verdict = scClassified[a.id] || null;
+    let cls = '', tag = 'UNCLASSIFIED — click to inspect';
+    if (verdict === 'malicious') {
+      const tp = a.verdict === 'malicious';
+      cls = tp ? 'is-malicious' : 'is-fp';
+      tag = tp ? '⚑ MALICIOUS — CONFIRMED' : '⚠ FALSE POSITIVE?';
+    } else if (verdict === 'benign') {
+      cls = 'is-benign';
+      tag = '✓ MARKED BENIGN';
+    }
+    const isNew = fresh.has(a.id) ? ' is-new' : '';
+    return `
+      <button type="button" class="sc-ev ${cls}${isNew}" data-sc-ev="${a.id}">
+        <span class="sc-ev-kind">${a.kind}</span>
+        <span class="sc-ev-label">${a.label}</span>
+        <span class="sc-ev-tag">${tag}</span>
+      </button>
+    `;
+  }).join('');
+
+  list.querySelectorAll('[data-sc-ev]').forEach(btn => {
+    btn.addEventListener('click', () => openScInspector(btn.dataset.scEv));
+  });
+}
+
+/* ---- Tool dock ---- */
+function scRenderDock() {
+  const dock = document.getElementById('scDock');
+  if (!dock) return;
+  const netflowRan  = scRanCmds.has('netflow');
+  const procscanRan = scRanCmds.has('procscan');
+  const canContain  = scAllMaliciousPinned() && !scContained;
+
+  const tool = (cmd, icon, name, hint, opts = {}) => {
+    const dis = opts.disabled ? 'disabled' : '';
+    const cls = ['sc-tool', opts.cls || ''].filter(Boolean).join(' ');
+    return `
+      <button class="${cls}" type="button" data-sc-cmd="${cmd}" ${dis}>
+        <span class="sc-tool-icon" aria-hidden="true">${icon}</span>
+        <span class="sc-tool-body">
+          <span class="sc-tool-name">${name}</span>
+          <span class="sc-tool-cmd">${hint}</span>
+        </span>
+      </button>`;
+  };
+
+  dock.innerHTML = `
+    <div class="sc-dock-head">ANALYST TOOLS</div>
+    ${tool('scan', '◎', 'Network Scan', 'scan',
+        { disabled: scScanned, cls: scScanned ? 'is-done' : 'sc-tool--primary' })}
+    ${tool('netflow', '⇄', 'Netflow', 'netflow NA-WS-1092',
+        { disabled: !scScanned, cls: netflowRan ? 'is-done' : '' })}
+    ${tool('procscan', '▤', 'Process Audit', 'procscan NA-WS-1092',
+        { disabled: !scScanned, cls: procscanRan ? 'is-done' : '' })}
+    ${tool('intel update-svc-cdn.net', '⚲', 'Threat Intel', 'intel <ioc>',
+        { disabled: !netflowRan })}
+    ${tool('contain', '⊘', 'Containment', 'contain',
+        { disabled: !canContain, cls: canContain ? 'sc-tool--ready' : '' })}
+  `;
+
+  dock.querySelectorAll('[data-sc-cmd]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cmd = btn.dataset.scCmd;
+      const input = document.getElementById('scTermInput');
+      if (input) input.value = cmd;
+      scRunCommand(cmd);
+      if (input) { input.value = ''; input.focus(); }
+    });
+  });
+}
+
+/* ---- Inspector ---- */
+function openScInspector(artifactId) {
+  const a = scArtifactById(artifactId);
+  if (!a || !scRevealed.has(a.id)) return;
+  SoundEngine.playNodeSelect('medium');
+
+  const current = scClassified[a.id] || null;
+  const notesHtml = (a.notes || []).map(nt => `<li>${nt}</li>`).join('');
+  const panel = document.getElementById('scInspector');
+  panel.innerHTML = `
+    <div class="sc-panel">
+      <div class="sc-panel-head">
+        <span class="sc-panel-kind">${a.kind}</span>
+        <span class="sc-panel-title">${a.label}</span>
+        <button class="sc-panel-close" type="button" data-sc-close aria-label="Close inspector">✕</button>
+      </div>
+      <div class="sc-panel-body">
+        <pre class="sc-detail">${a.detail}</pre>
+        <div class="sc-notes">
+          <div class="sc-notes-head">ANALYST OBSERVATIONS</div>
+          <ul>${notesHtml}</ul>
+        </div>
+      </div>
+      <div class="sc-verdict-banner" id="scInspectorVerdict" hidden></div>
+      <div class="sc-panel-actions">
+        <button class="sc-btn sc-btn--mal" type="button" data-sc-verdict="malicious">⚑ FLAG AS MALICIOUS</button>
+        <button class="sc-btn sc-btn--ben" type="button" data-sc-verdict="benign">✓ MARK BENIGN</button>
+      </div>
+    </div>
+  `;
+  panel.hidden = false;
+  panel.querySelector('[data-sc-close]').addEventListener('click', closeScInspector);
+  panel.querySelectorAll('[data-sc-verdict]').forEach(btn => {
+    btn.addEventListener('click', () => scClassify(a.id, btn.dataset.scVerdict));
+  });
+  if (current) showScInspectorVerdict(a, current, false);
+}
+
+function closeScInspector() {
+  if (scInspectorTimer) { clearTimeout(scInspectorTimer); scInspectorTimer = null; }
+  const panel = document.getElementById('scInspector');
+  if (!panel || panel.hidden) return;
+  panel.hidden = true;
+  panel.innerHTML = '';
+}
+
+function showScInspectorVerdict(a, verdict, animateClose) {
+  const banner = document.getElementById('scInspectorVerdict');
+  if (!banner) return;
+  const correct = verdict === a.verdict;
+  banner.hidden = false;
+  banner.className = `sc-verdict-banner ${correct ? 'sc-verdict-banner--ok' : 'sc-verdict-banner--no'}`;
+  if (correct) {
+    banner.textContent = verdict === 'malicious'
+      ? '✓ Correct — flagged and pinned to the evidence board.'
+      : '✓ Correct — this artifact is legitimate.';
+  } else {
+    banner.textContent = verdict === 'malicious'
+      ? '✗ Reconsider — this one is actually legitimate. Re-inspect and change your call.'
+      : '✗ Reconsider — there are warning signs here. Re-inspect and change your call.';
+  }
+  if (animateClose && correct) {
+    if (scInspectorTimer) clearTimeout(scInspectorTimer);
+    const token = scRunToken;
+    scInspectorTimer = setTimeout(() => {
+      scInspectorTimer = null;
+      if (token !== scRunToken) return;
+      closeScInspector();
+    }, 950);
+  }
+}
+
+function scClassify(artifactId, verdict) {
+  const a = scArtifactById(artifactId);
+  if (!a) return;
+  scClassified[a.id] = verdict;
+  const correct = verdict === a.verdict;
+  if (correct) SoundEngine.playSuccess(); else SoundEngine.playError();
+
+  showScInspectorVerdict(a, verdict, true);
+  scRenderRail();
+  scRenderDock();
+  scRefreshObjective();
+}
+
+/* ---- Containment decision ---- */
+function openScDecision() {
+  const m = scMission();
+  if (!m || !scAllMaliciousPinned() || scContained) return;
+  SoundEngine.playNodeSelect('high');
+
+  const choices = m.decisions.map(d => `
+    <button class="sc-choice" type="button" data-sc-decision="${d.id}">
+      <span class="sc-choice-label">${d.label}</span>
+      <span class="sc-choice-sub">${d.sub}</span>
+    </button>
+  `).join('');
+
+  const panel = document.getElementById('scDecision');
+  panel.innerHTML = `
+    <div class="sc-panel">
+      <div class="sc-panel-head">
+        <span class="sc-panel-kind">DECISION</span>
+        <span class="sc-panel-title">Choose a containment action</span>
+        <button class="sc-panel-close" type="button" data-sc-close aria-label="Close decision">✕</button>
+      </div>
+      <div class="sc-panel-body">${choices}</div>
+    </div>
+  `;
+  panel.hidden = false;
+  panel.querySelector('[data-sc-close]').addEventListener('click', () => { panel.hidden = true; panel.innerHTML = ''; });
+  panel.querySelectorAll('[data-sc-decision]').forEach(btn => {
+    btn.addEventListener('click', () => scChooseDecision(btn.dataset.scDecision));
+  });
+}
+
+function scChooseDecision(decisionId) {
+  const m = scMission();
+  if (!m) return;
+  const decision = m.decisions.find(d => d.id === decisionId);
+  if (!decision) return;
+
+  scContained = true;
+  const panel = document.getElementById('scDecision');
+  if (panel) { panel.hidden = true; panel.innerHTML = ''; }
+
+  // Sever the C2 link + quarantine the host on the map.
+  scApplyMapState();
+  scRenderDock();
+  scTermPrint([
+    { t: 'contain', c: 'cmd' },
+    { t: `[+] ${decision.label}.`, c: 'ok' },
+    { t: '[+] C2 channel severed on the network map. Incident closed.', c: 'ok' },
+  ]);
+
+  showScOutcome(decision);
+}
+
+/* ---- Outcome scorecard ---- */
+function showScOutcome(decision) {
+  const m = scMission();
+  if (!m) return;
+  const arts = scArtifacts();
+  const total = arts.length;
+  const correct = arts.filter(a => scClassified[a.id] === a.verdict).length;
+  const accuracy = correct / total;
+
+  let tierClass, tierLabel;
+  if (accuracy === 1 && decision.quality === 'excellent') {
+    tierClass = 'excellent'; tierLabel = 'EXCELLENT CONTAINMENT';
+  } else if (accuracy >= 0.66 && decision.quality !== 'poor') {
+    tierClass = 'solid'; tierLabel = 'THREAT CONTAINED';
+  } else {
+    tierClass = 'delayed'; tierLabel = 'DELAYED CONTAINMENT';
+  }
+  if (tierClass === 'delayed') SoundEngine.playError(); else SoundEngine.playSuccess();
+
+  document.getElementById('scStatusText').textContent = 'INCIDENT CLOSED';
+
+  const panel = document.getElementById('scOutcome');
+  panel.innerHTML = `
+    <div class="sc-panel">
+      <div class="sc-panel-head">
+        <span class="sc-panel-kind">CLOSEOUT</span>
+        <span class="sc-panel-title">${m.title} — Outcome</span>
+      </div>
+      <div class="sc-panel-body">
+        <div class="sc-outcome-tier sc-outcome-tier--${tierClass}">${tierLabel}</div>
+        <div class="sc-outcome-sub">${decision.outcome}</div>
+        <div class="sc-outcome-stats">
+          <div class="sc-stat"><div class="sc-stat-num">${correct}/${total}</div><div class="sc-stat-label">ARTIFACTS<br>CORRECT</div></div>
+          <div class="sc-stat"><div class="sc-stat-num">${Math.round(accuracy * 100)}%</div><div class="sc-stat-label">ANALYSIS<br>ACCURACY</div></div>
+          <div class="sc-stat"><div class="sc-stat-num">${scMaliciousArtifacts().length}</div><div class="sc-stat-label">THREATS<br>PINNED</div></div>
+        </div>
+        <div class="sc-outcome-takeaway">${m.takeaway}</div>
+      </div>
+      <div class="sc-panel-actions">
+        <button class="sc-btn" type="button" data-sc-replay>↻ REPLAY</button>
+        <button class="sc-btn sc-btn--primary" type="button" data-sc-return>RETURN TO OPERATIONS CENTER</button>
+      </div>
+    </div>
+  `;
+  panel.hidden = false;
+  scRefreshObjective();
+
+  panel.querySelector('[data-sc-replay]').addEventListener('click', () => {
+    panel.hidden = true; panel.innerHTML = '';
+    openSocConsole(scMissionId);
+  });
+  panel.querySelector('[data-sc-return]').addEventListener('click', () => {
+    panel.hidden = true; panel.innerHTML = '';
+    returnFromSocConsole();
+  });
+}
+
+/* ---- Escape handling ---- */
+function scOverlayOpen() {
+  return ['scInspector', 'scDecision', 'scOutcome'].some(id => {
+    const el = document.getElementById(id); return el && !el.hidden;
+  });
+}
+function scCloseTopOverlay() {
+  const inspector = document.getElementById('scInspector');
+  const decision  = document.getElementById('scDecision');
+  if (inspector && !inspector.hidden) { closeScInspector(); return true; }
+  if (decision && !decision.hidden)   { decision.hidden = true; decision.innerHTML = ''; return true; }
+  return false;  // outcome is terminal — Escape won't dismiss it
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -472,6 +472,87 @@
     </div>
   </div>
 
+  <!-- ============================================================
+       LIVE SOC CONSOLE (vertical slice — mission-003 C2 Beacon).
+       Terminal-driven investigation over a reactive network map.
+       Parallel to the holotable; prototype-only, in-memory.
+       ============================================================ -->
+  <div id="socConsole" class="screen screen--console" style="display:none;" aria-label="SOC Console">
+
+    <div class="sc-header">
+      <button class="sc-back-btn" id="scBackBtn" type="button">
+        ← RETURN TO OPERATIONS CENTER
+      </button>
+      <div class="sc-incident-strip">
+        <span class="sc-severity" id="scSeverity">HIGH</span>
+        <span class="sc-region" id="scRegion">NA-EAST REGION</span>
+        <span class="sc-sep" aria-hidden="true">—</span>
+        <span class="sc-opid" id="scOpId">OPS-2026-003</span>
+        <span class="sc-sep" aria-hidden="true">—</span>
+        <span class="sc-title" id="scTitle">Malware Outbreak — C2 Beacon</span>
+      </div>
+      <div class="sc-status" id="scStatus">
+        <span class="sc-status-dot" aria-hidden="true"></span>
+        <span id="scStatusText">ANALYSIS ACTIVE</span>
+      </div>
+    </div>
+
+    <div class="sc-objective" id="scObjective">
+      <span class="sc-objective-icon" aria-hidden="true">▸</span>
+      <span class="sc-objective-text" id="scObjectiveText">Run a scan to map the segment.</span>
+      <span class="sc-objective-progress" id="scObjectiveProgress"></span>
+    </div>
+
+    <div class="sc-main">
+
+      <!-- Analyst tool dock (each button auto-runs its command) -->
+      <nav class="sc-dock" id="scDock" aria-label="Analyst tools"></nav>
+
+      <!-- Center: live network map (top) + command terminal (bottom) -->
+      <section class="sc-center">
+        <div class="sc-map" id="scMap" aria-label="Live network map">
+          <div class="sc-map-grid" aria-hidden="true"></div>
+          <svg class="sc-map-svg" id="scMapSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="sc-map-nodes" id="scMapNodes"></div>
+          <div class="sc-map-hint" id="scMapHint">Network offline — run <code>scan</code> to discover hosts</div>
+
+          <!-- Overlays (populated dynamically) -->
+          <div class="sc-overlay" id="scInspector" hidden role="dialog" aria-modal="true" aria-label="Artifact inspector"></div>
+          <div class="sc-overlay" id="scDecision" hidden role="dialog" aria-modal="true" aria-label="Containment decision"></div>
+          <div class="sc-overlay" id="scOutcome" hidden role="dialog" aria-modal="true" aria-label="Mission outcome"></div>
+        </div>
+
+        <div class="sc-terminal">
+          <div class="sc-term-bar" aria-hidden="true">
+            <span class="sc-term-dot"></span><span class="sc-term-dot"></span><span class="sc-term-dot"></span>
+            <span class="sc-term-bar-label">analyst console — NA-WS-1092 investigation</span>
+          </div>
+          <div class="sc-term-out" id="scTermOut" aria-live="polite"></div>
+          <form class="sc-term-form" id="scTermForm">
+            <span class="sc-term-prompt" aria-hidden="true">analyst@soc:~$</span>
+            <input class="sc-term-input" id="scTermInput" type="text" autocomplete="off"
+                   autocapitalize="off" spellcheck="false"
+                   placeholder="type a command — try `help`" aria-label="Command input" />
+          </form>
+        </div>
+      </section>
+
+      <!-- Evidence queue / board -->
+      <aside class="sc-rail" aria-label="Evidence queue">
+        <div class="sc-rail-head">
+          <span class="sc-rail-head-title">EVIDENCE</span>
+          <span class="sc-rail-count" id="scRailCount">0</span>
+        </div>
+        <div class="sc-rail-list" id="scRailList">
+          <div class="sc-rail-empty" id="scRailEmpty">
+            No evidence yet. Run commands to surface artifacts, then inspect &amp; classify each one here.
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
   <script type="module" src="./oc.js"></script>
 </body>
 </html>
