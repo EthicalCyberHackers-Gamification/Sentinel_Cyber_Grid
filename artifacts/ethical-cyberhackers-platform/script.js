@@ -57,6 +57,13 @@ import {
 // can be unit-tested under node without a DOM (see tests/back-button-labels.test.js).
 import { missionBackLabel } from "/uiLabels.js";
 
+// Progressive Training Lab — graduated from the ops-center-prototype. The lab is
+// a data-driven, terminal-first interior for the assignments that have a lab
+// dataset (mission-001, mission-002). It is wired to REAL host persistence via
+// configureLab() hooks (see boot()): completion sets the mission flag, awards XP,
+// saves, and the Operations Center map repaints/unlocks the next assignment.
+import { initLab, openLab, LAB_MISSION_IDS, configureLab } from "/lab.js";
+
 // Phase B0 — best-effort, local-first Supabase backend foundation. Every call
 // here is fire-and-forget and safe in "local-only mode"; gameplay never depends
 // on it (localStorage remains authoritative).
@@ -8660,6 +8667,13 @@ function launchMissionFromMap(missionId, fromOC = false) {
     return;
   }
   if (missionMapStatus(missionId) === "locked") return;
+  // Graduated Progressive Lab — assignments with a lab dataset (mission-001,
+  // mission-002) open the terminal-first lab interior instead of their legacy
+  // dashboard/overview. The lab's onComplete hook records real completion.
+  if (LAB_MISSION_IDS.includes(missionId)) {
+    openLab(missionId);
+    return;
+  }
   if (missionId === "mission-001") {
     openMission1Dashboard();
   } else if (missionId === "mission-002") {
