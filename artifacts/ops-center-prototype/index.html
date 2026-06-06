@@ -399,6 +399,79 @@
     </div>
   </div>
 
+  <!-- ===== EVIDENCE HOLOTABLE SCREEN (experimental mission interior) ===== -->
+  <div id="holotable" class="screen screen--holotable" style="display:none;" aria-label="Evidence Holotable">
+
+    <!-- Thin top bar -->
+    <div class="ht-header">
+      <button class="ht-back-btn" id="htBackBtn" type="button">
+        ← RETURN TO OPERATIONS CENTER
+      </button>
+      <div class="ht-incident-strip">
+        <span class="ht-severity" id="htSeverity">CRITICAL</span>
+        <span class="ht-region" id="htRegion">EMEA REGION</span>
+        <span class="ht-sep" aria-hidden="true">—</span>
+        <span class="ht-opid" id="htOpId">OPS-2026-001</span>
+        <span class="ht-sep" aria-hidden="true">—</span>
+        <span class="ht-title" id="htTitle">Credential Phishing Campaign</span>
+      </div>
+      <div class="ht-status" id="htStatus">
+        <span class="ht-status-dot" aria-hidden="true"></span>
+        <span id="htStatusText">ANALYSIS ACTIVE</span>
+      </div>
+    </div>
+
+    <!-- Sticky objective line -->
+    <div class="ht-objective" id="htObjective">
+      <span class="ht-objective-icon" aria-hidden="true">◎</span>
+      <span class="ht-objective-text" id="htObjectiveText">Run a forensic scan to surface the incident artifacts.</span>
+      <span class="ht-objective-progress" id="htObjectiveProgress"></span>
+    </div>
+
+    <div class="ht-main">
+
+      <!-- Slim command dock -->
+      <nav class="ht-dock" id="htDock" aria-label="Analyst tools"></nav>
+
+      <!-- Center stage — the holotable -->
+      <section class="ht-stage" id="htStage" aria-label="Evidence holotable">
+        <div class="ht-table" id="htTable">
+          <div class="ht-table-grid" aria-hidden="true"></div>
+          <div class="ht-table-rings" aria-hidden="true"></div>
+          <div class="ht-table-sweep" id="htSweep" aria-hidden="true"></div>
+          <div class="ht-table-core" id="htCore" aria-hidden="true">
+            <span class="ht-core-ring"></span>
+            <span class="ht-core-label">INCIDENT<br>CORE</span>
+          </div>
+          <div class="ht-tokens" id="htTokens"></div>
+          <div class="ht-stage-hint" id="htStageHint">
+            <span class="ht-stage-hint-pulse" aria-hidden="true"></span>
+            Awaiting forensic scan
+          </div>
+        </div>
+
+        <!-- Overlays (populated dynamically) -->
+        <div class="ht-overlay" id="htInspector" hidden role="dialog" aria-modal="true" aria-label="Artifact inspector"></div>
+        <div class="ht-overlay" id="htDecision" hidden role="dialog" aria-modal="true" aria-label="Containment decision"></div>
+        <div class="ht-overlay" id="htOutcome" hidden role="dialog" aria-modal="true" aria-label="Mission outcome"></div>
+      </section>
+
+      <!-- Thin evidence rail -->
+      <aside class="ht-rail" aria-label="Pinned evidence">
+        <div class="ht-rail-head">
+          <span class="ht-rail-head-title">EVIDENCE BOARD</span>
+          <span class="ht-rail-count" id="htRailCount">0</span>
+        </div>
+        <div class="ht-rail-list" id="htRailList">
+          <div class="ht-rail-empty" id="htRailEmpty">
+            Nothing pinned yet. Inspect artifacts on the table and flag the malicious ones.
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
   <script type="module" src="./oc.js"></script>
 </body>
 </html>

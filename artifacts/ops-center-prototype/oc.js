@@ -269,6 +269,177 @@ const REAL_MISSION_MAP = {
 };
 
 /* ============================================================
+   EVIDENCE HOLOTABLE — mission interiors (experimental)
+   ------------------------------------------------------------
+   A re-skinnable mission interior. Opening a holotable mission
+   from the Operations Center map transitions into a top-down
+   holographic "evidence table" where the mission's artifacts
+   materialize as inspectable tokens. The analyst inspects each
+   token, classifies it (malicious / benign), pins the malicious
+   ones to the evidence board, then chooses a containment action.
+
+   PROTOTYPE INVARIANT: mock data only. The holotable NEVER writes
+   to localStorage / the real game's progress (the map remains a
+   read-only mirror). State here is in-memory and resets each open.
+
+   First vertical slice: mission-001 (Credential Phishing). Other
+   nodes still deep-link into the main game (see launchWorkspace).
+   ============================================================ */
+const HOLOTABLE_MISSIONS = {
+  "mission-001": {
+    severity: "CRITICAL",
+    region:   "EMEA REGION",
+    opId:     "OPS-2026-001",
+    title:    "Credential Phishing Campaign",
+    // Artifacts arranged in a ring around the incident core. `verdict` is the
+    // ground truth used to grade classification. `notes` are neutral analyst
+    // observations (clues), never a verdict giveaway.
+    artifacts: [
+      {
+        id: "lure-email",
+        kind: "EMAIL",
+        icon: "✉",
+        label: "VPN Re-Verification Notice",
+        verdict: "malicious",
+        detail:
+          "From:    IT Helpdesk <it-helpdesk@cybercorp.com>\n" +
+          "To:      r.okafor@cybercorp.com\n" +
+          "Subject: ACTION REQUIRED — Re-verify your VPN access (24h)\n\n" +
+          "Our records show your VPN credentials expire today. To avoid\n" +
+          "losing remote access, confirm your username and password using\n" +
+          "the secure portal below within 24 hours:\n\n" +
+          "    >> https://sso.cybercorp-support.net/verify\n\n" +
+          "Failure to act will suspend your account.\n" +
+          "— CyberCorp IT Helpdesk",
+        notes: [
+          "Manufactured urgency and a 24-hour deadline.",
+          "Asks the user to confirm a username AND password via a link.",
+          "Link host is not the corporate domain you'd expect.",
+        ],
+      },
+      {
+        id: "spoofed-headers",
+        kind: "HEADERS",
+        icon: "⚙",
+        label: "Message Headers",
+        verdict: "malicious",
+        detail:
+          "From:        IT Helpdesk <it-helpdesk@cybercorp.com>\n" +
+          "Return-Path: <bounce@cybercorp-support.net>\n" +
+          "Reply-To:    support@cybercorp-support.net\n" +
+          "Received:    from mail.unknown-relay-83.ru (45.139.x.x)\n" +
+          "SPF:         FAIL (cybercorp.com does not authorize this sender)\n" +
+          "DKIM:        none",
+        notes: [
+          "Display From says cybercorp.com, but Return-Path/Reply-To don't.",
+          "SPF fails — the real domain did not authorize this sender.",
+          "Mail was relayed through an unfamiliar foreign host.",
+        ],
+      },
+      {
+        id: "lookalike-domain",
+        kind: "DOMAIN",
+        icon: "🌐",
+        label: "cybercorp-support.net",
+        verdict: "malicious",
+        detail:
+          "Domain:     cybercorp-support.net\n" +
+          "Registered: 2 days ago\n" +
+          "Registrar:  privacy-shielded (WHOIS redacted)\n" +
+          "Hosting:    AS8003 — flagged bulletproof host\n" +
+          "Owner:      NOT CyberCorp Inc. (asset registry: no match)",
+        notes: [
+          "A look-alike of the real cybercorp.com domain.",
+          "Registered only 2 days ago — typical of phishing infrastructure.",
+          "Not present in the corporate asset registry.",
+        ],
+      },
+      {
+        id: "harvest-url",
+        kind: "URL",
+        icon: "🔗",
+        label: "sso.cybercorp-support.net/verify",
+        verdict: "malicious",
+        detail:
+          "URL:      https://sso.cybercorp-support.net/verify\n" +
+          "Resolves: 45.139.x.x (same host as the mail relay)\n" +
+          "Page:     clone of the CyberCorp SSO login screen\n" +
+          "Form:     POSTs username + password to /collect.php\n" +
+          "TLS:      free cert issued 2 days ago",
+        notes: [
+          "A pixel-clone of the real SSO login page.",
+          "The form sends typed credentials to an external collector.",
+          "Hosted on the same suspicious infrastructure as the sender.",
+        ],
+      },
+      {
+        id: "it-newsletter",
+        kind: "EMAIL",
+        icon: "📰",
+        label: "Monthly Security Newsletter",
+        verdict: "benign",
+        detail:
+          "From:    Security Team <security@cybercorp.com>\n" +
+          "Subject: This Month in Security — Tips & Reminders\n\n" +
+          "Hi team — a quick reminder to keep your devices patched and\n" +
+          "report anything suspicious to the SOC. No action needed on\n" +
+          "this message. Read more on the internal wiki (intranet only).\n" +
+          "SPF: PASS   DKIM: PASS",
+        notes: [
+          "Sent from the genuine corporate domain (SPF & DKIM pass).",
+          "Does not ask for credentials or set a deadline.",
+          "Only points to internal, intranet-only resources.",
+        ],
+      },
+      {
+        id: "vpn-portal",
+        kind: "SYSTEM",
+        icon: "🛡",
+        label: "Official VPN Portal",
+        verdict: "benign",
+        detail:
+          "Asset:    vpn.cybercorp.com\n" +
+          "Owner:    CyberCorp IT Infrastructure (asset registry: verified)\n" +
+          "Cert:     EV cert, issued to CyberCorp Inc., valid 11 months\n" +
+          "Status:   reachable, normal traffic baseline\n" +
+          "Note:     the legitimate destination for VPN management",
+        notes: [
+          "The real, registry-verified corporate VPN portal.",
+          "Long-lived EV certificate issued to CyberCorp Inc.",
+          "This is where legitimate VPN actions actually happen.",
+        ],
+      },
+    ],
+    // Final containment options. `quality` grades the choice.
+    decisions: [
+      {
+        id: "contain-full",
+        quality: "excellent",
+        label: "Reset affected credentials & block the sender domain",
+        sub: "Force a password reset for the targeted user, block cybercorp-support.net at the mail gateway, and pull the phishing mail from all inboxes.",
+        outcome: "Credentials rotated before the attacker could use them. The look-alike domain is blocked and the campaign mail is purged org-wide.",
+      },
+      {
+        id: "contain-warn",
+        quality: "weak",
+        label: "Email staff a warning, take no system action",
+        sub: "Send an awareness notice but leave accounts and the malicious domain untouched for now.",
+        outcome: "Awareness helps, but exposed credentials and the live phishing domain remain a standing risk. Partial containment only.",
+      },
+      {
+        id: "contain-ignore",
+        quality: "poor",
+        label: "Close the ticket — likely a false alarm",
+        sub: "Treat the report as low priority and take no action.",
+        outcome: "The campaign stays live and credentials remain exposed. This is how account takeover incidents begin.",
+      },
+    ],
+    takeaway:
+      "Credential phishing relies on look-alike domains, spoofed sender names, and urgency to trick users into typing real passwords into fake login pages. Cross-check the sending domain, the message headers (SPF/Return-Path), and where links actually resolve before trusting any 're-verify your account' request.",
+  },
+};
+
+/* ============================================================
    REAL-MISSION PROGRESS (read-only mirror of the main game)
    ------------------------------------------------------------
    The main Ethical CyberHackers game persists progress to the
@@ -545,6 +716,49 @@ const SoundEngine = (() => {
     osc.stop(ac.currentTime + 0.06);
   }
 
+  // Bright ascending arpeggio — a "correct / pinned" confirmation used by the
+  // Evidence Holotable when an artifact is classified correctly or a mission
+  // is contained successfully.
+  function playSuccess() {
+    if (!_canPlay()) return;
+    const ac = _getCtx();
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((f, i) => {
+      const t = ac.currentTime + i * 0.07;
+      const osc  = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.linearRampToValueAtTime(0.06, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    });
+  }
+
+  // Soft low "reconsider" buzz — a gentle two-tone descend used when a
+  // holotable classification is incorrect (never harsh; no hard fail).
+  function playError() {
+    if (!_canPlay()) return;
+    const ac = _getCtx();
+    const t = ac.currentTime;
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, t);
+    osc.frequency.exponentialRampToValueAtTime(150, t + 0.18);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.04, t + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+    osc.start(t);
+    osc.stop(t + 0.26);
+  }
+
   function isMuted() { return _muted; }
 
   function toggle() {
@@ -570,7 +784,7 @@ const SoundEngine = (() => {
     return _volume;
   }
 
-  return { playAlertChime, playRadarPing, playNodeSelect, playCloseSound, playTickerBeep, isMuted, toggle, refresh, getVolume, setVolume, STORAGE_KEY, VOLUME_KEY };
+  return { playAlertChime, playRadarPing, playNodeSelect, playCloseSound, playTickerBeep, playSuccess, playError, isMuted, toggle, refresh, getVolume, setVolume, STORAGE_KEY, VOLUME_KEY };
 })();
 
 /* ============================================================
@@ -759,6 +973,15 @@ function launchWorkspace() {
   // removed now that all six nodes are backed by real missions.)
   const realMissionId = REAL_MISSION_MAP[activeNodeId];
   if (!realMissionId) return;
+
+  // Experimental Evidence Holotable interior — currently mission-001 only.
+  // Missions backed by a holotable open the in-prototype interior instead of
+  // deep-linking into the main game.
+  if (HOLOTABLE_MISSIONS[realMissionId]) {
+    openHolotable(realMissionId);
+    return;
+  }
+
   window.location.href = '/?mission=' + encodeURIComponent(realMissionId);
 }
 
@@ -783,6 +1006,490 @@ function returnToOpsCenter() {
   }
 
   hideIncidentCard();
+}
+
+/* ============================================================
+   EVIDENCE HOLOTABLE — engine (experimental mission interior)
+   ------------------------------------------------------------
+   In-memory only. Never writes to localStorage / game progress.
+   Flow: open → forensic scan (tokens materialize) → inspect &
+   classify each token → pin malicious to the evidence board →
+   choose a containment action → outcome scorecard → return.
+   ============================================================ */
+let htMissionId  = null;   // active holotable mission id
+let htScanned    = false;  // forensic scan run?
+let htContained  = false;  // containment decision made?
+const htClassified = {};   // artifactId -> "malicious" | "benign" (current)
+// Run token — bumped on every open/return so stray timers (scan materialize,
+// inspector auto-close) from a previous session become no-ops.
+let htRunToken   = 0;
+let htInspectorTimer = null;  // pending inspector auto-close timeout id
+
+function htMission() { return htMissionId ? HOLOTABLE_MISSIONS[htMissionId] : null; }
+function htArtifacts() { const m = htMission(); return m ? m.artifacts : []; }
+function htMaliciousArtifacts() { return htArtifacts().filter(a => a.verdict === "malicious"); }
+function htArtifactById(id) { return htArtifacts().find(a => a.id === id) || null; }
+
+// All truly-malicious artifacts are currently flagged malicious → decision unlocks.
+function htAllMaliciousPinned() {
+  const mal = htMaliciousArtifacts();
+  return mal.length > 0 && mal.every(a => htClassified[a.id] === "malicious");
+}
+
+function openHolotable(missionId) {
+  const mission = HOLOTABLE_MISSIONS[missionId];
+  if (!mission) return;
+
+  // Reset in-memory state for a fresh run. Bumping the run token invalidates
+  // any in-flight timers (scan materialize / inspector auto-close) from a
+  // previous session so they become no-ops.
+  htRunToken++;
+  if (htInspectorTimer) { clearTimeout(htInspectorTimer); htInspectorTimer = null; }
+  htMissionId = missionId;
+  htScanned   = false;
+  htContained = false;
+  Object.keys(htClassified).forEach(k => delete htClassified[k]);
+
+  // Header strip.
+  document.getElementById('htSeverity').textContent = mission.severity;
+  document.getElementById('htRegion').textContent   = mission.region;
+  document.getElementById('htOpId').textContent     = mission.opId;
+  document.getElementById('htTitle').textContent    = mission.title;
+  document.getElementById('htStatusText').textContent = 'ANALYSIS ACTIVE';
+
+  // Close any stale overlays.
+  ['htInspector', 'htDecision', 'htOutcome'].forEach(id => {
+    const el = document.getElementById(id); if (el) { el.hidden = true; el.innerHTML = ''; }
+  });
+
+  renderHtTokens();
+  renderHtRail();
+  renderHtDock();
+  setHtObjective('Run a forensic scan to surface the incident artifacts.', '');
+
+  const hint = document.getElementById('htStageHint');
+  if (hint) hint.classList.remove('is-hidden');
+
+  // Show the screen.
+  document.getElementById('opsCenter').style.display = 'none';
+  document.getElementById('holotable').style.display = 'flex';
+
+  // Soft confirmatory cue on entry (respects mute + visibility internally).
+  SoundEngine.playNodeSelect('high');
+}
+
+function returnFromHolotable() {
+  // Invalidate any in-flight session timers before leaving.
+  htRunToken++;
+  if (htInspectorTimer) { clearTimeout(htInspectorTimer); htInspectorTimer = null; }
+  document.getElementById('holotable').style.display = 'none';
+  document.getElementById('opsCenter').style.display = 'flex';
+  // Re-sync the map badges (read-only) on the way back.
+  applyMissionProgress();
+  htMissionId = null;
+  SoundEngine.playCloseSound();
+}
+
+// Place artifact tokens evenly in a ring around the incident core. Each token
+// is positioned with left/top percentages; the materialize animation is gated
+// on the `is-live` class added during the scan.
+function renderHtTokens() {
+  const host = document.getElementById('htTokens');
+  if (!host) return;
+  host.innerHTML = '';
+  const arts = htArtifacts();
+  const n = arts.length;
+  const radius = 38; // % of the table radius
+  arts.forEach((a, i) => {
+    const angle = (-90 + (360 / n) * i) * (Math.PI / 180);
+    const x = 50 + radius * Math.cos(angle);
+    const y = 50 + radius * Math.sin(angle);
+    const tok = document.createElement('button');
+    tok.type = 'button';
+    tok.className = 'ht-token';
+    tok.id = `htToken-${a.id}`;
+    tok.style.left = `${x}%`;
+    tok.style.top  = `${y}%`;
+    tok.setAttribute('aria-label', `Inspect ${a.label}`);
+    tok.innerHTML = `
+      <span class="ht-token-flag" aria-hidden="true"></span>
+      <span class="ht-token-icon" aria-hidden="true">${a.icon}</span>
+      <span class="ht-token-kind">${a.kind}</span>
+      <span class="ht-token-label">${a.label}</span>
+    `;
+    tok.addEventListener('click', () => { if (htScanned) openHtInspector(a.id); });
+    host.appendChild(tok);
+  });
+}
+
+// Forensic scan — materialize the tokens one by one with a sweep + soft cue.
+function htRunScan() {
+  if (htScanned) return;
+  htScanned = true;
+
+  const hint = document.getElementById('htStageHint');
+  if (hint) hint.classList.add('is-hidden');
+
+  SoundEngine.playRadarPing();
+
+  const arts = htArtifacts();
+  const token = htRunToken;  // snapshot — stale callbacks no-op after open/return
+  arts.forEach((a, i) => {
+    setTimeout(() => {
+      if (token !== htRunToken) return;
+      const tok = document.getElementById(`htToken-${a.id}`);
+      if (tok) tok.classList.add('is-live');
+      SoundEngine.playTickerBeep();
+    }, 180 + i * 200);
+  });
+
+  setHtObjective('Inspect each artifact and classify it as malicious or benign.', htClassifyProgressText());
+  renderHtDock();
+}
+
+function htClassifyProgressText() {
+  const total = htArtifacts().length;
+  const done = Object.keys(htClassified).length;
+  return `${done} / ${total} classified`;
+}
+
+function setHtObjective(text, progress) {
+  const t = document.getElementById('htObjectiveText');
+  const p = document.getElementById('htObjectiveProgress');
+  if (t) t.textContent = text;
+  if (p) p.textContent = progress || '';
+}
+
+/* ---- Inspector ---- */
+function openHtInspector(artifactId) {
+  const a = htArtifactById(artifactId);
+  if (!a) return;
+  SoundEngine.playNodeSelect('medium');
+
+  const current = htClassified[a.id] || null;
+  const notesHtml = (a.notes || []).map(nt => `<li>${nt}</li>`).join('');
+  const panel = document.getElementById('htInspector');
+  panel.innerHTML = `
+    <div class="ht-panel">
+      <div class="ht-panel-head">
+        <span class="ht-token-kind">${a.kind}</span>
+        <span class="ht-panel-title">${a.label}</span>
+        <button class="ht-panel-close" type="button" data-ht-close aria-label="Close inspector">✕</button>
+      </div>
+      <div class="ht-panel-body">
+        <pre class="ht-artifact-detail">${a.detail}</pre>
+        <div class="ht-notes">
+          <div class="ht-notes-head">ANALYST OBSERVATIONS</div>
+          <ul>${notesHtml}</ul>
+        </div>
+      </div>
+      <div class="ht-verdict-banner" id="htInspectorVerdict" hidden></div>
+      <div class="ht-panel-actions">
+        <button class="ht-btn ht-btn--mal" type="button" data-ht-verdict="malicious">⚑ FLAG AS MALICIOUS</button>
+        <button class="ht-btn ht-btn--ben" type="button" data-ht-verdict="benign">✓ MARK BENIGN</button>
+      </div>
+    </div>
+  `;
+  panel.hidden = false;
+
+  panel.querySelector('[data-ht-close]').addEventListener('click', closeHtInspector);
+  panel.querySelectorAll('[data-ht-verdict]').forEach(btn => {
+    btn.addEventListener('click', () => htClassify(a.id, btn.dataset.htVerdict));
+  });
+
+  // If already classified, reflect the prior verdict so re-opening shows it.
+  if (current) showInspectorVerdict(a, current, false);
+}
+
+function closeHtInspector() {
+  if (htInspectorTimer) { clearTimeout(htInspectorTimer); htInspectorTimer = null; }
+  const panel = document.getElementById('htInspector');
+  if (!panel || panel.hidden) return;
+  panel.hidden = true;
+  panel.innerHTML = '';
+}
+
+function showInspectorVerdict(a, verdict, animateClose) {
+  const banner = document.getElementById('htInspectorVerdict');
+  if (!banner) return;
+  const correct = verdict === a.verdict;
+  banner.hidden = false;
+  banner.className = `ht-verdict-banner ${correct ? 'ht-verdict-banner--ok' : 'ht-verdict-banner--no'}`;
+  if (correct) {
+    banner.textContent = verdict === 'malicious'
+      ? '✓ Correct — flagged and pinned to the evidence board.'
+      : '✓ Correct — this artifact is legitimate.';
+  } else {
+    banner.textContent = verdict === 'malicious'
+      ? '✗ Reconsider — this one is actually legitimate. You can re-inspect and change your call.'
+      : '✗ Reconsider — there are warning signs here. You can re-inspect and change your call.';
+  }
+  if (animateClose && correct) {
+    if (htInspectorTimer) clearTimeout(htInspectorTimer);
+    const token = htRunToken;
+    htInspectorTimer = setTimeout(() => {
+      htInspectorTimer = null;
+      if (token !== htRunToken) return;
+      closeHtInspector();
+    }, 950);
+  }
+}
+
+function htClassify(artifactId, verdict) {
+  const a = htArtifactById(artifactId);
+  if (!a) return;
+
+  htClassified[a.id] = verdict;
+  const correct = verdict === a.verdict;
+  if (correct) SoundEngine.playSuccess();
+  else SoundEngine.playError();
+
+  // Reflect on the token.
+  const tok = document.getElementById(`htToken-${a.id}`);
+  if (tok) {
+    tok.classList.add('is-classified');
+    tok.classList.toggle('is-correct', correct);
+    tok.classList.toggle('is-wrong', !correct);
+    const flag = tok.querySelector('.ht-token-flag');
+    if (flag) flag.textContent = verdict === 'malicious' ? '⚑' : '✓';
+  }
+
+  showInspectorVerdict(a, verdict, true);
+  renderHtRail();
+
+  // Objective + dock update.
+  if (htAllMaliciousPinned()) {
+    setHtObjective('All malicious evidence pinned. Choose a containment action.', htClassifyProgressText());
+  } else {
+    setHtObjective('Inspect each artifact and classify it as malicious or benign.', htClassifyProgressText());
+  }
+  renderHtDock();
+}
+
+/* ---- Evidence rail ---- */
+function renderHtRail() {
+  const list  = document.getElementById('htRailList');
+  const count = document.getElementById('htRailCount');
+  if (!list) return;
+
+  // Pinned = anything currently flagged malicious (true positives + false positives).
+  const pinned = htArtifacts().filter(a => htClassified[a.id] === 'malicious');
+  if (count) count.textContent = String(pinned.length);
+
+  if (pinned.length === 0) {
+    list.innerHTML = `<div class="ht-rail-empty" id="htRailEmpty">Nothing pinned yet. Inspect artifacts on the table and flag the malicious ones.</div>`;
+    return;
+  }
+
+  list.innerHTML = pinned.map(a => {
+    const truePositive = a.verdict === 'malicious';
+    return `
+      <div class="ht-rail-item ${truePositive ? '' : 'ht-rail-item--fp'}">
+        <div class="ht-rail-item-kind">${a.kind}</div>
+        <div class="ht-rail-item-label">${a.label}</div>
+        <span class="ht-rail-item-tag">${truePositive ? '⚑ MALICIOUS — CONFIRMED' : '⚠ FALSE POSITIVE?'}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ---- Command dock ---- */
+function renderHtDock() {
+  const dock = document.getElementById('htDock');
+  if (!dock) return;
+  const canContain = htAllMaliciousPinned() && !htContained;
+
+  dock.innerHTML = `
+    <button class="ht-tool ${htScanned ? 'is-done' : 'ht-tool--primary'}" type="button" data-ht-tool="scan" ${htScanned ? 'disabled' : ''}>
+      <span class="ht-tool-icon" aria-hidden="true">◎</span>
+      <span>${htScanned ? 'SCANNED' : 'FORENSIC SCAN'}</span>
+    </button>
+    <button class="ht-tool" type="button" data-ht-tool="brief">
+      <span class="ht-tool-icon" aria-hidden="true">❒</span>
+      <span>BRIEFING</span>
+    </button>
+    <button class="ht-tool ${canContain ? 'ht-tool--ready' : ''}" type="button" data-ht-tool="contain" ${canContain ? '' : 'disabled'}>
+      <span class="ht-tool-icon" aria-hidden="true">⊘</span>
+      <span>CONTAINMENT</span>
+    </button>
+  `;
+
+  dock.querySelector('[data-ht-tool="scan"]').addEventListener('click', htRunScan);
+  dock.querySelector('[data-ht-tool="brief"]').addEventListener('click', openHtBriefing);
+  const containBtn = dock.querySelector('[data-ht-tool="contain"]');
+  if (containBtn) containBtn.addEventListener('click', openHtDecision);
+}
+
+/* ---- Briefing recap (presentation-only) ---- */
+function openHtBriefing() {
+  const m = htMission();
+  if (!m) return;
+  SoundEngine.playNodeSelect('low');
+  const panel = document.getElementById('htInspector');
+  panel.innerHTML = `
+    <div class="ht-panel">
+      <div class="ht-panel-head">
+        <span class="ht-token-kind">BRIEF</span>
+        <span class="ht-panel-title">${m.title}</span>
+        <button class="ht-panel-close" type="button" data-ht-close aria-label="Close briefing">✕</button>
+      </div>
+      <div class="ht-panel-body">
+        <pre class="ht-artifact-detail">SOC LEAD — Sarah Reyes:
+
+A user reported a "re-verify your VPN" email. Several look-alike
+artifacts surfaced around this incident. Inspect each one on the
+holotable, flag the malicious items, then choose how to contain
+the threat. Take your time — re-inspect anything you're unsure of.</pre>
+        <div class="ht-notes">
+          <div class="ht-notes-head">OBJECTIVE</div>
+          <ul>
+            <li>Run a forensic scan to surface the artifacts.</li>
+            <li>Inspect &amp; classify each artifact (malicious / benign).</li>
+            <li>Pin the malicious evidence, then choose a containment action.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="ht-panel-actions">
+        <button class="ht-btn ht-btn--primary" type="button" data-ht-close>UNDERSTOOD</button>
+      </div>
+    </div>
+  `;
+  panel.hidden = false;
+  panel.querySelectorAll('[data-ht-close]').forEach(b => b.addEventListener('click', closeHtInspector));
+}
+
+/* ---- Containment decision ---- */
+function openHtDecision() {
+  const m = htMission();
+  if (!m || !htAllMaliciousPinned() || htContained) return;
+  SoundEngine.playNodeSelect('high');
+
+  const choices = m.decisions.map(d => `
+    <button class="ht-choice" type="button" data-ht-decision="${d.id}">
+      <span class="ht-choice-label">${d.label}</span>
+      <span class="ht-choice-sub">${d.sub}</span>
+    </button>
+  `).join('');
+
+  const panel = document.getElementById('htDecision');
+  panel.innerHTML = `
+    <div class="ht-panel">
+      <div class="ht-panel-head">
+        <span class="ht-token-kind">DECISION</span>
+        <span class="ht-panel-title">Choose a containment action</span>
+        <button class="ht-panel-close" type="button" data-ht-close aria-label="Close decision">✕</button>
+      </div>
+      <div class="ht-panel-body">
+        ${choices}
+      </div>
+    </div>
+  `;
+  panel.hidden = false;
+  panel.querySelector('[data-ht-close]').addEventListener('click', () => { panel.hidden = true; panel.innerHTML = ''; });
+  panel.querySelectorAll('[data-ht-decision]').forEach(btn => {
+    btn.addEventListener('click', () => htChooseDecision(btn.dataset.htDecision));
+  });
+}
+
+function htChooseDecision(decisionId) {
+  const m = htMission();
+  if (!m) return;
+  const decision = m.decisions.find(d => d.id === decisionId);
+  if (!decision) return;
+
+  htContained = true;
+  const decisionPanel = document.getElementById('htDecision');
+  if (decisionPanel) { decisionPanel.hidden = true; decisionPanel.innerHTML = ''; }
+
+  showHtOutcome(decision);
+}
+
+/* ---- Outcome scorecard ---- */
+function showHtOutcome(decision) {
+  const m = htMission();
+  if (!m) return;
+
+  const arts = htArtifacts();
+  const total = arts.length;
+  const correct = arts.filter(a => htClassified[a.id] === a.verdict).length;
+  const accuracy = correct / total;
+
+  // Tier: combine classification accuracy with decision quality. Never a hard fail.
+  let tierClass, tierLabel;
+  if (accuracy === 1 && decision.quality === 'excellent') {
+    tierClass = 'excellent'; tierLabel = 'EXCELLENT CONTAINMENT';
+  } else if (accuracy >= 0.66 && decision.quality !== 'poor') {
+    tierClass = 'solid'; tierLabel = 'THREAT CONTAINED';
+  } else {
+    tierClass = 'delayed'; tierLabel = 'DELAYED CONTAINMENT';
+  }
+
+  if (tierClass === 'delayed') SoundEngine.playError();
+  else SoundEngine.playSuccess();
+
+  document.getElementById('htStatusText').textContent = 'INCIDENT CLOSED';
+
+  const panel = document.getElementById('htOutcome');
+  panel.innerHTML = `
+    <div class="ht-panel">
+      <div class="ht-panel-head">
+        <span class="ht-token-kind">CLOSEOUT</span>
+        <span class="ht-panel-title">${m.title} — Outcome</span>
+      </div>
+      <div class="ht-panel-body">
+        <div class="ht-outcome-tier ht-outcome-tier--${tierClass}">${tierLabel}</div>
+        <div class="ht-outcome-sub">${decision.outcome}</div>
+        <div class="ht-outcome-stats">
+          <div class="ht-stat">
+            <div class="ht-stat-num">${correct}/${total}</div>
+            <div class="ht-stat-label">ARTIFACTS<br>CORRECT</div>
+          </div>
+          <div class="ht-stat">
+            <div class="ht-stat-num">${Math.round(accuracy * 100)}%</div>
+            <div class="ht-stat-label">ANALYSIS<br>ACCURACY</div>
+          </div>
+          <div class="ht-stat">
+            <div class="ht-stat-num">${htMaliciousArtifacts().length}</div>
+            <div class="ht-stat-label">THREATS<br>PINNED</div>
+          </div>
+        </div>
+        <div class="ht-outcome-takeaway">${m.takeaway}</div>
+      </div>
+      <div class="ht-panel-actions">
+        <button class="ht-btn" type="button" data-ht-replay>↻ REPLAY</button>
+        <button class="ht-btn ht-btn--primary" type="button" data-ht-return>RETURN TO OPERATIONS CENTER</button>
+      </div>
+    </div>
+  `;
+  panel.hidden = false;
+  setHtObjective('Incident closed. Review your outcome or return to the Operations Center.', '');
+  renderHtDock();
+
+  panel.querySelector('[data-ht-replay]').addEventListener('click', () => {
+    panel.hidden = true; panel.innerHTML = '';
+    openHolotable(htMissionId);
+  });
+  panel.querySelector('[data-ht-return]').addEventListener('click', () => {
+    panel.hidden = true; panel.innerHTML = '';
+    returnFromHolotable();
+  });
+}
+
+// True when any holotable overlay is currently open (for Escape handling).
+function htOverlayOpen() {
+  return ['htInspector', 'htDecision', 'htOutcome'].some(id => {
+    const el = document.getElementById(id);
+    return el && !el.hidden;
+  });
+}
+
+function htCloseTopOverlay() {
+  // Outcome is terminal — don't dismiss it via Escape.
+  const inspector = document.getElementById('htInspector');
+  const decision  = document.getElementById('htDecision');
+  if (inspector && !inspector.hidden) { inspector.hidden = true; inspector.innerHTML = ''; return true; }
+  if (decision && !decision.hidden)   { decision.hidden = true; decision.innerHTML = ''; return true; }
+  return false;
 }
 
 /* ============================================================
@@ -988,10 +1695,17 @@ function init() {
   // Return to ops center
   document.getElementById('wsBackBtn').addEventListener('click', returnToOpsCenter);
 
-  // Keyboard: Escape closes card or returns from workspace
+  // Evidence Holotable — return to ops center
+  document.getElementById('htBackBtn').addEventListener('click', returnFromHolotable);
+
+  // Keyboard: Escape closes card or returns from workspace / holotable
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      if (document.getElementById('missionWorkspace').style.display !== 'none') {
+      if (document.getElementById('holotable').style.display !== 'none') {
+        // Close the top open overlay first; otherwise leave the holotable.
+        if (htCloseTopOverlay()) return;
+        returnFromHolotable();
+      } else if (document.getElementById('missionWorkspace').style.display !== 'none') {
         returnToOpsCenter();
       } else if (activeNodeId) {
         hideIncidentCard();
@@ -1039,6 +1753,14 @@ function init() {
   // Start sound schedulers
   scheduleRadarPing();
   scheduleTickerBeeps();
+
+  // Experimental: deep-link straight into a holotable interior for demoing /
+  // testing the prototype (e.g. /ops-center/?holo=mission-001). Read-only — no
+  // progress is written either way.
+  try {
+    const holoId = new URLSearchParams(window.location.search).get('holo');
+    if (holoId && HOLOTABLE_MISSIONS[holoId]) openHolotable(holoId);
+  } catch (_) { /* ignore malformed query strings */ }
 }
 
 document.addEventListener('DOMContentLoaded', init);
