@@ -32,6 +32,8 @@ const LAB = {
   topoState: {},          // nodeId -> 'blocked' | 'cleared' | 'secured'
   contained: new Set(),   // containment action keys performed
   done: false,
+  hintStep: null,         // id of the sub-goal the last hint was about
+  hintLevel: 0,           // 0-based tier of the next hint for hintStep (escalates)
   runToken: 0,            // invalidates pending timers across re-opens
 };
 
@@ -221,6 +223,8 @@ function openLab() {
   LAB.topoState = {};
   LAB.contained.clear();
   LAB.done = false;
+  LAB.hintStep = null;
+  LAB.hintLevel = 0;
 
   const out = $lab('labTermOut');
   if (out) out.innerHTML = '';
@@ -232,6 +236,8 @@ function openLab() {
     { t: 'A user reported a suspicious email. It is sitting in a mailbox folder.' },
     { t: 'You are at a Linux terminal. Start by listing the folder: type `ls`.', c: 'dim' },
     { t: 'Type `help` anytime to see the commands available right now.', c: 'dim' },
+    { t: 'Stuck? Type `hint` (or click the HINT button) for a nudge — ask again', c: 'dim' },
+    { t: 'and each hint gets more specific, ending with the exact command.', c: 'dim' },
   ]);
 
   labRenderStageSurface();
@@ -350,6 +356,7 @@ function labRun(raw) {
   const word = parts[0].toLowerCase();
 
   if (word === 'help')  { labEcho(text); labHelp(); return; }
+  if (word === 'hint')  { labEcho(text); labHint(); return; }
   if (word === 'clear') { const o = $lab('labTermOut'); if (o) o.innerHTML = ''; return; }
   if (word === 'pwd')   { labEcho(text); labPrint([{ t: LAB.stage >= 3 ? '/home/analyst' : '/home/intern/mailbox' }]); return; }
   if (word === 'pin')   { labEcho(text); labPinCmd(parts.slice(1).join(' ')); return; }
@@ -374,6 +381,106 @@ function labRun(raw) {
   labDispatch(tool.key);
 }
 
+/* ------------------------------------------------------------------ *
+ * HINTS — gradual, never the answer first. Each sub-goal carries three
+ * tiers: (1) a conceptual nudge, (2) a directional push, (3) the exact
+ * command. Asking `hint` again escalates one tier; making progress (the
+ * sub-goal changes) resets back to tier 1.
+ * ------------------------------------------------------------------ */
+const LAB_HINTS = {
+  ls: { id: 'ls', tiers: [
+    'You need to see what you are working with. A mailbox folder holds files — your first job is to find out which files are here.',
+    'In Linux, one short two-letter command lists the files in the current folder.',
+    'Type `ls` and press Enter to list the files.',
+  ] },
+  cat: { id: 'cat', tiers: [
+    'One file is marked REPORTED — that is the message a user flagged. You cannot judge it without reading what it actually says.',
+    "Use the command that prints a file's contents to the screen, followed by the reported file's name.",
+    'Type `cat suspicious_email.txt` to read the reported email.',
+  ] },
+  grep: { id: 'grep', tiers: [
+    'The email pressures the reader to click a link. Wording can lie — a link\'s destination cannot. Pull the links out so you can examine them.',
+    'There is a Linux tool that prints only the lines of a file matching a pattern. Use it on the reported email to surface the web link hiding in the text.',
+    'Type `grep http suspicious_email.txt` to extract the link.',
+  ] },
+  emailTools: { id: 'emailTools', tiers: [
+    'You suspect phishing — now prove it with evidence hiding in the email itself: who really sent it, and where the link really points.',
+    'The dock now has an EMAIL ANALYSIS group. Each tool there exposes a different tell — the routing metadata, the real sender address, the domain, and the true link target. Work through them one at a time.',
+    'Type `headers` first, then try `sender`, `domain`, and `links`.',
+  ] },
+  pinPhish: { id: 'pinPhish', tiers: [
+    'Good — indicators are appearing on the EVIDENCE board to the right. Investigating finds them; you still have to commit the ones that matter.',
+    'Pin at least 3 indicators. You can click an evidence card, or use the pin command in the terminal.',
+    'Type `pin all` to pin every indicator you have surfaced.',
+  ] },
+  socStart: { id: 'socStart', tiers: [
+    'This was not a single email — it is a campaign. Switch to a SOC analyst\'s job and confirm the attacker\'s infrastructure first.',
+    'Use the SOC tools that just unlocked. Start by checking the malicious domain\'s reputation.',
+    'Type `lookup domain` to begin the correlation.',
+  ] },
+  socTools: { id: 'socTools', tiers: [
+    'Map the full scope: who else was targeted, where the link leads, and who actually fell for it.',
+    'The SOC CORRELATION group in the dock widens the lens — who else got the lure, where the link really leads, whether anyone signed in for the attacker, and what the SIEM recorded. Run each one.',
+    'Try `check recipients`, then `trace url`, `inspect login`, and `review alerts`.',
+  ] },
+  pinSoc: { id: 'pinSoc', tiers: [
+    'You have the campaign picture — now record the findings so you are authorized to act.',
+    'Pin at least 3 of your SOC findings on the evidence board.',
+    'Type `pin all` to pin your SOC findings.',
+  ] },
+  contain: { id: 'contain', tiers: [
+    'Time to shut it down. Think in order: cut off the attacker\'s infrastructure, clean up the mail, then secure the person who was compromised.',
+    'The CONTAINMENT group in the dock holds your response actions — one cuts off the attacker\'s infrastructure, one pulls the lure from every inbox, and two secure the compromised user. Take them all.',
+    'Type `block domain`, `quarantine email`, `reset account`, then `contain host`.',
+  ] },
+  report: { id: 'report', tiers: [
+    'The threat is contained. A SOC analyst always closes an incident with a written record so others can learn from it.',
+    'Submit your incident report to finish the investigation.',
+    'Type `submit report` to close the incident.',
+  ] },
+};
+
+/* Pick the hint sub-goal for the player's CURRENT position in the lab. */
+function labCurrentHintGoal() {
+  const s = LAB.stage;
+  if (s === 1) {
+    if (!LAB.ran.has('ls')) return LAB_HINTS.ls;
+    if (!LAB.read.has('suspicious_email.txt')) return LAB_HINTS.cat;
+    return LAB_HINTS.grep;
+  }
+  if (s === 2) {
+    const discoveredPhish = LAB.discovered.filter((id) => LAB_IND[id] && LAB_IND[id].group === 'phish').length;
+    return discoveredPhish < 3 ? LAB_HINTS.emailTools : LAB_HINTS.pinPhish;
+  }
+  if (s === 3) return LAB_HINTS.socStart;
+  if (s === 4) {
+    const discoveredSoc = LAB.discovered.filter((id) => LAB_IND[id] && LAB_IND[id].group === 'soc').length;
+    return discoveredSoc < 3 ? LAB_HINTS.socTools : LAB_HINTS.pinSoc;
+  }
+  // Stage 5 — report needs block + quarantine + reset; host rounds out the grade.
+  const required = ['block', 'quar', 'reset'];
+  return required.some((k) => !LAB.contained.has(k)) ? LAB_HINTS.contain : LAB_HINTS.report;
+}
+
+function labHint() {
+  if (LAB.done) {
+    labPrint([{ t: 'The lab is complete — nothing left to hint at. Replay it to practice again.', c: 'dim' }]);
+    return;
+  }
+  const goal = labCurrentHintGoal();
+  if (!goal) return;
+  // Reset escalation whenever the player has moved on to a new sub-goal.
+  if (goal.id !== LAB.hintStep) { LAB.hintStep = goal.id; LAB.hintLevel = 0; }
+  const level = Math.min(LAB.hintLevel, goal.tiers.length - 1);
+  const isAnswer = level >= goal.tiers.length - 1;
+  labPrint([
+    { t: `HINT ${level + 1} of ${goal.tiers.length}${isAnswer ? '  (this one is the answer)' : ''}`, c: 'head' },
+    { t: '  ' + goal.tiers[level], c: isAnswer ? 'ok' : 'warn' },
+    ...(isAnswer ? [] : [{ t: '  Still stuck? Type `hint` again for a stronger nudge.', c: 'dim' }]),
+  ]);
+  if (LAB.hintLevel < goal.tiers.length - 1) LAB.hintLevel++;
+}
+
 function labHelp() {
   const lines = [{ t: '[ commands available right now ]', c: 'head' }];
   if (LAB.stage === 1) lines.push({ t: 'Linux basics — investigate the mailbox folder:', c: 'dim' });
@@ -381,6 +488,7 @@ function labHelp() {
     lines.push({ t: '  ' + t.hint.padEnd(26) + t.name });
   });
   if (LAB.stage >= 1) lines.push({ t: '  ' + 'pin <indicator|all>'.padEnd(26) + 'pin discovered evidence' });
+  lines.push({ t: '  ' + 'hint'.padEnd(26) + 'gradual hint — ask again for more' });
   lines.push({ t: '  ' + 'clear'.padEnd(26) + 'clear the screen' });
   lines.push({ t: 'Tip: click a file above to read it, or click an evidence card to pin it.', c: 'dim' });
   labPrint(lines);
@@ -947,6 +1055,13 @@ function labInit() {
   }
   const back = $lab('labBackBtn');
   if (back) back.addEventListener('click', returnFromLab);
+
+  const hintBtn = $lab('labHintBtn');
+  if (hintBtn) hintBtn.addEventListener('click', () => {
+    labHint();
+    const inp = $lab('labTermInput');
+    if (inp) inp.focus();
+  });
 
   // Public entry point so the Operations Center (a separate ES module with no
   // shared scope) can open the lab on a mission launch without a full reload.
