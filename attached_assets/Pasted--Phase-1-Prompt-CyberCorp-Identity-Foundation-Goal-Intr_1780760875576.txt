@@ -1,0 +1,224 @@
+# Phase 1 Prompt — CyberCorp Identity Foundation
+
+Goal:
+Introduce persistent organizational identity without changing the current gameplay loop or mission systems.
+
+This phase is NOT a redesign of gameplay mechanics.
+
+This phase exists to solve immersion continuity and establish:
+
+* who the player is
+* where the player works
+* why assignments matter
+
+The player should begin feeling like:
+“I work inside a real cybersecurity operations environment.”
+
+Keep all current missions, terminal mechanics, and gameplay systems intact.
+
+Do not introduce new gameplay complexity in this phase.
+
+---
+
+## WHAT STAYS THE SAME
+
+Keep:
+
+* current world map layout
+* current mission progression
+* current terminal system
+* current mission logic
+* current scoring systems
+* current command systems
+* current evidence systems
+* current assignment launch flow
+
+Do NOT redesign the missions yet.
+
+Do NOT add new gameplay mechanics yet.
+
+Do NOT clutter the interface with corporate information.
+
+This phase is identity and immersion layering only.
+
+---
+
+## WHY THIS FEATURE IS BEING ADDED
+
+Current issue:
+
+The player performs cybersecurity tasks, but lacks persistent organizational identity.
+
+Example:
+In Assignment 001, the phishing email references CyberCorp, but the player may not understand:
+
+* that CyberCorp is their employer
+* that the email targets their own organization
+* that they are defending a company they belong to
+
+As a result:
+
+* investigations feel isolated
+* alerts feel abstract
+* the company lacks emotional meaning
+* missions feel disconnected from each other
+
+This phase fixes that by introducing:
+persistent organizational continuity.
+
+The goal is NOT cinematic storytelling.
+
+The goal is:
+operational immersion.
+
+---
+
+## PHASE 1 IMPLEMENTATION
+
+Add a lightweight persistent identity system.
+
+The player should always know:
+
+* employer
+* division
+* current role
+* supervisor
+* current clearance/access level
+
+---
+
+## OPERATIONS CENTER ADDITIONS
+
+Add a subtle persistent identity panel somewhere appropriate in the Operations Center/world map interface.
+
+Example:
+
+CyberCorp
+Security Operations Division
+
+Role:
+Cybersecurity Intern
+
+Supervisor:
+Analyst Reynolds
+
+Clearance:
+Tier 1 Operations Access
+
+Do NOT make this large or distracting.
+
+This should feel like:
+an employee operations dashboard.
+
+---
+
+## MISSION LAUNCH ADDITIONS
+
+Before a mission launches, add a short operational briefing.
+
+Keep it concise.
+
+Example:
+
+CyberCorp Security Operations
+Assignment 001 — Credential Phishing Campaign
+
+Finance reported suspicious emails impersonating CyberCorp branding.
+
+As a Cybersecurity Intern, your task is to inspect the email artifact, identify suspicious indicators, and escalate confirmed evidence.
+
+The purpose is:
+
+* establish context
+* establish role
+* establish operational responsibility
+
+---
+
+## MISSION HEADER ADDITIONS
+
+Inside the mission:
+add small contextual references only.
+
+Examples:
+
+* CyberCorp branding
+* department names
+* ticket IDs
+* assigned analyst queue
+* supervisor references
+
+Do NOT overload the mission UI.
+
+Mission screen must remain focused on:
+
+* terminal
+* evidence
+* investigation
+
+---
+
+## SUPERVISOR CONTINUITY
+
+Introduce recurring supervisors.
+
+Example:
+Analyst Reynolds appears repeatedly across missions.
+
+This creates:
+
+* continuity
+* mentorship feeling
+* operational realism
+
+Keep this subtle.
+
+Avoid heavy dialogue systems.
+
+---
+
+## EMPLOYEE CONTINUITY
+
+Some employees should recur across missions.
+
+Example:
+A finance employee from Mission 001 later appears:
+
+* in another phishing campaign
+* in access logs
+* in account alerts
+* in incident reports
+
+This creates:
+persistent world continuity.
+
+---
+
+## DESIGN RULES
+
+Do NOT:
+
+* turn the game into story mode
+* add long cutscenes
+* add cinematic dialogue sequences
+* interrupt gameplay flow
+* clutter the UI
+
+The immersion should come from:
+working inside a believable organization.
+
+NOT from scripted narrative sequences.
+
+---
+
+## SUCCESS CRITERIA
+
+This phase is successful if:
+
+* the player understands they work for CyberCorp
+* missions feel connected
+* assignments feel operationally meaningful
+* the player understands their role inside the company
+* immersion improves without increasing clutter
+* gameplay speed remains fast
+* the current mission systems remain intact

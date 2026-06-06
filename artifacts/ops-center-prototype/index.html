@@ -212,7 +212,16 @@
             <div class="incident-card-region" id="incidentRegion">EMEA REGION</div>
             <h3 class="incident-card-title" id="incidentTitle">—</h3>
             <p class="incident-card-desc" id="incidentDesc">—</p>
+            <p class="incident-card-briefing" id="incidentBriefing">—</p>
             <div class="incident-card-meta">
+              <div class="incident-meta-row">
+                <span class="incident-meta-label">DEPARTMENT</span>
+                <span class="incident-meta-val" id="incidentDept">—</span>
+              </div>
+              <div class="incident-meta-row">
+                <span class="incident-meta-label">TICKET</span>
+                <span class="incident-meta-val" id="incidentTicket">—</span>
+              </div>
               <div class="incident-meta-row">
                 <span class="incident-meta-label">FIRST DETECTED</span>
                 <span class="incident-meta-val" id="incidentDetected">—</span>
@@ -253,6 +262,8 @@
 
       <!-- RIGHT — SOC COMMUNICATIONS -->
       <aside class="oc-panel oc-panel--right" aria-label="SOC Communications">
+        <!-- Persistent CyberCorp employee identity (Phase 1) -->
+        <div class="oc-identity" id="ocIdentity"></div>
         <div class="panel-head">
           <div class="panel-head-title">
             <span class="panel-head-icon" aria-hidden="true">◈</span>
@@ -414,6 +425,8 @@
         <span class="ht-opid" id="htOpId">OPS-2026-001</span>
         <span class="ht-sep" aria-hidden="true">—</span>
         <span class="ht-title" id="htTitle">Credential Phishing Campaign</span>
+        <span class="ht-sep ht-context-sep" aria-hidden="true">—</span>
+        <span class="ht-context" id="htContext"></span>
       </div>
       <div class="ht-status" id="htStatus">
         <span class="ht-status-dot" aria-hidden="true"></span>
@@ -490,6 +503,8 @@
         <span class="sc-opid" id="scOpId">OPS-2026-003</span>
         <span class="sc-sep" aria-hidden="true">—</span>
         <span class="sc-title" id="scTitle">Malware Outbreak — C2 Beacon</span>
+        <span class="sc-sep sc-context-sep" aria-hidden="true">—</span>
+        <span class="sc-context" id="scContext"></span>
       </div>
       <div class="sc-status" id="scStatus">
         <span class="sc-status-dot" aria-hidden="true"></span>
@@ -577,6 +592,8 @@
         <span class="sc-opid">OPS-2026-001</span>
         <span class="sc-sep" aria-hidden="true">—</span>
         <span class="sc-title">Credential Phishing — Guided Investigation</span>
+        <span class="sc-sep sc-context-sep" aria-hidden="true">—</span>
+        <span class="sc-context">Finance Operations · Sup: Sarah Reyes</span>
       </div>
       <div class="sc-status">
         <span class="sc-status-dot" aria-hidden="true"></span>

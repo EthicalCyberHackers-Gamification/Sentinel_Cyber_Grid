@@ -2849,3 +2849,58 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 /* Highlighted token in terminal output (grep hit / IOC) */
 .sc-term-line .lab-hit { color: var(--orange); background: rgba(255,107,0,0.12); padding: 0 3px; border-radius: 2px; }
+
+/* ============================================================
+   PHASE 1 — CyberCorp organizational identity (immersion only)
+   ============================================================ */
+.oc-identity {
+  margin-bottom: 14px;
+  padding: 11px 12px;
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--green);
+  border-radius: var(--radius-sm);
+}
+.oc-id-head { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+.oc-id-badge {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  color: var(--green); background: var(--green-dark);
+  border: 1px solid var(--border-glow); border-radius: var(--radius-sm);
+}
+.oc-id-org { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.oc-id-employer { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: 0.3px; }
+.oc-id-division {
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.5px;
+  color: var(--text-muted); text-transform: uppercase;
+}
+.oc-id-rows { display: flex; flex-direction: column; gap: 4px; }
+.oc-id-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.oc-id-label {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-muted); flex-shrink: 0;
+}
+.oc-id-val { font-family: var(--font-mono); font-size: 10px; color: var(--text); text-align: right; }
+.oc-id-val--clear { color: var(--green); }
+
+/* Pre-mission operational briefing (incident card) */
+.incident-card-briefing {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  background: var(--green-dark);
+  border-left: 2px solid var(--green);
+  border-radius: var(--radius-sm);
+}
+
+/* Mission-header organizational context (subtle, monospace) */
+.ht-context, .sc-context {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+}

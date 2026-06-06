@@ -8,13 +8,48 @@
    MOCK DATA
    ============================================================ */
 
+/* ============================================================
+   CYBERCORP ORGANIZATIONAL IDENTITY  (Phase 1 — immersion only)
+   ------------------------------------------------------------
+   Single source of truth for who the player is and where they
+   work. Presentation/data only — never persisted (in-memory
+   prototype). Surfaces: Ops Center identity panel, pre-mission
+   operational briefing (incident card), and mission headers.
+   ============================================================ */
+const CYBERCORP_IDENTITY = {
+  employer: "CyberCorp",
+  division: "Security Operations Division",
+  role: "Cybersecurity Intern",
+  supervisor: "Sarah Reyes",
+  supervisorRole: "SOC Lead",
+  clearance: "Tier 1 Operations Access",
+  analyst: "GHOST_ZERO",
+};
+
+// Per-incident organizational context, keyed by operation ID. Additive and
+// presentation-only — establishes department ownership, the support ticket, and
+// the recurring employee tied to the incident (continuity across missions).
+// J. Okafor (Finance) recurs: reports the OPS-001 phishing wave, then becomes the
+// most-targeted account in the OPS-005 takeover attempt.
+const OP_CONTEXT = {
+  "OPS-2026-001": { dept: "Finance Operations",  ticket: "INC-4471", reportedBy: "J. Okafor · Finance Mgr" },
+  "OPS-2026-002": { dept: "APAC Infrastructure", ticket: "INC-4460", reportedBy: "Network Operations" },
+  "OPS-2026-003": { dept: "NA-East Endpoints",   ticket: "INC-4452", reportedBy: "EDR Auto-Alert" },
+  "OPS-2026-004": { dept: "Perimeter Security",  ticket: "INC-4438", reportedBy: "IDS Auto-Alert" },
+  "OPS-2026-005": { dept: "Identity & Access",   ticket: "INC-4429", reportedBy: "J. Okafor · Finance Mgr" },
+  "OPS-2026-006": { dept: "DMZ Monitoring",      ticket: "INC-4410", reportedBy: "WAF Auto-Alert" },
+};
+function opContext(opId) {
+  return OP_CONTEXT[opId] || { dept: "Security Operations", ticket: "—", reportedBy: "SOC" };
+}
+
 const INCIDENTS = {
   "emea": {
     id: "emea",
     severity: "CRITICAL",
     region: "EMEA REGION",
     title: "Credential Phishing Campaign",
-    desc: "Active credential harvesting operation across EMEA corporate accounts. Multi-vector phishing with spoofed executive domains targeting 400+ employees.",
+    desc: "Active credential harvesting operation across EMEA corporate accounts. Multi-vector phishing with spoofed executive domains targeting 400+ employees. Finance manager J. Okafor reported the first spoofed email.",
     detected: "Today 06:14 UTC",
     systems: "Email · Identity · VPN",
     assigned: "Unassigned — Priority Queue",
@@ -122,7 +157,7 @@ const INCIDENTS = {
     severity: "MEDIUM",
     region: "MENA REGION",
     title: "Suspicious Login Activity",
-    desc: "Anomalous authentication events detected — multiple failed MFA challenges from unfamiliar geolocations targeting privileged accounts.",
+    desc: "Anomalous authentication events detected — multiple failed MFA challenges from unfamiliar geolocations targeting privileged accounts. The most-targeted account belongs to J. Okafor (Finance) — the same employee who flagged the OPS-001 phishing wave.",
     detected: "Today 01:44 UTC",
     systems: "IAM · MFA · Cloud Auth",
     assigned: "Unassigned",
@@ -2137,6 +2172,21 @@ function showIncidentCard(incidentId) {
   document.getElementById('incidentSystems').textContent = incident.systems;
   document.getElementById('incidentAssigned').textContent = incident.assigned;
 
+  // Phase 1 — organizational context + a concise operational briefing that
+  // frames employer, role, and responsibility before launch (presentation-only).
+  const ctx = opContext(incident.opId);
+  const deptEl = document.getElementById('incidentDept');
+  if (deptEl) deptEl.textContent = ctx.dept;
+  const ticketEl = document.getElementById('incidentTicket');
+  if (ticketEl) ticketEl.textContent = ctx.ticket;
+  const briefEl = document.getElementById('incidentBriefing');
+  if (briefEl) {
+    briefEl.textContent =
+      `${CYBERCORP_IDENTITY.employer} ${CYBERCORP_IDENTITY.division} · ${incident.opId}. ` +
+      `As a ${CYBERCORP_IDENTITY.role}, inspect this incident, confirm the indicators, ` +
+      `and escalate verified evidence to ${CYBERCORP_IDENTITY.supervisor}.`;
+  }
+
   // Reflect real-mission progress on the launch button (completed → replay,
   // locked → disabled). Mock-only nodes fall through to the default label.
   const launchBtn = document.getElementById('incidentLaunchBtn');
@@ -2299,6 +2349,11 @@ function openHolotable(missionId) {
   document.getElementById('htOpId').textContent     = mission.opId;
   document.getElementById('htTitle').textContent    = mission.title;
   document.getElementById('htStatusText').textContent = 'ANALYSIS ACTIVE';
+  const htCtxEl = document.getElementById('htContext');
+  if (htCtxEl) {
+    const c = opContext(mission.opId);
+    htCtxEl.textContent = `${c.dept} · Sup: ${CYBERCORP_IDENTITY.supervisor}`;
+  }
 
   // Close any stale overlays.
   ['htInspector', 'htDecision', 'htOutcome'].forEach(id => {
@@ -2892,10 +2947,34 @@ function scheduleTickerBeeps() {
 /* ============================================================
    INIT
    ============================================================ */
+// Renders the persistent CyberCorp identity panel in the Operations Center from
+// the single CYBERCORP_IDENTITY source of truth (presentation-only).
+function renderIdentityPanel() {
+  const el = document.getElementById('ocIdentity');
+  if (!el) return;
+  const id = CYBERCORP_IDENTITY;
+  el.innerHTML = `
+    <div class="oc-id-head">
+      <span class="oc-id-badge" aria-hidden="true">ID</span>
+      <div class="oc-id-org">
+        <span class="oc-id-employer">${id.employer}</span>
+        <span class="oc-id-division">${id.division}</span>
+      </div>
+    </div>
+    <div class="oc-id-rows">
+      <div class="oc-id-row"><span class="oc-id-label">Role</span><span class="oc-id-val">${id.role}</span></div>
+      <div class="oc-id-row"><span class="oc-id-label">Supervisor</span><span class="oc-id-val">${id.supervisor} · ${id.supervisorRole}</span></div>
+      <div class="oc-id-row"><span class="oc-id-label">Clearance</span><span class="oc-id-val oc-id-val--clear">${id.clearance}</span></div>
+    </div>`;
+}
+
 function init() {
   // Clock
   updateClock();
   setInterval(updateClock, 1000);
+
+  // Persistent CyberCorp identity panel (Phase 1 — immersion).
+  renderIdentityPanel();
 
   // Render initial alerts
   INITIAL_ALERTS.forEach(a => renderAlert(a, false));
@@ -3086,6 +3165,11 @@ function openSocConsole(missionId) {
   document.getElementById('scOpId').textContent     = mission.opId;
   document.getElementById('scTitle').textContent    = mission.title;
   document.getElementById('scStatusText').textContent = 'ANALYSIS ACTIVE';
+  const scCtxEl = document.getElementById('scContext');
+  if (scCtxEl) {
+    const c = opContext(mission.opId);
+    scCtxEl.textContent = `${c.dept} · Sup: ${CYBERCORP_IDENTITY.supervisor}`;
+  }
 
   // Reset overlays.
   ['scInspector', 'scDecision', 'scOutcome'].forEach(id => {

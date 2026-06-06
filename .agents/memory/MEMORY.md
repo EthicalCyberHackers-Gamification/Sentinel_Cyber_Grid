@@ -25,3 +25,4 @@
 - [Lab command verb routing](ech-lab-verb-routing.md) — progressive lab (`lab.js`, `?lab=mission-001`) routes on the FIRST typed word; key `LAB_VERB` on that word (e.g. `submit`→report), not the tool name, or multi-word cmds dead-end.
 - [oc.js ↔ lab.js bridge](ech-lab-console-bridge.md) — separate ES modules, no shared scope; lab publishes `window.openMission001Lab`, `launchWorkspace` calls it (early-return before console/holotable) with a deep-link fallback.
 - [Lab teaching surfaces](ech-lab-gradual-hints.md) — Mission-001 lab hints/explain-popups/tool-kit are presentation-only; 3-tier hints never leak the command early; bind persistent-host modal listeners ONCE in init, not per open.
+- [CyberCorp identity layer](ech-cybercorp-identity.md) — prototype-only immersion: CYBERCORP_IDENTITY + OP_CONTEXT(keyed by opId) drive identity panel, pre-mission briefing, mission-header context; recurring Reyes + J. Okafor.
