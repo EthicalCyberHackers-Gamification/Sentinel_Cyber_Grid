@@ -264,6 +264,87 @@ const REAL_MISSION_MAP = {
 };
 
 /* ============================================================
+   REAL-MISSION PROGRESS (read-only mirror of the main game)
+   ------------------------------------------------------------
+   The main Ethical CyberHackers game persists progress to the
+   browser's localStorage under "ech.progress.v1" (same origin).
+   The prototype READS this (never writes) so the three real-
+   mission nodes can reflect the player's actual completion state:
+     • completed  — mission already finished  → "COMPLETED" glyph,
+                    launch button reads "REPLAY INVESTIGATION"
+     • active     — available to play
+     • locked     — prerequisite mission not yet done → lock glyph,
+                    launch button disabled
+   Locking mirrors the game's gating: M2 (apac) needs M1 done,
+   M3 (na-east) needs M2 done. M1 (emea) is always available.
+   ============================================================ */
+const PROGRESS_STORAGE_KEY = "ech.progress.v1";
+
+function readGameProgress() {
+  try {
+    const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === "object") ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+// Returns { nodeId: "completed" | "active" | "locked" } for the three
+// real-mission nodes only. Other nodes (latam/mena/sea) are mock-only.
+function getMissionStates() {
+  const p = readGameProgress() || {};
+  const m1 = !!p.mission1Complete;
+  const m2 = !!p.mission2Complete;
+  const m3 = !!p.mission3Complete;
+  return {
+    "emea":    m1 ? "completed" : "active",
+    "apac":    m2 ? "completed" : (m1 ? "active" : "locked"),
+    "na-east": m3 ? "completed" : (m2 ? "active" : "locked"),
+  };
+}
+
+// Paint each real-mission node with its current progress state. Safe to
+// call repeatedly (e.g. on focus after returning from the main game).
+function applyMissionProgress() {
+  const states = getMissionStates();
+  Object.entries(states).forEach(([nodeId, status]) => {
+    const node = document.getElementById(`node-${nodeId}`);
+    if (!node) return;
+
+    node.classList.remove("node--completed", "node--locked");
+    node.removeAttribute("aria-disabled");
+    node.querySelector(".node-status-glyph")?.remove();
+
+    const baseLabel = INCIDENTS[nodeId]
+      ? `${INCIDENTS[nodeId].region} — ${INCIDENTS[nodeId].severity}`
+      : nodeId;
+
+    if (status === "completed") {
+      node.classList.add("node--completed");
+      const g = document.createElement("span");
+      g.className = "node-status-glyph node-status-glyph--completed";
+      g.setAttribute("aria-hidden", "true");
+      g.textContent = "✓";
+      node.appendChild(g);
+      node.setAttribute("aria-label", `${baseLabel} — Completed`);
+    } else if (status === "locked") {
+      node.classList.add("node--locked");
+      node.setAttribute("aria-disabled", "true");
+      const g = document.createElement("span");
+      g.className = "node-status-glyph node-status-glyph--locked";
+      g.setAttribute("aria-hidden", "true");
+      g.textContent = "🔒";
+      node.appendChild(g);
+      node.setAttribute("aria-label", `${baseLabel} — Locked`);
+    } else {
+      node.setAttribute("aria-label", baseLabel);
+    }
+  });
+}
+
+/* ============================================================
    SOUND ENGINE  (Web Audio API — no audio files needed)
    ============================================================ */
 const SoundEngine = (() => {
@@ -483,6 +564,22 @@ function showIncidentCard(incidentId) {
   document.getElementById('incidentSystems').textContent = incident.systems;
   document.getElementById('incidentAssigned').textContent = incident.assigned;
 
+  // Reflect real-mission progress on the launch button (completed → replay,
+  // locked → disabled). Mock-only nodes fall through to the default label.
+  const launchBtn = document.getElementById('incidentLaunchBtn');
+  const status = getMissionStates()[incidentId];
+  launchBtn.classList.remove('incident-launch-btn--locked');
+  launchBtn.disabled = false;
+  if (status === 'locked') {
+    launchBtn.disabled = true;
+    launchBtn.classList.add('incident-launch-btn--locked');
+    launchBtn.innerHTML = '🔒&nbsp; LOCKED — COMPLETE PRIOR MISSION';
+  } else if (status === 'completed') {
+    launchBtn.innerHTML = '▶&nbsp; REPLAY INVESTIGATION';
+  } else {
+    launchBtn.innerHTML = '▶&nbsp; LAUNCH INVESTIGATION';
+  }
+
   card.style.display = 'block';
 
   // Post a contextual comms message
@@ -507,6 +604,9 @@ function launchWorkspace() {
   if (!activeNodeId) return;
   const incident = INCIDENTS[activeNodeId];
   if (!incident) return;
+
+  // Block locked real missions — their prerequisite isn't complete yet.
+  if (getMissionStates()[activeNodeId] === 'locked') return;
 
   // If this incident maps to a real playable mission, navigate to the main
   // game with a ?mission= deep-link so the actual investigation terminal
@@ -740,6 +840,13 @@ function init() {
 
   // Render initial comms
   INITIAL_COMMS.forEach(msg => renderCommsMsg(msg));
+
+  // Reflect real game progress on the map (read-only mirror of localStorage).
+  applyMissionProgress();
+  // Re-sync when the player returns from the main game (e.g. after completing a
+  // mission), so completion/lock badges update without a manual reload.
+  window.addEventListener('focus', applyMissionProgress);
+  window.addEventListener('pageshow', applyMissionProgress);
 
   // Wire up incident nodes
   document.querySelectorAll('.incident-node').forEach(btn => {

@@ -648,6 +648,35 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   margin-top: 8px;
 }
 
+/* Real-mission progress states (mirror of ech.progress.v1) */
+.node-status-glyph {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(6px, -16px);
+  font-size: 11px;
+  line-height: 1;
+  z-index: 4;
+  pointer-events: none;
+}
+.node-status-glyph--completed {
+  color: var(--green);
+  text-shadow: 0 0 6px var(--green);
+  font-weight: bold;
+}
+
+/* Completed real-mission node — incident resolved: calm it down, tint green */
+.incident-node.node--completed { color: var(--green); }
+.incident-node.node--completed .node-radar,
+.incident-node.node--completed .node-pulse { display: none; }
+.incident-node.node--completed .node-core { box-shadow: 0 0 8px var(--green); }
+
+/* Locked real-mission node — prerequisite mission not yet done */
+.incident-node.node--locked { color: var(--text-dim); opacity: 0.75; }
+.incident-node.node--locked .node-radar,
+.incident-node.node--locked .node-pulse { display: none; }
+.incident-node.node--locked .node-core { box-shadow: 0 0 4px var(--text-dim); }
+
 /* Incident Card */
 .incident-card {
   position: absolute;
@@ -780,6 +809,22 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background: rgba(0,255,136,0.15);
   border-color: var(--green);
   box-shadow: 0 0 12px rgba(0,255,136,0.2);
+}
+
+/* Locked launch button — prerequisite mission not yet completed */
+.incident-launch-btn--locked,
+.incident-launch-btn:disabled {
+  background: rgba(107,122,153,0.08);
+  color: var(--text-dim);
+  border-color: rgba(107,122,153,0.28);
+  text-shadow: none;
+  cursor: not-allowed;
+}
+.incident-launch-btn--locked:hover,
+.incident-launch-btn:disabled:hover {
+  background: rgba(107,122,153,0.08);
+  border-color: rgba(107,122,153,0.28);
+  box-shadow: none;
 }
 
 /* =============================================
