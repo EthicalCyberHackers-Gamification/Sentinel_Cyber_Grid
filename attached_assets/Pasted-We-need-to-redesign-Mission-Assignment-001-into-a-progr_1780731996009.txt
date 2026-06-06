@@ -1,0 +1,231 @@
+We need to redesign Mission / Assignment 001 into a progressive learning mission that starts with Linux-style command investigation and gradually escalates into SOC-style analysis.
+
+This is a prototype/planning task first. Do not modify the main production flow until the approach is clear and isolated.
+
+Goal:
+Assignment 001 should not immediately feel like a full SOC dashboard. It should begin simple, like the original Mission 1, with terminal-based Linux-style investigation. As the player uncovers evidence, the mission should expand into a more realistic SOC investigation. The player should feel like they personally uncovered a larger credential phishing campaign.
+
+Core design principle:
+The mission should progress from:
+
+Linux command familiarity
+→ email artifact investigation
+→ phishing analysis
+→ campaign discovery
+→ SOC response
+
+Do not make the interface more complex at the start. Complexity should unlock only after the player discovers evidence.
+
+Mission Theme:
+Credential Phishing Campaign
+
+Player Role:
+Cybersecurity Intern / Junior Analyst
+
+Mission Progression:
+
+Stage 1 — Linux-Style File Investigation
+The player begins with a simple terminal view and a suspicious email artifact.
+
+Use beginner-friendly Linux-inspired commands such as:
+
+ls
+cat
+less
+grep
+
+Example flow:
+ls
+cat suspicious_email.txt
+grep http suspicious_email.txt
+
+Learning objective:
+The student learns that emails can be treated as artifacts and inspected like files.
+
+Stage 2 — Email Evidence Discovery
+After the player finds a suspicious URL or sender mismatch, unlock email-analysis commands.
+
+Commands may include:
+
+headers
+links
+sender
+domain
+
+These do not need to be real Linux commands yet, but the UI should clearly imply they are analyst tools layered on top of the terminal.
+
+Learning objective:
+The student learns phishing indicators:
+
+* suspicious sender
+* mismatched domain
+* suspicious link
+* spoofed identity
+* urgency language
+* SPF/DKIM/header anomalies
+
+Stage 3 — Campaign Expansion
+After enough evidence is found, the mission reveals that this is not one suspicious email. It is part of a broader credential phishing campaign.
+
+At this point, introduce the reactive SOC console layer.
+
+Do not replace the terminal. The terminal remains the main interaction method.
+
+Add a subtle live operational topology in the background showing:
+
+* affected employee inboxes
+* suspicious domain
+* external attacker infrastructure
+* possible credential submission endpoint
+* internal host or account activity
+
+The topology must be functional, not decorative. Every visual change must correspond to evidence the player discovered.
+
+Stage 4 — SOC Investigation
+Unlock SOC-style commands/actions such as:
+
+lookup domain
+check recipients
+trace url
+inspect login
+review alerts
+pin evidence
+
+The player should correlate:
+
+* who received the email
+* who clicked the link
+* whether credentials may have been submitted
+* whether any login activity followed
+* what domain or IP should be blocked
+
+Stage 5 — Response / Containment
+Only after the player has built enough evidence should containment actions unlock.
+
+Possible actions:
+
+block domain
+quarantine email
+reset account
+contain host
+submit report
+
+Containment should visually affect the topology:
+
+* malicious link goes dark
+* phishing domain is blocked
+* affected account is secured
+* campaign status changes
+
+Required Interface Direction:
+Create a terminal-driven reactive SOC console.
+
+Layout direction:
+
+* Bottom or center: terminal remains primary
+* Background: subtle live topology / network interface
+* Right: minimal evidence rail, showing only pinned or discovered evidence
+* Left: small functional analyst dock, not decorative
+
+Analyst dock tools:
+
+* Files
+* Headers
+* Links
+* Intel
+* Logs
+* Contain
+
+Each tool must map to a real investigation purpose.
+
+Avoid:
+
+* decorative holotable graphics
+* cluttered dashboards
+* world-map style visuals
+* too many meters
+* global career/status data inside the mission
+* cinematic effects that do not teach anything
+
+Keep common player information in the Operations Center, not inside the mission.
+
+Critical Design Rule:
+The graphics must be the lesson.
+
+When the player runs a command, the environment should react in a way that teaches what happened.
+
+Examples:
+
+* grep http suspicious_email.txt reveals a suspicious URL and highlights the external domain
+* headers reveals SPF/DKIM failure and shows spoofed routing
+* lookup domain shows suspicious reputation and domain age
+* check recipients shows multiple targeted employees
+* inspect login shows a possible compromised account
+* block domain cuts off the malicious connection visually
+
+Difficulty Requirement:
+This must be easier than the current SOC-heavy phishing version at the start.
+
+The first 2–3 minutes should feel like a simple guided terminal investigation.
+
+Then the mission gradually expands.
+
+The player should not be overwhelmed by:
+
+* too many tools
+* too much topology
+* too many alerts
+* too much terminology
+* too many simultaneous objectives
+
+Suggested mission emotional arc:
+
+1. “This is just one suspicious email.”
+2. “Something about this sender is wrong.”
+3. “The link points somewhere dangerous.”
+4. “Multiple employees received this.”
+5. “One user may have clicked.”
+6. “This is an active credential phishing campaign.”
+7. “I need to contain it and report the evidence.”
+
+Build Strategy:
+Start with a vertical slice only for Assignment 001.
+
+Do not roll this across all missions yet.
+
+Implement slowly and experimentally:
+
+1. Preserve current mission launch flow.
+2. Create or isolate a prototype version of Assignment 001.
+3. Add the progressive stage system.
+4. Add command-triggered evidence discovery.
+5. Add minimal reactive topology only after Stage 3.
+6. Add evidence pinning.
+7. Add containment action at the end.
+8. Add a short scorecard explaining what the student learned.
+
+Success Criteria:
+The mission is successful if:
+
+* the player understands what to do at each step
+* the terminal feels meaningful
+* Linux-style commands are introduced naturally
+* SOC analysis emerges gradually
+* visuals reinforce evidence instead of decorating the screen
+* the mission feels more realistic without becoming cluttered
+* the player feels they uncovered the campaign themselves
+
+Important:
+Do not treat this as a visual redesign only. This is a gameplay learning redesign.
+
+The core loop should be:
+
+Command
+→ Evidence appears
+→ Visual system reacts
+→ Player interprets
+→ Player pins evidence
+→ New capability unlocks
+→ Investigation escalates
+→ Containment decision
+→ Learning scorecard
