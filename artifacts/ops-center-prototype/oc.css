@@ -245,6 +245,72 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 /* =============================================
+   VOLUME SLIDER
+   Compact HUD-styled range control, shown only
+   when sound is on (hidden while muted).
+   ============================================= */
+.sound-volume {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 64px;
+  height: 4px;
+  flex-shrink: 0;
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  outline: none;
+  transition: all var(--transition);
+}
+
+.sound-volume--hidden {
+  display: none;
+}
+
+.sound-volume:hover {
+  border-color: rgba(0, 255, 136, 0.45);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.1);
+}
+
+.sound-volume:focus-visible {
+  border-color: rgba(0, 255, 136, 0.6);
+  box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.25);
+}
+
+.sound-volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--green);
+  border: 1px solid var(--bg-panel-alt);
+  box-shadow: 0 0 6px rgba(0, 255, 136, 0.5);
+  cursor: pointer;
+  transition: transform var(--transition);
+}
+
+.sound-volume::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.sound-volume::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--green);
+  border: 1px solid var(--bg-panel-alt);
+  box-shadow: 0 0 6px rgba(0, 255, 136, 0.5);
+  cursor: pointer;
+}
+
+.sound-volume::-moz-range-track {
+  height: 4px;
+  background: transparent;
+  border-radius: 999px;
+}
+
+/* =============================================
    THREE-PANEL BODY
    ============================================= */
 .oc-body {

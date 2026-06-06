@@ -369,9 +369,24 @@ const SoundEngine = (() => {
   const STORAGE_KEY = 'ech.sound.muted';
   let _muted = localStorage.getItem(STORAGE_KEY) !== 'false';
 
+  // Master volume (0–1). Unlike the shared mute flag this is a per-tab
+  // preference, persisted in sessionStorage so it survives reloads but does
+  // not bleed across to the main game. Absent/invalid key falls back to 0.7.
+  const VOLUME_KEY = 'ech.sound.volume';
+  let _volume = (() => {
+    const v = parseFloat(sessionStorage.getItem(VOLUME_KEY));
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.7;
+  })();
+  let masterGain = null;
+
   function _getCtx() {
     if (!ctx) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Single master GainNode every voice routes through, so the slider can
+      // scale the whole soundscape at once.
+      masterGain = ctx.createGain();
+      masterGain.gain.value = _volume;
+      masterGain.connect(ctx.destination);
     }
     if (ctx.state === 'suspended') ctx.resume();
     return ctx;
@@ -397,7 +412,7 @@ const SoundEngine = (() => {
       const osc  = ac.createOscillator();
       const gain = ac.createGain();
       osc.connect(gain);
-      gain.connect(ac.destination);
+      gain.connect(masterGain);
       osc.type = 'sine';
       osc.frequency.value = freq;
       const t = ac.currentTime + i * 0.13;
@@ -416,7 +431,7 @@ const SoundEngine = (() => {
     const osc  = ac.createOscillator();
     const gain = ac.createGain();
     osc.connect(gain);
-    gain.connect(ac.destination);
+    gain.connect(masterGain);
     osc.type = 'sine';
     osc.frequency.setValueAtTime(520, ac.currentTime);
     osc.frequency.exponentialRampToValueAtTime(260, ac.currentTime + 0.55);
@@ -443,7 +458,7 @@ const SoundEngine = (() => {
     const osc  = ac.createOscillator();
     const gain = ac.createGain();
     osc.connect(gain);
-    gain.connect(ac.destination);
+    gain.connect(masterGain);
     osc.type = 'triangle';
     // Crisp upward snap then a fast decay for a "select" feel.
     osc.frequency.setValueAtTime(base, t);
@@ -462,7 +477,7 @@ const SoundEngine = (() => {
     const osc  = ac.createOscillator();
     const gain = ac.createGain();
     osc.connect(gain);
-    gain.connect(ac.destination);
+    gain.connect(masterGain);
     osc.type = 'square';
     osc.frequency.value = 1400;
     gain.gain.setValueAtTime(0.012, ac.currentTime);
@@ -485,7 +500,18 @@ const SoundEngine = (() => {
     return _muted;
   }
 
-  return { playAlertChime, playRadarPing, playNodeSelect, playTickerBeep, isMuted, toggle, refresh, STORAGE_KEY };
+  function getVolume() { return _volume; }
+
+  // Set master volume (clamped 0–1), persist it, and apply live to the gain
+  // node if the audio graph is already running.
+  function setVolume(v) {
+    _volume = Math.min(1, Math.max(0, Number(v) || 0));
+    sessionStorage.setItem(VOLUME_KEY, String(_volume));
+    if (masterGain) masterGain.gain.value = _volume;
+    return _volume;
+  }
+
+  return { playAlertChime, playRadarPing, playNodeSelect, playTickerBeep, isMuted, toggle, refresh, getVolume, setVolume, STORAGE_KEY, VOLUME_KEY };
 })();
 
 /* ============================================================
@@ -806,6 +832,16 @@ function updateSoundToggleUI() {
   btn.setAttribute('aria-label', `Toggle sound (currently ${muted ? 'off' : 'on'})`);
   btn.setAttribute('title', muted ? 'Sound off — click to enable' : 'Sound on — click to mute');
   btn.classList.toggle('sound-toggle--on', !muted);
+
+  // Volume slider is only meaningful when sound is on, so hide it while muted.
+  const slider = document.getElementById('soundVolume');
+  if (slider) {
+    slider.classList.toggle('sound-volume--hidden', muted);
+    slider.value = String(Math.round(SoundEngine.getVolume() * 100));
+    slider.setAttribute('aria-hidden', muted ? 'true' : 'false');
+    if (muted) slider.setAttribute('tabindex', '-1');
+    else slider.removeAttribute('tabindex');
+  }
 }
 
 /* ============================================================
@@ -912,6 +948,13 @@ function init() {
     SoundEngine.toggle();
     updateSoundToggleUI();
   });
+  // Volume slider — live-tracks the master gain (0–1) and persists per tab.
+  const volSlider = document.getElementById('soundVolume');
+  if (volSlider) {
+    volSlider.addEventListener('input', () => {
+      SoundEngine.setVolume(Number(volSlider.value) / 100);
+    });
+  }
   // Live-sync the shared mute preference if the main game (or another tab)
   // changes it while the Ops Center is open.
   window.addEventListener('storage', (e) => {
