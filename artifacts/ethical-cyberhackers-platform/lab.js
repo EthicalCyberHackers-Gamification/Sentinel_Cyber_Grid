@@ -65,6 +65,7 @@ const LAB = {
   topoState: {},          // nodeId -> 'blocked' | 'cleared' | 'secured'
   contained: new Set(),   // containment action keys performed
   done: false,
+  _justAdvanced: false,   // transient: a stage reveal just printed its own direction
   hintStep: null,         // id of the sub-goal the last hint was about
   hintLevel: 0,           // 0-based tier of the next hint for hintStep (escalates)
   runToken: 0,            // invalidates pending timers across re-opens
@@ -1110,6 +1111,7 @@ function openLab(missionId) {
   LAB.topoState = {};
   LAB.contained.clear();
   LAB.done = false;
+  LAB._justAdvanced = false;
   LAB.hintStep = null;
   LAB.hintLevel = 0;
 
@@ -1249,6 +1251,7 @@ function labCheckAdvance() {
 
 function labRevealCampaign() {
   const def = LAB.def;
+  LAB._justAdvanced = true;
   labSetStage(3);
   // Seed the topology with what we already know.
   def.seedNodes.forEach((id) => LAB.topoNodes.add(id));
@@ -1265,6 +1268,7 @@ function labRevealCampaign() {
 }
 
 function labUnlockContainment() {
+  LAB._justAdvanced = true;
   labSetStage(5);
   labPrint(LAB.def.reveal.containment);
 }
@@ -1454,6 +1458,7 @@ function labDispatch(key) {
     if (run) {
       if (LAB.ran.has(key)) {
         labPrint([{ t: run.already || 'Already done — see the evidence board.', c: 'dim' }]);
+        labGuide();
         return;
       }
       LAB.ran.add(key);
@@ -1469,6 +1474,68 @@ function labDispatch(key) {
   labRenderRail();
   labRenderDock();
   labRefreshObjective();
+  labGuide();
+}
+
+/* ------------------------------------------------------------------ *
+ * STEP COACH
+ * After every meaningful action (a tool run, a pin, a containment step)
+ * surface ONE concise, operational "what to do next — and why" line so
+ * direction is never lost past the opening triage steps. Stage 1 already
+ * coaches via the `onCat.next` + grep `unlock` hooks, so this drives
+ * stages 2-5. Derived purely from existing state (objective progress,
+ * remaining tools, containment) — presentation-only: it never mutates
+ * lab mechanics, evidence, scoring, or XP. Mission-agnostic, so it works
+ * for all assignments without per-dataset authoring.
+ * ------------------------------------------------------------------ */
+function labGuide() {
+  // A stage reveal (campaign / containment) prints its own direction —
+  // don't pile a second nudge on top of it.
+  if (LAB._justAdvanced) { LAB._justAdvanced = false; return; }
+  const def = LAB.def;
+  const stage = LAB.stage;
+  let line = '';
+
+  if (stage === 2 || stage === 3 || stage === 4) {
+    const flow = stage === 2 ? def.hintFlow.stage2 : def.hintFlow.stage4;
+    if (flow && flow.group) {
+      const need = flow.need;
+      const pinned = labPinnedCount(flow.group);
+      const left = Math.max(0, need - pinned);
+      const unpinned = LAB.discovered.filter(
+        (id) => def.ind[id] && def.ind[id].group === flow.group && !LAB.pinned.has(id),
+      );
+      if (unpinned.length) {
+        line = `→ Next: pin what you just found — \`pin all\` (or \`pin <name>\`) commits it to your evidence board. ${pinned}/${need} pinned.`;
+      } else if (left > 0) {
+        // Only recommend tools that actually surface an indicator in the
+        // group this stage gates on — never an earlier-stage leftover tool
+        // (e.g. a 4th triage tool still showing at stage 4), which would
+        // wrongly promise to "surface more indicators".
+        const todo = def.tools.filter((t) => {
+          if (!t.run || t.unlock > stage || LAB.ran.has(t.key)) return false;
+          const disc = t.run.discover;
+          if (!disc) return false;
+          const ids = Array.isArray(disc) ? disc : [disc];
+          return ids.some((id) => def.ind[id] && def.ind[id].group === flow.group);
+        });
+        if (todo.length) {
+          line = `→ Next: run your remaining tools — ${todo.map((t) => '`' + t.hint + '`').join(', ')} — to surface ${left} more indicator(s), then pin each.`;
+        } else {
+          line = `→ Next: pin your findings to reach ${need}/${need} and unlock the next stage.`;
+        }
+      }
+    }
+  } else if (stage === 5) {
+    const todo = def.containRequired.filter((k) => !LAB.contained.has(k) && def.contain[k]);
+    if (todo.length) {
+      line = `→ Next: contain the threat — ${todo.map((k) => '`' + def.contain[k].label + '`').join(', ')}.`;
+    } else if (!LAB.done) {
+      line = '→ Next: file your incident report — `submit report` — to close the case.';
+    }
+  }
+
+  if (line) labPrint([{ t: line, c: 'guide' }]);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1488,6 +1555,7 @@ function labPin(id) {
   labRenderRail();
   labRefreshObjective();
   labCheckAdvance();
+  labGuide();
 }
 
 function labPinCmd(arg) {
@@ -1497,7 +1565,7 @@ function labPinCmd(arg) {
   if (!arg || arg.toLowerCase() === 'all' || arg.toLowerCase() === 'evidence') {
     unpinned.forEach((id) => LAB.pinned.add(id));
     labPrint([{ t: `[+] Pinned ${unpinned.length} indicator(s) to the evidence board.`, c: 'ok' }]);
-    labRenderRail(); labRefreshObjective(); labCheckAdvance();
+    labRenderRail(); labRefreshObjective(); labCheckAdvance(); labGuide();
     return;
   }
   // pin by partial label/id match
@@ -1505,7 +1573,7 @@ function labPinCmd(arg) {
   if (match) {
     LAB.pinned.add(match);
     labPrint([{ t: `[+] Pinned: ${ind[match].label}`, c: 'ok' }]);
-    labRenderRail(); labRefreshObjective(); labCheckAdvance();
+    labRenderRail(); labRefreshObjective(); labCheckAdvance(); labGuide();
   } else {
     labPrint([{ t: `No discovered indicator matches "${arg}". Try \`pin all\`.`, c: 'dim' }]);
   }

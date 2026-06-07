@@ -32,4 +32,5 @@
 - [Lab teaching surfaces](ech-lab-gradual-hints.md) — Mission-001 lab hints/explain-popups/tool-kit are presentation-only; 3-tier hints never leak the command early; bind persistent-host modal listeners ONCE in init, not per open.
 - [CyberCorp identity layer](ech-cybercorp-identity.md) — prototype-only immersion: CYBERCORP_IDENTITY + OP_CONTEXT(keyed by opId) drive identity panel, pre-mission briefing, mission-header context; recurring Reyes + J. Okafor.
 - [Persistent world (Phase 3 prototype)](ech-persistent-world.md) — read-only continuity layer; mission-link edges must point to an EARLIER and SAME-ACTOR mission (first op of any actor gets no `connects`).
+- [Lab step coach (labGuide)](ech-lab-step-coach.md) — engine-level `→ Next:` direction for stages 2–5 (stage 1 uses dataset hooks); "remaining tools" must filter by run.discover's target group, not `unlock<=stage`.
 - [Analyst Learning Layer (prototype lab M001)](ech-learning-layer.md) — presentation-only teaching layer gated on `learning.enabled`; a checkpoint that gates a functional unlock must resolve on EVERY dismissal path (one chokepoint + done flag) or it soft-locks.

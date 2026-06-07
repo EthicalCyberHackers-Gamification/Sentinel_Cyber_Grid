@@ -450,6 +450,15 @@
 
 .sc-term-line.err { color: var(--red); }
 
+/* Step coach — a concise "what to do next" nudge after every meaningful
+   action so direction is never lost past the opening triage steps. */
+.sc-term-line.guide {
+  color: var(--yellow);
+  margin: 4px 0 2px;
+  padding-left: 9px;
+  border-left: 2px solid var(--yellow);
+}
+
 .sc-term-form { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--border); flex: none; background: var(--bg-panel); }
 
 .sc-term-prompt { color: var(--green); font-size: 12.5px; }
