@@ -41,6 +41,11 @@ const LAB = {
   done: false,
   hintStep: null,         // id of the sub-goal the last hint was about
   hintLevel: 0,           // 0-based tier of the next hint for hintStep (escalates)
+  // Analyst Learning Layer — presentation-only, never persisted (see labLearning).
+  notesShown: new Set(),  // concept ids whose contextual analyst note has shown
+  checkpointActive: false,// interpretation-checkpoint modal is currently open
+  checkpointDone: false,  // checkpoint resolved (once per run)
+  checkpointPick: -1,     // chosen option index in the open checkpoint
   runToken: 0,            // invalidates pending timers across re-opens
 };
 
@@ -539,6 +544,107 @@ const LAB_MISSIONS = {
         'One report is usually a campaign — correlation reveals the real blast radius and who was compromised.',
         'Containment is a sequence: block the infra, pull the mail, secure the account, isolate the host, report.',
       ],
+    },
+
+    /* ANALYST LEARNING LAYER — Assignment 001 only. Presentation/teaching-only
+     * data read by the labLearning() engine. Flip `enabled` to false to remove
+     * the entire layer (glossary, notes, chips, checkpoint, debrief) with no
+     * other change. Never persisted; never affects XP, progress, or grading. */
+    learning: {
+      enabled: true,
+      glossary: {
+        'phishing':   { term: 'Phishing', def: 'A social-engineering attack that tricks a person into handing over credentials or clicking a malicious link by impersonating someone they trust.' },
+        'spf':        { term: 'SPF', full: 'Sender Policy Framework', def: 'A DNS record listing which mail servers may send mail for a domain. "SPF FAIL" means this server was NOT authorized — strong evidence the sender is forged.' },
+        'dkim':       { term: 'DKIM', full: 'DomainKeys Identified Mail', def: 'A cryptographic signature a domain adds to its outgoing mail. "DKIM none" means the message carries no valid signature from the domain it claims to be from.' },
+        'dmarc':      { term: 'DMARC', full: 'Domain-based Message Authentication, Reporting & Conformance', def: 'A policy that ties the SPF and DKIM results to the visible From address and tells receivers what to do when they fail.' },
+        'return-path':{ term: 'Return-Path', def: 'The real envelope address a bounce goes back to, set by the sending server — not the friendly "From". Attackers fake the From but the Return-Path often exposes the true origin.' },
+        'ioc':        { term: 'IOC', full: 'Indicator of Compromise', def: 'A concrete, observable artifact of an attack — a malicious domain, IP, URL, or file hash — that you can pin, share, and block.' },
+        'c2':         { term: 'C2', full: 'Command and Control', def: 'Attacker-controlled infrastructure that stolen data is sent to, or that issues instructions to compromised machines.' },
+        'siem':       { term: 'SIEM', full: 'Security Information and Event Management', def: 'The platform that aggregates logs and alerts across the org so an analyst can correlate scattered events into one incident timeline.' },
+        'whois':      { term: 'WHOIS', def: 'A lookup of a domain\u2019s registration record — who registered it and when. A domain registered days ago is a classic phishing tell.' },
+        'asn':        { term: 'ASN', full: 'Autonomous System Number', def: 'An identifier for the network that owns a block of IP addresses. It reveals which provider hosts an IP — useful for spotting abuse-friendly "bulletproof" hosts.' },
+        'kill-chain': { term: 'kill chain', def: 'The ordered stages of an attack — here lure \u2192 click \u2192 credential POST \u2192 account takeover. Confirming each link proves the attack succeeded and shapes the response.' },
+        'blast-radius':{ term: 'blast radius', def: 'The full scope of who or what an incident touched. One report is rarely alone; sizing the blast radius tells you everyone you must notify, reset, and protect.' },
+        'bulletproof':{ term: 'bulletproof host', def: 'A hosting provider that deliberately ignores abuse complaints, so attacker infrastructure stays online. Seeing one is itself a red flag.' },
+        'impossible-travel': { term: 'impossible travel', def: 'A sign-in from a location the user could not physically have reached in the time since their last login — strong evidence the account is compromised.' },
+        'social-engineering': { term: 'social engineering', def: 'Manipulating people (urgency, fear, false authority) instead of hacking machines. The lure\u2019s urgent tone is social engineering.' },
+        'credential-harvesting': { term: 'credential harvesting', def: 'Collecting usernames and passwords at scale, usually via a fake login page that POSTs whatever is typed to attacker infrastructure.' },
+      },
+      notes: {
+        'link-mismatch': {
+          title: 'the destination, not the wording',
+          body: [
+            'A message\u2019s text can claim anything. What it cannot fake is where its link actually goes.',
+            'The label read "CyberCorp SSO" but the real domain is cybercorp-support.net. That mismatch is the core proof of phishing.',
+          ],
+          terms: ['phishing', 'ioc'],
+        },
+        'spoofed-headers': {
+          title: 'authentication does not lie',
+          body: [
+            'A domain authorizes its own mail with SPF and DKIM. This message shows SPF FAIL and DKIM none.',
+            'That is near-proof cybercorp.com never sent it — the friendly From line is forged.',
+          ],
+          terms: ['spf', 'dkim', 'return-path'],
+        },
+        'campaign-scope': {
+          title: 'one report is only the tip',
+          body: [
+            'You were handed one email, but 12 inboxes received the same lure. That set is the blast radius.',
+            'Sizing the campaign is what turns a single report into an incident you can fully contain.',
+          ],
+          terms: ['blast-radius', 'siem'],
+        },
+        'account-comp': {
+          title: 'attempted vs. successful',
+          body: [
+            'j.martin submitted credentials, then a login from the attacker IP followed minutes later.',
+            'That impossible-travel login raises this from "attempted phishing" to a confirmed account takeover — reset now.',
+          ],
+          terms: ['impossible-travel', 'kill-chain'],
+        },
+      },
+      conclusions: {
+        'urgency':          'the message is engineered to pressure, not to inform.',
+        'link-mismatch':    'the email is phishing — its link impersonates CyberCorp.',
+        'spoofed-headers':  'the sender is forged; cybercorp.com did not send this.',
+        'spoofed-sender':   'the true return address belongs to the attacker, not IT.',
+        'lookalike-domain': 'the attacker built infrastructure specifically to impersonate CyberCorp.',
+        'domain-rep':       'this is known-bad infrastructure, not a false positive.',
+        'campaign-scope':   'this is a campaign against many staff, not a lone email.',
+        'cred-endpoint':    'the attacker\u2019s objective is credential theft.',
+        'account-comp':     'at least one account is genuinely compromised.',
+        'alert-corr':       'the kill chain is confirmed end to end.',
+      },
+      checkpoint: {
+        title: 'ANALYST VERIFICATION',
+        lead: 'Before you act, confirm you can justify the response. This is how a SOC sanity-checks a decision — it is not graded, and you can read the reasoning before continuing.',
+        question: 'Your evidence is pinned. What is the single best FIRST containment move, and why?',
+        options: [
+          { t: 'Reset j.martin\u2019s password first — secure the victim before anything else.',
+            correct: false,
+            why: 'Resetting matters, but while the lure and the malicious domain stay live, new victims keep clicking. Secure the user — just not first.' },
+          { t: 'Block the malicious domain and host first — cut the attacker off so no new victim can reach the fake portal.',
+            correct: true,
+            why: 'Containment works outside-in: kill the attacker\u2019s reach first, then pull the mail, then secure the compromised account. Blocking the infrastructure stops the bleeding for everyone at once.' },
+          { t: 'File the incident report now — documentation is what closes the case.',
+            correct: false,
+            why: 'The report comes last. Documenting an active, uncontained attack just records a problem that is still happening.' },
+        ],
+      },
+      debrief: {
+        whatHappened: 'A targeted credential-phishing campaign hit 12 CyberCorp staff. One recipient reported it; the investigation proved it was phishing, mapped the attacker\u2019s infrastructure, and confirmed one account was taken over.',
+        howItWorked: 'An urgent "re-verify your VPN" lure impersonated IT and linked to cybercorp-support.net \u2014 a 2-day-old lookalike on a bulletproof host. Its fake portal POSTed credentials to /collect.php. j.martin submitted theirs and the attacker logged in minutes later.',
+        keyEvidence: [
+          { label: 'Link \u2192 lookalike domain', why: 'the destination, not the wording, proved phishing.' },
+          { label: 'SPF FAIL / DKIM none', why: 'authentication proved the sender was forged.' },
+          { label: '12 recipients', why: 'defined the blast radius to contain.' },
+          { label: 'Impossible-travel login', why: 'confirmed a real account takeover.' },
+        ],
+        containment: 'Blocked the domain and host, quarantined the lure from all 12 inboxes, then reset and isolated the compromised account \u2014 attacker reach cut, lure removed, victim secured, in that order.',
+        concepts: ['phishing', 'spf', 'dkim', 'blast-radius', 'kill-chain', 'impossible-travel'],
+        takeaway: 'Real phishing triage is evidence-first: trust technical fingerprints (links, headers, logs) over the message\u2019s words, size the whole campaign, and contain from the attacker inward.',
+      },
     },
   },
 
@@ -1079,6 +1185,10 @@ function openLab(missionId) {
   LAB.done = false;
   LAB.hintStep = null;
   LAB.hintLevel = 0;
+  LAB.notesShown.clear();
+  LAB.checkpointActive = false;
+  LAB.checkpointDone = false;
+  LAB.checkpointPick = -1;
 
   // Mission-specific header chrome.
   const setText = (elId, txt) => { const el = $lab(elId); if (el) el.textContent = txt; };
@@ -1175,7 +1285,7 @@ function labCheckAdvance() {
   if (LAB.stage === 2 && labPinnedCount(f.stage2.group) >= f.stage2.need) {
     labRevealCampaign();
   } else if (LAB.stage === 4 && labPinnedCount(f.stage4.group) >= f.stage4.need) {
-    labUnlockContainment();
+    labBeforeContainment();
   }
 }
 
@@ -1216,6 +1326,7 @@ function labRun(raw) {
   if (word === 'clear') { const o = $lab('labTermOut'); if (o) o.innerHTML = ''; return; }
   if (word === 'pwd')   { labEcho(text); labPrint([{ t: LAB.stage >= def.prompts.threshold ? def.prompts.socPwd : def.prompts.filePwd }]); return; }
   if (word === 'pin')   { labEcho(text); labPinCmd(parts.slice(1).join(' ')); return; }
+  if ((word === 'explain' || word === 'define') && labLearning()) { labEcho(text); labExplainTerm(parts.slice(1).join(' ')); return; }
 
   if (word === 'ls' || word === 'cat' || word === 'less' || word === 'grep') {
     labEcho(text); labFileCmd(word, parts.slice(1)); return;
@@ -1412,6 +1523,7 @@ function labDiscover(id) {
     LAB.discovered.push(id);
     labRenderRail([id]);
   }
+  labMaybeNote(id);
 }
 
 function labPin(id) {
@@ -1522,12 +1634,23 @@ function labRenderDock() {
  * state; the student must type (or "load") the command to actually run.
  * ------------------------------------------------------------------ */
 function labCloseModals() {
+  const wasCheckpoint = LAB.checkpointActive;
   ['labExplain', 'labKit'].forEach((id) => {
     const el = $lab(id);
     if (el) { el.hidden = true; el.innerHTML = ''; }
   });
   const input = $lab('labTermInput');
   if (input) input.focus();
+  // Any dismissal of the interpretation checkpoint (Proceed button, backdrop, or
+  // Esc) resolves it once and unlocks containment — penalty-free, so it can
+  // never soft-lock the run if dismissed before answering.
+  if (wasCheckpoint) {
+    LAB.checkpointActive = false;
+    if (!LAB.checkpointDone) {
+      LAB.checkpointDone = true;
+      labUnlockContainment();
+    }
+  }
 }
 
 function labOpenExplain(key) {
@@ -1887,6 +2010,7 @@ function labRenderRail(justNew) {
     return;
   }
   const fresh = new Set(justNew || []);
+  const L = labLearning();
   list.innerHTML = LAB.discovered.map((id) => {
     const ind = def.ind[id];
     const pinned = LAB.pinned.has(id);
@@ -1897,15 +2021,25 @@ function labRenderRail(justNew) {
     const info = ind.intel
       ? `<button type="button" class="lab-ev-info" data-lab-info="${labEsc(id)}" aria-label="Analyst intel for ${labEsc(ind.label)}">i</button>`
       : '';
+    // Learning layer (presentation-only): a "supports conclusion" line inside the
+    // card, plus tappable glossary chips BELOW the card (chips can't nest in the
+    // pin button — that would be a button inside a button).
+    const concl = L && L.conclusions && L.conclusions[id];
+    const note = L && L.notes && L.notes[id];
+    const chips = note && note.terms && note.terms.length ? note.terms : null;
     return `
-      <div class="lab-ev-wrap">
-        <button type="button" class="${cls}" data-lab-pin="${id}">
-          <span class="sc-ev-kind">${ind.kind}</span>
-          <span class="sc-ev-label">${ind.label}</span>
-          <span class="sc-ev-tag">${tag}</span>
-          <span class="sc-ev-teach">${ind.teach}</span>
-        </button>
-        ${info}
+      <div class="lab-ev-item">
+        <div class="lab-ev-wrap">
+          <button type="button" class="${cls}" data-lab-pin="${id}">
+            <span class="sc-ev-kind">${ind.kind}</span>
+            <span class="sc-ev-label">${ind.label}</span>
+            <span class="sc-ev-tag">${tag}</span>
+            <span class="sc-ev-teach">${ind.teach}</span>
+            ${concl ? `<span class="lab-ev-concl"><span class="lab-ev-concl-lbl">Supports conclusion:</span> ${labEsc(concl)}</span>` : ''}
+          </button>
+          ${info}
+        </div>
+        ${chips ? `<div class="lab-ev-terms">${chips.map((k) => labTermChip(k)).join(' ')}</div>` : ''}
       </div>`;
   }).join('');
 
@@ -1957,6 +2091,23 @@ function labShowScorecard() {
       <span class="ic">✓</span><span>${def.contain[k].label}</span>
     </div>`;
 
+  // Learning layer (presentation-only): a structured SOC debrief appended to the
+  // scorecard. Rendered only when def.learning.enabled; never affects grading.
+  const L = labLearning();
+  const db = L && L.debrief;
+  const debriefHtml = db ? `
+      <div class="lab-card-sec lab-debrief">
+        <div class="lab-card-sec-head">SOC debrief</div>
+        <div class="lab-db-block"><div class="lab-db-h">What happened</div><div class="lab-db-b">${labEsc(db.whatHappened)}</div></div>
+        <div class="lab-db-block"><div class="lab-db-h">How the attack worked</div><div class="lab-db-b">${labEsc(db.howItWorked)}</div></div>
+        <div class="lab-db-block"><div class="lab-db-h">Key evidence — and why it mattered</div>
+          <div class="lab-card-list">${(db.keyEvidence || []).map((e) => `<div class="lab-card-row"><span class="ic">▸</span><span><b>${labEsc(e.label)}</b> — ${labEsc(e.why)}</span></div>`).join('')}</div>
+        </div>
+        <div class="lab-db-block"><div class="lab-db-h">What containment achieved</div><div class="lab-db-b">${labEsc(db.containment)}</div></div>
+        ${db.concepts && db.concepts.length ? `<div class="lab-db-block"><div class="lab-db-h">Concepts to keep — tap to revisit</div><div class="lab-term-row">${db.concepts.map((k) => labTermChip(k)).join(' ')}</div></div>` : ''}
+        <div class="lab-db-block lab-db-takeaway"><div class="lab-db-h">Real-world takeaway</div><div class="lab-db-b">${labEsc(db.takeaway)}</div></div>
+      </div>` : '';
+
   panel.innerHTML = `
     <div class="lab-card">
       <div class="lab-card-grade">RESULT · ${grade}</div>
@@ -1986,7 +2137,7 @@ function labShowScorecard() {
           ${def.scorecard.learned.map((l) => `<div class="lab-card-row"><span class="ic">▸</span><span>${l}</span></div>`).join('')}
         </div>
       </div>
-
+${debriefHtml}
       <div class="lab-card-actions">
         <button class="lab-card-btn lab-card-btn--primary" type="button" data-lab-replay>↻ Replay the lab</button>
         <button class="lab-card-btn" type="button" data-lab-exit>Return to Operations Center</button>
@@ -1996,6 +2147,193 @@ function labShowScorecard() {
 
   panel.querySelector('[data-lab-replay]').addEventListener('click', () => openLab(LAB.missionId));
   panel.querySelector('[data-lab-exit]').addEventListener('click', returnFromLab);
+}
+
+/* ================================================================== *
+ * ANALYST LEARNING LAYER  (Assignment 001 only)
+ *
+ * Presentation / teaching-only. A shared glossary reachable via the
+ * `explain` / `define` command and tappable term chips, contextual
+ * analyst notes shown once on discovery, one penalty-free
+ * interpretation checkpoint before containment, and a structured SOC
+ * debrief on the scorecard. The whole layer is gated behind
+ * def.learning.enabled and reads ONLY def.learning — it never writes
+ * progress, XP, localStorage, sync, or mission grading.
+ * ================================================================== */
+
+// Returns the active mission's learning block when enabled, else null.
+function labLearning() {
+  const L = LAB.def && LAB.def.learning;
+  return L && L.enabled ? L : null;
+}
+
+// A tappable glossary chip. Clicks are handled by ONE delegated listener
+// (bound in labInit) so chips work wherever they are rendered — terminal
+// note, evidence rail, checkpoint, or scorecard, including inside the
+// modal hosts that sit OUTSIDE #labConsole.
+function labTermChip(key) {
+  const L = labLearning();
+  const g = L && L.glossary && L.glossary[key];
+  const label = g ? g.term : key;
+  return `<button type="button" class="lab-term" data-lab-term="${labEsc(key)}" title="What does ${labEsc(label)} mean?">${labEsc(label)}</button>`;
+}
+
+// `explain <term>` / `define <term>` — print a concise definition to the
+// terminal and open the glossary card. With no argument, list known terms.
+function labExplainTerm(arg) {
+  const L = labLearning();
+  if (!L || !L.glossary) { labPrint([{ t: 'No glossary is available in this lab.', c: 'dim' }]); return; }
+  const raw = (arg || '').trim();
+  if (!raw) {
+    labPrint([
+      { t: 'usage: explain <term>     (alias: define <term>)', c: 'dim' },
+      { t: 'known terms: ' + Object.keys(L.glossary).map((k) => L.glossary[k].term).join(', '), c: 'dim' },
+    ]);
+    return;
+  }
+  const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const q = norm(raw);
+  const key = L.glossary[raw.toLowerCase()] ? raw.toLowerCase()
+    : Object.keys(L.glossary).find((k) => norm(k) === q || norm(L.glossary[k].term) === q);
+  if (!key) { labPrint([{ t: `No definition for "${raw}". Type \`explain\` on its own to list known terms.`, c: 'dim' }]); return; }
+  const g = L.glossary[key];
+  labPrint([
+    { t: `${g.term}${g.full ? ' — ' + g.full : ''}`, c: 'head' },
+    { t: '  ' + g.def },
+  ]);
+  labOpenGlossary(key);
+}
+
+// Glossary card — reuses the persistent #labExplain modal host (backdrop +
+// Esc already bound once in labInit). Read-only; closes via labCloseModals.
+function labOpenGlossary(key) {
+  const L = labLearning();
+  const host = $lab('labExplain');
+  if (!L || !L.glossary || !host) return;
+  const g = L.glossary[key];
+  if (!g) return;
+  const related = Object.keys(L.glossary).filter((k) => k !== key).slice(0, 4);
+  host.innerHTML = `
+    <div class="lab-modal-card" role="document">
+      <div class="lab-modal-head">
+        <span class="lab-modal-ico" aria-hidden="true">📖</span>
+        <div class="lab-modal-titles">
+          <div class="lab-modal-title">${labEsc(g.term)}</div>
+          ${g.full ? `<div class="lab-modal-sub">${labEsc(g.full)}</div>` : ''}
+        </div>
+        <button class="lab-modal-close" type="button" data-lab-close aria-label="Close">×</button>
+      </div>
+      <div class="lab-modal-body">
+        <div class="lab-modal-section-head">DEFINITION</div>
+        <div class="lab-modal-learn">${labEsc(g.def)}</div>
+        ${related.length ? `<div class="lab-term-related"><span class="lab-term-related-lbl">Related</span> ${related.map((k) => labTermChip(k)).join(' ')}</div>` : ''}
+      </div>
+      <div class="lab-modal-foot">
+        <button class="lab-modal-btn lab-modal-btn--primary" type="button" data-lab-close>Got it</button>
+      </div>
+    </div>`;
+  host.hidden = false;
+  labBindModal(host);
+}
+
+// Contextual analyst note, printed to the terminal once per concept on
+// discovery. Non-blocking; chips below it open the glossary.
+function labMaybeNote(id) {
+  const L = labLearning();
+  if (!L || !L.notes) return;
+  const note = L.notes[id];
+  if (!note || LAB.notesShown.has(id)) return;
+  LAB.notesShown.add(id);
+  const lines = [{ t: '' }, { t: `┌─ ANALYST NOTE · ${note.title}`, c: 'head' }];
+  (note.body || []).forEach((b) => lines.push({ t: '│ ' + b, c: 'dim' }));
+  lines.push({ t: '└' + '─'.repeat(48), c: 'head' });
+  labPrint(lines);
+  if (note.terms && note.terms.length) {
+    labPrint([{ t: `<span class="lab-term-lead">terms:</span> ${note.terms.map((k) => labTermChip(k)).join(' ')}`, html: true }]);
+  }
+}
+
+// Gate the containment unlock behind the interpretation checkpoint (once).
+// When learning is off (or already resolved) it falls straight through to
+// the original unlock, so non-learning runs are unchanged.
+function labBeforeContainment() {
+  const L = labLearning();
+  if (L && L.checkpoint && !LAB.checkpointDone && !LAB.checkpointActive) {
+    labShowCheckpoint();
+  } else if (!LAB.checkpointActive) {
+    labUnlockContainment();
+  }
+}
+
+function labShowCheckpoint() {
+  const L = labLearning();
+  const cp = L && L.checkpoint;
+  const host = $lab('labExplain');
+  if (!cp || !host) { labUnlockContainment(); return; }
+  LAB.checkpointActive = true;
+  LAB.checkpointPick = -1;
+  labRenderCheckpoint();
+}
+
+// Renders the checkpoint into the modal host. Before an answer: clickable
+// options. After: every option is marked, the chosen rationale is shown
+// (plus the correct call if wrong), and a Proceed button. It is penalty-
+// free — any dismissal resolves it and unlocks containment (labCloseModals).
+function labRenderCheckpoint() {
+  const L = labLearning();
+  const cp = L && L.checkpoint;
+  const host = $lab('labExplain');
+  if (!cp || !host) return;
+  const pick = LAB.checkpointPick;
+  const answered = pick >= 0;
+  const chosen = answered ? cp.options[pick] : null;
+  const correctOpt = cp.options.find((o) => o.correct);
+  const opts = cp.options.map((o, i) => {
+    let cls = 'lab-cp-opt';
+    let mark = '○';
+    if (answered) {
+      if (o.correct) { cls += ' is-correct'; mark = '✓'; }
+      else if (i === pick) { cls += ' is-wrong'; mark = '✕'; }
+      else { cls += ' is-dim'; mark = '·'; }
+    }
+    return `<button type="button" class="${cls}" data-lab-cp="${i}"${answered ? ' disabled' : ''}>
+        <span class="lab-cp-mark" aria-hidden="true">${mark}</span>
+        <span class="lab-cp-text">${labEsc(o.t)}</span>
+      </button>`;
+  }).join('');
+  const feedback = answered ? `
+      <div class="lab-cp-fb ${chosen.correct ? 'is-correct' : 'is-wrong'}">
+        <div class="lab-cp-fb-head">${chosen.correct ? 'Sound call' : 'Reconsider'}</div>
+        <div class="lab-cp-fb-body">${labEsc(chosen.why)}</div>
+        ${chosen.correct ? '' : `<div class="lab-cp-fb-body lab-cp-fb-answer"><b>The call:</b> ${labEsc(correctOpt.why)}</div>`}
+      </div>` : '';
+  host.innerHTML = `
+    <div class="lab-modal-card lab-modal-card--cp" role="document">
+      <div class="lab-modal-head">
+        <span class="lab-modal-ico" aria-hidden="true">🧭</span>
+        <div class="lab-modal-titles">
+          <div class="lab-modal-title">${labEsc(cp.title)}</div>
+          <div class="lab-modal-sub">${labEsc(cp.lead)}</div>
+        </div>
+      </div>
+      <div class="lab-modal-body">
+        <div class="lab-cp-q">${labEsc(cp.question)}</div>
+        <div class="lab-cp-opts">${opts}</div>
+        ${feedback}
+      </div>
+      <div class="lab-modal-foot">
+        ${answered
+          ? '<button class="lab-modal-btn lab-modal-btn--primary" type="button" data-lab-close>Proceed to containment →</button>'
+          : '<span class="lab-cp-foot-note">Pick the move you can best justify — this is penalty-free.</span>'}
+      </div>
+    </div>`;
+  host.hidden = false;
+  host.querySelectorAll('[data-lab-cp]').forEach((b) => b.addEventListener('click', () => {
+    if (LAB.checkpointPick >= 0) return;
+    LAB.checkpointPick = Number(b.dataset.labCp);
+    labRenderCheckpoint();
+  }));
+  host.querySelectorAll('[data-lab-close]').forEach((b) => b.addEventListener('click', labCloseModals));
 }
 
 /* ------------------------------------------------------------------ *
@@ -2047,6 +2385,17 @@ function labInit() {
     if (!labIntelEl || labIntelEl.hidden) return;
     if (e.target.closest('.lab-node, .lab-link-mid, .lab-intel, [data-lab-pin], [data-lab-info]')) return;
     labIntelHide();
+  });
+
+  // Analyst Learning Layer — ONE delegated listener opens the glossary for any
+  // term chip (terminal note, evidence card, checkpoint, or debrief), wherever
+  // it renders. Presentation-only: opening a definition never mutates state.
+  document.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-lab-term]');
+    if (!chip) return;
+    e.preventDefault();
+    e.stopPropagation();
+    labOpenGlossary(chip.dataset.labTerm);
   });
 
   // Public entry points so the Operations Center (a separate ES module with no

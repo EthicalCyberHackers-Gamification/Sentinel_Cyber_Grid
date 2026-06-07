@@ -3075,3 +3075,71 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   cursor: pointer;
 }
 .oc-promo-ack:hover { background: var(--green); color: var(--bg-panel-alt, #11161b); }
+
+/* ================================================================== *
+ * ANALYST LEARNING LAYER (Assignment 001, prototype) — presentation-only
+ * ================================================================== */
+
+/* Tappable glossary chips (terminal notes, evidence rail, debrief, modal) */
+.lab-term {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-mono); font-size: 11px; line-height: 1.2;
+  color: var(--cyan); background: rgba(0,229,255,0.08);
+  border: 1px solid var(--cyan-dim, rgba(0,229,255,0.35));
+  border-radius: 999px; padding: 1px 9px; margin: 2px 2px 2px 0;
+  cursor: pointer; transition: var(--transition);
+}
+.lab-term::before { content: ""; }
+.lab-term:hover, .lab-term:focus-visible { background: rgba(0,229,255,0.18); color: var(--text); }
+.lab-term:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.lab-term-row { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 4px; }
+.lab-term-lead { color: var(--text-muted); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; margin-right: 4px; }
+.lab-term-related { margin-top: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.lab-term-related-lbl { font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-right: 6px; }
+
+/* Evidence card — "supports conclusion" line + chip row beneath the card */
+.lab-ev-item { display: flex; flex-direction: column; gap: 5px; }
+.lab-ev-concl {
+  display: block; margin-top: 6px; padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  font-size: 10px; color: var(--text-dim); line-height: 1.45;
+}
+.lab-ev-concl-lbl { color: var(--cyan); font-family: var(--font-mono); letter-spacing: 0.02em; }
+.lab-ev-terms { display: flex; flex-wrap: wrap; gap: 2px; padding-left: 2px; }
+
+/* Interpretation checkpoint (reuses .lab-modal-* host) */
+.lab-modal-card--cp { width: min(560px, 100%); }
+.lab-cp-q { font-size: 14px; color: var(--text); line-height: 1.55; margin-bottom: 14px; font-weight: 600; }
+.lab-cp-opts { display: flex; flex-direction: column; gap: 9px; }
+.lab-cp-opt {
+  display: flex; align-items: flex-start; gap: 10px; text-align: left;
+  padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-panel-alt); color: var(--text);
+  font-family: var(--font-sans, inherit); font-size: 12.5px; line-height: 1.5;
+  cursor: pointer; transition: var(--transition);
+}
+.lab-cp-opt:not([disabled]):hover { border-color: var(--cyan-dim); background: var(--bg-hover); }
+.lab-cp-opt:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.lab-cp-opt[disabled] { cursor: default; }
+.lab-cp-mark { font-family: var(--font-mono); font-size: 13px; line-height: 1.4; color: var(--text-muted); flex: none; width: 14px; text-align: center; }
+.lab-cp-opt.is-correct { border-color: var(--green, #36d399); background: rgba(54,211,153,0.10); }
+.lab-cp-opt.is-correct .lab-cp-mark { color: var(--green, #36d399); }
+.lab-cp-opt.is-wrong { border-color: var(--red, #ff5a5a); background: rgba(255,90,90,0.08); }
+.lab-cp-opt.is-wrong .lab-cp-mark { color: var(--red, #ff5a5a); }
+.lab-cp-opt.is-dim { opacity: 0.5; }
+.lab-cp-fb { margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-panel-alt); }
+.lab-cp-fb.is-correct { border-color: var(--green, #36d399); }
+.lab-cp-fb.is-wrong { border-color: var(--amber, #f5b342); }
+.lab-cp-fb-head { font-family: var(--font-hud); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.lab-cp-fb.is-correct .lab-cp-fb-head { color: var(--green, #36d399); }
+.lab-cp-fb.is-wrong .lab-cp-fb-head { color: var(--amber, #f5b342); }
+.lab-cp-fb-body { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+.lab-cp-fb-answer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); color: var(--text-dim); }
+.lab-cp-foot-note { font-size: 11px; color: var(--text-muted); font-style: italic; align-self: center; }
+
+/* SOC debrief on the scorecard */
+.lab-debrief .lab-db-block { margin-top: 12px; }
+.lab-debrief .lab-db-block:first-of-type { margin-top: 4px; }
+.lab-db-h { font-family: var(--font-hud); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--cyan); margin-bottom: 4px; }
+.lab-db-b { font-size: 12.5px; color: var(--text); line-height: 1.6; }
+.lab-db-takeaway .lab-db-b { color: var(--text); font-style: italic; padding: 10px 12px; border-left: 2px solid var(--cyan); background: rgba(0,229,255,0.05); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
