@@ -1,0 +1,605 @@
+# Player Cognition Layer — Phased Implementation Plan
+
+## Psychological Investigation Architecture for Ethical CyberHackers
+
+Goal:
+Transform the simulator from:
+“command progression gameplay”
+
+into:
+
+“investigative analyst cognition training.”
+
+The player should feel:
+
+* suspicion
+* curiosity
+* uncertainty
+* investigative momentum
+* operational responsibility
+* discovery satisfaction
+
+The simulator should teach:
+how analysts think.
+
+NOT just:
+what commands analysts type.
+
+This system must preserve:
+
+* immersion
+* realism
+* operational atmosphere
+* terminal-first gameplay
+* reactive maps
+* evidence pinning
+* CyberCorp identity
+
+Do NOT redesign the core simulator.
+
+This is an additive cognitive framework layered onto the existing architecture.
+
+---
+
+## CORE EDUCATIONAL PHILOSOPHY
+
+Current risk:
+Players can complete missions procedurally without fully understanding:
+
+* what question they are trying to answer
+* why evidence matters
+* why commands exist
+* what conclusions analysts are forming
+* why containment actions are logical
+
+The simulator must shift from:
+
+command
+→ output
+→ next command
+
+to:
+
+suspicion
+→ investigative question
+→ tool selection
+→ evidence
+→ interpretation
+→ operational conclusion
+→ response action
+
+The player should feel:
+“I am uncovering a living cyber incident.”
+
+NOT:
+“I am executing hidden command triggers.”
+
+---
+
+## OVERALL IMPLEMENTATION STRATEGY
+
+Implement this system in phases.
+
+Do NOT attempt a full redesign at once.
+
+Prioritize:
+
+* educational clarity
+* operational immersion
+* psychological engagement
+* minimal disruption to current flow
+
+---
+
+## PHASE 1 — INVESTIGATIVE FRAMING LAYER
+
+Priority:
+CRITICAL
+
+Goal:
+Ensure the player always understands:
+
+* what suspicious condition exists
+* what investigative question they are trying to answer
+* why the next action matters
+
+---
+
+## CURRENT PROBLEM
+
+Players often receive:
+commands or hints
+
+without enough:
+investigative framing.
+
+This creates:
+mechanical progression.
+
+---
+
+## IMPLEMENTATION
+
+Before each meaningful stage:
+show a short operational framing block.
+
+Structure:
+
+CURRENT SUSPICION
+INVESTIGATIVE QUESTION
+WHY THIS MATTERS
+
+---
+
+## EXAMPLE
+
+CURRENT SUSPICION
+An external source is touching services this host does not normally expose.
+
+INVESTIGATIVE QUESTION
+Determine whether the source belongs to legitimate infrastructure or unauthorized reconnaissance activity.
+
+WHY THIS MATTERS
+Reconnaissance often appears before intrusion attempts. Analysts validate ownership and traffic behavior before escalating.
+
+---
+
+## IMPORTANT RULES
+
+Keep:
+
+* concise
+* operational
+* immersive
+* realistic
+
+Avoid:
+
+* tutorial tone
+* classroom language
+* long paragraphs
+* excessive hand-holding
+
+---
+
+## SUCCESS CRITERIA
+
+Players should understand:
+
+* why they are investigating
+* what they are trying to prove
+* why the command matters
+
+before using the tool.
+
+---
+
+## PHASE 2 — COMMAND PURPOSE & ANALYST THINKING
+
+Priority:
+CRITICAL
+
+Goal:
+Commands should feel like:
+tools for answering investigative questions.
+
+NOT:
+required puzzle inputs.
+
+---
+
+## IMPLEMENTATION
+
+When commands/tools are introduced:
+briefly explain their investigative purpose.
+
+---
+
+## EXAMPLES
+
+WHOIS
+Used to determine who owns infrastructure and whether it belongs to known legitimate organizations.
+
+PORT ANALYSIS
+Used to identify whether communication matches expected services or broad reconnaissance behavior.
+
+BASELINE COMPARE
+Used to determine whether activity matches known-good operational behavior.
+
+HEADERS
+Used to validate whether email infrastructure is authorized by the claimed sender.
+
+---
+
+## IMPORTANT DESIGN PRINCIPLE
+
+Do NOT over-explain syntax.
+
+Focus on:
+investigative reasoning.
+
+The player should learn:
+why analysts use tools.
+
+---
+
+## PHASE 3 — EVIDENCE INTERPRETATION LAYER
+
+Priority:
+HIGHEST
+
+Goal:
+Ensure players understand:
+what evidence means operationally.
+
+---
+
+## CURRENT PROBLEM
+
+Players can pin evidence without understanding:
+
+* why it matters
+* what conclusion it supports
+* how it affects confidence
+
+---
+
+## IMPLEMENTATION
+
+Every major evidence item should contain:
+
+WHAT WAS FOUND
+WHY IT MATTERS
+WHAT CONCLUSION IT SUPPORTS
+
+---
+
+## EXAMPLE
+
+EVIDENCE
+Repeated probing of SSH, HTTP, HTTPS, and database services.
+
+WHY IT MATTERS
+Legitimate systems usually communicate with expected services only. Broad probing across unrelated ports often indicates automated discovery activity.
+
+SUPPORTS CONCLUSION
+External reconnaissance behavior.
+
+---
+
+## IMPORTANT RULE
+
+Evidence should:
+increase or decrease investigative confidence.
+
+The player should feel:
+the investigation is evolving.
+
+---
+
+## PHASE 4 — COGNITIVE TENSION SYSTEM
+
+Priority:
+HIGH
+
+Goal:
+Create psychological investigative engagement.
+
+The player should feel:
+“Something is wrong, but I need proof.”
+
+---
+
+## IMPLEMENTATION PRINCIPLES
+
+Do NOT:
+
+* add artificial timers
+* add arcade panic systems
+* overload the screen
+* constantly scream danger
+
+Instead:
+use uncertainty and progressive revelation.
+
+---
+
+## KEY MECHANICS
+
+1. PARTIAL VISIBILITY
+
+Do not reveal attacks immediately.
+
+Reveal:
+
+* anomalies
+* suspicious indicators
+* fragments
+* inconsistencies
+
+Allow the player to connect them.
+
+---
+
+2. HYPOTHESIS TESTING
+
+Encourage:
+“Is this benign or malicious?”
+
+NOT:
+“What command unlocks the next stage?”
+
+---
+
+3. ESCALATION
+
+Discoveries should expand:
+
+* maps
+* attack scope
+* compromised accounts
+* infrastructure relationships
+* incident understanding
+
+---
+
+4. INFORMATION GAPS
+
+Always leave:
+one unresolved question.
+
+Example:
+“The source is suspicious, but is this isolated or part of a broader campaign?”
+
+---
+
+5. CONSEQUENCE
+
+Containment should visibly change the environment.
+
+Examples:
+
+* connections sever
+* beacon stops
+* compromised account stabilizes
+* campaign spread halts
+
+---
+
+## SUCCESS CRITERIA
+
+Players should feel:
+
+* curiosity
+* uncertainty
+* urgency
+* momentum
+* discovery satisfaction
+
+without losing operational realism.
+
+---
+
+## PHASE 5 — ANALYST VERIFICATION MOMENTS
+
+Priority:
+HIGH
+
+Goal:
+Prevent blind progression without breaking immersion.
+
+---
+
+## IMPORTANT RULE
+
+Do NOT implement:
+school quizzes.
+
+Use:
+analyst verification prompts.
+
+---
+
+## EXAMPLE
+
+ANALYST VERIFICATION
+
+Why is this suspicious?
+
+A. The email arrived during business hours
+B. SPF failed and the sender infrastructure is unauthorized
+C. The subject line is short
+D. The message used formal language
+
+---
+
+## AFTER RESPONSE
+
+Correct.
+
+SPF verifies whether infrastructure is authorized to send for a domain. Failed SPF strongly suggests spoofing or unauthorized mail infrastructure.
+
+---
+
+## RULES
+
+* maximum 1–3 per mission
+* major concept moments only
+* operational tone only
+* short explanations only
+* no punishment loops
+* no arcade scoring
+
+---
+
+## PHASE 6 — ACRONYM & VOCABULARY SUPPORT
+
+Priority:
+HIGH
+
+Goal:
+Reduce terminology overload without reducing realism.
+
+---
+
+## IMPLEMENTATION
+
+Add:
+
+* explain <term> command
+* hover explanations
+* contextual analyst notes
+* CyberCorp knowledge base
+
+---
+
+## EXAMPLES
+
+$ explain spf
+
+Sender Policy Framework (SPF)
+
+A DNS-based email validation mechanism used to determine whether a server is authorized to send email for a domain.
+
+Failed SPF may indicate spoofing.
+
+---
+
+## IMPORTANT RULE
+
+Keep:
+real SOC terminology.
+
+Support it contextually.
+
+Do NOT replace it with simplified fake terminology.
+
+---
+
+## PHASE 7 — SOC DEBRIEF SYSTEM
+
+Priority:
+MEDIUM
+
+Goal:
+Convert mission completion into retained understanding.
+
+---
+
+## IMPLEMENTATION
+
+At mission completion:
+generate a short operational debrief.
+
+Structure:
+
+WHAT HAPPENED
+HOW THE ATTACK WORKED
+KEY EVIDENCE
+WHY THE EVIDENCE MATTERED
+CONTAINMENT IMPACT
+REAL ANALYST TAKEAWAY
+
+---
+
+## EXAMPLE
+
+This phishing campaign impersonated CyberCorp infrastructure using unauthorized mail servers and a lookalike domain. Analysts identified the campaign through SPF failure, suspicious links, and external infrastructure analysis.
+
+Containment blocked communication with the phishing infrastructure and reduced further credential exposure.
+
+---
+
+## PHASE 8 — PLAYER PSYCHOLOGY OPTIMIZATION
+
+Priority:
+LATER
+
+Goal:
+Design the simulator around:
+analyst cognitive development.
+
+---
+
+## TARGET PSYCHOLOGICAL PROGRESSION
+
+Beginner:
+“What am I supposed to do?”
+
+↓
+
+Curious Investigator:
+“Something feels suspicious.”
+
+↓
+
+Evidence-Oriented Thinker:
+“This evidence supports reconnaissance.”
+
+↓
+
+Operational Analyst:
+“I need more proof before escalating.”
+
+↓
+
+Incident Responder:
+“If I contain this infrastructure, the attack chain breaks.”
+
+---
+
+## IMPORTANT PRINCIPLE
+
+The simulator should continuously build:
+
+* confidence
+* investigative intuition
+* operational vocabulary
+* analytical reasoning
+* evidence-based thinking
+
+The player should gradually internalize:
+how cybersecurity analysts think.
+
+---
+
+## MOST IMPORTANT IMPLEMENTATION RULE
+
+Do NOT sacrifice:
+
+* immersion
+* tension
+* realism
+* atmosphere
+* operational pacing
+
+The learning must stay embedded inside:
+the investigation itself.
+
+The strongest educational model is:
+
+discover
+→ interpret
+→ understand
+→ act
+→ reflect
+
+NOT:
+read lesson
+→ take quiz
+→ continue.
+
+---
+
+## FINAL SUCCESS CRITERIA
+
+This system succeeds if:
+
+* players stop blindly following commands
+* players understand investigative purpose
+* players form hypotheses naturally
+* players understand why evidence matters
+* players gain operational confidence
+* realism remains intact
+* missions feel psychologically engaging
+* the simulator teaches analyst thinking, not just task completion
