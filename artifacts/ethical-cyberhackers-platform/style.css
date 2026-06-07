@@ -9773,6 +9773,7 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 .ocv2-intel--malware { border-left-color: var(--color-red); }
 .ocv2-intel--network { border-left-color: var(--color-yellow); }
 .ocv2-intel--info    { border-left-color: var(--color-green); }
+.ocv2-intel--memory  { border-left-color: var(--color-purple); background: rgba(168,85,247,0.05); }
 
 .ocv2-intel-dot {
   width: 5px;
@@ -9788,6 +9789,49 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 .ocv2-intel--malware .ocv2-intel-dot { color: var(--color-red); }
 .ocv2-intel--network .ocv2-intel-dot { color: var(--color-yellow); }
 .ocv2-intel--info    .ocv2-intel-dot { color: var(--color-green); }
+.ocv2-intel--memory  .ocv2-intel-dot { color: var(--color-purple); }
+
+/* World Continuity — rotating security bulletin strip */
+.ocv2-bulletin {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0,229,255,0.18);
+  background: rgba(0,229,255,0.04);
+}
+.ocv2-bulletin-tag {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: var(--color-cyan);
+  background: rgba(0,229,255,0.10);
+  border: 1px solid rgba(0,229,255,0.25);
+  border-radius: var(--radius-sm);
+  padding: 2px 5px;
+  margin-top: 1px;
+}
+.ocv2-bulletin-text {
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+/* World Continuity — incident-card case context line */
+.ocv2-card-context {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-cyan);
+  background: rgba(0,229,255,0.05);
+  border-left: 2px solid rgba(0,229,255,0.3);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  margin: 10px 0 0;
+}
 
 .ocv2-intel-text {
   font-size: 11px;
@@ -10799,3 +10843,114 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
   padding: 3px 12px;
 }
 .gm-xp-pop { font-family: var(--font-hud); color: var(--color-yellow); font-size: 1.1rem; margin-bottom: var(--gap-lg); }
+
+/* ============================================================
+   Career ladder — clearance line, "YOU" roster entry, promotion notice
+   (migrated from the Ops Center prototype)
+   ============================================================ */
+.rank-clearance {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--color-cyan);
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+/* The player's own roster entry, tagged "YOU". */
+.ocv2-roster-item--you {
+  background: rgba(0,229,255,0.05);
+  border-color: rgba(0,229,255,0.18);
+}
+.ocv2-av--you {
+  background: rgba(0,229,255,0.14);
+  color: var(--color-cyan);
+  border: 1px solid rgba(0,229,255,0.30);
+  font-size: 8px;
+  letter-spacing: 0.5px;
+}
+.ocv2-roster-youtag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--color-cyan);
+  background: rgba(0,229,255,0.12);
+  border: 1px solid rgba(0,229,255,0.3);
+  vertical-align: middle;
+}
+
+/* Promotion notice — calm, dismissible card, bottom-right. */
+.career-promo-notice {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1200;
+  width: min(340px, calc(100vw - 40px));
+  background: linear-gradient(160deg, rgba(13,20,30,0.98), rgba(8,12,20,0.98));
+  border: 1px solid rgba(255,215,0,0.35);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.55), 0 0 24px rgba(255,215,0,0.12);
+  padding: 14px 16px 16px;
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.career-promo-notice--in {
+  opacity: 1;
+  transform: translateY(0);
+}
+.career-promo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.career-promo-org {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.career-promo-close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 4px;
+}
+.career-promo-close:hover { color: var(--color-text-bright); }
+.career-promo-title {
+  font-family: var(--font-hud);
+  font-size: 15px;
+  color: var(--color-yellow);
+  text-shadow: 0 0 10px rgba(255,215,0,0.4);
+  margin-bottom: 6px;
+}
+.career-promo-body {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-bright);
+  margin-bottom: 12px;
+}
+.career-promo-ack {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(255,215,0,0.16), rgba(255,215,0,0.06));
+  border: 1px solid rgba(255,215,0,0.35);
+  color: var(--color-yellow);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.career-promo-ack:hover { background: rgba(255,215,0,0.22); }

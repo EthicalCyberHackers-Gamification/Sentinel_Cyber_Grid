@@ -21,6 +21,8 @@
 - [Ops Center map projection](ech-ops-map-projection.md) — the Global Ops Map (both apps) is an exact equirectangular plate carrée (viewBox 1000x500); compute node/arc/land geometry from lat/long, don't eyeball it.
 - [pnpm lockfile churn](pnpm-lockfile-churn.md) — temp pnpm add/remove rewrites pnpm-lock.yaml (strips catalogs, adds tarball); restore via `git show HEAD:pnpm-lock.yaml > pnpm-lock.yaml`.
 - [Generic mission engine (M4/5/6)](ech-generic-mission-engine.md) — missions 004/005/006 are data-driven (one `gm*` engine + `GENERIC_MISSIONS`); deliberately bypasses M1-M3 hardcoded surfaces; deep-link-only discovery.
+- [Career ladder (authoritative rank)](ech-career-ladder.md) — rank is DERIVED from completed-mission count via `careerRankName()`; never hard-code a rank at any completion/reset site.
+- [World Continuity layer](ech-world-continuity.md) — presentation-only recurring-NPC/resolved-trace/bulletin flavor read from `missionMapStatus()`; intel feed must guard static items on a static marker, not children.length.
 - [Progressive Lab graduation](ech-lab-graduation.md) — terminal lab graduated prototype→shipping via configureLab() hooks; ANY alternate lab entry (e.g. `?lab=`) must reuse the host gate + completion prereq guard or it bypasses unlock/onboarding.
 - [Career progression (prototype)](ech-career-progression.md) — role/promotion derived read-only from completed-mission count; never persisted; promotion notice via session-only last-seen tier; bar uses in-mission confidence; framing labels only.
 - [Lab intel cards](ech-lab-intel-cards.md) — presentation-only hover/focus/tap overlay on the lab map/rail; one viewport-clamped fixed card; touch needs a non-pinning info hotspot; SVG links need a wide hit-line + focusable midpoint marker.

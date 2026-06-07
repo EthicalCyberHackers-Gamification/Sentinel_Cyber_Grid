@@ -320,8 +320,63 @@ const INITIAL_XP  = 750;
 /** Max XP for the current rank tier. */
 const MAX_XP = 1000;
 
-/** Starting rank name. */
-const INITIAL_RANK = "Script Kiddie";
+/** Starting rank name — tier 0 of the career ladder (see ROLE_LADDER). */
+const INITIAL_RANK = "Cybersecurity Intern";
+
+/* ============================================================
+   Career / role ladder  (migrated from the Ops Center prototype)
+   ------------------------------------------------------------
+   ONE data-driven 7-tier career arc and a single source of truth for the
+   player's rank. The tier is DERIVED (read-only) from how many of the six
+   assignments are completed — no second progress system and no persistence of
+   its own (the completed flags it reads are already persisted). Tier 0,
+   "Cybersecurity Intern", is the starting role and spans the early Intern
+   assignments; each cleared assignment advances exactly one tier.
+   ============================================================ */
+const ROLE_LADDER = [
+  { name: "Cybersecurity Intern",      threshold: 0, clearance: "Tier 1 Operations Access", scope: "guided single-incident triage",      unlocked: "supervised incident triage" },
+  { name: "Junior SOC Analyst",        threshold: 1, clearance: "Tier 1 Operations Access", scope: "multi-host alert validation",        unlocked: "alert validation & containment drafting" },
+  { name: "SOC Analyst",               threshold: 2, clearance: "Tier 2 Operations Access", scope: "multi-system correlation",           unlocked: "independent incident triage" },
+  { name: "Incident Response Analyst", threshold: 3, clearance: "Tier 3 Response Access",   scope: "active containment & response",      unlocked: "live containment authority" },
+  { name: "Threat Hunter",             threshold: 4, clearance: "Tier 3 Response Access",   scope: "proactive threat hunting",          unlocked: "proactive hunt operations" },
+  { name: "Cloud Security Analyst",    threshold: 5, clearance: "Tier 4 Cloud Access",      scope: "cloud exposure & identity review",  unlocked: "cloud security operations" },
+  { name: "Senior Operations Analyst", threshold: 6, clearance: "Tier 5 Command Access",    scope: "cross-region operations oversight", unlocked: "operations oversight & mentoring" },
+];
+
+/** The six assignments, in unlock order — the career ladder's progression basis. */
+const CAREER_MISSION_IDS = [
+  "mission-001", "mission-002", "mission-003",
+  "mission-004", "mission-005", "mission-006",
+];
+
+/**
+ * Derive the player's current career standing from completed assignments.
+ * Pure computation — no writes, no persistence. Counts completions via the
+ * canonical missionMapStatus() chain (hoisted; safe to call at render time).
+ * @returns {{tierIdx:number, role:object, next:object|null, completed:number, total:number}}
+ */
+function deriveCareerState() {
+  let completed = 0;
+  for (const id of CAREER_MISSION_IDS) {
+    if (missionMapStatus(id) === "completed") completed++;
+  }
+  let tierIdx = 0;
+  for (let i = 0; i < ROLE_LADDER.length; i++) {
+    if (completed >= ROLE_LADDER[i].threshold) tierIdx = i;
+  }
+  return {
+    tierIdx,
+    role: ROLE_LADDER[tierIdx],
+    next: ROLE_LADDER[tierIdx + 1] || null,
+    completed,
+    total: CAREER_MISSION_IDS.length,
+  };
+}
+
+/** The authoritative current rank label (used wherever a rank is shown). */
+function careerRankName() {
+  return deriveCareerState().role.name;
+}
 
 /**
  * Build timestamp — update this string whenever you push a revision.
@@ -5680,7 +5735,9 @@ function completeMission(newRank) {
   glowOpsRegion("mission-001"); // Milestone 29A — Mission Operations win glow.
   try { updateOpsStrip("mission-001"); } catch (_) { /* 29A — non-fatal */ }
 
-  // Update rank in the XP sidebar
+  // Update rank in the XP sidebar — authoritative from the career ladder
+  // (missionComplete is already set above, so the derived tier reflects M1).
+  newRank = careerRankName();
   if (rankNameEl) {
     rankNameEl.textContent = newRank;
     rankNameEl.classList.add("rank-name--upgraded");
@@ -6319,10 +6376,12 @@ function resetMission() {
     xpBarEl.classList.remove("xp-bar--pulse");
   }
 
-  // 3. Reset rank
+  // 3. Reset rank — derive from the career ladder (reflects whatever
+  // assignments remain completed), not a hard-coded starting label.
   if (rankNameEl) {
-    rankNameEl.textContent = INITIAL_RANK;
-    rankNameEl.classList.remove("rank-name--upgraded");
+    const resetRank = careerRankName();
+    rankNameEl.textContent = resetRank;
+    rankNameEl.classList.toggle("rank-name--upgraded", resetRank !== INITIAL_RANK);
   }
 
   // 4. Reset mission badge
@@ -7300,6 +7359,128 @@ const OCV2_INTEL_ITEMS = [
   { kind: "threat",  text: "Credential collection via spoofed executive domain active for 48+ hours." },
 ];
 
+/* ============================================================
+   WORLD CONTINUITY  (migrated from the Ops Center prototype)
+   ------------------------------------------------------------
+   CyberCorp is a persistent organization: the same employees,
+   departments and adversary infrastructure recur across
+   assignments, and earlier incidents are referenced later. All
+   of this is AUTHORED data surfaced READ-ONLY, keyed on the
+   existing completed-mission state (missionMapStatus). Nothing
+   here ever writes localStorage or introduces a new store.
+   ============================================================ */
+
+// Canonical department set referenced across incidents and bulletins.
+const WC_DEPARTMENTS = {
+  finance:     "Finance",
+  hr:          "Human Resources",
+  engineering: "Engineering",
+  exec:        "Executive Operations",
+  itinfra:     "IT Infrastructure",
+  legal:       "Legal",
+  secops:      "Security Operations",
+};
+
+// Recurring CyberCorp employees — organizational memory. The same people show
+// up across incidents and bulletins so the world feels staffed.
+const WC_EMPLOYEES = {
+  okafor:    { name: "J. Okafor",    title: "Finance Manager",          dept: "finance" },
+  whitfield: { name: "D. Whitfield", title: "VP, Executive Operations", dept: "exec" },
+  nwosu:     { name: "P. Nwosu",     title: "Infrastructure Engineer",  dept: "itinfra" },
+  park:      { name: "L. Park",      title: "HR Business Partner",      dept: "hr" },
+};
+
+// Recurring adversary infrastructure / TTP clusters — NOT named villains.
+const WC_THREAT_ACTORS = {
+  fin12:     { label: "FIN-12" },
+  redbeacon: { label: "Cobalt Strike cluster" },
+};
+
+// Per-mission continuity. `dept`/`employee`/`actor` tie an incident to the
+// world model; `resolved` is a short case-file trace shown ONCE that mission is
+// complete; `connects` links to a PRIOR mission and only surfaces when that
+// prior mission is complete (mission connections that reward memory).
+const WORLD_CONTINUITY = {
+  "mission-001": { dept: "finance",     employee: "okafor",    actor: "fin12",
+                   resolved: "FIN-12 phishing domain cybercorp-support[.]net blocked at the perimeter." },
+  "mission-002": { dept: "itinfra",     employee: "nwosu",     actor: "redbeacon",
+                   resolved: "APAC source host 10.44.2.19 isolated; pass-the-hash playbook updated." },
+  "mission-003": { dept: "engineering", actor: "redbeacon",    connects: "mission-002",
+                   resolved: "Cobalt Strike C2 185.220.101.47 sinkholed; AS47337 range geo-blocked." },
+  "mission-004": { dept: "itinfra",     actor: "redbeacon",    connects: "mission-003",
+                   resolved: "Recon range 203.0.113.0/24 added to the perimeter blocklist." },
+  "mission-005": { dept: "exec",        employee: "whitfield", actor: "fin12",     connects: "mission-001",
+                   resolved: "Privileged-account MFA hardened after the 47-failure burst." },
+  "mission-006": { dept: "secops",      actor: "redbeacon",    connects: "mission-004",
+                   resolved: "DMZ exposure closed; CDN probe baseline re-tuned." },
+};
+
+// Security bulletins — short, atmospheric Operations Center notices. A bulletin
+// with `after` (a mission id) is REACTIVE: it only enters rotation once that
+// mission is complete. Bulletins without `after` are always in rotation.
+const SECURITY_BULLETINS = [
+  { tag: "PHISHING", text: "Reminder: CyberCorp will never request VPN credentials by email. Forward suspicious mail to Security Operations." },
+  { tag: "ADVISORY", text: "Patch advisory — apply the CVE-2026-1033 VPN appliance fix. Active exploitation observed in the wild." },
+  { tag: "FINANCE",  text: "Finance reports increased invoice-fraud attempts. Verify any payment-detail change out-of-band." },
+  { tag: "HR",       text: "Mandatory security-awareness refresher is due this quarter — see the HR portal." },
+  { tag: "EXEC OPS", text: "Executive Operations: heightened spear-phishing risk targeting finance approvers." },
+  { tag: "RESOLVED", text: "FIN-12 phishing infrastructure blocked. Stay alert for re-registered look-alike domains.", after: "mission-001" },
+  { tag: "RESOLVED", text: "Cobalt Strike C2 sinkholed on NA-East. AS47337 reuse is being monitored across regions.", after: "mission-003" },
+];
+
+// Dev guard: a `connects` edge must reference a PRIOR mission, otherwise the
+// continuity link could only appear after a LATER mission completes. Warns on
+// violation; silent (clean console) when valid.
+Object.entries(WORLD_CONTINUITY).forEach(([id, cont]) => {
+  if (cont.connects && CAREER_MISSION_IDS.indexOf(cont.connects) >= CAREER_MISSION_IDS.indexOf(id)) {
+    console.warn(`[continuity] ${id}.connects "${cont.connects}" is not a prior mission.`);
+  }
+});
+
+function wcDeptName(key) { return WC_DEPARTMENTS[key] || "Security Operations"; }
+function wcActorLabel(key) { return WC_THREAT_ACTORS[key]?.label || "unattributed activity"; }
+
+// Short op id for a mission (e.g. "OP-001"), used in case-file labels.
+function wcOpId(missionId) {
+  const m = /mission-0*(\d+)/.exec(missionId);
+  return m ? `OP-${String(m[1]).padStart(3, "0")}` : missionId.toUpperCase();
+}
+
+// Reactive intel: the "resolved" case-file traces for completed missions,
+// surfaced in the Intel feed as organizational memory. Derived read-only.
+function getWorldMemoryIntel() {
+  const items = [];
+  CAREER_MISSION_IDS.forEach((id) => {
+    const cont = WORLD_CONTINUITY[id];
+    if (cont?.resolved && missionMapStatus(id) === "completed") {
+      items.push({ kind: "memory", text: `Case file ${wcOpId(id)}: ${cont.resolved}` });
+    }
+  });
+  return items;
+}
+
+// One-line "case context" for an incident card: who reported it (recurring
+// employee + department) and, once complete, its resolution. Prior-mission
+// `connects` links only surface when that prior mission is complete.
+function wcIncidentContext(missionId) {
+  const cont = WORLD_CONTINUITY[missionId];
+  if (!cont) return "";
+  const parts = [];
+  if (cont.employee && WC_EMPLOYEES[cont.employee]) {
+    const emp = WC_EMPLOYEES[cont.employee];
+    parts.push(`Reported by ${emp.name}, ${emp.title} (${wcDeptName(cont.dept)})`);
+  } else if (cont.dept) {
+    parts.push(`Owned by ${wcDeptName(cont.dept)}`);
+  }
+  if (cont.connects && missionMapStatus(cont.connects) === "completed") {
+    parts.push(`Resembles infrastructure from case file ${wcOpId(cont.connects)} (${wcActorLabel(cont.actor)})`);
+  }
+  if (missionMapStatus(missionId) === "completed" && cont.resolved) {
+    parts.push(`Resolved — ${cont.resolved}`);
+  }
+  return parts.join(" · ");
+}
+
 /**
  * Character-specific completion acknowledgements for the SOC comms feed, keyed
  * by mission and outcome tier. The responsible character (Sarah / Marcus /
@@ -7468,13 +7649,69 @@ function ocv2InitTicker() {
 /** Fill the intel feed (left panel, lower section). Idempotent. */
 function ocv2InitIntelFeed() {
   const feed = document.getElementById("ocv2IntelFeed");
-  if (!feed || feed.children.length) return; // already populated
-  OCV2_INTEL_ITEMS.forEach((item) => {
+  if (!feed) return;
+  // Populate the static base items once. Guard on a STATIC marker (not
+  // children.length) so reactive memory rows that may already be present don't
+  // suppress the baseline intel. ocv2RenderWorldMemory() then re-appends memory
+  // rows at the end, keeping order deterministic (static first, memory last)
+  // regardless of call ordering.
+  if (!feed.querySelector(".ocv2-intel-item:not(.ocv2-intel--memory)")) {
+    OCV2_INTEL_ITEMS.forEach((item) => {
+      const el = document.createElement("div");
+      el.className = `ocv2-intel-item ocv2-intel--${escapeHtml(item.kind)}`;
+      el.innerHTML = `<span class="ocv2-intel-dot" aria-hidden="true"></span><span class="ocv2-intel-text">${escapeHtml(item.text)}</span>`;
+      feed.appendChild(el);
+    });
+  }
+  ocv2RenderWorldMemory();
+}
+
+/**
+ * Reactively surface the World Continuity "resolved" case-file traces for
+ * completed missions in the intel feed. Idempotent and presentation-only:
+ * removes any prior memory rows and re-derives them read-only from
+ * missionMapStatus(), so traces appear the moment the player returns from a
+ * completion (called from renderOcPanelV2()) without a reload or duplication.
+ */
+function ocv2RenderWorldMemory() {
+  const feed = document.getElementById("ocv2IntelFeed");
+  if (!feed) return;
+  feed.querySelectorAll(".ocv2-intel--memory").forEach((el) => el.remove());
+  getWorldMemoryIntel().forEach((item) => {
     const el = document.createElement("div");
-    el.className = `ocv2-intel-item ocv2-intel--${escapeHtml(item.kind)}`;
+    el.className = "ocv2-intel-item ocv2-intel--memory";
     el.innerHTML = `<span class="ocv2-intel-dot" aria-hidden="true"></span><span class="ocv2-intel-text">${escapeHtml(item.text)}</span>`;
     feed.appendChild(el);
   });
+}
+
+// Rotating-bulletin index (session-only; never persisted).
+let ocv2BulletinIdx = 0;
+
+/** Active security bulletins: always-on ones plus any unlocked by completion. */
+function getActiveBulletins() {
+  return SECURITY_BULLETINS.filter(
+    (b) => !b.after || missionMapStatus(b.after) === "completed"
+  );
+}
+
+/**
+ * Show the next security bulletin in the rotation. Presentation-only: derives
+ * the active set read-only from completion state and steps a session-only
+ * index. Hides the strip if (somehow) no bulletins are active.
+ */
+function ocv2RotateBulletin() {
+  const strip = document.getElementById("ocv2Bulletin");
+  const tagEl = document.getElementById("ocv2BulletinTag");
+  const textEl = document.getElementById("ocv2BulletinText");
+  if (!strip || !tagEl || !textEl) return;
+  const active = getActiveBulletins();
+  if (!active.length) { strip.style.display = "none"; return; }
+  const b = active[ocv2BulletinIdx % active.length];
+  ocv2BulletinIdx = (ocv2BulletinIdx + 1) % active.length;
+  tagEl.textContent = b.tag;
+  textEl.textContent = b.text;
+  strip.style.display = "flex";
 }
 
 /**
@@ -7552,6 +7789,15 @@ function showOcv2IncidentCard(missionId) {
   set("ocv2CardDesc",   mapData.briefing || "—");
   set("ocv2CardThreat", mapData.threat   || "—");
   set("ocv2CardStatus", isDone ? "Completed" : isLocked ? "Locked — complete prior assignment first" : "Active — pending investigation");
+
+  // World Continuity: who reported the incident (recurring employee/department),
+  // prior-case links once unlocked, and the resolution trace once complete.
+  const ctxEl = document.getElementById("ocv2CardContext");
+  if (ctxEl) {
+    const ctx = isLocked ? "" : wcIncidentContext(missionId);
+    ctxEl.textContent = ctx;
+    ctxEl.style.display = ctx ? "block" : "none";
+  }
 
   const launchBtn   = document.getElementById("ocv2LaunchBtn");
   const lockedNote  = document.getElementById("ocv2LockedNote");
@@ -7643,6 +7889,10 @@ function initOcv2() {
   // Static feeds (idempotent)
   ocv2InitIntelFeed();
   ocv2InitTicker();
+
+  // Rotating security bulletins (atmospheric, read-only world flavor).
+  ocv2RotateBulletin();
+  setInterval(ocv2RotateBulletin, 9000);
 
   // Seed the comms feed with initial team messages derived from MISSION_MAP.
   const feed = document.getElementById("ocv2CommsFeed");
@@ -7883,8 +8133,97 @@ function renderOcPanelV2() {
   // Refresh incident card if it's visible (state may have changed)
   if (ocv2ActiveNodeId) showOcv2IncidentCard(ocv2ActiveNodeId);
 
-  // Wire on first render (guarded internally)
+  // Wire on first render (guarded internally) — must run before the memory
+  // render so the static base intel items are populated first.
   initOcv2();
+
+  // Reactively re-derive the World Continuity case-file traces (read-only).
+  ocv2RenderWorldMemory();
+}
+
+/* ============================================================
+   Career ladder — authoritative display layer
+   ------------------------------------------------------------
+   Drives every rank label, the clearance line, and the player's "YOU" roster
+   role from the single derived career state (deriveCareerState). Presentation
+   only — writes nothing to progress or the cloud. A one-time promotion notice
+   fires when the derived tier rises above the last tier rendered this session.
+   ============================================================ */
+let _lastSeenCareerTier = null;
+
+function renderCareerLadder() {
+  const c = deriveCareerState();
+  const upgraded = c.tierIdx > 0;
+
+  // Every rank-name badge across the app reads the same derived role.
+  ["rankName", "m2RankName", "m3RankName"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = c.role.name;
+    el.classList.toggle("rank-name--upgraded", upgraded);
+  });
+
+  // Clearance line under the rank badge (agent profile).
+  const clearEl = document.getElementById("rankClearance");
+  if (clearEl) clearEl.textContent = c.role.clearance;
+
+  // Keep the player's "YOU" entry in the Ops Center roster in sync.
+  const youRoleEl = document.getElementById("ocv2RosterYouRole");
+  if (youRoleEl) youRoleEl.textContent = c.role.name;
+
+  maybeShowPromotion(c);
+}
+
+/**
+ * Fire a one-time promotion notice when the derived tier rises above the last
+ * tier rendered this session. The first render only seeds the baseline (no
+ * notice on load). A downward move (e.g. cleared storage) just re-seeds.
+ */
+function maybeShowPromotion(c) {
+  if (_lastSeenCareerTier === null) { _lastSeenCareerTier = c.tierIdx; return; }
+  if (c.tierIdx > _lastSeenCareerTier) {
+    _lastSeenCareerTier = c.tierIdx;
+    showPromotionNotice(c.role);
+  } else if (c.tierIdx < _lastSeenCareerTier) {
+    _lastSeenCareerTier = c.tierIdx;
+  }
+}
+
+/**
+ * Professional, presentation-only promotion notice — a calm, dismissible card
+ * (no cinematic). Auto-dismisses after a short window. Writes nothing.
+ */
+function showPromotionNotice(role) {
+  document.getElementById("careerPromoNotice")?.remove();
+  const el = document.createElement("div");
+  el.id = "careerPromoNotice";
+  el.className = "career-promo-notice";
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
+  el.innerHTML = `
+    <div class="career-promo-head">
+      <span class="career-promo-org">CyberCorp · Operations Notice</span>
+      <button class="career-promo-close" type="button" aria-label="Dismiss">\u2715</button>
+    </div>
+    <div class="career-promo-title">Promotion Confirmed</div>
+    <div class="career-promo-body">
+      You have been promoted to <strong>${escapeHtml(role.name)}</strong>.<br>
+      Clearance updated to <strong>${escapeHtml(role.clearance)}</strong>.<br>
+      New responsibilities: ${escapeHtml(role.unlocked)}.
+    </div>
+    <button class="career-promo-ack" type="button">Acknowledge</button>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("career-promo-notice--in"));
+
+  let timer = null;
+  const dismiss = () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    el.classList.remove("career-promo-notice--in");
+    setTimeout(() => el.remove(), 350);
+  };
+  el.querySelector(".career-promo-close")?.addEventListener("click", dismiss);
+  el.querySelector(".career-promo-ack")?.addEventListener("click", dismiss);
+  timer = setTimeout(dismiss, 9000);
 }
 
 function renderOperationsCenter() {
@@ -8007,6 +8346,9 @@ function renderOperationsCenter() {
   // Ops Center V2 — sync the three-panel layout elements (alert feed, node
   // states, analyst name) and initialize the panel on first call.
   renderOcPanelV2();
+
+  // Career ladder — authoritative rank/clearance/roster + promotion notice.
+  renderCareerLadder();
 }
 
 /* ============================================================
@@ -10011,9 +10353,11 @@ function handleM2QuizAnswer(letter) {
   // Award XP (uses the existing M1 XP system — M2 shares the global bar)
   awardXP(M2_QUIZ.xpReward);
 
-  // Rank bump (only if it's a forward move — don't downgrade if already higher)
-  if (rankNameEl && rankNameEl.textContent !== M2_QUIZ.newRank) {
-    rankNameEl.textContent = M2_QUIZ.newRank;
+  // Rank bump — authoritative from the career ladder (mission2Complete is set
+  // above, so the derived tier reflects M2).
+  const m2Rank = careerRankName();
+  if (rankNameEl && rankNameEl.textContent !== m2Rank) {
+    rankNameEl.textContent = m2Rank;
     rankNameEl.classList.add("rank-name--upgraded");
   }
 
@@ -11405,9 +11749,11 @@ function handleM3QuizAnswer(letter) {
   // Award XP (uses the existing M1 XP system — M3 shares the global bar)
   awardXP(M3_QUIZ.xpReward);
 
-  // Rank bump (only if it's a forward move — don't downgrade if already higher)
-  if (rankNameEl && rankNameEl.textContent !== M3_QUIZ.newRank) {
-    rankNameEl.textContent = M3_QUIZ.newRank;
+  // Rank bump — authoritative from the career ladder (mission3Complete is set
+  // above, so the derived tier reflects M3).
+  const m3Rank = careerRankName();
+  if (rankNameEl && rankNameEl.textContent !== m3Rank) {
+    rankNameEl.textContent = m3Rank;
     rankNameEl.classList.add("rank-name--upgraded");
   }
 

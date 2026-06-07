@@ -86,7 +86,10 @@ Detailed docs live in [`/docs`](./docs):
 
 ## User preferences
 
-_Populate as the user states durable preferences worth remembering across sessions._
+- **Build directly in the shipping app.** All future builds go straight into
+  `artifacts/ethical-cyberhackers-platform` (the deployable product). The
+  `artifacts/ops-center-prototype` sandbox is for experiments only and is no
+  longer the place to land features.
 
 ## Pointers
 
