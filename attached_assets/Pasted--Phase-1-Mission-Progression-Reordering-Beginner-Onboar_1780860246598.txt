@@ -1,0 +1,498 @@
+# Phase 1 — Mission Progression Reordering, Beginner Onboarding Stabilization & Operational Mode Clarity
+
+Goal:
+Reduce beginner overwhelm by restructuring assignment progression and improving conceptual pacing WITHOUT reducing realism, immersion, or operational identity.
+
+This phase is NOT a gameplay redesign.
+
+This phase exists to:
+
+* improve onboarding flow
+* smooth concept escalation
+* reduce cognitive overload
+* improve player confidence
+* clarify operational investigation stages
+* preserve momentum and immersion
+
+The current simulator foundation is strong and should remain intact.
+
+---
+
+## WHAT STAYS THE SAME
+
+Keep:
+
+* terminal-first gameplay
+* Operations Center world map
+* CyberCorp identity
+* campaign/recon maps
+* evidence panel
+* evidence pinning
+* containment systems
+* mission stage structure
+* hint system
+* command-driven progression
+* SOC atmosphere
+* reactive map expansion
+* scorecards
+* operational tone
+
+Do NOT:
+
+* simplify the simulator into arcade gameplay
+* remove terminology
+* remove realism
+* redesign the interface
+* remove terminal interaction
+* remove campaign escalation
+* remove containment logic
+
+This phase is ONLY about:
+better educational sequencing, onboarding pacing, and operational clarity.
+
+---
+
+## CORE PROBLEM
+
+The simulator currently behaves like:
+“intermediate SOC simulation with beginner interaction.”
+
+The issue is NOT realism.
+
+The issue is:
+advanced concepts arrive before beginners build enough foundational understanding.
+
+Examples:
+
+* SPF/DKIM introduced too early
+* pass-the-hash appears in Mission 002
+* Linux concepts, SOC concepts, containment, evidence correlation, and reactive maps stack simultaneously
+* players can complete missions procedurally without understanding investigative reasoning
+
+There is also a second issue:
+
+The simulator internally understands:
+
+* Linux-style investigation
+* analyst tooling
+* SOC correlation
+* containment response
+
+But beginners may not consciously understand:
+what type of cybersecurity work they are currently performing.
+
+This creates:
+mode ambiguity.
+
+The solution is:
+slower cognitive escalation and clearer operational framing.
+
+---
+
+## PRIMARY PHASE OBJECTIVE
+
+Restructure mission order so concepts evolve progressively:
+
+observe suspicious behavior
+→ identify evidence
+→ interpret attacks
+→ correlate incidents
+→ respond operationally
+→ investigate advanced compromise
+
+The player should feel:
+“I understand more each mission.”
+
+NOT:
+“I am drowning in unfamiliar concepts.”
+
+---
+
+## NEW RECOMMENDED MISSION ORDER
+
+Assignment 001
+Reconnaissance Detection
+(previously Mission 003)
+
+Reason:
+Best beginner on-ramp.
+Simple suspicious behavior.
+Easy visual reasoning.
+Low terminology complexity.
+
+Core concepts:
+
+* repeated probing
+* ports
+* unauthorized source
+* baseline mismatch
+* suspicious behavior recognition
+
+---
+
+Assignment 002
+Anomalous Scan Triage
+(previously Mission 006)
+
+Reason:
+Teaches an extremely important SOC lesson:
+not every alert is malicious.
+
+Core concepts:
+
+* false positives
+* validation
+* operational judgment
+* benign activity
+* measurement/scanner behavior
+
+---
+
+Assignment 003
+Credential Phishing
+(previously Mission 001)
+
+Reason:
+Relatable attack scenario after basic investigation understanding exists.
+
+Core concepts:
+
+* phishing
+* spoofing
+* urgency language
+* suspicious links
+* credential harvesting
+* account compromise
+
+---
+
+Assignment 004
+Account Takeover
+(previously Mission 005)
+
+Reason:
+Natural escalation from phishing.
+
+Core concepts:
+
+* MFA abuse
+* impossible travel
+* compromised identity
+* login correlation
+* attacker reuse of credentials
+
+---
+
+Assignment 005
+Reconnaissance Sweep
+(previously Mission 004)
+
+Reason:
+Expands earlier recon concepts to larger operational scale.
+
+Core concepts:
+
+* perimeter scanning
+* infrastructure probing
+* broader correlation
+* multi-system targeting
+
+---
+
+Assignment 006
+Lateral Movement
+(previously Mission 002)
+
+Reason:
+This is currently the hardest mission and should become advanced early-game content.
+
+Core concepts:
+
+* NTLM
+* pass-the-hash
+* SMB
+* RPC
+* service accounts
+* multi-host compromise
+* internal attacker movement
+
+This mission should NOT appear early in onboarding.
+
+---
+
+## MISSION PROGRESSION OBJECTIVE
+
+The mission order should progressively move through:
+
+Stage 1:
+Suspicious activity recognition
+
+Stage 2:
+Operational judgment
+
+Stage 3:
+Attack identification
+
+Stage 4:
+Identity compromise
+
+Stage 5:
+Infrastructure/campaign correlation
+
+Stage 6:
+Advanced enterprise compromise
+
+---
+
+## OPERATIONAL MODE CLARITY
+
+Important:
+Do NOT redesign the interface or gameplay flow.
+
+The current architecture already contains strong internal operational transitions.
+
+Examples already present:
+
+* ~/triage$
+* @soc$
+* dock categories
+* containment stages
+* reactive maps
+
+These are strong educational seams and should be preserved.
+
+The issue is:
+players may not consciously understand the transition between operational modes.
+
+---
+
+## GOAL OF MODE CLARITY
+
+Help players understand:
+what kind of cybersecurity work they are currently performing.
+
+Examples:
+
+* Linux-style investigation
+* evidence analysis
+* SOC correlation
+* incident response
+
+This should improve:
+
+* cognitive orientation
+* educational clarity
+* transferability
+* beginner confidence
+
+without reducing immersion.
+
+---
+
+## LIGHTWEIGHT MODE FRAMING
+
+Add subtle operational stage labels.
+
+Examples:
+
+TRIAGE MODE
+
+* file inspection
+* Linux-style investigation
+* artifact collection
+
+ANALYSIS MODE
+
+* evidence interpretation
+* analyst tooling
+* suspicious behavior analysis
+
+SOC CORRELATION MODE
+
+* campaign investigation
+* cross-host analysis
+* alert correlation
+* operational reasoning
+
+INCIDENT RESPONSE MODE
+
+* containment
+* remediation
+* operational decisions
+
+These should appear subtly:
+
+* stage transitions
+* section headers
+* terminal state indicators
+* dock labels
+* operational banners
+
+Do NOT:
+
+* interrupt gameplay
+* create separate interfaces
+* create tutorial screens
+* force mode switching
+
+---
+
+## COMMAND CATEGORY CLARITY
+
+Differentiate command categories more clearly.
+
+Current issue:
+Linux-style commands, analyst tools, and response actions all appear visually similar.
+
+This creates confusion for beginners.
+
+---
+
+## REAL LINUX-STYLE INVESTIGATION
+
+Examples:
+
+* ls
+* cat
+* grep
+
+Label as:
+TRIAGE COMMANDS
+
+Purpose:
+Teach:
+
+* artifact inspection
+* file interaction
+* terminal familiarity
+
+---
+
+## SIMULATED ANALYST TOOLS
+
+Examples:
+
+* headers
+* whois
+* geoip
+* lookup
+* intel
+
+Label as:
+ANALYST TOOLS
+
+Purpose:
+Teach:
+
+* investigation workflows
+* threat analysis
+* analyst reasoning
+
+Clarify subtly that these are analyst investigation tools,
+not native Linux binaries.
+
+---
+
+## CONTAINMENT / RESPONSE ACTIONS
+
+Examples:
+
+* block ip
+* reset creds
+* contain host
+* quarantine email
+
+Label as:
+RESPONSE ACTIONS
+
+Purpose:
+Teach:
+
+* incident response
+* attack disruption
+* operational containment
+
+These should feel more consequential than lookups.
+
+---
+
+## BEGINNER ONBOARDING IMPROVEMENTS
+
+Without redesigning missions, improve onboarding clarity:
+
+* Briefly state what the player is learning in each mission
+* Clarify whether the player is:
+
+  * investigating
+  * correlating
+  * responding
+* Reduce sudden terminology spikes early
+* Slow introduction of advanced enterprise concepts
+* Preserve operational pacing
+
+---
+
+## IMPORTANT DESIGN PRINCIPLE
+
+Do NOT reduce immersion.
+
+Do NOT over-explain everything.
+
+Do NOT add heavy tutorials.
+
+The simulator should still feel:
+
+* tactical
+* immersive
+* operational
+* intelligent
+* realistic
+
+But the concepts should unfold progressively and clearly.
+
+---
+
+## SUCCESS CRITERIA
+
+This phase succeeds if:
+
+* beginners feel less overwhelmed
+* players understand mission progression better
+* players understand operational stage transitions
+* concepts build naturally across assignments
+* advanced SOC terminology appears later
+* players understand the difference between:
+
+  * Linux investigation
+  * analyst tooling
+  * SOC analysis
+  * incident response
+* operational realism remains intact
+* the simulator still feels immersive and cinematic
+* players gain confidence instead of confusion
+* hint dependency decreases naturally
+
+---
+
+## IMPLEMENTATION NOTES
+
+This phase should focus ONLY on:
+
+* mission order
+* assignment progression
+* onboarding pacing
+* conceptual sequencing
+* operational mode clarity
+* command category clarity
+
+Do not implement yet:
+
+* glossary systems
+* explain commands
+* interpretation checkpoints
+* acronym overlays
+* new UI systems
+
+Those belong to later phases.
+
+This phase establishes the educational foundation the later systems will build upon.

@@ -1,0 +1,182 @@
+We need an educational complexity audit of the current assignment/mission design.
+
+Do not modify gameplay yet.
+
+Goal:
+Help identify why early assignments may feel too complex for beginners and where the learning progression between Linux, terminal investigation, SOC analysis, evidence pinning, maps, and containment is unclear.
+
+Please review the current design and provide a structured report with the following sections:
+
+1. Current Assignment Progression
+   List all current assignments/missions in order.
+
+For each assignment, include:
+
+* assignment number
+* title
+* player role
+* mission theme
+* severity
+* current stage count
+* main objective
+* commands introduced
+* tools introduced
+* evidence types introduced
+* SOC concepts introduced
+* Linux concepts introduced
+* containment actions introduced
+* map/visualization features introduced
+* estimated beginner difficulty
+
+2. Learning Objectives Per Assignment
+   For each mission, identify what the player is supposed to learn.
+
+Separate objectives into:
+
+* cybersecurity reasoning
+* Linux/terminal familiarity
+* SOC workflow
+* incident response
+* threat intelligence
+* evidence interpretation
+* containment logic
+
+3. Cognitive Load Review
+   Identify where the mission may introduce too many new concepts at once.
+
+Flag any moments where a beginner must understand multiple unfamiliar things simultaneously, such as:
+
+* Linux commands
+* acronyms
+* email security
+* ports
+* recon
+* WHOIS
+* SOC evidence pinning
+* campaign maps
+* containment logic
+
+4. Linux vs SOC Clarity
+   Analyze whether each assignment clearly distinguishes:
+
+* when the player is learning Linux-style command investigation
+* when the player is performing SOC analysis
+* when the player is using simulated analyst tools
+* when the player is making containment decisions
+
+Highlight any places where these modes blur together and may confuse beginners.
+
+5. Hint System Review
+   Review the current hint system.
+
+Include:
+
+* how hints trigger
+* whether hints explain reasoning or only tell the player what to do
+* whether hints may encourage blind following
+* whether hints escalate from gentle nudge to direct instruction
+* where hints should include “why this matters”
+
+6. Evidence System Review
+   Review the current evidence and pinning system.
+
+Include:
+
+* what evidence players are expected to pin
+* whether the evidence explains why it matters
+* whether the evidence supports a clear conclusion
+* whether players could pin evidence without understanding it
+* how evidence should connect to learning
+
+7. Acronym / Terminology Review
+   List all acronyms and technical terms currently shown to beginners.
+
+Examples:
+
+* SPF
+* DKIM
+* WHOIS
+* IOC
+* C2
+* SOC
+* EDR
+* SIEM
+* DNS
+* ports
+* recon
+* containment
+* baseline
+
+For each term, identify:
+
+* where it appears
+* whether it is explained
+* whether the explanation is beginner-friendly
+* whether it needs inline support, hover support, or an “explain” command
+
+8. Mission Completion Review
+   Explain what currently defines success in each assignment.
+
+Include:
+
+* commands completed
+* evidence pinned
+* containment actions taken
+* quiz/checkpoint results, if any
+* scorecard/debrief behavior
+* whether the player must demonstrate understanding or only complete actions
+
+9. Beginner Onboarding Risk
+   Identify the top 5 reasons a beginner may feel overwhelmed.
+
+For each risk, provide:
+
+* where it appears
+* why it may confuse the player
+* suggested fix
+* whether the fix should be UI, wording, pacing, hint, explanation, or mission sequencing
+
+10. Recommended Educational Architecture
+    Based on the current implementation, recommend how the missions should progressively move through:
+
+Stage 1:
+basic investigation mechanics
+
+Stage 2:
+Linux-style terminal familiarity
+
+Stage 3:
+evidence interpretation
+
+Stage 4:
+SOC workflow
+
+Stage 5:
+campaign mapping / correlation
+
+Stage 6:
+containment and response
+
+11. Preserve What Already Works
+    Identify what should not be changed because it is working well.
+
+Pay special attention to:
+
+* terminal-first immersion
+* campaign/recon maps
+* evidence panel
+* CyberCorp identity
+* Operations Center
+* guided mission flow
+* command-driven progression
+* containment visuals
+
+12. Final Recommendation
+    Provide a concise recommendation for how to reduce beginner complexity without weakening realism, immersion, or gameplay momentum.
+
+Important:
+This is an audit/report task only.
+
+Do not implement changes yet.
+
+The objective is to gather the information needed to decide how to adjust the onboarding and learning progression safely.
