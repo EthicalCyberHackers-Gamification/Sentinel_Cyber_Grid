@@ -504,4 +504,26 @@ export default {
       'Proportionate response is to <em>log and monitor</em>, not block or panic — and documenting a benign call still matters for trending.',
     ],
   },
+
+  /* ANALYST LEARNING LAYER (presentation-only) — gated by `enabled`. `terms`
+   * lists the knowledge-base keys surfaced by `explain`; `debrief` is the SOC
+   * debrief appended to the scorecard. A benign triage, so the fields describe
+   * the verdict and disposition. No XP/progress/grading impact. */
+  learning: {
+    enabled: true,
+    terms: ['triage', 'ids', 'false-positive', 'proportionate-response', 'whois', 'baseline', 'threat-intel', 'attack-surface', 'siem', 'containment'],
+    debrief: {
+      whatHappened: 'A low-rate port scan tripped the SEA DMZ IDS sensors overnight. Triaged end to end, the alert was dispositioned BENIGN: the source (198.51.100.20) is a registered internet-measurement organisation reading public pages, not an attacker.',
+      howItWorked: 'The "scan" was a very low-rate probe of only two public ports, making only GET / requests that all answered HTTP 200 \u2014 no exploitation, the service unharmed. WHOIS identified the source as a measurement org, it sat on the known-good baseline, threat intel rated it benign, and no other sensors corroborated an attack.',
+      keyEvidence: [
+        { label: 'Very low-rate, two public ports only', why: 'measurement behaviour, not the broad enumeration of a real scan.' },
+        { label: 'GET / requests, all HTTP 200', why: 'reading a public page \u2014 no exploitation attempted.' },
+        { label: 'WHOIS: registered measurement org', why: 'attribution turned an unknown source into a documented one.' },
+        { label: 'No corroborating alerts elsewhere', why: 'nothing in the SIEM raised this above background noise.' },
+      ],
+      containment: 'No blocking or escalation \u2014 the proportionate response. Confirmed the benign verdict, logged the activity for trending, and kept monitoring. Documenting a benign call still tunes future noise and protects a legitimate source from an over-reaction.',
+      concepts: ['triage', 'ids', 'false-positive', 'proportionate-response', 'whois'],
+      takeaway: 'Not every alert is an attack. A good analyst confirms attribution and impact before acting \u2014 a documented benign verdict is real work, and over-blocking a harmless source has a cost too.',
+    },
+  },
 };

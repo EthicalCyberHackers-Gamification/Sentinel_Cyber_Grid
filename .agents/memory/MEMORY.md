@@ -35,3 +35,4 @@
 - [Lab stage-entry hooks](ech-lab-stage-entry-hooks.md) — five canonical forward-stage-entry sites (openLab/grep-aha/revealCampaign/dispatch fromStage-guard/unlockContainment); hook all five for once-per-stage presentation-only overlays.
 - [Lab step coach (labGuide)](ech-lab-step-coach.md) — engine-level `→ Next:` direction for stages 2–5 (stage 1 uses dataset hooks); "remaining tools" must filter by run.discover's target group, not `unlock<=stage`.
 - [Analyst Learning Layer (prototype lab M001)](ech-learning-layer.md) — presentation-only teaching layer gated on `learning.enabled`; a checkpoint that gates a functional unlock must resolve on EVERY dismissal path (one chokepoint + done flag) or it soft-locks.
+- [Lab learning layer (explain + debrief)](ech-lab-learning-layer.md) — presentation-only glossary+SOC-debrief gated behind per-mission `learning.enabled`; strict gate means router/openGlossary must check `labLearning()`, not just hide chips.

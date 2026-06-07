@@ -507,4 +507,25 @@ export default {
       'Containment is a sequence: block the source, harden the probed services, raise monitoring, report.',
     ],
   },
+
+  /* ANALYST LEARNING LAYER (presentation-only) — gated by `enabled`. `terms`
+   * lists the knowledge-base keys surfaced by `explain`; `debrief` is the SOC
+   * debrief appended to the scorecard. No XP/progress/grading impact. */
+  learning: {
+    enabled: true,
+    terms: ['reconnaissance', 'port-scan', 'baseline', 'whois', 'threat-intel', 'attack-surface', 'siem', 'ioc', 'containment'],
+    debrief: {
+      whatHappened: 'Perimeter sensors flagged unusual traffic to workstation WS-4471. The investigation proved a single external address (203.0.113.77) was running reconnaissance \u2014 systematically probing services \u2014 and that six other workstations had been probed by the same source.',
+      howItWorked: 'One outside address connected repeatedly, probing multiple services including ports the host does not even run. The source was unregistered in WHOIS, absent from the host\u2019s known-good peer baseline, matched a known scanning pattern, and was flagged by threat intel as scanning infrastructure.',
+      keyEvidence: [
+        { label: 'One source, repeated contact', why: 'the first fingerprint of a scan, not normal traffic.' },
+        { label: 'Probes against ports the host doesn\u2019t run', why: 'blind enumeration \u2014 the proof it is reconnaissance.' },
+        { label: 'Absent from the known-good baseline', why: 'confirmed the source was never a legitimate peer.' },
+        { label: 'Six other hosts probed by the same source', why: 'sized the scan beyond one workstation.' },
+      ],
+      containment: 'Blocked the scanning IP, hardened the exposed services it probed, raised monitoring across the affected subnet, and added the source to the watchlist \u2014 source cut off, attack surface shrunk, scope watched.',
+      concepts: ['reconnaissance', 'port-scan', 'baseline', 'whois', 'threat-intel'],
+      takeaway: 'Reconnaissance is proven by pattern, not a single packet \u2014 repeated, unfamiliar contact and probes against services that do not exist. Confirm the scope across hosts before you act, and shrink the attack surface they were mapping.',
+    },
+  },
 };

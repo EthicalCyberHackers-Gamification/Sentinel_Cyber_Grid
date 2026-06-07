@@ -50,6 +50,10 @@ import LAB_M4 from './lab.missions/mission-004.js';
 import LAB_M5 from './lab.missions/mission-005.js';
 import LAB_M6 from './lab.missions/mission-006.js';
 
+/* Shared CyberCorp SOC knowledge base (presentation-only) backing the
+ * `explain`/`define` glossary command. See lab.glossary.js. */
+import { LAB_GLOSSARY } from './lab.glossary.js';
+
 /* ------------------------------------------------------------------ *
  * STATE (engine — mission content lives in LAB.def)
  * ------------------------------------------------------------------ */
@@ -595,6 +599,27 @@ const LAB_MISSIONS = {
         'Containment is a sequence: block the infra, pull the mail, secure the account, isolate the host, report.',
       ],
     },
+
+    /* ANALYST LEARNING LAYER (presentation-only) — gated by `enabled`. `terms`
+     * lists the knowledge-base keys surfaced by `explain`; `debrief` is the SOC
+     * debrief appended to the scorecard. No XP/progress/grading impact. */
+    learning: {
+      enabled: true,
+      terms: ['phishing', 'social-engineering', 'spf', 'dkim', 'dmarc', 'return-path', 'lookalike-domain', 'credential-harvesting', 'impossible-travel', 'kill-chain', 'blast-radius', 'bulletproof', 'whois', 'siem', 'ioc', 'containment'],
+      debrief: {
+        whatHappened: 'A targeted credential-phishing campaign hit 12 CyberCorp staff. One recipient reported it; the investigation proved it was phishing, mapped the attacker\u2019s infrastructure, and confirmed one account was taken over.',
+        howItWorked: 'An urgent "re-verify your VPN" lure impersonated IT and linked to cybercorp-support.net \u2014 a 2-day-old lookalike on a bulletproof host. Its fake portal POSTed credentials to /collect.php. j.martin submitted theirs and the attacker logged in minutes later.',
+        keyEvidence: [
+          { label: 'Link \u2192 lookalike domain', why: 'the destination, not the wording, proved phishing.' },
+          { label: 'SPF FAIL / DKIM none', why: 'authentication proved the sender was forged.' },
+          { label: '12 recipients', why: 'defined the blast radius to contain.' },
+          { label: 'Impossible-travel login', why: 'confirmed a real account takeover.' },
+        ],
+        containment: 'Blocked the domain and host, quarantined the lure from all 12 inboxes, then reset and isolated the compromised account \u2014 attacker reach cut, lure removed, victim secured, in that order.',
+        concepts: ['phishing', 'spf', 'dkim', 'blast-radius', 'kill-chain', 'impossible-travel'],
+        takeaway: 'Real phishing triage is evidence-first: trust technical fingerprints (links, headers, logs) over the message\u2019s words, size the whole campaign, and contain from the attacker inward.',
+      },
+    },
   },
 
   /* ============================================================ *
@@ -1116,6 +1141,27 @@ const LAB_MISSIONS = {
         'Containment is a sequence: isolate the hosts, rotate the account, kill the rogue service, escalate, report.',
       ],
     },
+
+    /* ANALYST LEARNING LAYER (presentation-only) — gated by `enabled`. `terms`
+     * lists the knowledge-base keys surfaced by `explain`; `debrief` is the SOC
+     * debrief appended to the scorecard. No XP/progress/grading impact. */
+    learning: {
+      enabled: true,
+      terms: ['lateral-movement', 'pass-the-hash', 'ntlm', 'hash', 'logon-type', 'service-account', 'smb', 'rpc', 'east-west', 'patient-zero', 'blast-radius', 'siem', 'ioc', 'containment'],
+      debrief: {
+        whatHappened: 'A single flagged network logon turned out to be patient zero in a lateral-movement chain. The service account svc_backup was being used to hop host-to-host across CyberCorp\u2019s APAC segments, advancing toward the domain core.',
+        howItWorked: 'A stolen NTLM hash was reused via pass-the-hash: Type 3 network logons with no interactive parent, svc_backup authenticating off-hours far outside its job, an east-west SMB/RPC chain between hosts, and an unsigned WinHelpSvc created remotely on the next hop (10.44.2.19 onward).',
+        keyEvidence: [
+          { label: 'Type 3 logon, no interactive parent', why: 'the authentication footprint of pass-the-hash.' },
+          { label: 'Same NTLM hash on two hosts', why: 'proved a stolen credential in motion, not a normal login.' },
+          { label: 'svc_backup off-hours, new hosts', why: 'a service account acting far outside its baseline.' },
+          { label: 'East-west SMB/RPC chain', why: 'the network signature of lateral movement.' },
+        ],
+        containment: 'Isolated the host chain, rotated the abused svc_backup credential, killed the rogue WinHelpSvc, and escalated to the incident commander \u2014 movement severed before it reached the domain core.',
+        concepts: ['lateral-movement', 'pass-the-hash', 'ntlm', 'logon-type', 'east-west', 'patient-zero'],
+        takeaway: 'Lateral movement is proven by how an account authenticated and where it reached \u2014 the logon type, the reused hash, the east-west chain \u2014 not the account name. Trace the whole chain and rotate the credential; cleaning one host leaves the attacker mid-network.',
+      },
+    },
   },
 
   'mission-003': LAB_M3,
@@ -1157,6 +1203,7 @@ function openLab(missionId) {
 
   LAB.runToken++;
   labIntelHide();
+  labCloseModals(); // dismiss any stale teaching popup (glossary/kit) before re-gating
   LAB.stage = 1;
   LAB.ran.clear();
   LAB.read.clear();
@@ -1205,6 +1252,7 @@ function openLab(missionId) {
 function returnFromLab() {
   LAB.runToken++;
   labIntelHide();
+  labCloseModals(); // ensure no glossary/kit popup survives leaving the lab
   $lab('labConsole').style.display = 'none';
   // Host restores the Operations Center (and repaints completion/unlock state).
   if (typeof LAB_HOOKS.onReturn === 'function') LAB_HOOKS.onReturn(LAB.missionId);
@@ -1346,6 +1394,9 @@ function labRun(raw) {
   if (word === 'clear') { const o = $lab('labTermOut'); if (o) o.innerHTML = ''; return; }
   if (word === 'pwd')   { labEcho(text); labPrint([{ t: LAB.stage >= def.prompts.threshold ? def.prompts.socPwd : def.prompts.filePwd }]); return; }
   if (word === 'pin')   { labEcho(text); labPinCmd(parts.slice(1).join(' ')); return; }
+  // `explain`/`define` exist ONLY when the learning layer is enabled — strict
+  // gate. When disabled, fall through so they read as unknown commands.
+  if ((word === 'explain' || word === 'define') && labLearning()) { labEcho(text); labExplainTerm(parts.slice(1).join(' ')); return; }
 
   if (word === 'ls' || word === 'cat' || word === 'less' || word === 'grep') {
     labEcho(text); labFileCmd(word, parts.slice(1)); return;
@@ -1428,6 +1479,7 @@ function labHelp() {
     lines.push({ t: '  ' + t.hint.padEnd(26) + t.name });
   });
   if (LAB.stage >= 1) lines.push({ t: '  ' + 'pin <indicator|all>'.padEnd(26) + 'pin discovered evidence' });
+  if (labLearning()) lines.push({ t: '  ' + 'explain <term>'.padEnd(26) + 'define a SOC term (alias: define)' });
   lines.push({ t: '  ' + 'hint'.padEnd(26) + 'gradual hint — ask again for more' });
   lines.push({ t: '  ' + 'clear'.padEnd(26) + 'clear the screen' });
   lines.push({ t: 'Tip: click a file above to read it, or click an evidence card to pin it.', c: 'dim' });
@@ -1882,6 +1934,122 @@ function labDocText(s) {
   return labEsc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
+/* ------------------------------------------------------------------ *
+ * ANALYST LEARNING LAYER — `explain`/`define` glossary + SOC debrief.
+ *
+ * Presentation-only: these read the shared CyberCorp knowledge base
+ * (LAB_GLOSSARY) and the active mission's `learning` block. They NEVER run a
+ * command, mutate lab state, touch XP/progress/persistence, or affect grading.
+ * The whole layer is gated behind `def.learning.enabled` — flip it off and the
+ * `explain` command, help line, term chips, and scorecard debrief all vanish.
+ * ------------------------------------------------------------------ */
+
+// The active mission's learning block, or null when the layer is disabled.
+function labLearning() {
+  const L = LAB.def && LAB.def.learning;
+  return L && L.enabled ? L : null;
+}
+
+// The term keys this mission surfaces (filtered to ones the knowledge base has).
+function labMissionTerms() {
+  const L = labLearning();
+  if (!L || !Array.isArray(L.terms)) return [];
+  return L.terms.filter((k) => LAB_GLOSSARY[k]);
+}
+
+// Normalize a term/key for forgiving lookup (lowercase, alphanumerics only).
+function labTermNorm(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Resolve a typed term to a knowledge-base key, searching the whole base by key
+// or display name. Returns null when nothing matches.
+function labResolveTerm(raw) {
+  const direct = String(raw).toLowerCase().trim();
+  if (LAB_GLOSSARY[direct]) return direct;
+  const q = labTermNorm(raw);
+  if (!q) return null;
+  return Object.keys(LAB_GLOSSARY).find(
+    (k) => labTermNorm(k) === q || labTermNorm(LAB_GLOSSARY[k].term) === q
+  ) || null;
+}
+
+// A clickable term chip (used in the scorecard debrief). Read-only — clicking it
+// just opens the glossary card (wired via a delegated listener in labInit).
+function labTermChip(key) {
+  const g = LAB_GLOSSARY[key];
+  if (!g) return '';
+  return `<button type="button" class="lab-term" data-lab-term="${labEsc(key)}" title="What is ${labEsc(g.term)}?">${labEsc(g.term)}</button>`;
+}
+
+// `explain <term>` / `define <term>` — print the definition + operational note
+// to the terminal and open the glossary card. With no argument, list the terms
+// this mission surfaces.
+function labExplainTerm(arg) {
+  if (!labLearning()) {
+    labPrint([{ t: 'No glossary is available in this lab.', c: 'dim' }]);
+    return;
+  }
+  const raw = (arg || '').trim();
+  if (!raw) {
+    const terms = labMissionTerms();
+    labPrint([
+      { t: 'usage: explain <term>     (alias: define <term>)', c: 'dim' },
+      { t: terms.length
+          ? 'Terms you can explain here: ' + terms.map((k) => LAB_GLOSSARY[k].term).join(', ')
+          : 'No terms are listed for this lab.', c: 'dim' },
+    ]);
+    return;
+  }
+  const key = labResolveTerm(raw);
+  if (!key) {
+    labPrint([{ t: `No definition for "${raw}". Type \`explain\` on its own to see the terms you can look up.`, c: 'dim' }]);
+    return;
+  }
+  const g = LAB_GLOSSARY[key];
+  labPrint([
+    { t: `${g.term}${g.full ? ' (' + g.full + ')' : ''}`, c: 'head' },
+    { t: '  ' + g.def },
+    ...(g.op ? [{ t: '  SOC note: ' + g.op, c: 'dim' }] : []),
+  ]);
+  labOpenGlossary(key);
+}
+
+// Open the glossary card for a term, reusing the persistent #labExplain host
+// (backdrop + Esc are bound once in labInit; labBindModal wires the buttons).
+function labOpenGlossary(key) {
+  if (!labLearning()) return; // strict gate — no glossary surface when disabled
+  const g = LAB_GLOSSARY[key];
+  const host = $lab('labExplain');
+  if (!g || !host) return;
+  const related = labMissionTerms().filter((k) => k !== key).slice(0, 5);
+  const relatedHtml = related.length
+    ? `<div class="lab-term-related"><span class="lab-term-related-lbl">Related</span>${related.map(labTermChip).join('')}</div>`
+    : '';
+  host.innerHTML = `
+    <div class="lab-modal-card" role="document">
+      <div class="lab-modal-head">
+        <span class="lab-modal-ico" aria-hidden="true">📖</span>
+        <div class="lab-modal-titles">
+          <div class="lab-modal-title">${labEsc(g.term)}</div>
+          ${g.full ? `<div class="lab-modal-sub">${labEsc(g.full)}</div>` : ''}
+        </div>
+        <button class="lab-modal-close" type="button" data-lab-close aria-label="Close">×</button>
+      </div>
+      <div class="lab-modal-body">
+        <div class="lab-modal-section-head">DEFINITION</div>
+        <div class="lab-modal-purpose">${labEsc(g.def)}</div>
+        ${g.op ? `<div class="lab-modal-section-head">SOC NOTE — HOW ANALYSTS USE IT</div><div class="lab-modal-learn">${labDocText(g.op)}</div>` : ''}
+        ${relatedHtml}
+      </div>
+      <div class="lab-modal-foot">
+        <button class="lab-modal-btn lab-modal-btn--primary" type="button" data-lab-close>Got it</button>
+      </div>
+    </div>`;
+  host.hidden = false;
+  labBindModal(host);
+}
+
 function labToolDone(key) {
   const def = LAB.def;
   if (key === def.reportKey) return LAB.done;
@@ -2203,6 +2371,24 @@ function labShowScorecard() {
       <span class="ic">✓</span><span>${def.contain[k].label}</span>
     </div>`;
 
+  // Learning layer (presentation-only): a structured SOC debrief appended to the
+  // scorecard. Rendered only when def.learning.enabled; reads its own data only
+  // and never affects the grade above or any persistence.
+  const L = labLearning();
+  const db = L && L.debrief;
+  const debriefHtml = db ? `
+      <div class="lab-card-sec lab-debrief">
+        <div class="lab-card-sec-head">SOC debrief</div>
+        <div class="lab-db-block"><div class="lab-db-h">What happened</div><div class="lab-db-b">${labEsc(db.whatHappened)}</div></div>
+        <div class="lab-db-block"><div class="lab-db-h">How the attack worked</div><div class="lab-db-b">${labEsc(db.howItWorked)}</div></div>
+        <div class="lab-db-block"><div class="lab-db-h">Key evidence — and why it mattered</div>
+          <div class="lab-card-list">${(db.keyEvidence || []).map((e) => `<div class="lab-card-row"><span class="ic">▸</span><span><b>${labEsc(e.label)}</b> — ${labEsc(e.why)}</span></div>`).join('')}</div>
+        </div>
+        <div class="lab-db-block"><div class="lab-db-h">What containment achieved</div><div class="lab-db-b">${labEsc(db.containment)}</div></div>
+        ${db.concepts && db.concepts.length ? `<div class="lab-db-block"><div class="lab-db-h">Concepts to keep — tap to revisit</div><div class="lab-term-row">${db.concepts.map(labTermChip).join('')}</div></div>` : ''}
+        <div class="lab-db-block lab-db-takeaway"><div class="lab-db-h">Real-world takeaway</div><div class="lab-db-b">${labEsc(db.takeaway)}</div></div>
+      </div>` : '';
+
   panel.innerHTML = `
     <div class="lab-card">
       <div class="lab-card-grade">RESULT · ${grade}</div>
@@ -2232,7 +2418,7 @@ function labShowScorecard() {
           ${def.scorecard.learned.map((l) => `<div class="lab-card-row"><span class="ic">▸</span><span>${l}</span></div>`).join('')}
         </div>
       </div>
-
+${debriefHtml}
       <div class="lab-card-actions">
         <button class="lab-card-btn lab-card-btn--primary" type="button" data-lab-replay>↻ Replay the lab</button>
         <button class="lab-card-btn" type="button" data-lab-exit>Return to Operations Center</button>
@@ -2283,6 +2469,14 @@ function labInit() {
     if (e.key !== 'Escape') return;
     const open = ['labExplain', 'labKit'].some((id) => { const el = $lab(id); return el && !el.hidden; });
     if (open) labCloseModals();
+  });
+
+  // Glossary term chips (scorecard debrief + the glossary card's "related" row).
+  // Delegated + bound ONCE — the chips are re-rendered, the document is not, so
+  // listeners never leak. Read-only: opens the definition card, mutates nothing.
+  document.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-lab-term]');
+    if (chip) labOpenGlossary(chip.dataset.labTerm);
   });
 
   // Intel card dismissal: Escape, scrolling, or a click outside any trigger.

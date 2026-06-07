@@ -526,4 +526,25 @@ export default {
       'Takeover containment is a sequence: disable the account, reset credentials and re-enroll MFA, block the source, raise monitoring, report.',
     ],
   },
+
+  /* ANALYST LEARNING LAYER (presentation-only) — gated by `enabled`. `terms`
+   * lists the knowledge-base keys surfaced by `explain`; `debrief` is the SOC
+   * debrief appended to the scorecard. No XP/progress/grading impact. */
+  learning: {
+    enabled: true,
+    terms: ['account-takeover', 'brute-force', 'credential-stuffing', 'mfa', 'privileged-account', 'geoip', 'bulletproof', 'baseline', 'threat-intel', 'siem', 'service-account', 'containment'],
+    debrief: {
+      whatHappened: 'The MENA identity service (IDP-MENA) raised a flood of failed multi-factor logins against CyberCorp\u2019s most powerful accounts. Triage proved it was a credential-stuffing brute force \u2014 and that one login succeeded: admin_svc was taken over.',
+      howItWorked: 'A single source (45.83.220.10, bulletproof hosting) hammered several privileged admin accounts from outside the approved geo-list. Buried in the wall of failures was one SUCCESS against admin_svc. The source was listed on credential-stuffing blocklists and the activity matched a known account-takeover pattern.',
+      keyEvidence: [
+        { label: 'Burst of failures from one source', why: 'the signature of brute force, not a user mistyping.' },
+        { label: 'Targets were high-value admins', why: 'a deliberate attack on privileged accounts, not opportunistic.' },
+        { label: 'Source outside the approved geo-list', why: 'GeoIP plus baseline turned "unfamiliar" into "unauthorized".' },
+        { label: 'One login SUCCEEDED', why: 'the single line that flips this from attempted to confirmed takeover.' },
+      ],
+      containment: 'Disabled the compromised admin_svc account, reset its credentials and forced MFA re-enrollment, blocked the source, then raised monitoring \u2014 the attacker locked out, the stolen factor made useless, the source cut off.',
+      concepts: ['account-takeover', 'brute-force', 'credential-stuffing', 'mfa', 'privileged-account', 'geoip'],
+      takeaway: 'A burst of failures is brute force; a single SUCCESS hidden in it is a breach. Hunt for that one line, confirm with GeoIP and intel, and contain by forcing MFA re-enrollment \u2014 a password reset alone leaves a stolen factor in play.',
+    },
+  },
 };

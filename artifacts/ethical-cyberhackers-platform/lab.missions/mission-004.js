@@ -512,4 +512,25 @@ export default {
       'Containment is a sequence: block the range, harden the exposed perimeter, raise monitoring, report.',
     ],
   },
+
+  /* ANALYST LEARNING LAYER (presentation-only) — gated by `enabled`. `terms`
+   * lists the knowledge-base keys surfaced by `explain`; `debrief` is the SOC
+   * debrief appended to the scorecard. No XP/progress/grading impact. */
+  learning: {
+    enabled: true,
+    terms: ['reconnaissance', 'port-scan', 'attack-surface', 'subnet', 'firewall', 'baseline', 'threat-intel', 'whois', 'siem', 'containment'],
+    debrief: {
+      whatHappened: 'The LATAM perimeter firewall (FW-LATAM) logged a flood of denied connections from outside. The investigation showed one external /24 range (203.0.113.0/24) was sweeping the perimeter \u2014 probing 27 distinct services to map CyberCorp\u2019s exposed attack surface.',
+      howItWorked: 'Many denied sources shared one /24 range, distributing probes across many different services (27 distinct ports). The range was unallocated in WHOIS, absent from the approved-externals baseline, matched a known sweep pattern, and was flagged in active threat-intel feeds.',
+      keyEvidence: [
+        { label: 'Many denied sources, one /24', why: 'a single actor behind the range, not scattered noise.' },
+        { label: '27 distinct ports probed', why: 'a wide footprint mapping the whole attack surface.' },
+        { label: 'Unallocated source range', why: 'hostile infrastructure, not a legitimate partner.' },
+        { label: 'Flagged in threat-intel feeds', why: 'corroborated the sweep verdict.' },
+      ],
+      containment: 'Blocked the source range, hardened the exposed perimeter services, raised monitoring, and added the range to the watchlist \u2014 the range cut off, the attack surface reduced, the perimeter watched.',
+      concepts: ['reconnaissance', 'subnet', 'attack-surface', 'firewall', 'threat-intel'],
+      takeaway: 'A perimeter sweep is an attacker mapping your attack surface \u2014 treat a shared /24 as one actor, and respond by shrinking what is exposed, not by chasing individual IPs.',
+    },
+  },
 };
