@@ -459,6 +459,37 @@
   border-left: 2px solid var(--yellow);
 }
 
+/* Investigative framing — the analyst's CURRENT SUSPICION / INVESTIGATIVE
+   QUESTION / WHY THIS MATTERS, shown once on entry to each stage. A distinct
+   purple accent keeps it apart from the yellow step coach (.guide) and the
+   cyan stage reveals (.head). The lines abut (margin 0) so the left rule reads
+   as one continuous block; the head adds top space and frame-end adds tail. */
+.sc-term-line.frame {
+  color: var(--text);
+  border-left: 2px solid var(--purple);
+  padding-left: 9px;
+  margin: 0;
+}
+
+.sc-term-line.frame-head {
+  color: var(--purple);
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  margin-top: 6px;
+  padding-top: 3px;
+}
+
+.sc-term-line.frame-end { padding-bottom: 3px; margin-bottom: 4px; }
+
+.frame-k {
+  color: var(--purple);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  margin-right: 8px;
+  opacity: 0.9;
+}
+
 .sc-term-form { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--border); flex: none; background: var(--bg-panel); }
 
 .sc-term-prompt { color: var(--green); font-size: 12.5px; }

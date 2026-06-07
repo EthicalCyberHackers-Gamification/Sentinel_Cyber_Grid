@@ -122,6 +122,23 @@ const LAB_MISSIONS = {
       4: 'Map the campaign\'s full scope, then pin your key SOC findings to unlock containment (3 to continue).',
       5: 'Shut it down: cut off the attacker, clean up the mail, secure the user — then file your incident report.',
     },
+    framing: {
+      1: { suspicion: 'A user-reported email may be a credential-phishing lure.',
+           question: 'Where does the message actually try to send the user?',
+           why: 'If the link leads off-domain, real credentials are at risk.' },
+      2: { suspicion: 'The message carries the technical fingerprints of phishing.',
+           question: 'Which tells hold up as hard evidence — sender, link, intent?',
+           why: 'A verdict only stands on pinned indicators, not on wording.' },
+      3: { suspicion: 'This lure is not isolated — it points to a wider campaign.',
+           question: 'What attacker infrastructure sits behind the lure domain?',
+           why: 'Mapping the infrastructure shows how far the attack can reach.' },
+      4: { suspicion: 'A credential-phishing campaign is targeting CyberCorp.',
+           question: 'Who clicked, and how much of the campaign can you map?',
+           why: 'Knowing the blast radius decides what you have to contain.' },
+      5: { suspicion: 'Confirmed phishing campaign with real exposure.',
+           question: 'What response cuts off the attacker and protects the user?',
+           why: 'Proportionate containment closes the case without leaving gaps.' },
+    },
     files: [
       { name: 'README.txt', icon: '📘', desc: 'investigation notes' },
       { name: 'inbox_summary.txt', icon: '🗂', desc: 'recent mailbox items' },
@@ -616,6 +633,23 @@ const LAB_MISSIONS = {
       3: 'This was not one bad logon. Begin SOC correlation and confirm the attacker\'s foothold.',
       4: 'Map the movement\'s full reach, then pin your key SOC findings to unlock containment (3 to continue).',
       5: 'Shut it down: isolate the host chain, rotate the abused account, kill the rogue service, escalate — then file your report.',
+    },
+    framing: {
+      1: { suspicion: 'East-west traffic appeared between segments that should never talk.',
+           question: 'What actually authenticated on the flagged host?',
+           why: 'A reused hash and a real logon look alike until you read the type.' },
+      2: { suspicion: 'The logon looks like pass-the-hash, not a real user.',
+           question: 'Which logon details prove a stolen credential is in use?',
+           why: 'Attributing it to a hash, not a person, is what makes this an incident.' },
+      3: { suspicion: 'One stolen credential is being reused host-to-host.',
+           question: 'Where did the attacker first gain their foothold?',
+           why: 'The foothold anchors the chain you will have to sever.' },
+      4: { suspicion: 'A lateral-movement campaign is spreading across APAC.',
+           question: 'How many hosts are in the chain, and how far has it reached?',
+           why: 'Missing one hop leaves the attacker a way back in.' },
+      5: { suspicion: 'Confirmed lateral movement with an active foothold.',
+           question: 'What sequence isolates the chain and locks out the credential?',
+           why: 'Order matters — cut access before the attacker can adapt.' },
     },
     files: [
       { name: 'README.txt', icon: '📘', desc: 'investigation notes' },
@@ -1131,6 +1165,7 @@ function openLab(missionId) {
   if (oc) { oc.hidden = true; oc.innerHTML = ''; }
 
   labPrint(def.intro);
+  labShowFraming(1);
 
   labRenderStageSurface();
   labRenderDock();
@@ -1265,12 +1300,14 @@ function labRevealCampaign() {
   }
   labRenderTopo();
   labPrint(def.reveal.campaign);
+  labShowFraming(3);
 }
 
 function labUnlockContainment() {
   LAB._justAdvanced = true;
   labSetStage(5);
   labPrint(LAB.def.reveal.containment);
+  labShowFraming(5);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1433,6 +1470,7 @@ function labFileCmd(cmd, args) {
       if (LAB.stage === 1 && aha.advanceTo) {
         labSetStage(aha.advanceTo);
         if (aha.unlock) labPrint(aha.unlock);
+        labShowFraming(aha.advanceTo);
       }
     }
     return;
@@ -1462,6 +1500,7 @@ function labDispatch(key) {
         return;
       }
       LAB.ran.add(key);
+      const fromStage = LAB.stage;
       if (run.advanceTo && LAB.stage < run.advanceTo) labSetStage(run.advanceTo);
       if (run.output) labPrint(run.output);
       if (run.addNode) {
@@ -1469,6 +1508,7 @@ function labDispatch(key) {
         nodes.forEach((n) => labAddNode(n));
       }
       if (run.discover) labDiscover(run.discover);
+      if (LAB.stage > fromStage) labShowFraming(LAB.stage);
     }
   }
   labRenderRail();
@@ -1536,6 +1576,28 @@ function labGuide() {
   }
 
   if (line) labPrint([{ t: line, c: 'guide' }]);
+}
+
+/* ------------------------------------------------------------------ *
+ * INVESTIGATIVE FRAMING
+ * On entry to each stage, print a concise three-part orientation — the
+ * analyst's CURRENT SUSPICION, the INVESTIGATIVE QUESTION this stage answers,
+ * and WHY THIS MATTERS. It frames the player's mindset (what we believe, what
+ * we're testing, what's at stake) to complement — not duplicate — the imperative
+ * objective bar, the stage reveals, and the per-step `→ Next` coach. Driven by
+ * each dataset's `framing[stage]` block. Presentation-only: prints terminal
+ * lines and nothing else — never touches stage logic, evidence, scoring, or XP.
+ * ------------------------------------------------------------------ */
+function labShowFraming(stage) {
+  const def = LAB.def;
+  const f = def && def.framing && def.framing[stage];
+  if (!f) return;
+  labPrint([
+    { t: 'INVESTIGATIVE FRAMING', c: 'frame frame-head' },
+    { t: `<span class="frame-k">CURRENT SUSPICION</span> ${f.suspicion}`, c: 'frame', html: true },
+    { t: `<span class="frame-k">INVESTIGATIVE QUESTION</span> ${f.question}`, c: 'frame', html: true },
+    { t: `<span class="frame-k">WHY THIS MATTERS</span> ${f.why}`, c: 'frame frame-end', html: true },
+  ]);
 }
 
 /* ------------------------------------------------------------------ *
