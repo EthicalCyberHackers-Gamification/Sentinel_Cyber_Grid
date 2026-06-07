@@ -1,0 +1,218 @@
+Design Recommendation: Add an Analyst Learning Layer
+
+Goal:
+Close the learning gap for beginners without disrupting the current SOC simulation flow.
+
+The current mission design is strong:
+
+* terminal-driven investigation
+* evidence pinning
+* campaign/recon maps
+* containment logic
+* SOC-style escalation
+
+Do not redesign these systems.
+
+The missing feature is an Analyst Learning Layer that explains key concepts at the moment the player encounters them.
+
+Problem:
+Players can follow hints and complete missions without fully understanding:
+
+* why evidence matters
+* what acronyms mean
+* what commands revealed
+* how analysts interpret patterns
+* why containment actions are logical
+
+This creates a risk of procedural completion without real learning.
+
+Add:
+
+1. Contextual Analyst Notes
+2. Acronym Explainers
+3. Optional “explain” command
+4. Lightweight SOC verification checkpoints
+5. End-of-mission SOC debrief
+
+---
+
+## WHAT STAYS
+
+Keep:
+
+* current terminal-first gameplay
+* current mission maps
+* current evidence panel
+* current pinning system
+* current containment logic
+* current mission progression
+* current CyberCorp operational tone
+
+Do not:
+
+* add long tutorials
+* add classroom-style quizzes
+* add glossary walls
+* interrupt the mission constantly
+* redesign the interface
+* remove realistic terminology
+
+The goal is supported realism, not simplification.
+
+---
+
+## FEATURE 1 — CONTEXTUAL ANALYST NOTES
+
+When the player discovers major evidence, show a short analyst note explaining why it matters.
+
+Example:
+Player discovers SPF FAIL.
+
+Show:
+
+ANALYST NOTE
+SPF checks whether a mail server is authorized to send email for a domain. A failure suggests the sender may be spoofed or using unauthorized infrastructure.
+
+Rules:
+
+* Only show notes for important concepts
+* Keep notes short
+* Show once per concept per mission
+* Use operational language
+* Do not block gameplay unless needed
+
+---
+
+## FEATURE 2 — ACRONYM EXPLAINERS
+
+For terms like:
+SPF, DKIM, IOC, C2, EDR, SIEM, DNS, RDP, SMB, MFA, TTP
+
+Add optional explainability.
+
+Methods:
+
+* hover/click term
+* small info icon
+* terminal command: explain spf
+* terminal command: define c2
+
+Example:
+
+$ explain spf
+
+SPF — Sender Policy Framework
+A DNS-based email security check that tells receiving mail systems which servers are allowed to send mail for a domain. SPF failure can indicate spoofing.
+
+Do not replace acronyms with simplified terms. Keep the real acronym, but support it.
+
+---
+
+## FEATURE 3 — INTERPRETATION CHECKPOINTS
+
+Add 1–3 lightweight SOC verification prompts per mission.
+
+These should feel like analyst validation, not school quizzes.
+
+Example:
+
+ANALYST VERIFICATION
+Why is this email suspicious?
+
+A. The sender display name says IT Helpdesk
+B. SPF failed and the return-path does not match CyberCorp
+C. The email arrived in the morning
+D. The subject line is short
+
+After answer:
+Correct. SPF failure and return-path mismatch suggest the message was sent from infrastructure not authorized by CyberCorp.
+
+Rules:
+
+* Use only at major concept moments
+* Keep the tone operational
+* Avoid quiz styling
+* Explain after answer
+* Do not overuse
+
+---
+
+## FEATURE 4 — EVIDENCE INTERPRETATION
+
+Pinned evidence should include:
+
+* what was found
+* why it matters
+* what conclusion it supports
+
+Example:
+
+Evidence:
+Systematic probing of multiple services
+
+Why it matters:
+Legitimate applications usually communicate with expected services. A source probing SSH, HTTP, HTTPS, and database ports quickly suggests reconnaissance.
+
+Supports conclusion:
+External reconnaissance activity
+
+This helps players learn evidence reasoning, not just evidence collection.
+
+---
+
+## FEATURE 5 — SOC DEBRIEF
+
+At mission completion, add a short debrief:
+
+Sections:
+
+* What happened
+* How the attack worked
+* Key evidence
+* Why the evidence mattered
+* What containment did
+* Concepts learned
+* Real-world analyst takeaway
+
+Example:
+
+SOC DEBRIEF
+This was not a normal connection. The external source probed multiple services the host does not normally expose. Combined with unknown WHOIS data and baseline mismatch, the activity matched reconnaissance behavior.
+
+Concepts learned:
+
+* Port scanning
+* Baseline comparison
+* Threat intelligence lookup
+* Evidence correlation
+* Reconnaissance detection
+
+---
+
+## DESIGN PRINCIPLE
+
+The learning should follow this loop:
+
+Command
+→ Evidence appears
+→ Analyst note explains meaning
+→ Player validates understanding
+→ Evidence is pinned
+→ Map reacts
+→ Player acts
+
+The game should teach analyst thinking inside the mission flow.
+
+---
+
+## SUCCESS CRITERIA
+
+This feature succeeds if:
+
+* players understand acronyms when they appear
+* players know why evidence matters
+* players do not blindly follow hints
+* mission immersion remains intact
+* explanations feel operational, not academic
+* end-of-mission debrief reinforces learning
+* the simulator becomes practical for beginners without losing realism
