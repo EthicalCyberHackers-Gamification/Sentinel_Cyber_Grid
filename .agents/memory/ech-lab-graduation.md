@@ -34,6 +34,14 @@ bypass would persist an out-of-order unlock.
   bridge (e.g. mission-002 completion is a no-op unless mission-001 is complete) —
   defense in depth against any future entrypoint.
 
+## Single mission-entry chokepoint
+`launchMissionFromMap(id)` is the ONE gated entry that routes lab missions to
+`openLab()`. Any "go to Assignment N" CTA must call it, never the legacy
+`showMission2Overview()`/`showMission3Overview()` directly — otherwise it drops
+players into the superseded overview/dashboard and skips the gate. M2's course-
+progress "Start" button and the M1→M2 "Continue" CTA both route through it; the
+remaining `showMission2Overview` refs are dead/console-only.
+
 ## Known limitations (documented, accepted)
 - Deliberately bypasses the monolithic dashboard `completeMission()` (M1-specific
   side-effects); the lab renders its own scorecard. Minimal faithful completion =

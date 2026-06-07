@@ -9424,7 +9424,10 @@ function renderCourseProgress() {
   //    Mission 1 is complete). Same handler as before.
   if (missionComplete) {
     const startBtn = document.getElementById("startMission2Btn");
-    if (startBtn) startBtn.addEventListener("click", showMission2Overview);
+    // Assignment 2 is the graduated Progressive Lab — route this legacy
+    // course-progress CTA through the gated lab launcher (parity with the OC
+    // map) instead of the superseded M2 overview/dashboard.
+    if (startBtn) startBtn.addEventListener("click", () => launchMissionFromMap("mission-002"));
   }
 }
 
@@ -13107,7 +13110,10 @@ function boot() {
   if (beginBtn) beginBtn.addEventListener("click", () => {
     const mode = beginBtn.getAttribute("data-mode");
     if (mode === "continue") {
-      showMission2Overview();
+      // Assignment 2 is the graduated Progressive Lab — the M1→M2 "Continue"
+      // CTA routes through the gated lab launcher (parity with the OC map)
+      // instead of the superseded M2 overview/dashboard.
+      launchMissionFromMap("mission-002");
     } else {
       // Milestone 25B — guided, center-stage briefing flow (reviews the
       // briefing room one card at a time, then launches the mission).
