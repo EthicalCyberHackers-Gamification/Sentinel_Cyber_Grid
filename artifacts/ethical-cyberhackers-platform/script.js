@@ -343,11 +343,44 @@ const ROLE_LADDER = [
   { name: "Senior Operations Analyst", threshold: 6, clearance: "Tier 5 Command Access",    scope: "cross-region operations oversight", unlocked: "operations oversight & mentoring" },
 ];
 
-/** The six assignments, in unlock order — the career ladder's progression basis. */
-const CAREER_MISSION_IDS = [
-  "mission-001", "mission-002", "mission-003",
-  "mission-004", "mission-005", "mission-006",
+/* Phase 1 — player-facing assignment progression.
+ *
+ * Internal mission ids are STABLE (mission-001..006) so saved progress, the
+ * completion flags, and deep-links keep working. Only the ORDER the player
+ * meets them in, the displayed assignment NUMBER, and the unlock chain follow
+ * this array. To re-sequence the campaign, reorder this one list — every
+ * surface (Ops Center alert feed, unlock gating, completion guards, lab
+ * numbering) derives from it. */
+const MISSION_PLAY_ORDER = [
+  "mission-003", // Assignment 001 — Reconnaissance Detection
+  "mission-006", // Assignment 002 — Anomalous Scan Triage
+  "mission-001", // Assignment 003 — Credential Phishing
+  "mission-005", // Assignment 004 — Account Takeover
+  "mission-004", // Assignment 005 — Reconnaissance Sweep
+  "mission-002", // Assignment 006 — Lateral Movement
 ];
+
+/** The mission that must be completed before this one (null for the first). */
+function prevMissionInOrder(missionId) {
+  const i = MISSION_PLAY_ORDER.indexOf(missionId);
+  return i > 0 ? MISSION_PLAY_ORDER[i - 1] : null;
+}
+
+/** Read a mission's completion flag by id (live binding — flags declared later). */
+function missionCompleteFlag(missionId) {
+  switch (missionId) {
+    case "mission-001": return missionComplete;
+    case "mission-002": return mission2Complete;
+    case "mission-003": return mission3Complete;
+    case "mission-004": return mission4Complete;
+    case "mission-005": return mission5Complete;
+    case "mission-006": return mission6Complete;
+    default: return false;
+  }
+}
+
+// Career counting is order-independent; keep it aligned with the play order.
+const CAREER_MISSION_IDS = MISSION_PLAY_ORDER;
 
 /**
  * Derive the player's current career standing from completed assignments.
@@ -7403,15 +7436,15 @@ const WC_THREAT_ACTORS = {
 const WORLD_CONTINUITY = {
   "mission-001": { dept: "finance",     employee: "okafor",    actor: "fin12",
                    resolved: "FIN-12 phishing domain cybercorp-support[.]net blocked at the perimeter." },
-  "mission-002": { dept: "itinfra",     employee: "nwosu",     actor: "redbeacon",
+  "mission-002": { dept: "itinfra",     employee: "nwosu",     actor: "redbeacon",  connects: "mission-004",
                    resolved: "APAC source host 10.44.2.19 isolated; pass-the-hash playbook updated." },
-  "mission-003": { dept: "engineering", actor: "redbeacon",    connects: "mission-002",
+  "mission-003": { dept: "engineering", actor: "redbeacon",
                    resolved: "Cobalt Strike C2 185.220.101.47 sinkholed; AS47337 range geo-blocked." },
-  "mission-004": { dept: "itinfra",     actor: "redbeacon",    connects: "mission-003",
+  "mission-004": { dept: "itinfra",     actor: "redbeacon",    connects: "mission-006",
                    resolved: "Recon range 203.0.113.0/24 added to the perimeter blocklist." },
   "mission-005": { dept: "exec",        employee: "whitfield", actor: "fin12",     connects: "mission-001",
                    resolved: "Privileged-account MFA hardened after the 47-failure burst." },
-  "mission-006": { dept: "secops",      actor: "redbeacon",    connects: "mission-004",
+  "mission-006": { dept: "secops",      actor: "redbeacon",    connects: "mission-003",
                    resolved: "DMZ exposure closed; CDN probe baseline re-tuned." },
 };
 
@@ -8023,10 +8056,8 @@ function renderOcPanelV2() {
   // ech-ocv2-severity-casing). Names/regions mirror the map nodes.
   const feed = document.getElementById("ocv2AlertFeed");
   if (feed) {
-    const ALERT_ORDER  = [
-      "mission-001", "mission-002", "mission-003",
-      "mission-004", "mission-005", "mission-006",
-    ];
+    // Phase 1 — the queue lists assignments in player-facing progression order.
+    const ALERT_ORDER  = MISSION_PLAY_ORDER;
     // Short region codes match the map node labels (avoids "SE ASIA" → "SE").
     const ALERT_REGION = {
       "mission-001": "EMEA", "mission-002": "APAC", "mission-003": "NA-EAST",
@@ -8818,29 +8849,14 @@ let currentMapSelection = "mission-001";
  *   M3: always "locked" (coming soon).
  */
 function missionMapStatus(missionId) {
-  if (missionId === "mission-001") return missionComplete ? "completed" : "available";
-  if (missionId === "mission-002") {
-    if (mission2Complete) return "completed";
-    return missionComplete ? "available" : "locked";
-  }
-  if (missionId === "mission-003") {
-    if (mission3Complete) return "completed";
-    return mission2Complete ? "available" : "locked";
-  }
-  // Task 13 — data-driven missions continue the unlock chain: m4←m3, m5←m4, m6←m5.
-  if (missionId === "mission-004") {
-    if (mission4Complete) return "completed";
-    return mission3Complete ? "available" : "locked";
-  }
-  if (missionId === "mission-005") {
-    if (mission5Complete) return "completed";
-    return mission4Complete ? "available" : "locked";
-  }
-  if (missionId === "mission-006") {
-    if (mission6Complete) return "completed";
-    return mission5Complete ? "available" : "locked";
-  }
-  return "locked";
+  // Phase 1 — unlock gating derives entirely from MISSION_PLAY_ORDER. The first
+  // assignment in the play order has no prerequisite; every later one unlocks
+  // once the previous assignment (by play order, not numeric id) is complete.
+  if (MISSION_PLAY_ORDER.indexOf(missionId) === -1) return "locked";
+  if (missionCompleteFlag(missionId)) return "completed";
+  const prev = prevMissionInOrder(missionId);
+  if (!prev) return "available";
+  return missionCompleteFlag(prev) ? "available" : "locked";
 }
 
 function mapStatusLabel(missionId, status) {
@@ -12911,40 +12927,34 @@ function backendMissionScore(missionId) {
    notify. (Known limitation: rank/trust meters and mid-lab resume are not
    wired; a fresh open restarts the lab at stage 1.) */
 function notifyLabComplete(missionId) {
+  if (MISSION_PLAY_ORDER.indexOf(missionId) === -1) return; // no lab semantics for other ids
+  // Idempotency + prerequisite gating both derive from the canonical play-order
+  // chain (Phase 1): a second submit for an already-complete assignment is a
+  // no-op, and an assignment cannot complete before its predecessor — even if
+  // an alternate entrypoint opened its lab out of order.
+  if (missionCompleteFlag(missionId)) return;       // already complete — no double award
+  const prev = prevMissionInOrder(missionId);
+  if (prev && !missionCompleteFlag(prev)) return;   // prereq guard (defense in depth)
+
   let xp = 0;
   if (missionId === "mission-001") {
-    if (missionComplete) return;        // already complete — no double award
     missionComplete = true;
     xp = (typeof QUIZ === "object" && QUIZ && typeof QUIZ.xpReward === "number") ? QUIZ.xpReward : 0;
   } else if (missionId === "mission-002") {
-    if (mission2Complete) return;       // already complete — no double award
-    // Prerequisite guard (defense in depth): Assignment 2 cannot be completed
-    // before Assignment 1, even if some alternate entrypoint opened its lab.
-    if (!missionComplete) return;
     mission2Complete = true;
     xp = (typeof M2_QUIZ === "object" && M2_QUIZ && typeof M2_QUIZ.xpReward === "number") ? M2_QUIZ.xpReward : 0;
   } else if (missionId === "mission-003") {
-    if (mission3Complete) return;       // already complete — no double award
-    if (!mission2Complete) return;      // prereq guard: A3 needs A2
     mission3Complete = true;
     xp = (typeof M3_QUIZ === "object" && M3_QUIZ && typeof M3_QUIZ.xpReward === "number") ? M3_QUIZ.xpReward : 0;
   } else if (missionId === "mission-004") {
-    if (mission4Complete) return;
-    if (!mission3Complete) return;      // prereq guard: A4 needs A3
     mission4Complete = true;
     xp = labGenericXp(missionId);
   } else if (missionId === "mission-005") {
-    if (mission5Complete) return;
-    if (!mission4Complete) return;      // prereq guard: A5 needs A4
     mission5Complete = true;
     xp = labGenericXp(missionId);
   } else if (missionId === "mission-006") {
-    if (mission6Complete) return;
-    if (!mission5Complete) return;      // prereq guard: A6 needs A5
     mission6Complete = true;
     xp = labGenericXp(missionId);
-  } else {
-    return;                             // no lab-completion semantics for other ids
   }
   if (xp > 0) awardXP(xp);              // awardXP persists (saveProgress) + animates
   saveProgress();                        // ensure the freshly-set flag is persisted

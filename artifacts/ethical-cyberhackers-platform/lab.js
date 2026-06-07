@@ -80,7 +80,7 @@ const LAB_MISSIONS = {
    * ============================================================ */
   'mission-001': {
     id: 'mission-001',
-    opId: 'OPS-2026-001',
+    opId: 'OPS-2026-003',
     severity: 'HIGH',
     headerTitle: 'Credential Phishing — Guided Investigation',
     context: 'Finance Operations · Sup: Sarah Reyes',
@@ -98,16 +98,17 @@ const LAB_MISSIONS = {
       fileLabel: 'intern@cybercorp: ~/mailbox',
       filePrompt: 'intern@cybercorp:~/mailbox$',
       filePwd: '/home/intern/mailbox',
-      socLabel: 'analyst@soc — incident OPS-2026-001',
+      socLabel: 'analyst@soc — incident OPS-2026-003',
       socPrompt: 'analyst@soc:~$',
       socPwd: '/home/analyst',
     },
     intro: [
-      { t: 'CyberCorp Security Training — Lab 001 · Credential Phishing', c: 'head' },
+      { t: 'CyberCorp Security Training — Lab 003 · Credential Phishing', c: 'head' },
       { t: 'A user reported a suspicious email. As the SOC analyst on duty, it lands with you.' },
       { t: 'Your mission: decide whether this is a genuine phishing attack — and if it is,', c: 'dim' },
       { t: 'uncover how far it reached and shut it down. Work like an investigator, not a', c: 'dim' },
       { t: 'guesser: a message\'s wording can lie, but its technical fingerprints cannot.', c: 'dim' },
+      { t: 'What you\'ll practice: reading an email\'s headers and links to prove phishing, then tracing who clicked and shutting the attack down.', c: 'dim' },
       { t: 'New here? Click any command on the left to learn what it does (it will not run', c: 'dim' },
       { t: 'until you type it), or open the SOC TOOL KIT for the full list of what you have.', c: 'dim' },
       { t: 'Not sure where to begin? Click HINT (or type `hint`) — the first nudge frames', c: 'dim' },
@@ -573,7 +574,7 @@ const LAB_MISSIONS = {
    * ============================================================ */
   'mission-002': {
     id: 'mission-002',
-    opId: 'OPS-2026-002',
+    opId: 'OPS-2026-006',
     severity: 'HIGH',
     headerTitle: 'Lateral Movement — Guided Investigation',
     context: 'APAC Segmentation · Lead: Marcus Chen',
@@ -591,17 +592,18 @@ const LAB_MISSIONS = {
       fileLabel: 'analyst@apac-seg-3: ~/triage',
       filePrompt: 'analyst@apac-seg-3:~/triage$',
       filePwd: '/home/analyst/triage',
-      socLabel: 'analyst@soc — incident OPS-2026-002',
+      socLabel: 'analyst@soc — incident OPS-2026-006',
       socPrompt: 'analyst@soc:~$',
       socPwd: '/home/analyst',
     },
     intro: [
-      { t: 'CyberCorp Security Training — Lab 002 · Lateral Movement', c: 'head' },
+      { t: 'CyberCorp Security Training — Lab 006 · Lateral Movement', c: 'head' },
       { t: 'The SIEM flagged east-west traffic between APAC segments that should never talk. As the SOC analyst on duty, it lands with you.' },
       { t: 'Your mission: decide whether an attacker is moving host-to-host with stolen', c: 'dim' },
       { t: 'credentials — and if they are, trace how far they have spread and cut them off.', c: 'dim' },
       { t: 'Work like an investigator: a logon can look routine, but its type, protocol and', c: 'dim' },
       { t: 'source host reveal whether a real person or a reused hash is behind it.', c: 'dim' },
+      { t: 'What you\'ll practice: following an attacker host-to-host through logon types and protocols, then cutting off their spread.', c: 'dim' },
       { t: 'New here? Click any command on the left to learn what it does (it will not run', c: 'dim' },
       { t: 'until you type it), or open the SOC TOOL KIT for the full list of what you have.', c: 'dim' },
       { t: 'Not sure where to begin? Click HINT (or type `hint`) — the first nudge frames', c: 'dim' },
@@ -1153,6 +1155,34 @@ function returnFromLab() {
 /* ------------------------------------------------------------------ *
  * STAGE TRANSITIONS
  * ------------------------------------------------------------------ */
+/* Phase 1 — operational mode framing.
+ *
+ * The same 5-stage arc reads as four real SOC operating modes. The mode chip
+ * by the stage badge names what kind of work the player is doing right now, so
+ * "STAGE 3 / 5" gains meaning ("SOC CORRELATION"). Modes are derived from the
+ * stage — no per-mission config — so all six assignments speak one vocabulary. */
+const LAB_STAGE_MODES = {
+  1: 'TRIAGE',
+  2: 'ANALYSIS',
+  3: 'SOC CORRELATION',
+  4: 'SOC CORRELATION',
+  5: 'INCIDENT RESPONSE',
+};
+function labStageMode(stage) { return LAB_STAGE_MODES[stage] || ''; }
+
+/* Phase 1 — command categories. Tools unlock at stages 1 / 2-3 / 5; those map
+ * to the three operational command categories the dock + tool kit display. */
+function labToolCategory(unlock) {
+  if (unlock <= 1) return 'TRIAGE COMMANDS';   // file/log investigation
+  if (unlock >= 5) return 'RESPONSE ACTIONS';  // containment / consequential
+  return 'ANALYST TOOLS';                       // lookups, correlation, analysis
+}
+function labCategoryClass(cat) {
+  if (cat === 'TRIAGE COMMANDS') return 'is-triage';
+  if (cat === 'RESPONSE ACTIONS') return 'is-response';
+  return 'is-analyst';
+}
+
 function labSetStage(n) {
   if (n <= LAB.stage) return;
   LAB.stage = n;
@@ -1165,6 +1195,12 @@ function labUpdatePrompt() {
   const def = LAB.def;
   const badge = $lab('labStageBadge');
   if (badge) badge.textContent = `STAGE ${LAB.stage} / 5`;
+  const chip = $lab('labModeChip');
+  if (chip) {
+    const mode = labStageMode(LAB.stage);
+    chip.textContent = mode;
+    chip.hidden = !mode;
+  }
   const soc = LAB.stage >= def.prompts.threshold;
   const prompt = $lab('labPrompt');
   const label = $lab('labTermLabel');
@@ -1522,15 +1558,19 @@ function labRenderDock() {
   const def = LAB.def;
   const dock = $lab('labDock');
   if (!dock) return;
-  const groupLabel = (u) => def.groups.dock[u] || '';
   const visible = def.tools.filter((t) => t.unlock <= LAB.stage);
 
+  // Phase 1 — group the dock by the three operational command CATEGORIES
+  // (TRIAGE COMMANDS / ANALYST TOOLS / RESPONSE ACTIONS) rather than per-mission
+  // stage labels, so every assignment teaches the same vocabulary. Tools are
+  // authored in unlock order, so each category's tools are contiguous.
   let html = '';
-  let lastGroup = null;
+  let lastCat = null;
   visible.forEach((t) => {
-    if (t.unlock !== lastGroup) {
-      html += `<div class="sc-dock-head">${groupLabel(t.unlock)}</div>`;
-      lastGroup = t.unlock;
+    const cat = labToolCategory(t.unlock);
+    if (cat !== lastCat) {
+      html += `<div class="sc-dock-head ${labCategoryClass(cat)}">${cat}</div>`;
+      lastCat = cat;
     }
     const done = labToolDone(t.key);
     const cls = ['sc-tool', done ? 'is-done' : ''].filter(Boolean).join(' ');
@@ -1605,14 +1645,14 @@ function labOpenKit() {
   const def = LAB.def;
   const host = $lab('labKit');
   if (!host) return;
-  const groupLabel = (u) => def.groups.kit[u] || '';
   const visible = def.tools.filter((t) => t.unlock <= LAB.stage);
   const locked = def.tools.filter((t) => t.unlock > LAB.stage);
 
   let body = '';
-  let lastGroup = null;
+  let lastCat = null;
   visible.forEach((t) => {
-    if (t.unlock !== lastGroup) { body += `<div class="lab-kit-group">${groupLabel(t.unlock)}</div>`; lastGroup = t.unlock; }
+    const cat = labToolCategory(t.unlock);
+    if (cat !== lastCat) { body += `<div class="lab-kit-group ${labCategoryClass(cat)}">${cat}</div>`; lastCat = cat; }
     const doc = def.doc[t.key] || {};
     body += `
       <div class="lab-kit-item">

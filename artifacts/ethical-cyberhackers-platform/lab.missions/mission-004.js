@@ -1,7 +1,7 @@
 /*
  * lab.missions/mission-004.js — Reconnaissance Sweep
  *
- * Progressive Training Lab dataset for Assignment 004. Consumed by the generic
+ * Progressive Training Lab dataset for mission-004 (player-facing Assignment 005). Consumed by the generic
  * engine in lab.js (imported + spread into LAB_MISSIONS). Mirrors the 5-stage
  * arc proven by mission-001/002/003:
  *   1. Linux triage     — investigate the perimeter firewall's exported logs
@@ -18,7 +18,7 @@
  */
 export default {
   id: 'mission-004',
-  opId: 'OPS-2026-004',
+  opId: 'OPS-2026-005',
   severity: 'MEDIUM',
   headerTitle: 'Reconnaissance Sweep — Guided Investigation',
   context: 'LATAM Perimeter · Firewall: FW-LATAM',
@@ -36,16 +36,17 @@ export default {
     fileLabel: 'analyst@fw-latam: ~/perimeter',
     filePrompt: 'analyst@fw-latam:~/perimeter$',
     filePwd: '/var/log/perimeter',
-    socLabel: 'analyst@soc — incident OPS-2026-004',
+    socLabel: 'analyst@soc — incident OPS-2026-005',
     socPrompt: 'analyst@soc:~$',
     socPwd: '/home/analyst',
   },
   intro: [
-    { t: 'CyberCorp Security Training — Lab 004 · Reconnaissance Sweep', c: 'head' },
+    { t: 'CyberCorp Security Training — Lab 005 · Reconnaissance Sweep', c: 'head' },
     { t: 'The LATAM perimeter firewall (FW-LATAM) is logging a flood of denied connections from outside. As the SOC analyst on duty, it lands with you.' },
     { t: 'Your mission: find out who is knocking on the perimeter, and what they are', c: 'dim' },
     { t: 'looking for. A sweep maps your exposed attack surface before an attack —', c: 'dim' },
     { t: 'many source addresses testing many services is its first fingerprint.', c: 'dim' },
+    { t: 'What you\'ll practice: reading firewall logs to map which services an outside range is probing, then hardening the exposed attack surface.', c: 'dim' },
     { t: 'New here? Click any command on the left to learn what it does (it will not run', c: 'dim' },
     { t: 'until you type it), or open the SOC TOOL KIT for the full list of what you have.', c: 'dim' },
     { t: 'Not sure where to begin? Click HINT (or type `hint`) — the first nudge frames', c: 'dim' },

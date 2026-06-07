@@ -1,7 +1,7 @@
 /*
  * lab.missions/mission-005.js — Account Takeover
  *
- * Progressive Training Lab dataset for Assignment 005. Consumed by the generic
+ * Progressive Training Lab dataset for mission-005 (player-facing Assignment 004). Consumed by the generic
  * engine in lab.js (imported + spread into LAB_MISSIONS). Mirrors the 5-stage
  * arc proven by mission-001/002/003:
  *   1. Linux triage    — read IDP-MENA auth telemetry on the identity server
@@ -18,7 +18,7 @@
  */
 export default {
   id: 'mission-005',
-  opId: 'OPS-2026-005',
+  opId: 'OPS-2026-004',
   severity: 'MEDIUM',
   headerTitle: 'Account Takeover — Guided Investigation',
   context: 'MENA Identity · Server: IDP-MENA',
@@ -36,16 +36,17 @@ export default {
     fileLabel: 'analyst@idp-mena: ~/auth',
     filePrompt: 'analyst@idp-mena:~/auth$',
     filePwd: '/var/log/auth',
-    socLabel: 'analyst@soc — incident OPS-2026-005',
+    socLabel: 'analyst@soc — incident OPS-2026-004',
     socPrompt: 'analyst@soc:~$',
     socPwd: '/home/analyst',
   },
   intro: [
-    { t: 'CyberCorp Security Training — Lab 005 · Account Takeover', c: 'head' },
+    { t: 'CyberCorp Security Training — Lab 004 · Account Takeover', c: 'head' },
     { t: 'The MENA identity service (IDP-MENA) raised an alarm: a flood of failed multi-factor logins against your most powerful accounts. As the SOC analyst on duty, it lands with you.' },
     { t: 'Your mission: find out who is pounding on these accounts, and whether any', c: 'dim' },
     { t: 'door actually opened. A burst of failures from one source is brute force —', c: 'dim' },
     { t: 'but a single SUCCESS hiding in that burst means the account is already lost.', c: 'dim' },
+    { t: 'What you\'ll practice: telling brute-force noise from a real break-in by finding the one successful login hidden in a flood of failures.', c: 'dim' },
     { t: 'New here? Click any command on the left to learn what it does (it will not run', c: 'dim' },
     { t: 'until you type it), or open the SOC TOOL KIT for the full list of what you have.', c: 'dim' },
     { t: 'Not sure where to begin? Click HINT (or type `hint`) — the first nudge frames', c: 'dim' },

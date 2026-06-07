@@ -110,6 +110,23 @@
 
 .sc-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: scPulseDot 1.6s ease-in-out infinite; }
 
+/* Phase 1 — operational mode chip beside the stage badge. Names the kind of
+   SOC work the player is doing right now (TRIAGE / ANALYSIS / SOC CORRELATION /
+   INCIDENT RESPONSE) so the stage number carries meaning. */
+.sc-mode-chip {
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--cyan);
+  border: 1px solid color-mix(in srgb, var(--cyan) 45%, transparent);
+  background: color-mix(in srgb, var(--cyan) 12%, transparent);
+  border-radius: 999px;
+  padding: 2px 9px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.sc-mode-chip[hidden] { display: none; }
+
 /* ---- Objective line ---- */
 .sc-objective {
   display: flex; align-items: center; gap: 10px;
@@ -166,6 +183,17 @@
 .sc-tool:hover .sc-tool-info { color: var(--cyan); }
 
 .sc-dock-head { font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.12em; color: var(--text-muted); margin-bottom: 2px; }
+
+/* Phase 1 — the three operational command categories read distinctly so the
+   player learns triage vs. analysis vs. consequential response actions. */
+.sc-dock-head.is-triage   { color: var(--cyan-dim, var(--cyan)); }
+.sc-dock-head.is-analyst  { color: var(--text-muted); }
+.sc-dock-head.is-response {
+  color: var(--amber, #ffb454);
+  border-top: 1px solid color-mix(in srgb, var(--amber, #ffb454) 30%, transparent);
+  padding-top: 6px;
+  margin-top: 6px;
+}
 
 .sc-tool {
   display: flex; align-items: flex-start; gap: 9px; text-align: left;
@@ -615,6 +643,10 @@
 .lab-kit-group { font-family: var(--font-hud); font-size: 10px; letter-spacing: 0.12em; color: var(--cyan-dim); margin: 16px 0 4px; }
 
 .lab-kit-group:first-child { margin-top: 0; }
+/* Phase 1 — same three command categories, mirrored in the SOC Tool Kit. */
+.lab-kit-group.is-triage   { color: var(--cyan-dim); }
+.lab-kit-group.is-analyst  { color: var(--text-muted); }
+.lab-kit-group.is-response { color: var(--amber, #ffb454); }
 
 .lab-kit-item { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
 

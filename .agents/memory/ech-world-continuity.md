@@ -28,3 +28,9 @@ touch cloud sync — it is flavor, not state.
 - Incident-card context line = `wcIncidentContext()` → `#ocv2CardContext`.
 - Bulletins rotate via one `setInterval(ocv2RotateBulletin, …)` inside the
   one-time `initOcv2()` guard (don't re-arm on re-render).
+- **Reorder dependency:** `connects` edges must point to a mission that is EARLIER
+  in `MISSION_PLAY_ORDER` AND the SAME `actor` (first op of each actor gets no
+  `connects`). Any change to `MISSION_PLAY_ORDER` requires recomputing every
+  `connects` per-actor or the dev guard at the bottom of `WORLD_CONTINUITY` warns
+  `[continuity] <id>.connects "<x>" is not a prior mission` (validated against
+  `CAREER_MISSION_IDS`, which equals the play order).

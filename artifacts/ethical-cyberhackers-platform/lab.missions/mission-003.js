@@ -1,7 +1,7 @@
 /*
  * lab.missions/mission-003.js — Reconnaissance Detection
  *
- * Progressive Training Lab dataset for Assignment 003. Consumed by the generic
+ * Progressive Training Lab dataset for mission-003 (player-facing Assignment 001). Consumed by the generic
  * engine in lab.js (imported + spread into LAB_MISSIONS). Mirrors the 5-stage
  * arc proven by mission-001/002:
  *   1. Linux triage   — investigate a workstation's exported telemetry
@@ -16,7 +16,7 @@
  */
 export default {
   id: 'mission-003',
-  opId: 'OPS-2026-003',
+  opId: 'OPS-2026-001',
   severity: 'HIGH',
   headerTitle: 'Reconnaissance Detection — Guided Investigation',
   context: 'Endpoint Telemetry · Host: WS-4471',
@@ -34,16 +34,17 @@ export default {
     fileLabel: 'analyst@ws-4471: ~/triage',
     filePrompt: 'analyst@ws-4471:~/triage$',
     filePwd: '/home/analyst/triage',
-    socLabel: 'analyst@soc — incident OPS-2026-003',
+    socLabel: 'analyst@soc — incident OPS-2026-001',
     socPrompt: 'analyst@soc:~$',
     socPwd: '/home/analyst',
   },
   intro: [
-    { t: 'CyberCorp Security Training — Lab 003 · Reconnaissance Detection', c: 'head' },
+    { t: 'CyberCorp Security Training — Lab 001 · Reconnaissance Detection', c: 'head' },
     { t: 'Perimeter sensors flagged unusual traffic to workstation WS-4471. As the SOC analyst on duty, it lands with you.' },
     { t: 'Your mission: find out who this workstation is talking to. Reconnaissance is', c: 'dim' },
     { t: 'the quiet stage before an attack — repeated or unfamiliar connections are its', c: 'dim' },
     { t: 'first fingerprint. A busy log can look noisy, but a scan has a pattern.', c: 'dim' },
+    { t: 'What you\'ll practice: reading connection logs and spotting the repeated, unfamiliar contact that gives a scan away — investigate first, act last.', c: 'dim' },
     { t: 'New here? Click any command on the left to learn what it does (it will not run', c: 'dim' },
     { t: 'until you type it), or open the SOC TOOL KIT for the full list of what you have.', c: 'dim' },
     { t: 'Not sure where to begin? Click HINT (or type `hint`) — the first nudge frames', c: 'dim' },

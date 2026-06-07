@@ -1,7 +1,7 @@
 /*
  * lab.missions/mission-006.js — Anomalous Scan Triage (BENIGN OUTCOME)
  *
- * Progressive Training Lab dataset for Assignment 006. Consumed by the generic
+ * Progressive Training Lab dataset for mission-006 (player-facing Assignment 002). Consumed by the generic
  * engine in lab.js (imported + spread into LAB_MISSIONS). Mirrors the 5-stage
  * arc proven by mission-001/002/003 — but with a deliberately different lesson:
  *   1. Linux triage     — investigate the DMZ sensor's exported telemetry
@@ -20,7 +20,7 @@
  */
 export default {
   id: 'mission-006',
-  opId: 'OPS-2026-006',
+  opId: 'OPS-2026-002',
   severity: 'LOW',
   headerTitle: 'Anomalous Scan Triage — Guided Investigation',
   context: 'SEA DMZ · Sensor: IDS-SEA',
@@ -38,16 +38,17 @@ export default {
     fileLabel: 'analyst@dmz-sea: ~/triage',
     filePrompt: 'analyst@dmz-sea:~/triage$',
     filePwd: '/var/log/triage',
-    socLabel: 'analyst@soc — alert OPS-2026-006',
+    socLabel: 'analyst@soc — alert OPS-2026-002',
     socPrompt: 'analyst@soc:~$',
     socPwd: '/home/analyst',
   },
   intro: [
-    { t: 'CyberCorp Security Training — Lab 006 · Anomalous Scan Triage', c: 'head' },
+    { t: 'CyberCorp Security Training — Lab 002 · Anomalous Scan Triage', c: 'head' },
     { t: 'A low-rate port scan tripped the SEA DMZ sensors overnight. As the SOC analyst on duty, the alert lands with you for triage.' },
     { t: 'Your mission: decide what this alert actually is. Triage is the art of', c: 'dim' },
     { t: 'telling real threats apart from harmless noise — not every alert is an', c: 'dim' },
     { t: 'attack, and a good analyst confirms attribution and impact before acting.', c: 'dim' },
+    { t: 'What you\'ll practice: triaging an alert end to end and deciding, with evidence, when something is NOT a real attack — confirm before you escalate.', c: 'dim' },
     { t: 'New here? Click any command on the left to learn what it does (it will not run', c: 'dim' },
     { t: 'until you type it), or open the SOC TOOL KIT for the full list of what you have.', c: 'dim' },
     { t: 'Not sure where to begin? Click HINT (or type `hint`) — the first nudge frames', c: 'dim' },
@@ -85,7 +86,7 @@ export default {
       'Not sure how? Press HINT, or open the SOC TOOL KIT for the commands.',
     ],
     'ids.log': [
-      'IDS-SEA alert — anomalous scan (OPS-2026-006)',
+      'IDS-SEA alert — anomalous scan (OPS-2026-002)',
       '',
       'TIME       SOURCE          EVENT',
       'PROBE      198.51.100.20 -> dmz:80   GET /',
