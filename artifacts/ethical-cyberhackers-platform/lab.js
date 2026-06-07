@@ -234,62 +234,72 @@ const LAB_MISSIONS = {
                            intel: {
                              what: 'Pressure language ("expires TODAY", "within 24 hours") engineered to make the reader act before thinking.',
                              technique: 'Content analysis — flag time pressure, threats, and false authority cues in the message body.',
-                             why: 'Urgency is a social-engineering lever. Spotting it early primes you to distrust the rest of the message.' } },
+                             why: 'Urgency is a social-engineering lever. Spotting it early primes you to distrust the rest of the message.',
+                             supports: 'A social-engineering lure, not a routine IT notice.' } },
       'link-mismatch':   { group: 'phish', kind: 'LINK', label: 'Link points to a non-CyberCorp domain',
                            teach: 'The portal link goes to cybercorp-support.net — a lookalike, not cybercorp.com. The destination, not the wording, is what matters.',
                            intel: {
                              what: 'The "login" link actually points to cybercorp-support.net, not the real cybercorp.com.',
                              technique: 'Link extraction — pull the true href out of the raw message and compare its domain to the claimed brand.',
-                             why: 'Attackers disguise destinations. The real URL, not the label, tells you where a victim would land.' } },
+                             why: 'Attackers disguise destinations. The real URL, not the label, tells you where a victim would land.',
+                             supports: 'A malicious message — its link leads to an attacker-controlled site.' } },
       'spoofed-headers': { group: 'phish', kind: 'HEADERS', label: 'SPF FAIL · DKIM none · relay mismatch',
                            teach: 'SPF/DKIM are how a domain authorizes its mail. FAIL/none means cybercorp.com did NOT send this — the From line is forged.',
                            intel: {
                              what: 'The authentication results read SPF FAIL, DKIM none, and a relay that does not belong to cybercorp.com.',
                              technique: 'Header analysis — read the Received, SPF, DKIM, and DMARC results in the raw source.',
-                             why: 'These checks prove the From domain did not actually send the mail. The sender is forged.' } },
+                             why: 'These checks prove the From domain did not actually send the mail. The sender is forged.',
+                             supports: 'A forged sender — CyberCorp never sent this mail.' } },
       'spoofed-sender':  { group: 'phish', kind: 'SENDER', label: 'Display name ≠ real return address',
                            teach: 'The friendly "IT Helpdesk" display name hides a Return-Path on a different domain. Always read the real address.',
                            intel: {
                              what: 'A friendly "IT Helpdesk" display name hiding a Return-Path on a completely different domain.',
                              technique: 'Inspect the real Return-Path / envelope sender — never trust the display name alone.',
-                             why: 'Display names are free text. The underlying address is what reveals the impersonation.' } },
+                             why: 'Display names are free text. The underlying address is what reveals the impersonation.',
+                             supports: 'Impersonation — the real address is not who the message claims.' } },
       'lookalike-domain':{ group: 'phish', kind: 'DOMAIN', label: 'Lookalike domain registered 2 days ago',
                            teach: 'cybercorp-support.net was registered 2 days ago. Brand-new lookalike domains are a classic phishing tell.',
                            intel: {
                              what: 'cybercorp-support.net — a domain mimicking CyberCorp, registered only 2 days ago.',
                              technique: 'WHOIS / registration-age check on the link domain.',
-                             why: 'Newly registered lookalikes are a strong, hard-to-fake signal of a phishing operation.' } },
+                             why: 'Newly registered lookalikes are a strong, hard-to-fake signal of a phishing operation.',
+                             supports: 'Purpose-built phishing infrastructure stood up for this attack.' } },
       // Stage 4 SOC indicators
       'domain-rep':      { group: 'soc', kind: 'INTEL', label: 'Domain flagged KNOWN-MALICIOUS',
                            teach: 'Threat-intel feeds already list this domain + host as phishing infrastructure — independent confirmation.',
                            intel: {
                              what: 'Threat-intel feeds already list this domain and host as known phishing infrastructure.',
                              technique: 'Reputation lookup — check the domain/IP against intel feeds and blocklists.',
-                             why: 'Independent confirmation that you are not chasing a false positive.' } },
+                             why: 'Independent confirmation that you are not chasing a false positive.',
+                             supports: 'Confirmed phishing infrastructure — a real attack, not a false positive.' } },
       'campaign-scope':  { group: 'soc', kind: 'SCOPE', label: '12 employees received the same lure',
                            teach: 'One report is the tip of a campaign. Checking recipients shows the real blast radius.',
                            intel: {
                              what: 'Twelve employees received the exact same lure, not just the one who reported it.',
                              technique: 'Recipient enumeration — query the mail gateway/SIEM for every message matching the subject, sender, or URL.',
-                             why: 'Defines the real blast radius you must notify, reset, and protect.' } },
+                             why: 'Defines the real blast radius you must notify, reset, and protect.',
+                             supports: 'A 12-person campaign, not one isolated email.' } },
       'cred-endpoint':   { group: 'soc', kind: 'URL', label: 'Link POSTs creds to /collect.php',
                            teach: 'Tracing the URL shows the fake portal harvests credentials to attacker infrastructure.',
                            intel: {
                              what: 'The fake portal POSTs whatever credentials are entered to /collect.php on attacker infrastructure.',
                              technique: 'Safe URL analysis — inspect the form action in a sandbox; never enter real credentials.',
-                             why: 'Confirms the attacker\u2019s objective is credential theft, not just a suspicious-looking page.' } },
+                             why: 'Confirms the attacker\u2019s objective is credential theft, not just a suspicious-looking page.',
+                             supports: 'The attacker\u2019s objective is credential theft.' } },
       'account-comp':    { group: 'soc', kind: 'ACCOUNT', label: 'j.martin clicked, submitted creds, foreign login followed',
                            teach: 'One target was compromised: they entered credentials and a sign-in from the attacker IP followed minutes later.',
                            intel: {
                              what: 'j.martin clicked the lure, submitted credentials, and a sign-in from the attacker IP followed minutes later.',
                              technique: 'Sign-in log correlation — line up the victim against the attacker IP and timeline.',
-                             why: 'Marks a real account takeover requiring immediate password reset and session revocation.' } },
+                             why: 'Marks a real account takeover requiring immediate password reset and session revocation.',
+                             supports: 'A real account takeover — j.martin needs an immediate reset.' } },
       'alert-corr':      { group: 'soc', kind: 'SIEM', label: 'SIEM alerts line up with the timeline',
                            teach: 'Correlating SIEM alerts confirms the sequence: lure -> click -> credential POST -> anomalous login.',
                            intel: {
                              what: 'SIEM alerts across email, proxy, and identity line up with the attack timeline.',
                              technique: 'Alert correlation — stitch isolated alerts into one ordered sequence.',
-                             why: 'Turns scattered alerts into one coherent incident narrative: lure → click → credential POST → anomalous login.' } },
+                             why: 'Turns scattered alerts into one coherent incident narrative: lure → click → credential POST → anomalous login.',
+                             supports: 'One coherent incident: lure → click → credential theft → intrusion.' } },
     },
     topo: {
       nodes: {
@@ -431,39 +441,39 @@ const LAB_MISSIONS = {
       block: 'block', quarantine: 'quar', reset: 'reset', contain: 'host', submit: 'report',
     },
     doc: {
-      ls:     { purpose: 'Lists every file in the folder you are currently in.',
+      ls:     { purpose: 'Get your bearings — see what files you have before deciding what to read.',
                 learn: 'Before you can investigate anything, you have to know what is in front of you. `ls` ("list") prints the contents of the current folder so you can spot the reported message among the other files.' },
-      cat:    { purpose: 'Prints the full contents of a file to the screen.',
+      cat:    { purpose: 'Read the reported message first-hand instead of trusting the summary.',
                 learn: '`cat` reads a file out to the terminal. Point it at the reported email to see exactly what the user received — who it claims to be from, the wording, and the link they were urged to click.' },
-      grep:   { purpose: 'Searches inside a file and shows only the matching lines.',
+      grep:   { purpose: 'Surface the link hiding in the message without reading every line.',
                 learn: 'A phishing email buries its real destination inside a link. `grep` pulls out just the lines containing a pattern (like `http`) so you can read the true web address without scrolling the whole message.' },
-      headers:{ purpose: 'Reveals the hidden routing metadata of the email.',
+      headers:{ purpose: 'Find where the mail truly came from when the From line cannot be trusted.',
                 learn: 'Every email carries headers — a behind-the-scenes record of where it really travelled from. Attackers fake the friendly "From" name but struggle to fake this trail. Read it to find the true origin.' },
-      links:  { purpose: 'Extracts and shows the real target of every link.',
+      links:  { purpose: 'See where a link really goes, not where it claims to.',
                 learn: 'The text you click and the address it actually points to can be completely different. This exposes the real destination so you can judge whether it is the genuine company or an attacker-controlled site.' },
-      sender: { purpose: 'Shows the real sender address behind the display name.',
+      sender: { purpose: 'Unmask the real sender hiding behind a friendly display name.',
                 learn: 'A message can say "IT Helpdesk" while coming from a stranger\'s mailbox. This isolates the actual email address so you can check whether it truly belongs to your organisation.' },
-      domain: { purpose: 'Inspects the web domain the email and its links use.',
+      domain: { purpose: 'Catch a look-alike domain posing as the real company.',
                 learn: 'The domain is the part after the @ or inside a link (e.g. cybercorp.com). Look-alike domains like cybercorp-support.net are a classic phishing tell — this helps you catch one.' },
-      lookup: { purpose: 'Checks the reputation and age of the suspect domain.',
+      lookup: { purpose: 'Confirm the suspect domain is hostile before hunting for victims.',
                 learn: 'A domain registered only days ago and flagged by threat feeds is a strong sign of attack. Looking it up confirms the infrastructure is malicious before you start hunting for victims.' },
-      recips: { purpose: 'Lists everyone else who received the same email.',
+      recips: { purpose: 'Find how many colleagues got the same lure — the real blast radius.',
                 learn: 'One report rarely means one target. Checking recipients reveals the real scope of the campaign — how many colleagues were hit by the same lure.' },
-      trace:  { purpose: 'Follows the link to see where it ultimately leads.',
+      trace:  { purpose: 'Follow the link to expose the fake login page waiting at the end.',
                 learn: 'Attackers chain redirects to hide the final page. Tracing the URL walks that trail and reveals the fake login site waiting at the end.' },
-      login:  { purpose: 'Inspects sign-in activity tied to the attack.',
+      login:  { purpose: 'Check whether anyone actually handed the attacker their credentials.',
                 learn: 'The whole point of phishing is stolen credentials being used. Inspecting logins shows whether anyone actually entered their password and let the attacker in.' },
-      alerts: { purpose: 'Reviews related alerts the security tools raised.',
+      alerts: { purpose: 'Corroborate your findings against what the tools already flagged.',
                 learn: 'Your SIEM (the system watching everything) may have already flagged pieces of this attack. Reviewing alerts ties the campaign together and corroborates your findings.' },
-      block:  { purpose: 'Blocks the malicious domain across the company.',
+      block:  { purpose: 'Cut off the attacker\'s domain so no one else can reach it.',
                 learn: 'Cutting off the attacker\'s domain stops new victims from reaching the fake site. Removing the attacker\'s reach is the first move in containment.' },
-      quar:   { purpose: 'Quarantines the phishing email from all inboxes.',
+      quar:   { purpose: 'Pull the lure out of every inbox before anyone else clicks.',
                 learn: 'Pulling the message out of every mailbox removes the lure so no one else can click it — even people who have not opened it yet.' },
-      reset:  { purpose: 'Forces a password reset on the compromised account.',
+      reset:  { purpose: 'Lock the attacker out of a compromised account.',
                 learn: 'If credentials were stolen, resetting the password locks the attacker out and hands control of the account back to its owner.' },
-      host:   { purpose: 'Isolates the affected machine from the network.',
+      host:   { purpose: 'Isolate an affected machine before anything can spread.',
                 learn: 'Containing the host stops any malware or attacker session on that device from spreading while it is investigated and cleaned.' },
-      report: { purpose: 'Writes up and closes the incident.',
+      report: { purpose: 'Put the investigation on the record and close it out.',
                 learn: 'Every investigation ends with a record: what happened, what you found, and what you did. The report lets the whole team learn and proves the threat was handled.' },
     },
     hintFlow: {
@@ -735,68 +745,79 @@ const LAB_MISSIONS = {
                           intel: {
                             what: 'A service account (svc_backup) authenticating over the network at 02:11 with no interactive session behind it.',
                             technique: 'Logon triage — read the raw auth log and check who logged in, how, and whether a person was actually present.',
-                            why: 'A service account arriving over the network off-hours is the first sign a stolen credential is being driven by an attacker.' } },
+                            why: 'A service account arriving over the network off-hours is the first sign a stolen credential is being driven by an attacker.',
+                            supports: 'A stolen credential in play, not normal service activity.' } },
       'pth-source':     { group: 'auth', kind: 'SOURCE', label: 'NTLM logon from a workstation that should never initiate it',
                           teach: 'The logon came from 10.44.2.19 — a workstation segment that should never open logons into the server segment. Wrong-direction traffic is a movement tell.',
                           intel: {
                             what: 'The network logon originated from 10.44.2.19 (APAC-SEG-3), a workstation host already flagged as patient zero.',
                             technique: 'Source-host analysis — pull the source field out of the logon and compare it to the host\u2019s expected traffic baseline.',
-                            why: 'A server-segment logon initiated by a workstation is the wrong direction for legitimate traffic — it points straight at the attacker\u2019s foothold.' } },
+                            why: 'A server-segment logon initiated by a workstation is the wrong direction for legitimate traffic — it points straight at the attacker\u2019s foothold.',
+                            supports: 'The attacker\u2019s foothold sits at the 10.44.2.19 workstation.' } },
       'logon-type':     { group: 'auth', kind: 'LOGON', label: 'Type 3 (network) · NTLM · no interactive parent',
                           teach: 'A network logon authenticated with NTLM and no interactive parent session is exactly how a stolen hash is replayed.',
                           intel: {
                             what: 'LogonType 3 (network) authenticated with NTLM, with no matching interactive logon on the source.',
                             technique: 'Logon-type analysis — read the type, auth package and parent session from the event.',
-                            why: 'Interactive users produce Type 2/10 logons; a lone network NTLM logon with no console session is the signature of pass-the-hash.' } },
+                            why: 'Interactive users produce Type 2/10 logons; a lone network NTLM logon with no console session is the signature of pass-the-hash.',
+                            supports: 'Pass-the-hash — a replayed credential, not a real sign-in.' } },
       'hash-reuse':     { group: 'auth', kind: 'CREDENTIAL', label: 'Same NTLM hash reused across two hosts',
                           teach: 'The identical NTLM hash authenticated on two hosts minutes apart with no fresh login or Kerberos ticket — credential reuse, not a real sign-in.',
                           intel: {
                             what: 'One NTLM hash authenticating on both 10.44.2.19 and 10.44.7.55 within minutes, with no Kerberos TGT requested.',
                             technique: 'Credential-material correlation — match the hash across hosts and check whether a fresh logon ever occurred.',
-                            why: 'Reusing the same hash across hosts without re-authenticating is the defining behaviour of pass-the-hash.' } },
+                            why: 'Reusing the same hash across hosts without re-authenticating is the defining behaviour of pass-the-hash.',
+                            supports: 'Confirmed pass-the-hash — one hash reused across hosts.' } },
       'account-misuse': { group: 'auth', kind: 'ACCOUNT', label: 'svc_backup used far outside its known job',
                           teach: 'svc_backup\'s only legitimate home is the nightly Veeam backup on APAC-FILE-02 — not interactive movement into the server segment.',
                           intel: {
                             what: 'The backup service account being used on APAC-SEG-7 over the network, away from its known, signed nightly job.',
                             technique: 'Account-baseline check — compare where the account is being used against its documented, expected behaviour.',
-                            why: 'Attackers favour service accounts because they are powerful and rarely watched. Use outside its baseline marks the account as abused.' } },
+                            why: 'Attackers favour service accounts because they are powerful and rarely watched. Use outside its baseline marks the account as abused.',
+                            supports: 'svc_backup is compromised and abused to move laterally.' } },
       'offhours':       { group: 'auth', kind: 'TIMING', label: 'Off-hours burst, no change ticket',
                           teach: 'Logon at 02:11 then a remote service at 02:13 — a tight off-hours sequence with no change ticket reads as hands-on-keyboard.',
                           intel: {
                             what: 'A 02:00–02:30 UTC burst of activity with no corresponding change or maintenance ticket.',
                             technique: 'Timeline analysis — order the events and check them against approved change windows.',
-                            why: 'A tight, unticketed off-hours sequence is consistent with an attacker working live, not scheduled automation.' } },
+                            why: 'A tight, unticketed off-hours sequence is consistent with an attacker working live, not scheduled automation.',
+                            supports: 'A live hands-on-keyboard attacker, not scheduled automation.' } },
       // Stage 4 SOC correlation indicators
       'patient-zero':   { group: 'soc', kind: 'INTEL', label: 'Source host flagged PATIENT ZERO',
                           teach: 'Threat intel already lists 10.44.2.19 as patient zero from a prior breach — independent confirmation of the foothold.',
                           intel: {
                             what: 'Threat-intel records mark 10.44.2.19 as patient zero, flagged for credential theft in a prior breach.',
                             technique: 'Reputation / case lookup — check the source host against intel feeds and earlier incident records.',
-                            why: 'Confirms the foothold is real and tells you the attacker already had a base from which to harvest credentials.' } },
+                            why: 'Confirms the foothold is real and tells you the attacker already had a base from which to harvest credentials.',
+                            supports: 'A real foothold — 10.44.2.19 was breached before.' } },
       'east-west':      { group: 'soc', kind: 'NETFLOW', label: 'SMB/RPC chain across isolated segments',
                           teach: 'Netflow shows 10.44.2.19 → 10.44.7.55 → 10.44.7.61 over SMB/RPC — segments that should never talk are now chaining.',
                           intel: {
                             what: 'East-west SMB (445) and RPC (135) connections chaining 10.44.2.19 → 10.44.7.55 → 10.44.7.61.',
                             technique: 'Netflow analysis — trace connections between hosts and compare them to the segmentation baseline.',
-                            why: 'Segments that are normally isolated talking to each other is the network signature of lateral movement.' } },
+                            why: 'Segments that are normally isolated talking to each other is the network signature of lateral movement.',
+                            supports: 'Active lateral movement across segments that should be isolated.' } },
       'remote-svc':     { group: 'soc', kind: 'PROCESS', label: 'Unsigned WinHelpSvc created remotely',
                           teach: 'Event 7045: an unsigned "WinHelpSvc" was installed from a Temp folder by svc_backup over SMB — remote persistence.',
                           intel: {
                             what: 'A new unsigned service "WinHelpSvc" installed remotely (Event 7045) from C:\\Windows\\Temp by svc_backup over SMB.',
                             technique: 'Service-creation analysis — read 7045 events and check the binary\u2019s path, signature and creating account.',
-                            why: 'Remotely-created unsigned services are how attackers run code and keep a foothold on each host they reach.' } },
+                            why: 'Remotely-created unsigned services are how attackers run code and keep a foothold on each host they reach.',
+                            supports: 'The attacker is planting persistence on each host reached.' } },
       'blast-radius':   { group: 'soc', kind: 'SCOPE', label: '3 hosts implicated, heading for the domain core',
                           teach: 'Three hosts are implicated and the next hop is probing the domain core — defining the blast radius you must contain.',
                           intel: {
                             what: 'Three hosts (10.44.2.19, 10.44.7.55, 10.44.7.61) implicated, with the next hop probing the DC/KDC.',
                             technique: 'Spread analysis — follow the credential across the estate and project where the attacker is heading.',
-                            why: 'Sizing the blast radius — and seeing the move toward the domain core — sets the urgency and scope of containment.' } },
+                            why: 'Sizing the blast radius — and seeing the move toward the domain core — sets the urgency and scope of containment.',
+                            supports: 'Three hosts in, the domain core next — contain now.' } },
       'alert-corr':     { group: 'soc', kind: 'SIEM', label: 'SIEM alerts line up with the movement timeline',
                           teach: 'SIEM stitches the alerts into one sequence: NTLM logon → remote service → east-west SMB to the next host.',
                           intel: {
                             what: 'SIEM alerts across identity, endpoint and network line up with the movement timeline.',
                             technique: 'Alert correlation — order isolated alerts into one coherent sequence.',
-                            why: 'Turns scattered alerts into a single narrative: logon → remote service → east-west hop, confirming the chain end to end.' } },
+                            why: 'Turns scattered alerts into a single narrative: logon → remote service → east-west hop, confirming the chain end to end.',
+                            supports: 'One intrusion: logon → remote service → east-west hop.' } },
     },
     topo: {
       nodes: {
@@ -941,39 +962,39 @@ const LAB_MISSIONS = {
       isolate: 'isolate', rotate: 'rotate', kill: 'killsvc', escalate: 'escalate', submit: 'report',
     },
     doc: {
-      ls:      { purpose: 'Lists every file in the folder you are currently in.',
+      ls:      { purpose: 'Get your bearings — see what was pulled off the host before you dig in.',
                  learn: 'Before you can investigate anything, you have to know what is in front of you. `ls` ("list") prints the contents of the export folder so you can spot the flagged log among the routine files.' },
-      cat:     { purpose: 'Prints the full contents of a file to the screen.',
+      cat:     { purpose: 'Read the flagged auth log first-hand to see exactly what signed in.',
                  learn: '`cat` reads a file out to the terminal. Point it at the flagged authentication log to see exactly what signed in — the account, the logon type, and where it came from.' },
-      grep:    { purpose: 'Searches inside a file and shows only the matching lines.',
+      grep:    { purpose: 'Isolate the suspicious logon without reading every line of a noisy log.',
                  learn: 'An auth log is noisy. `grep` pulls out just the lines matching a pattern (like `NTLM` or `Network`) so you can isolate the suspicious network logon without reading every line.' },
-      logon:   { purpose: 'Breaks down the type and protocol of the suspicious logon.',
+      logon:   { purpose: 'Tell an interactive person apart from a replayed credential.',
                  learn: 'Not all logons are equal. An interactive person produces one kind of logon; a replayed hash produces a network (Type 3) NTLM logon with no console session. This tells the two apart.' },
-      hash:    { purpose: 'Examines the credential material behind the logon.',
+      hash:    { purpose: 'Check whether a stolen hash was reused — the core pass-the-hash tell.',
                  learn: 'Pass-the-hash means reusing a stolen password hash without ever typing the password. This checks whether the same hash authenticated on more than one host with no fresh login — the core tell.' },
-      account: { purpose: 'Checks the account against its expected behaviour.',
+      account: { purpose: 'Judge the account against its normal job to expose the abuse.',
                  learn: 'Every account has a normal home and job. svc_backup belongs to a nightly backup, not to interactive movement. Comparing where it is being used against its baseline exposes the abuse.' },
-      timeline:{ purpose: 'Orders the events and checks them against change windows.',
+      timeline:{ purpose: 'Use timing and change windows to separate an attacker from automation.',
                  learn: 'Timing is evidence. A logon immediately followed by a remote service, off-hours, with no change ticket, reads as a live attacker rather than scheduled automation.' },
-      intel:   { purpose: 'Looks up the source host against threat intel.',
+      intel:   { purpose: 'Confirm where the attacker started before mapping how far they moved.',
                  learn: 'A host already flagged in a prior breach is a strong sign of where the attacker started. Looking it up confirms the foothold before you map how far they moved.' },
-      flows:   { purpose: 'Traces east-west connections between hosts.',
+      flows:   { purpose: 'Expose host-to-host movement across segments that should stay isolated.',
                  learn: 'Segments that are normally isolated should not talk to each other. Netflow reveals the SMB/RPC chain hopping host-to-host — the network signature of lateral movement.' },
-      services:{ purpose: 'Inspects services created on the affected hosts.',
+      services:{ purpose: 'Find the remote services an attacker planted to hold each host.',
                  learn: 'Attackers install remote services to run code and persist. A new unsigned service from a Temp folder, created over the network, is how they hold a foothold on each host.' },
-      spread:  { purpose: 'Measures how many hosts are involved and where it is heading.',
+      spread:  { purpose: 'Size the blast radius and see where the attacker is heading next.',
                  learn: 'One hop is rarely the whole story. Checking the spread reveals the real blast radius and whether the attacker is heading toward high-value targets like the domain core.' },
-      siem:    { purpose: 'Reviews the related alerts the security tools raised.',
+      siem:    { purpose: 'Stitch the logon, service and hops into one ordered incident.',
                  learn: 'Your SIEM may already have flagged pieces of this. Reviewing alerts stitches the logon, the service, and the network hops into one ordered incident narrative.' },
-      isolate: { purpose: 'Network-isolates the implicated host chain.',
+      isolate: { purpose: 'Sever the attacker\'s movement path between hosts.',
                  learn: 'Cutting the affected hosts off the network severs the attacker\'s movement path so they cannot reach the next host. This is the first move in containment.' },
-      rotate:  { purpose: 'Disables and rotates the abused service account.',
+      rotate:  { purpose: 'Invalidate the reused hash by disabling and rotating the account.',
                  learn: 'A stolen hash stays useful until the credential changes. Disabling and rotating svc_backup invalidates the reused hash and locks the attacker out of the account.' },
-      killsvc: { purpose: 'Stops and removes the rogue remote service.',
+      killsvc: { purpose: 'Evict the attacker\'s foothold by removing the rogue service.',
                  learn: 'Severing the network is not enough if the attacker left persistence behind. Removing the unsigned WinHelpSvc evicts their foothold on the compromised host.' },
-      escalate:{ purpose: 'Escalates the incident to the Incident Commander.',
+      escalate:{ purpose: 'Bring in the authority needed to protect the domain core.',
                  learn: 'Movement toward the domain core is a major incident. Escalating brings in the authority and coordination needed to protect the core and run the wider response.' },
-      report:  { purpose: 'Writes up and closes the incident.',
+      report:  { purpose: 'Put the investigation on the record and close it out.',
                  learn: 'Every investigation ends with a record: what happened, what you found, and what you did. The report lets the whole team learn and proves the threat was handled.' },
     },
     hintFlow: {
@@ -1611,9 +1632,20 @@ function labDiscover(id) {
   }
 }
 
+// Echo what a pinned indicator CONCLUDES, so committing evidence visibly
+// advances the case rather than just collecting tokens. Presentation-only.
+function labPinLines(id) {
+  const ind = LAB.def.ind[id];
+  const lines = [{ t: `[+] Pinned: ${ind.label}`, c: 'ok' }];
+  const sup = ind.intel && ind.intel.supports;
+  if (sup) lines.push({ t: `    \u2192 supports: ${sup}`, c: 'dim' });
+  return lines;
+}
+
 function labPin(id) {
   if (!LAB.discovered.includes(id) || LAB.pinned.has(id)) return;
   LAB.pinned.add(id);
+  labPrint(labPinLines(id));
   labRenderRail();
   labRefreshObjective();
   labCheckAdvance();
@@ -1626,7 +1658,12 @@ function labPinCmd(arg) {
   if (unpinned.length === 0) { labPrint([{ t: 'Nothing new to pin — surface indicators first.', c: 'dim' }]); return; }
   if (!arg || arg.toLowerCase() === 'all' || arg.toLowerCase() === 'evidence') {
     unpinned.forEach((id) => LAB.pinned.add(id));
-    labPrint([{ t: `[+] Pinned ${unpinned.length} indicator(s) to the evidence board.`, c: 'ok' }]);
+    const lines = [{ t: `[+] Pinned ${unpinned.length} indicator(s) to the evidence board.`, c: 'ok' }];
+    unpinned.forEach((id) => {
+      const sup = ind[id].intel && ind[id].intel.supports;
+      if (sup) lines.push({ t: `    \u2192 ${ind[id].label}: ${sup}`, c: 'dim' });
+    });
+    labPrint(lines);
     labRenderRail(); labRefreshObjective(); labCheckAdvance(); labGuide();
     return;
   }
@@ -1634,7 +1671,7 @@ function labPinCmd(arg) {
   const match = unpinned.find((id) => id.includes(arg.toLowerCase()) || ind[id].label.toLowerCase().includes(arg.toLowerCase()));
   if (match) {
     LAB.pinned.add(match);
-    labPrint([{ t: `[+] Pinned: ${ind[match].label}`, c: 'ok' }]);
+    labPrint(labPinLines(match));
     labRenderRail(); labRefreshObjective(); labCheckAdvance(); labGuide();
   } else {
     labPrint([{ t: `No discovered indicator matches "${arg}". Try \`pin all\`.`, c: 'dim' }]);
@@ -1756,7 +1793,7 @@ function labOpenExplain(key) {
         <button class="lab-modal-close" type="button" data-lab-close aria-label="Close">×</button>
       </div>
       <div class="lab-modal-body">
-        <div class="lab-modal-section-head">WHAT IT DOES</div>
+        <div class="lab-modal-section-head">WHY YOU'D USE THIS</div>
         <div class="lab-modal-purpose">${labEsc(doc.purpose)}</div>
         <div class="lab-modal-learn">${labDocText(doc.learn)}</div>
         <div class="lab-modal-usage"><b>How to use it:</b>  ${labEsc(tool.cmd)}</div>
@@ -1941,9 +1978,10 @@ function labIntelHtml(intel, title, kind) {
       ${kind ? `<span class="lab-intel-kind">${labEsc(kind)}</span>` : ''}
       <span class="lab-intel-title">${labEsc(title)}</span>
     </div>
-    ${labIntelRow('What it is', intel.what)}
+    ${labIntelRow('What was found', intel.what)}
     ${labIntelRow('How an analyst surfaces it', intel.technique)}
-    ${labIntelRow('Why it matters', intel.why)}`;
+    ${labIntelRow('Why it matters', intel.why)}
+    ${labIntelRow('Supports conclusion', intel.supports)}`;
 }
 
 function labIntelShow(intel, title, kind, anchorEl) {
