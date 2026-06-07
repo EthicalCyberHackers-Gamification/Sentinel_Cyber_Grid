@@ -33,3 +33,24 @@ with the formulas above; to refresh/sharpen the land, re-run the d3-geo
 generation (swap to `land-50m.json` for finer detail) and replace the single
 `.world-land` path in both files. Arc ids (`#arc-*` / `#ocv2arc-*`) are
 referenced by packet `mpath` animations — keep the ids stable when editing.
+
+## Node-overlay drift (HTML dots vs letterboxing SVG)
+
+The incident dots (`.ocv2-node`) are an HTML overlay positioned by `left%/top%`,
+NOT inside the SVG. The SVG uses `preserveAspectRatio="xMidYMid meet"`, so when
+its container isn't exactly 2:1 the map letterboxes (centers + bands) while a
+full-container `inset:0` overlay does not — dots drift off their coastlines.
+
+**Fix (shipping app):** wrap the SVG + `.ocv2-map-nodes` + incident card in a
+shared `.ocv2-map-frame` that is the largest 2:1 box fitting the panel —
+`.ocv2-map-container { display:flex; place-items:center; container-type:size; }`
+and `.ocv2-map-frame { width:min(100cqw,200cqh); aspect-ratio:2/1; }`. Now the
+frame == the SVG's drawn box (no letterbox), so the `%` overlay and arcs (which
+live in SVG user-space) all share one coordinate system.
+
+**Why:** the arcs never drifted (they're SVG user-space); only the HTML overlay
+did. The frame makes the overlay's `%` space identical to SVG user-space.
+
+**How to apply:** keep dots and SVG inside the same fixed-ratio frame; never
+anchor the dot overlay to a free-aspect flex container. The prototype app still
+has the un-framed pattern — apply the same frame there if its dots drift.

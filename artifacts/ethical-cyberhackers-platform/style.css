@@ -9845,6 +9845,20 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
   position: relative;
   overflow: hidden;
   min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
+}
+
+/* Fixed 2:1 frame: the largest plate-carrée box that fits the panel, centered.
+   The SVG map and the percentage-positioned node overlay share this exact box,
+   so the map never letterboxes and the dots never drift off their coastlines as
+   the panel changes shape with the screen. */
+.ocv2-map-frame {
+  position: relative;
+  width: min(100cqw, 200cqh);
+  aspect-ratio: 2 / 1;
 }
 
 .ocv2-world-svg {
