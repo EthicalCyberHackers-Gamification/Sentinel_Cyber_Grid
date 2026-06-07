@@ -12923,12 +12923,42 @@ function notifyLabComplete(missionId) {
     if (!missionComplete) return;
     mission2Complete = true;
     xp = (typeof M2_QUIZ === "object" && M2_QUIZ && typeof M2_QUIZ.xpReward === "number") ? M2_QUIZ.xpReward : 0;
+  } else if (missionId === "mission-003") {
+    if (mission3Complete) return;       // already complete — no double award
+    if (!mission2Complete) return;      // prereq guard: A3 needs A2
+    mission3Complete = true;
+    xp = (typeof M3_QUIZ === "object" && M3_QUIZ && typeof M3_QUIZ.xpReward === "number") ? M3_QUIZ.xpReward : 0;
+  } else if (missionId === "mission-004") {
+    if (mission4Complete) return;
+    if (!mission3Complete) return;      // prereq guard: A4 needs A3
+    mission4Complete = true;
+    xp = labGenericXp(missionId);
+  } else if (missionId === "mission-005") {
+    if (mission5Complete) return;
+    if (!mission4Complete) return;      // prereq guard: A5 needs A4
+    mission5Complete = true;
+    xp = labGenericXp(missionId);
+  } else if (missionId === "mission-006") {
+    if (mission6Complete) return;
+    if (!mission5Complete) return;      // prereq guard: A6 needs A5
+    mission6Complete = true;
+    xp = labGenericXp(missionId);
   } else {
     return;                             // no lab-completion semantics for other ids
   }
   if (xp > 0) awardXP(xp);              // awardXP persists (saveProgress) + animates
   saveProgress();                        // ensure the freshly-set flag is persisted
   try { notifyAssignmentComplete(missionId); } catch (_) { /* non-fatal */ }
+}
+
+/* XP reward for data-driven assignments (004-006), sourced from the same
+   GENERIC_MISSIONS quiz reward the legacy engine awarded (default 100). */
+function labGenericXp(missionId) {
+  try {
+    const gm = getGenericMission(missionId);
+    if (gm && gm.quiz && typeof gm.quiz.xpReward === "number") return gm.quiz.xpReward;
+  } catch (_) { /* non-fatal */ }
+  return 100;
 }
 
 /* Phase B0 — close the open cloud attempt as completed. Idempotent across the
@@ -12951,11 +12981,13 @@ function notifyAssignmentComplete(missionId) {
   if (closedAttempt) {
     try {
       const reward =
-        missionId === "mission-003"
-          ? (typeof M3_QUIZ === "object" && M3_QUIZ ? M3_QUIZ.xpReward : 0)
-          : missionId === "mission-002"
-            ? (typeof M2_QUIZ === "object" && M2_QUIZ ? M2_QUIZ.xpReward : 0)
-            : (typeof QUIZ === "object" && QUIZ ? QUIZ.xpReward : 0);
+        (missionId === "mission-004" || missionId === "mission-005" || missionId === "mission-006")
+          ? labGenericXp(missionId)
+          : missionId === "mission-003"
+            ? (typeof M3_QUIZ === "object" && M3_QUIZ ? M3_QUIZ.xpReward : 0)
+            : missionId === "mission-002"
+              ? (typeof M2_QUIZ === "object" && M2_QUIZ ? M2_QUIZ.xpReward : 0)
+              : (typeof QUIZ === "object" && QUIZ ? QUIZ.xpReward : 0);
       void trackXpEvent("mission_completion", {
         xp_change: typeof reward === "number" ? reward : 0,
         description: `Completed ${missionId}`,

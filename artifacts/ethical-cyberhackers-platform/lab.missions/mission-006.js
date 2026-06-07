@@ -1,0 +1,480 @@
+/*
+ * lab.missions/mission-006.js — Anomalous Scan Triage (BENIGN OUTCOME)
+ *
+ * Progressive Training Lab dataset for Assignment 006. Consumed by the generic
+ * engine in lab.js (imported + spread into LAB_MISSIONS). Mirrors the 5-stage
+ * arc proven by mission-001/002/003 — but with a deliberately different lesson:
+ *   1. Linux triage     — investigate the DMZ sensor's exported telemetry
+ *   2. Triage analysis  — surface the benign tells, pin 3
+ *   3. Scope expansion  — a triage map fades in
+ *   4. SOC correlation  — confirm attribution and zero impact, pin 3
+ *   5. Disposition       — confirm benign, log for trending, keep monitoring, report
+ *
+ * IMPORTANT NUANCE: the verdict here is BENIGN. A low-rate scan from
+ * 198.51.100.20 — a registered internet-measurement org / Global CDN — tripped
+ * the SEA DMZ sensors. The source only fetched GET / on 80 and 443 at 0.3 req/s
+ * with no payloads and no exploitation. The skill this mission teaches is
+ * PROPORTIONATE RESPONSE: not every alert is an attack. The analyst confirms
+ * attribution, verifies no impact, logs the event for trending, and keeps
+ * monitoring — without escalating or over-reacting.
+ */
+export default {
+  id: 'mission-006',
+  opId: 'OPS-2026-006',
+  severity: 'LOW',
+  headerTitle: 'Anomalous Scan Triage — Guided Investigation',
+  context: 'SEA DMZ · Sensor: IDS-SEA',
+  consoleAriaLabel: 'Guided Anomalous Scan Triage',
+  mapCap: 'TRIAGE MAP — grows as you work the alert',
+  nodeTags: { blocked: 'LOGGED', cleared: 'MONITORED', secured: 'CLEARED' },
+  reportKey: 'report',
+  seedNodes: ['dmz', 'scanner', 'web'],
+  groups: {
+    dock: { 1: 'LINUX', 2: 'TRIAGE ANALYSIS', 3: 'SOC CORRELATION', 5: 'DISPOSITION' },
+    kit:  { 1: 'LINUX BASICS', 2: 'TRIAGE ANALYSIS', 3: 'SOC CORRELATION', 5: 'DISPOSITION' },
+  },
+  prompts: {
+    threshold: 3,
+    fileLabel: 'analyst@dmz-sea: ~/triage',
+    filePrompt: 'analyst@dmz-sea:~/triage$',
+    filePwd: '/var/log/triage',
+    socLabel: 'analyst@soc — alert OPS-2026-006',
+    socPrompt: 'analyst@soc:~$',
+    socPwd: '/home/analyst',
+  },
+  intro: [
+    { t: 'CyberCorp Security Training — Lab 006 · Anomalous Scan Triage', c: 'head' },
+    { t: 'A low-rate port scan tripped the SEA DMZ sensors overnight. As the SOC analyst on duty, the alert lands with you for triage.' },
+    { t: 'Your mission: decide what this alert actually is. Triage is the art of', c: 'dim' },
+    { t: 'telling real threats apart from harmless noise — not every alert is an', c: 'dim' },
+    { t: 'attack, and a good analyst confirms attribution and impact before acting.', c: 'dim' },
+    { t: 'New here? Click any command on the left to learn what it does (it will not run', c: 'dim' },
+    { t: 'until you type it), or open the SOC TOOL KIT for the full list of what you have.', c: 'dim' },
+    { t: 'Not sure where to begin? Click HINT (or type `hint`) — the first nudge frames', c: 'dim' },
+    { t: 'your approach, and each one after gets more specific, ending with the command.', c: 'dim' },
+  ],
+  objective: {
+    1: 'Triage the telemetry: open the IDS alert and read exactly what the source did to the DMZ host.',
+    2: 'Read the behaviour, not the alarm — surface the tells that point to harmless activity, then pin the indicators that matter (3 to continue).',
+    3: 'A single alert is rarely the whole picture. Begin SOC correlation and confirm who the source is and whether anything was actually harmed.',
+    4: 'Establish attribution and impact across your tooling, then pin your key SOC findings to unlock the disposition (3 to continue).',
+    5: 'Make the call: confirm the benign verdict, log it for trending, keep monitoring — then file your triage report.',
+  },
+  files: [
+    { name: 'README.txt', icon: '📘', desc: 'triage notes' },
+    { name: 'ids.log', icon: '🗂', desc: 'IDS scan alert', suspect: true },
+    { name: 'web.log', icon: '📄', desc: 'web service access log' },
+    { name: 'baseline.txt', icon: '📊', desc: 'known-good sources' },
+    { name: 'services.txt', icon: '🧩', desc: 'DMZ web services' },
+  ],
+  fs: {
+    'README.txt': [
+      'Triage notes — anomalous scan alert',
+      '',
+      'The SEA DMZ sensor (IDS-SEA) flagged a port scan from an outside address.',
+      'Your job: triage it. Decide whether this is an attack or harmless noise —',
+      'and respond in proportion to what you find. Not every alert is a threat.',
+      '',
+      '  1. list the files in this triage folder',
+      '  2. read the IDS alert and note exactly what the source touched',
+      '  3. pull the source out of the web log and see whether anything broke',
+      '',
+      'A scanner that only fetches the front page at a trickle, with no payloads,',
+      'behaves nothing like an attacker probing for a way in. Read the behaviour.',
+      '',
+      'Not sure how? Press HINT, or open the SOC TOOL KIT for the commands.',
+    ],
+    'ids.log': [
+      'IDS-SEA alert — anomalous scan (OPS-2026-006)',
+      '',
+      'TIME       SOURCE          EVENT',
+      'PROBE      198.51.100.20 -> dmz:80   GET /',
+      'PROBE      198.51.100.20 -> dmz:443  GET /',
+      '',
+      'Rate: 0.3 requests/sec (very low)',
+      'Ports touched: 80, 443 only',
+      'Method: GET / on both ports',
+      'No payloads, no POST requests observed',
+    ],
+    'web.log': [
+      '# web service access log (most recent first)',
+      '198.51.100.20 - - "GET / HTTP/1.1" 200',
+      '198.51.100.20 - - "GET / HTTP/1.1" 200',
+      '198.51.100.20 - - "GET / HTTP/1.1" 200',
+      '203.0.113.40 - - "GET /products HTTP/1.1" 200',
+      '10.8.2.31 - - "GET /status HTTP/1.1" 200',
+      '# note: no POST requests, no EXPLOIT strings, no HTTP 500 errors recorded',
+    ],
+    'baseline.txt': [
+      'Known-good external sources for the SEA DMZ (reviewed monthly):',
+      '',
+      '  198.51.100.20   Global CDN / Internet Measurement   (known benign scanner)',
+      '  203.0.113.40    Partner storefront integration',
+      '  10.8.2.31       Internal uptime monitor',
+      '',
+      'The measurement org runs internet-wide surveys of public services. Its',
+      'address is on the known-good list — appearing here is expected, not alarming.',
+    ],
+    'services.txt': [
+      'Services listening on the SEA DMZ host:',
+      '',
+      '  80/tcp    http   (public landing page)',
+      '  443/tcp   https  (public landing page)',
+      '',
+      'Note: these are PUBLIC web services meant to be reached from the internet.',
+      'A GET / on 80/443 is exactly what a casual visitor — or a survey scanner —',
+      'would do. The source touched only these, nothing private.',
+    ],
+  },
+  fileInvestigation: {
+    helpHead: 'Linux basics — investigate the exported telemetry:',
+    filesHead: '📂 ~/triage &nbsp; <span>—</span> &nbsp; click a file to <code>cat</code> it',
+    railEmpty: 'No evidence yet. Investigate the files, then pin the indicators you find.',
+    onCat: {
+      'ids.log': {
+        note: [{ t: '[i] The source touched just two ports (80, 443), only ever GET /, at 0.3 req/s — and the sensor saw no payloads or POSTs. That is gentle, not aggressive.', c: 'dim' }],
+        discover: 'low-rate-probe',
+        next: [{ t: 'Next, pull that address out of the web log to see whether any of those requests actually did harm.', c: 'dim' }],
+      },
+    },
+    grepAha: {
+      file: 'web.log',
+      requireUrl: false,
+      found: [
+        { t: '[+] Every request from 198.51.100.20 is GET / answered with HTTP 200 —', c: 'ok' },
+        { t: '    no POSTs, no exploit strings, no 500 errors. The source only ever', c: 'ok' },
+        { t: '    read the public front page. Nothing was attacked or broken.', c: 'ok' },
+      ],
+      discover: 'get-only',
+      advanceTo: 2,
+      unlock: [
+        { t: '' },
+        { t: '── ANALYST TOOLS UNLOCKED ────────────────────────', c: 'head' },
+        { t: 'You read the behaviour. Triage-analysis tools are now available:', c: 'dim' },
+        { t: 'whois · inspect · baseline. Run them, then PIN each indicator.', c: 'dim' },
+      ],
+    },
+  },
+  ind: {
+    // Stage 1–2 triage indicators (group: triage) — each teaches the BENIGN reading
+    'low-rate-probe': { group: 'triage', kind: 'IDS', label: 'Very low-rate scan of only two public ports',
+      teach: '198.51.100.20 touched just ports 80 and 443 at 0.3 requests/sec — a trickle. Real attackers sweep fast and wide; this gentle, narrow pace looks like a routine survey, not an assault.',
+      intel: {
+        what: 'The source probed only the two public web ports (80, 443) at about 0.3 requests/sec, with no payloads recorded.',
+        technique: 'Alert review — read the IDS event and note the rate, the ports touched, and whether any payloads accompanied the requests.',
+        why: 'Rate and breadth are the first triage signals. A slow scan of only public ports is the behaviour of a benign survey, not an aggressive intruder hunting for a way in.' } },
+    'get-only': { group: 'triage', kind: 'WEBLOG', label: 'Only GET / requests, all answered HTTP 200',
+      teach: 'Every line from the source is GET / returning HTTP 200 — it only ever read the public front page. No POSTs, no exploit strings, no error codes: nothing was tampered with.',
+      intel: {
+        what: 'All requests from 198.51.100.20 are GET / answered with HTTP 200 — no POST, no exploit attempts, no 5xx errors.',
+        technique: 'Log analysis — grep the web log for the source address and check the methods, URLs, and status codes it produced.',
+        why: 'Reading the front page is what any visitor does. The absence of POSTs, exploits, and errors is strong evidence the source never tried — or managed — to harm the service.' } },
+    'benign-scanner': { group: 'triage', kind: 'WHOIS', label: 'Source is a registered measurement org',
+      teach: 'WHOIS on 198.51.100.20 returns a named organisation — a Global CDN / internet-measurement provider with a published abuse contact. Anonymous infrastructure hides; this one is openly registered.',
+      intel: {
+        what: '198.51.100.20 resolves to a registered Global CDN / internet-measurement organisation with a published abuse contact.',
+        technique: 'WHOIS lookup — query the registry for ownership, country, and abuse contact of the source IP.',
+        why: 'Attribution is the heart of triage. A named, contactable, registered survey org is the opposite of the anonymous infrastructure attackers use — strong evidence the scan is benign.' } },
+    'no-exploitation': { group: 'triage', kind: 'IMPACT', label: 'No exploitation — service unharmed',
+      teach: 'Inspecting the requests confirms no exploit payloads, no injected parameters, no error responses. The source looked, but it never touched anything it should not have.',
+      intel: {
+        what: 'No exploit payloads, injected parameters, or error responses are present — the DMZ service handled every request normally.',
+        technique: 'Impact analysis — inspect the requests for malicious payloads and check whether the service returned errors or unexpected behaviour.',
+        why: 'Intent matters less than impact when you triage. Confirming zero exploitation means even an unwanted scan caused no harm — which keeps the response proportionate.' } },
+    'known-source': { group: 'triage', kind: 'BASELINE', label: 'Source is on the known-good list',
+      teach: '198.51.100.20 already sits on the reviewed baseline of expected sources, flagged as a known benign scanner. Its appearance is anticipated, not a surprise to investigate as hostile.',
+      intel: {
+        what: '198.51.100.20 appears on the SEA DMZ\u2019s reviewed list of known-good sources, marked as a benign measurement scanner.',
+        technique: 'Baseline comparison — diff the observed source against the approved known-good list.',
+        why: 'A baseline turns "unexpected" into "expected". When the source is already documented as benign, the alert is noise to be logged, not a threat to be chased.' } },
+    // Stage 4 SOC correlation indicators (group: soc) — confirm attribution + zero impact
+    'intel-benign': { group: 'soc', kind: 'REPUTATION', label: 'Threat intel rates the source benign',
+      teach: 'Threat-intel feeds classify 198.51.100.20 as a known internet-measurement scanner — explicitly benign, seen surveying public services worldwide. Independent confirmation you are not facing an attacker.',
+      intel: {
+        what: 'Threat-intel feeds classify 198.51.100.20 as a known, benign internet-measurement scanner.',
+        technique: 'Reputation lookup — check the source address against intel feeds and reputation databases.',
+        why: 'Independent corroboration that the source is harmless survey infrastructure, which justifies a measured log-and-monitor response rather than escalation.' } },
+    'trending-noise': { group: 'soc', kind: 'TREND', label: 'Matches recurring background scan noise',
+      teach: 'Checking the rate against history shows this source touches the DMZ on a regular, harmless cadence. It is part of the steady background hum of internet-wide scanning — worth trending, not alarming.',
+      intel: {
+        what: 'The scan\u2019s rate and pattern match recurring, harmless background activity already seen from internet-wide scanners.',
+        technique: 'Rate / trend analysis — compare the current scan\u2019s cadence against historical baselines of background internet noise.',
+        why: 'Recognising routine background noise prevents alert fatigue and over-reaction. Logging it for trending keeps the signal without raising a false incident.' } },
+    'benign-verdict': { group: 'soc', kind: 'INTEL', label: 'Signals correlate to a benign verdict',
+      teach: 'Correlating the signals — registered survey org, only GET /, no exploitation, on baseline — all point one way: benign. The disciplined call is to disposition this as noise, not an attack.',
+      intel: {
+        what: 'The combined signals (registered measurement org, GET / only, zero exploitation, on baseline) correlate to a benign verdict.',
+        technique: 'Signal correlation — stitch the individual indicators into one verdict instead of reacting to the alarm alone.',
+        why: 'A single tripped sensor is noise; the full picture is the truth. Correlating everything keeps your verdict evidence-based and your response proportionate.' } },
+    'siem-quiet': { group: 'soc', kind: 'SIEM', label: 'No corroborating alerts elsewhere',
+      teach: 'The SIEM shows no related alerts — no follow-up probes, no lateral movement, no other hosts touched. A real campaign leaves a trail; this one is a quiet, isolated survey.',
+      intel: {
+        what: 'The SIEM shows no corroborating alerts — no follow-up activity, no lateral movement, no other hosts targeted.',
+        technique: 'Alert correlation — query the SIEM for any related events tied to the source address or the DMZ host.',
+        why: 'Silence across the SIEM is itself evidence. An isolated, non-escalating event with no trail supports closing it as benign rather than opening a wider investigation.' } },
+  },
+  topo: {
+    nodes: {
+      'dmz': { x: 18, y: 54, glyph: '🖥', label: 'DMZ host', sub: 'public web server', type: '',
+        intel: {
+          what: 'The internet-facing DMZ host whose sensor tripped the alert — your starting point.',
+          technique: 'Endpoint triage — verify the alert from the host\u2019s own logs and services, not the sensor summary alone.',
+          why: 'Every triage needs a confirmed entry point. From the host\u2019s own evidence you can judge what really happened, not just what the alarm claimed.' } },
+      'scanner': { x: 50, y: 46, glyph: '🛰', label: '198.51.100.20', sub: 'measurement source', type: '',
+        intel: {
+          what: 'The external source that scanned the DMZ — a registered internet-measurement organisation, not a hostile actor.',
+          technique: 'Source analysis & WHOIS — identify the owner, reputation, and exactly what the source did.',
+          why: 'Attribution decides the response. Establishing this source is a known benign surveyor turns an alarming scan into routine, loggable noise.' } },
+      'web': { x: 50, y: 84, glyph: '🌐', label: 'http · https', sub: 'public landing page', type: '',
+        intel: {
+          what: 'The public web services (80, 443) the source fetched — exactly the pages they are meant to serve to anyone.',
+          technique: 'Impact review — check what the source requested against what the service is designed to expose.',
+          why: 'Reading a public page is no breach. Confirming the source only touched what is meant to be public is central to the benign verdict.' } },
+      'sensor': { x: 84, y: 70, glyph: '📡', label: 'IDS sensors', sub: 'SEA DMZ telemetry', type: '',
+        intel: {
+          what: 'The IDS-SEA sensor and SIEM that recorded the scan and raised the alert.',
+          technique: 'Alert correlation — check the sensor record for any related or follow-up activity.',
+          why: 'The sensor trail is your evidence — and its quiet, isolated record is what lets you log the event for trending and close it confidently.' } },
+      'internet': { x: 84, y: 22, glyph: '🌍', label: 'measurement network', sub: 'rated benign by intel', type: '',
+        intel: {
+          what: 'The internet-wide measurement network behind the source, classified as benign by threat-intel feeds.',
+          technique: 'Reputation pivot — resolve the source to its hosting/reputation and confirm its intel classification.',
+          why: 'Confirming benign survey infrastructure is what keeps the response proportionate — log and monitor, never block or escalate.' } },
+    },
+    links: [
+      { a: 'dmz', b: 'scanner',
+        intel: {
+          what: 'The DMZ host received a low-rate scan from the external source.',
+          technique: 'Connection review — read the IDS alert to see the source and the ports it touched.',
+          why: 'This link turns "an alert fired" into "a known source surveyed our public ports" — the first step of attribution.' } },
+      { a: 'scanner', b: 'web',
+        intel: {
+          what: 'The source fetched only the public web pages (GET / on 80 and 443).',
+          technique: 'Log analysis — list every request the source made and its status code.',
+          why: 'Touching only public pages with read-only requests is benign behaviour, not exploitation.' } },
+      { a: 'scanner', b: 'internet',
+        intel: {
+          what: 'The source belongs to a benign internet-measurement network.',
+          technique: 'Reputation lookup — map the source to its intel classification.',
+          why: 'Tying the source to rated-benign infrastructure confirms the scan is routine survey noise.' } },
+      { a: 'sensor', b: 'scanner',
+        intel: {
+          what: 'The IDS sensor recorded the scan but raised no corroborating follow-up alerts.',
+          technique: 'Alert correlation — check the SIEM for related events tied to the source.',
+          why: 'An isolated, non-escalating record supports a benign disposition: log it for trending and keep watch.' } },
+    ],
+  },
+  tools: [
+    { key: 'ls',   cmd: 'ls',                          unlock: 1, icon: '📁', name: 'List files', hint: 'ls' },
+    { key: 'cat',  cmd: 'cat ids.log',                 unlock: 1, icon: '📄', name: 'Read alert', hint: 'cat <file>' },
+    { key: 'grep', cmd: 'grep 198.51.100.20 web.log',  unlock: 1, icon: '🔍', name: 'Find requests', hint: 'grep <pat> <file>' },
+
+    { key: 'whois', cmd: 'whois 198.51.100.20', unlock: 2, icon: '🌐', name: 'WHOIS source', hint: 'whois <ip>',
+      run: { already: 'Already looked up — see the evidence board.', discover: 'benign-scanner', output: [
+        { t: 'IP:        198.51.100.20' },
+        { t: 'OrgName:   Global CDN / Internet Measurement', c: '' },
+        { t: 'Country:   US   ·   abuse contact: abuse@measure.example', c: '' },
+        { t: '[+] Registered, contactable survey organisation — not anonymous infra.', c: 'ok' },
+      ] } },
+    { key: 'exploit', cmd: 'inspect exploitation', unlock: 2, icon: '🧪', name: 'Inspect impact', hint: 'inspect exploitation',
+      run: { already: 'Already inspected — see the evidence board.', discover: 'no-exploitation', output: [
+        { t: 'inspecting requests from 198.51.100.20 for exploitation …', c: 'dim' },
+        { t: 'payloads: none   ·   injected params: none   ·   error responses: none', c: '' },
+        { t: '[+] No exploitation. The service handled every request normally.', c: 'ok' },
+      ] } },
+    { key: 'baseline', cmd: 'compare baseline', unlock: 2, icon: '📊', name: 'Compare baseline', hint: 'compare baseline',
+      run: { already: 'Already compared — see the evidence board.', discover: 'known-source', output: [
+        { t: 'checking 198.51.100.20 against known-good sources …', c: 'dim' },
+        { t: '198.51.100.20  -> ON baseline (Global CDN / measurement — benign)', c: '' },
+        { t: '[+] The source is already documented as a known benign scanner.', c: 'ok' },
+      ] } },
+
+    { key: 'intel', cmd: 'intel 198.51.100.20', unlock: 3, icon: '⚲', name: 'Threat intel', hint: 'intel <ip>',
+      run: { already: 'Already checked — see the evidence board.', advanceTo: 4, addNode: 'internet', discover: 'intel-benign', output: [
+        { t: '198.51.100.20  ->  threat-intel feeds', c: '' },
+        { t: '  verdict: KNOWN benign internet-measurement scanner', c: 'ok' },
+        { t: '  routinely surveys public services worldwide', c: 'dim' },
+      ] } },
+    { key: 'rate', cmd: 'check rate', unlock: 3, icon: '📈', name: 'Check rate', hint: 'check rate',
+      run: { already: 'Already checked — see the evidence board.', advanceTo: 4, discover: 'trending-noise', output: [
+        { t: 'comparing scan cadence against historical background noise …', c: 'dim' },
+        { t: '0.3 req/s, two public ports — matches recurring survey traffic.', c: '' },
+        { t: '[+] This is routine background scan noise — worth trending, not alarming.', c: 'ok' },
+      ] } },
+    { key: 'correlate', cmd: 'correlate triage', unlock: 3, icon: '🧭', name: 'Correlate triage', hint: 'correlate triage',
+      run: { already: 'Already reviewed — see the evidence board.', advanceTo: 4, discover: 'benign-verdict', output: [
+        { t: 'correlating: registered org · GET / only · no exploitation · on baseline', c: '' },
+        { t: '[+] All signals point one way: this alert is BENIGN.', c: 'ok' },
+      ] } },
+    { key: 'review', cmd: 'review alerts', unlock: 3, icon: '🚨', name: 'Review alerts', hint: 'review alerts',
+      run: { already: 'Already reviewed — see the evidence board.', advanceTo: 4, addNode: 'sensor', discover: 'siem-quiet', output: [
+        { t: 'SIEM correlation:', c: 'head' },
+        { t: '  no follow-up probes, no lateral movement, no other hosts touched' },
+        { t: '  the scan is isolated and did not escalate', c: '' },
+        { t: '[+] Nothing corroborates a threat — the event stands alone and quiet.', c: 'ok' },
+      ] } },
+
+    { key: 'confirm',  cmd: 'confirm benign',   unlock: 5, icon: '✓', name: 'Confirm benign', hint: 'confirm benign' },
+    { key: 'log',      cmd: 'log trending',     unlock: 5, icon: '🗒', name: 'Log for trending', hint: 'log trending' },
+    { key: 'monitor',  cmd: 'raise monitoring', unlock: 5, icon: '📡', name: 'Raise monitoring', hint: 'raise monitoring' },
+    { key: 'watch',    cmd: 'add watchlist',    unlock: 5, icon: '👁', name: 'Watchlist', hint: 'add watchlist' },
+    { key: 'report',   cmd: 'submit report',    unlock: 5, icon: '📨', name: 'Submit report', hint: 'submit report' },
+  ],
+  verb: {
+    whois: 'whois', inspect: 'exploit', compare: 'baseline',
+    intel: 'intel', check: 'rate', correlate: 'correlate', review: 'review',
+    confirm: 'confirm', log: 'log', raise: 'monitor', add: 'watch', submit: 'report',
+  },
+  doc: {
+    ls:     { purpose: 'Lists every file in the folder you are currently in.',
+              learn: 'Before you can triage anything, you have to know what is in front of you. `ls` ("list") prints the contents of the triage folder so you can spot the telemetry the DMZ sensor exported.' },
+    cat:    { purpose: 'Prints the full contents of a file to the screen.',
+              learn: '`cat` reads a file out to the terminal. Point it at the IDS alert to see exactly what the source touched — which ports, at what rate, and whether it carried any payloads.' },
+    grep:   { purpose: 'Searches inside a file and shows only the matching lines.',
+              learn: 'The truth of an alert is in the behaviour. `grep` pulls out only the lines containing a pattern — point it at the source address in the web log to see every request it made and whether anything broke.' },
+    whois:  { purpose: 'Looks up who owns an internet address.',
+              learn: 'Triage starts with attribution. `whois` reveals who owns the source — a named, registered measurement organisation looks nothing like the anonymous infrastructure an attacker hides behind.' },
+    exploit:{ purpose: 'Inspects the source\u2019s requests for signs of exploitation.',
+              learn: 'Intent matters less than impact. This checks whether the requests carried exploit payloads or caused errors — confirming the service was read, not harmed, keeps your response proportionate.' },
+    baseline:{ purpose: 'Compares the source against the known-good list.',
+              learn: 'A baseline is the reviewed list of sources you expect to see. Comparing against it turns "unexpected scan" into "documented benign scanner" — the difference between an incident and routine noise.' },
+    intel:  { purpose: 'Checks the source against threat-intelligence feeds.',
+              learn: 'Other defenders share what they see. A reputation lookup tells you whether this source is rated hostile or benign — here it is a known measurement scanner, independent proof you are not facing an attack.' },
+    rate:   { purpose: 'Compares the scan\u2019s cadence against background noise.',
+              learn: 'The internet is full of constant, harmless scanning. Checking the rate against history shows whether this is an anomaly or just routine survey traffic worth logging for trends.' },
+    correlate:{ purpose: 'Correlates the signals into a single verdict.',
+              learn: 'Individual facts only mean something together. This stitches registered-org, GET-only, no-exploitation and on-baseline into one disciplined conclusion: the alert is benign.' },
+    review: { purpose: 'Reviews the related sensor alerts the SIEM raised.',
+              learn: 'Your SIEM watches everything. Reviewing it for follow-up activity tells you whether this scan was the start of something — or, as here, an isolated event with no trail behind it.' },
+    confirm:{ purpose: 'Records the confirmed benign verdict.',
+              learn: 'A disposition is a decision on the record. Confirming benign states plainly that you investigated and judged this scan harmless — the proportionate call, backed by your evidence.' },
+    log:    { purpose: 'Logs the event for trending and future reference.',
+              learn: 'Even a benign event is worth keeping. Logging it for trending means the next analyst sees the pattern of background scans without raising a fresh alarm each time.' },
+    monitor:{ purpose: 'Keeps monitoring on the DMZ host.',
+              learn: 'Benign today does not mean ignore forever. Keeping monitoring in place means if this source ever changes behaviour, you will catch it the moment it does.' },
+    watch:  { purpose: 'Adds the source to the watchlist for future sightings.',
+              learn: 'Even a benign source is worth tracking quietly. Adding it to the watchlist means future contact is noted automatically — useful context without over-reacting.' },
+    report: { purpose: 'Writes up and closes the triage.',
+              learn: 'Every triage ends with a record: what the alert was, what you found, and the call you made. Documenting a benign verdict matters as much as any incident — it proves the decision was deliberate.' },
+  },
+  hintFlow: {
+    stage1: [
+      { type: 'ran', key: 'ls', hint: 'ls' },
+      { type: 'read', file: 'ids.log', hint: 'cat' },
+      { hint: 'grep' },
+    ],
+    stage2: { group: 'triage', need: 3, toolsHint: 'triageTools', pinHint: 'pinTriage' },
+    stage3: { hint: 'socStart' },
+    stage4: { group: 'soc', need: 3, toolsHint: 'socTools', pinHint: 'pinSoc' },
+    stage5: { required: ['confirm', 'log', 'monitor'], actHint: 'disposition', reportHint: 'report' },
+  },
+  hints: {
+    ls: { id: 'ls', tiers: [
+      'Every triage starts with orientation — get your bearings before you touch anything. You are in the telemetry the DMZ sensor exported.',
+      'A triage folder holds files, and you cannot reason about what you cannot see. Your first job is to find out which files are actually here.',
+      'In Linux, one short two-letter command lists the files in the current folder.',
+      'Type `ls` and press Enter to list the files.',
+    ] },
+    cat: { id: 'cat', tiers: [
+      'A good analyst reads the raw alert first-hand instead of trusting the alarm. One file is the IDS alert — that is where the scan\u2019s real behaviour shows.',
+      'You cannot judge a scan without seeing exactly what it did. Read the alert and note the rate, the ports, and whether it carried any payloads.',
+      "Use the command that prints a file's contents to the screen, followed by the IDS alert file's name.",
+      'Type `cat ids.log` to read the IDS alert.',
+    ] },
+    grep: { id: 'grep', tiers: [
+      'You have a source address now. An alert tells you a scan happened, but the web log tells you whether it actually did any harm — that contrast is the heart of this triage.',
+      'Separate the source from the noise: pull every line about that one address out of the web log so you can see exactly what it requested and how the server answered.',
+      'There is a Linux tool that prints only the lines of a file matching a pattern. Use it on the web log with the source address.',
+      'Type `grep 198.51.100.20 web.log` to surface its requests.',
+    ] },
+    triageTools: { id: 'triageTools', tiers: [
+      'Your job now shifts from reading to judging. The judgement is technical: who this source really is, and whether it harmed anything.',
+      'Establish three things: who owns the source, whether the requests caused any exploitation, and whether the source is even unexpected.',
+      'The dock now has a TRIAGE ANALYSIS group. Each tool exposes a different tell — ownership, impact, and the baseline comparison. Work through them one at a time.',
+      'Type `whois 198.51.100.20` first, then `inspect exploitation` and `compare baseline`.',
+    ] },
+    pinTriage: { id: 'pinTriage', tiers: [
+      'Investigating surfaces evidence, but findings only count once recorded. A disposition is built from committed indicators, not loose impressions.',
+      'Indicators are appearing on the EVIDENCE board to the right — commit the ones that explain why this scan is harmless.',
+      'Pin at least 3 indicators. You can click an evidence card, or use the pin command in the terminal.',
+      'Type `pin all` to pin every indicator you have surfaced.',
+    ] },
+    socStart: { id: 'socStart', tiers: [
+      'Zoom out. Before you decide, confirm who this source is and whether anything elsewhere corroborates a threat — or, as you suspect, nothing does.',
+      'Start with the source\u2019s reputation: confirm whether intel rates it benign before you weigh the rest.',
+      'Use the SOC tools that just unlocked. Start by checking the source against threat intel.',
+      'Type `intel 198.51.100.20` to begin the correlation.',
+    ] },
+    socTools: { id: 'socTools', tiers: [
+      'Correlation is about confidence: a verdict you only half-justified is one you cannot defend. Widen the lens before you make the call.',
+      'Confirm the reputation, compare the rate against background noise, correlate the signals, and check the SIEM for anything that contradicts a benign read.',
+      'The SOC CORRELATION group widens the lens — reputation, rate trending, the correlated verdict, and the SIEM timeline. Run each one.',
+      'Try `check rate`, then `correlate triage` and `review alerts`.',
+    ] },
+    pinSoc: { id: 'pinSoc', tiers: [
+      'Before you disposition the alert, you have to justify it. A verdict without recorded findings is a guess; recorded findings make it a defensible decision.',
+      'Record the correlation findings you just uncovered so your benign call is backed by evidence.',
+      'Pin at least 3 of your SOC findings on the evidence board.',
+      'Type `pin all` to pin your SOC findings.',
+    ] },
+    disposition: { id: 'disposition', tiers: [
+      'Now you make the call — and proportion matters. The disposition follows a logic: confirm the verdict, log it for trends, then keep watch. No blocking, no panic.',
+      'Work through the response in that order: confirm the benign verdict, log the event for trending, then keep monitoring the host.',
+      'The DISPOSITION group holds your response actions — one confirms the verdict, one logs it for trending, and one keeps monitoring. Take them all.',
+      'Type `confirm benign`, `log trending`, then `raise monitoring`.',
+    ] },
+    report: { id: 'report', tiers: [
+      'A triage is not closed until it is documented. The written record is how the next analyst learns that this scan was reviewed and judged harmless.',
+      'Close out the triage with a written report stating the benign verdict and what you checked.',
+      'Submit your triage report to finish the investigation.',
+      'Type `submit report` to close the triage.',
+    ] },
+  },
+  contain: {
+    confirm: { need: 'benign-scanner', label: 'confirm benign',
+               ok: '[+] Verdict recorded: 198.51.100.20 is a known benign scanner — no threat to the DMZ.',
+               nodes: { scanner: 'cleared' } },
+    log:     { need: 'trending-noise', label: 'log trending',
+               ok: '[+] Event logged for trending — background scan noise captured without raising an incident.',
+               nodes: { sensor: 'cleared' } },
+    monitor: { need: 'low-rate-probe', label: 'raise monitoring',
+               ok: '[+] Monitoring kept in place on the DMZ host in case the source ever changes behaviour.',
+               nodes: { dmz: 'cleared', web: 'cleared' } },
+    watch:   { need: 'benign-scanner', label: 'add watchlist',
+               ok: '[+] 198.51.100.20 added to the watchlist for quiet tracking of future sightings.',
+               nodes: { scanner: 'cleared' } },
+  },
+  containRequired: ['confirm', 'log', 'monitor'],
+  reveal: {
+    campaign: [
+      { t: '' },
+      { t: '── ANOMALY UNDER TRIAGE ──────────────────────────', c: 'head' },
+      { t: 'Not every alert is an attack. One outside source scanned the DMZ at a', c: 'dim' },
+      { t: 'trickle, touching only public pages — confirm attribution and impact', c: 'dim' },
+      { t: 'before you act. A triage map is opening above the terminal; it will grow', c: 'dim' },
+      { t: 'as you correlate. Check the source against threat intel to confirm who it is.', c: 'dim' },
+    ],
+    containment: [
+      { t: '' },
+      { t: '── DISPOSITION READY ─────────────────────────────', c: 'head' },
+      { t: 'Enough evidence is pinned to make the call. Disposition tools are unlocked.', c: 'ok' },
+      { t: 'The proportionate response is to confirm benign, log for trending, and keep', c: 'dim' },
+      { t: 'monitoring — then file your triage report to close out. No escalation needed.', c: 'dim' },
+    ],
+  },
+  reportDone: [{ t: '[+] Triage report submitted. Alert dispositioned BENIGN — logged and monitored.', c: 'ok' }],
+  scorecard: {
+    title: 'Alert triaged — benign',
+    subLead: 'You started at a Linux terminal with one tripped sensor and worked all the way to a measured, evidence-backed disposition — pinning ',
+    subMid: ' indicators and taking ',
+    subTail: ' response actions.',
+    evHead: 'Triage indicators you identified',
+    socHead: 'SOC correlation you performed',
+    learned: [
+      'Triage is separating benign noise from real threats — <code>ls</code>, <code>cat</code> and <code>grep</code> surface the behaviour behind the alarm.',
+      'Attribution plus impact decides the verdict: a known measurement scanner reading public pages with no exploitation is benign.',
+      'A baseline, <code>whois</code> and threat intel turn "unexpected scan" into "documented benign source" — no escalation required.',
+      'Proportionate response is to <em>log and monitor</em>, not block or panic — and documenting a benign call still matters for trending.',
+    ],
+  },
+};

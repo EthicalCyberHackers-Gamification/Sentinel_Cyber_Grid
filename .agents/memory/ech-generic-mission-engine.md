@@ -3,6 +3,15 @@ name: Data-driven generic mission engine (missions 4/5/6)
 description: How missions 004/005/006 work via one self-contained data-driven engine, and why it deliberately avoids the hand-coded M1-M3 surfaces.
 ---
 
+**SUPERSEDED for play (2026-06-07):** missions 003/004/005/006 now route to the
+terminal **Progressive Lab** (`openLab`), because `launchMissionFromMap` checks
+`LAB_MISSION_IDS` FIRST and 003-006 are now registered there (see
+[ech-lab-dataset-schema](ech-lab-dataset-schema.md)). The `gm*` engine below is now
+legacy/bypassed for 004-006 — kept for reference; completion is bridged via
+`notifyLabComplete`, not `gmCompleteMission`. `GENERIC_MISSIONS` still supplies each
+mission's `quiz.xpReward` (read by `labGenericXp`) and is the source-of-truth content
+the lab datasets were authored from.
+
 Missions 1-3 are hand-coded across ~50+ id branches, a per-mission HTML dashboard,
 the OC home, and save/load — triplicating that for 4/5/6 was infeasible/risky.
 Instead missions 004/005/006 are **fully data-driven**: their content lives in

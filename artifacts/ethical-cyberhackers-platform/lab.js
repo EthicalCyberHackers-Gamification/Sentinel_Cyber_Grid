@@ -39,6 +39,18 @@ let LAB_HOOKS = {};
 export function configureLab(hooks) { LAB_HOOKS = hooks || {}; }
 
 /* ------------------------------------------------------------------ *
+ * EXTERNAL MISSION DATASETS (003+)
+ * ------------------------------------------------------------------ *
+ * Assignments 001/002 are authored inline below. Later assignments live in
+ * their own ES modules under ./lab.missions/ and are spread into LAB_MISSIONS
+ * (keeps each large dataset isolated and editable on its own). Adding a mission
+ * = adding a dataset import here, not new engine code. */
+import LAB_M3 from './lab.missions/mission-003.js';
+import LAB_M4 from './lab.missions/mission-004.js';
+import LAB_M5 from './lab.missions/mission-005.js';
+import LAB_M6 from './lab.missions/mission-006.js';
+
+/* ------------------------------------------------------------------ *
  * STATE (engine — mission content lives in LAB.def)
  * ------------------------------------------------------------------ */
 const LAB = {
@@ -1047,6 +1059,11 @@ const LAB_MISSIONS = {
       ],
     },
   },
+
+  'mission-003': LAB_M3,
+  'mission-004': LAB_M4,
+  'mission-005': LAB_M5,
+  'mission-006': LAB_M6,
 
 };
 
