@@ -1,0 +1,290 @@
+Revise Assignment 001 and Assignment 002 only to test a better player-support model based on beginner investigation psychology.
+
+Do not update the remaining assignments yet.
+
+Goal:
+Reduce blind command-following and increase investigative thinking.
+
+Current issue:
+The visible “TRIAGE COMMANDS” panel gives away the step sequence too directly. Players may stop thinking like analysts and instead click/enter the obvious next command.
+
+We want the player to feel:
+“I understand the suspicion. I have tools available. I need to decide which tool helps answer the investigative question.”
+
+NOT:
+“The UI is telling me exactly what command to run next.”
+
+---
+
+## PLAYER SUPPORT PROGRESSION MODEL
+
+Design the support model to evolve across player skill levels:
+
+EARLY BEGINNER
+
+* strong investigative framing
+* clear current suspicion
+* clear investigative question
+* SOC Toolkit available as reference
+* gentle nudges
+* no obvious step-by-step command giveaway
+* tool purpose explained when needed
+
+INTERMEDIATE
+
+* less explicit direction
+* more player choice
+* stronger hypothesis testing
+* fewer nudges
+* more reliance on evidence interpretation
+
+ADVANCED
+
+* minimal guidance
+* realistic tool discovery
+* more authentic syntax
+* player expected to choose investigative path independently
+
+For now, implement only the EARLY BEGINNER support model in Assignment 001 and Assignment 002.
+
+---
+
+## WHAT TO TEST IN ASSIGNMENT 001 AND 002
+
+Remove or hide the obvious persistent command checklist from the left panel.
+
+Do not show a permanent “do this next” list such as:
+
+* List files
+* Read snapshot
+* Find probes
+
+Replace it with a cleaner support model:
+
+1. Current Suspicion
+2. Investigative Question
+3. SOC Toolkit reference
+4. Optional Hint
+5. Analyst feedback after commands
+
+---
+
+## LEFT PANEL DIRECTION
+
+Replace “TRIAGE COMMANDS” as a visible step checklist with a more neutral investigation support area.
+
+Recommended structure:
+
+CURRENT SUSPICION
+Short description of what appears abnormal.
+
+INVESTIGATIVE QUESTION
+What the player is trying to determine.
+
+SOC TOOLKIT
+Reference panel containing available tools and what each tool is used for.
+
+HINT
+Optional nudge if stuck.
+
+Do not display the tools as the ordered mission path.
+
+The SOC Toolkit should feel like a reference manual, not a solution list.
+
+---
+
+## SOC TOOLKIT BEHAVIOR
+
+The SOC Toolkit should show available tools with:
+
+* tool name
+* purpose
+* example usage if needed
+* whether it is a Linux-style command, analyst tool, or response action
+
+Example:
+
+ls
+Category: Triage Command
+Purpose: List available files or artifacts in the current workspace.
+
+cat <file>
+Category: Triage Command
+Purpose: Open a file artifact for inspection.
+
+grep <pattern> <file>
+Category: Triage Command
+Purpose: Search evidence for a specific pattern, such as an IP, domain, username, or suspicious term.
+
+whois <ip>
+Category: Analyst Tool
+Purpose: Identify ownership or registration details for external infrastructure.
+
+ports <ip>
+Category: Analyst Tool
+Purpose: Determine which services or ports the source touched.
+
+compare baseline
+Category: Analyst Tool
+Purpose: Compare current activity against known-good behavior.
+
+Important:
+The toolkit can explain capabilities, but it should not tell the player the exact next step unless they ask for a hint.
+
+---
+
+## HINT SYSTEM DIRECTION
+
+The hint system should not become:
+“type this command now”
+
+unless the player repeatedly asks for help.
+
+Use a tiered hint ladder:
+
+Hint 1:
+Frame the investigative question.
+
+Hint 2:
+Suggest the kind of evidence to look for.
+
+Hint 3:
+Suggest the tool category.
+
+Hint 4:
+Provide the exact command only as final rescue.
+
+Example:
+
+Hint 1:
+Determine whether the same external source appears more than once.
+
+Hint 2:
+Look for repeated source activity in the available artifact.
+
+Hint 3:
+A search command can help find repeated patterns.
+
+Hint 4:
+Try: grep 203.0.113.77 access.log
+
+---
+
+## COMMAND OUTPUT DIRECTION
+
+After meaningful commands, provide concise analyst feedback.
+
+Use this pattern:
+
+WHAT THIS MEANS
+Brief explanation of the result.
+
+WHAT THIS CHANGES
+How this affects suspicion or confidence.
+
+NEXT UNKNOWN
+What remains unanswered.
+
+Example:
+
+WHAT THIS MEANS
+The same external source touched multiple unrelated services.
+
+WHAT THIS CHANGES
+This increases confidence that the activity is probing rather than normal communication.
+
+NEXT UNKNOWN
+Determine whether this source belongs to known-good infrastructure.
+
+---
+
+## ASSIGNMENT 001 EARLY BEGINNER GOAL
+
+Assignment 001 should teach:
+
+* suspicious activity recognition
+* evidence search
+* repeated behavior
+* basic terminal investigation
+* first contact with SOC reasoning
+
+The player should not feel forced down a visible command checklist.
+
+The player should be guided by:
+
+* suspicion
+* question
+* available tools
+* evidence feedback
+
+---
+
+## ASSIGNMENT 002 EARLY BEGINNER GOAL
+
+Assignment 002 should teach:
+
+* benign vs malicious judgment
+* validation mindset
+* false positive thinking
+* comparison against expected behavior
+
+The player should learn:
+not every alert is malicious.
+
+Do not make Assignment 002 feel like a command puzzle.
+
+Make it feel like:
+“I need to decide whether this activity is suspicious enough to escalate.”
+
+---
+
+## IMPORTANT DESIGN RULE
+
+Do not remove beginner support.
+
+Replace direct command exposure with investigative framing.
+
+The player should still be supported, but support should guide thinking instead of revealing the path.
+
+---
+
+## WHAT STAYS THE SAME
+
+Keep:
+
+* terminal-first gameplay
+* mission stages
+* evidence pinning
+* SOC maps
+* CyberCorp identity
+* scorecard
+* existing mission data
+* containment logic
+* current progression engine
+
+Do not:
+
+* redesign all assignments
+* remove hints entirely
+* remove tool support
+* remove Linux-style commands
+* remove SOC Toolkit
+* change scoring yet
+
+This is a controlled test on Assignment 001 and Assignment 002 only.
+
+---
+
+## SUCCESS CRITERIA
+
+This test succeeds if:
+
+* the player understands the current suspicion
+* the player understands what question they are trying to answer
+* the player uses tools with purpose
+* the player does not simply follow a visible command checklist
+* hints become support instead of the main path
+* Assignment 001 and 002 feel more investigative
+* beginner support remains strong
+* gameplay stays immersive
+* learning improves without slowing momentum
