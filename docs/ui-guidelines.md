@@ -138,3 +138,54 @@ existing state, and must be called on EVERY home-reveal path
 (boot/restore/clear/back-nav) or it shows stale progress (agent memory
 `ech-landing-render.md`). The living board rows react to mission completion;
 `#opsPromoText` and `analystCareerReadiness()` reflect the promotion arc.
+
+## Early-beginner support model (Assignments 001 & 002 only)
+
+Assignments 001 and 002 run a distinct **investigation-support** UI in the lab,
+gated behind a per-mission flag (`support: { beginner: true }` on the M1/M2
+datasets in `lab.js`). 003–006 are unaffected and keep the standard command dock
++ coach. Helper: `labSupportV2()` reads the flag; everything below branches on it.
+
+What changes when the flag is on:
+
+- **Left panel (`#labDock`) → Investigation Support area** (`labRenderSupport`):
+  instead of the ordered TRIAGE / ANALYST / RESPONSE command checklist, it shows
+  **CURRENT SUSPICION** and **INVESTIGATIVE QUESTION** for the active stage
+  (sourced from each dataset's `framing[stage]` `suspicion`/`question`), plus a
+  short "how to investigate" pointer to the SOC Tool Kit + HINT footer actions.
+  The player chooses the fitting tool rather than ticking off a given list.
+  Styles: `.sc-support*` in `lab.css` (mirrors the `.sc-dock` aesthetic).
+- **Objective bar** (`labRefreshObjective`): shows the stage's `framing[stage].why`
+  (the stakes) instead of an imperative that names the exact command. The stage
+  progress counter (pinned / actions) is unchanged.
+- **Auto-coach** (`labGuide` → `labGuideV2`): never names a command/tool/action
+  unsolicited — it nudges back to the evidence board / SOC Tool Kit. The HINT
+  ladder remains the only path to a literal command.
+- **SOC Tool Kit** (`labOpenKit`): copy clarifies it is a reference; each tool is
+  clickable (`.lab-kit-item.is-clickable`, keyboard-accessible) and opens the
+  command explainer, since the dock no longer lists commands.
+- **Analyst feedback** (`labShowFeedback`, driven by per-tool/grepAha `fb` blocks):
+  after a meaningful command the terminal prints an **ANALYST READ** —
+  **WHAT THIS MEANS / WHAT THIS CHANGES / NEXT UNKNOWN**. Styles: `.sc-term-line.fb`
+  + `.fb-head`/`.fb-end`/`.fb-k` in `lab.css` (green, mirroring the purple `.frame*`).
+
+All of this is **presentation-only**: it never touches scoring, XP, persistence,
+stages, evidence, maps, CyberCorp identity, containment, progression, or the
+Linux-style command set. The hint-ladder escalation mechanics are unchanged
+(literal command only at tier 4).
+
+### Future direction (not implemented)
+
+The early-beginner tier is the first of three planned support tiers, selectable
+later per learner/assignment:
+
+- **INTERMEDIATE** — drop the persistent suspicion/question panel to a collapsible
+  reference; keep the SOC Tool Kit + hint ladder but raise the first hint tier
+  (start at "evidence-type", skip the question-framing tier). Analyst feedback
+  trims to WHAT THIS CHANGES / NEXT UNKNOWN (omit the explanatory MEANS line).
+- **ADVANCED** — no support panel and no auto-coach; SOC Tool Kit available on
+  demand only; a single terminal `hint` gives one conceptual nudge (no exact
+  command); no post-command analyst read. Closest to a real SOC console.
+
+These would extend the same `support` block (e.g. `support: { tier: 'intermediate' }`)
+so the gate stays per-mission and reversible.

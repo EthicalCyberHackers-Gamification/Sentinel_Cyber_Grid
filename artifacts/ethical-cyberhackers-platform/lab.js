@@ -119,6 +119,7 @@ const LAB_MISSIONS = {
       { t: 'Not sure where to begin? Click HINT (or type `hint`) — the first nudge frames', c: 'dim' },
       { t: 'your approach, and each one after gets more specific, ending with the command.', c: 'dim' },
     ],
+    support: { beginner: true },
     objective: {
       1: 'Triage the report: open the flagged message and find out where it really wants the user to go.',
       2: 'Prove it is phishing — surface the tells hidden in the email, then pin the indicators that matter (3 to continue).',
@@ -221,6 +222,11 @@ const LAB_MISSIONS = {
           { t: '    cybercorp-support.net — NOT cybercorp.com. The sender and the', c: 'ok' },
           { t: '    real destination do not match. That mismatch confirms phishing.', c: 'ok' },
         ],
+        fb: {
+          means: 'The link\'s real domain (cybercorp-support.net) does not match the brand it imitates (cybercorp.com).',
+          changes: 'You found the core tell — this is no longer a hunch, it is confirmed phishing.',
+          next: 'How was this email built to deceive, and how far did the campaign spread?',
+        },
         discover: 'link-mismatch',
         advanceTo: 2,
         unlock: [
@@ -378,52 +384,84 @@ const LAB_MISSIONS = {
           { t: 'Received:    mail.unknown-relay-83.ru (45.139.x.x)', c: 'warn' },
           { t: 'SPF: FAIL    DKIM: none', c: 'warn' },
           { t: '[+] cybercorp.com did NOT authorize this message — the sender is forged.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'The servers that should vouch for cybercorp.com refused to — SPF failed and there is no DKIM signature.',
+          changes: 'This stops being a "suspicious-looking" email; the sending identity is provably forged.',
+          next: 'If the sender is faked, where does the link inside actually send the victim?',
+        } } },
       { key: 'links',  cmd: 'links',    unlock: 2, icon: '🔗', name: 'Links',    hint: 'links',
         run: { already: 'Already analyzed — see the evidence board.', discover: 'link-mismatch', output: [
           { t: 'shown:    https://sso.cybercorp-support.net/verify' },
           { t: 'resolves: 45.139.x.x  ->  clone of the CyberCorp SSO page', c: 'warn' },
           { t: 'compare:  vpn.cybercorp.com (real, EV cert) — legitimate' },
           { t: '[+] The link impersonates SSO and points at external infrastructure.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'The button says CyberCorp SSO, but the address resolves to attacker-controlled infrastructure off your network.',
+          changes: 'You now have the credential-theft mechanism — a fake login page built to capture passwords.',
+          next: 'Who is behind that infrastructure, and is it already known to be malicious?',
+        } } },
       { key: 'sender', cmd: 'sender',   unlock: 2, icon: '✉', name: 'Sender',   hint: 'sender',
         run: { already: 'Already analyzed — see the evidence board.', discover: 'spoofed-sender', output: [
           { t: 'display name: "IT Helpdesk"' },
           { t: 'real address: bounce@cybercorp-support.net', c: 'warn' },
           { t: '[+] The friendly name hides a return address on the attacker domain.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'The friendly "IT Helpdesk" label is cosmetic — the real return address belongs to the attacker domain.',
+          changes: 'This is a deliberate disguise, not a misconfiguration: the email was crafted to look internal.',
+          next: 'How new and how convincing is the domain doing the impersonating?',
+        } } },
       { key: 'domain', cmd: 'domain',   unlock: 2, icon: '🌐', name: 'Domain',   hint: 'domain',
         run: { already: 'Already analyzed — see the evidence board.', discover: 'lookalike-domain', output: [
           { t: 'domain:     cybercorp-support.net' },
           { t: 'registered: 2 days ago · privacy-shielded WHOIS', c: 'warn' },
           { t: 'legit ref:  cybercorp.com registered 2014', c: '' },
           { t: '[+] A brand-new lookalike domain built to impersonate CyberCorp.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'The domain was registered two days ago behind WHOIS privacy — a throwaway built to mimic the real one.',
+          changes: 'The four email tells now agree: forged sender, fake link, disguised name, lookalike domain. Phishing is proven.',
+          next: 'This was sent to one inbox — but was it really? How wide does this campaign reach?',
+        } } },
 
       { key: 'lookup', cmd: 'lookup domain',    unlock: 3, icon: '⚲', name: 'Lookup domain',  hint: 'lookup domain',
         run: { already: 'Already looked up — see the evidence board.', advanceTo: 4, addNode: 'attacker', discover: 'domain-rep', output: [
           { t: 'cybercorp-support.net  ->  45.139.x.x', c: '' },
           { t: '  AS8003 — flagged bulletproof host', c: 'warn' },
           { t: '  threat-intel verdict: KNOWN-MALICIOUS (phishing)', c: 'warn' },
-        ] } },
+        ], fb: {
+          means: 'The lookalike domain resolves to a bulletproof host that threat intel already flags as a known phishing operator.',
+          changes: 'This is not an opportunistic one-off — you are facing infrastructure with a track record.',
+          next: 'How many of your people were targeted, and did anyone take the bait?',
+        } } },
       { key: 'recips', cmd: 'check recipients', unlock: 3, icon: '👥', name: 'Recipients',     hint: 'check recipients',
         run: { already: 'Already checked — see the evidence board.', advanceTo: 4, addNode: 'targets', discover: 'campaign-scope', output: [
           { t: 'searching mail logs for cybercorp-support.net …', c: 'dim' },
           { t: '12 employees received the same lure in the last 3 hours.', c: 'warn' },
           { t: '  1 reported · 3 opened · 1 submitted credentials', c: 'warn' },
-        ] } },
+        ], fb: {
+          means: 'Twelve employees got the same lure in three hours, and one of them actually submitted their credentials.',
+          changes: 'This is now a live incident with real exposure, not just a blocked email — someone is compromised.',
+          next: 'Where did those captured credentials go, and were they used?',
+        } } },
       { key: 'trace',  cmd: 'trace url',        unlock: 3, icon: '➤', name: 'Trace URL',      hint: 'trace url',
         run: { already: 'Already traced — see the evidence board.', advanceTo: 4, addNode: 'cred', discover: 'cred-endpoint', output: [
           { t: 'GET  /verify   ->  302 redirect', c: '' },
           { t: 'POST /collect.php   (username, password)', c: 'warn' },
           { t: '[+] The fake portal harvests credentials to attacker infrastructure.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'The fake page POSTs whatever the victim types straight to the attacker — username and password in the clear.',
+          changes: 'You have proof of exfiltration: stolen credentials left your environment for attacker hands.',
+          next: 'Did the attacker actually log in with what they captured?',
+        } } },
       { key: 'login',  cmd: 'inspect login',    unlock: 3, icon: '🔑', name: 'Inspect login',  hint: 'inspect login',
         run: { already: 'Already inspected — see the evidence board.', advanceTo: 4, addNode: 'victim', discover: 'account-comp', output: [
           { t: '06:31 j.martin  submitted credentials on the fake portal', c: 'warn' },
           { t: '06:38 j.martin  SUCCESSFUL login from 45.139.x.x (attacker IP)', c: 'warn' },
           { t: '[+] j.martin is compromised — credentials captured and reused.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'j.martin submitted credentials at 06:31, and seven minutes later those credentials logged in from the attacker IP.',
+          changes: 'A specific account is confirmed compromised and actively abused — this needs a response, not just analysis.',
+          next: 'Does the full timeline of alerts corroborate this chain end to end?',
+        } } },
       { key: 'alerts', cmd: 'review alerts',    unlock: 3, icon: '🚨', name: 'Review alerts',  hint: 'review alerts',
         run: { already: 'Already reviewed — see the evidence board.', advanceTo: 4, discover: 'alert-corr', output: [
           { t: 'SIEM correlation:', c: 'head' },
@@ -431,7 +469,11 @@ const LAB_MISSIONS = {
           { t: '  06:30 credential POST to 45.139.x.x', c: 'warn' },
           { t: '  06:38 impossible-travel login — j.martin', c: 'warn' },
           { t: '[+] Alerts confirm the kill chain end to end.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'The SIEM lines up lure delivery, the credential POST, and the impossible-travel login into one continuous story.',
+          changes: 'Independent telemetry corroborates your findings — the case is evidence-backed and ready to act on.',
+          next: 'What response cuts the attacker off and protects the user without leaving gaps?',
+        } } },
 
       { key: 'block',  cmd: 'block domain',     unlock: 5, icon: '⊘', name: 'Block domain',   hint: 'block domain' },
       { key: 'quar',   cmd: 'quarantine email', unlock: 5, icon: '🧹', name: 'Quarantine',     hint: 'quarantine email' },
@@ -662,6 +704,7 @@ const LAB_MISSIONS = {
       { t: 'Not sure where to begin? Click HINT (or type `hint`) — the first nudge frames', c: 'dim' },
       { t: 'your approach, and each one after gets more specific, ending with the command.', c: 'dim' },
     ],
+    support: { beginner: true },
     objective: {
       1: 'Triage the source host: open the flagged authentication log and find out what really signed in.',
       2: 'Prove it is pass-the-hash — surface the tells hidden in the logon, then pin the indicators that matter (3 to continue).',
@@ -753,6 +796,11 @@ const LAB_MISSIONS = {
           { t: '    parent — and it came FROM 10.44.2.19, a workstation that should never', c: 'ok' },
           { t: '    initiate logons into the server segment. That is pass-the-hash.', c: 'ok' },
         ],
+        fb: {
+          means: 'A workstation that should never log into the server segment did exactly that, using a replayed NTLM credential.',
+          changes: 'You found the core tell — this is no longer a hunch, it is confirmed pass-the-hash.',
+          next: 'How was the credential abused, and how far did the attacker move?',
+        },
         discover: 'pth-source',
         advanceTo: 2,
         unlock: [
@@ -917,55 +965,87 @@ const LAB_MISSIONS = {
           { t: 'auth pkg:   NTLM (no Kerberos ticket requested)', c: 'warn' },
           { t: 'parent:     none — no console session behind it', c: 'warn' },
           { t: '[+] A network NTLM logon with no interactive session is how a stolen hash is replayed.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'svc_backup authenticated over the network with NTLM and no one at a keyboard — the signature of a replayed hash.',
+          changes: 'The logon is not just "odd"; its shape matches credential replay, not a real interactive sign-in.',
+          next: 'If a credential was replayed, was the same one reused on other hosts?',
+        } } },
       { key: 'hash',    cmd: 'hash',    unlock: 2, icon: '🧬', name: 'Credential', hint: 'hash',
         run: { already: 'Already analyzed — see the evidence board.', discover: 'hash-reuse', output: [
           { t: 'credential: NTLM hash (no plaintext, no Kerberos TGT)', c: '' },
           { t: 'seen on:    10.44.2.19 (APAC-SEG-3) AND 10.44.7.55 (APAC-SEG-7)', c: 'warn' },
           { t: 'pattern:    same hash, two hosts, minutes apart, no fresh login', c: 'warn' },
           { t: '[+] One credential reused across hosts without re-authenticating = pass-the-hash.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'The same NTLM hash appears on two hosts minutes apart with no fresh login in between.',
+          changes: 'This confirms the technique by name: pass-the-hash, the reuse of a stolen credential to move laterally.',
+          next: 'Is this account even supposed to be doing this kind of work?',
+        } } },
       { key: 'account', cmd: 'account', unlock: 2, icon: '👤', name: 'Account',    hint: 'account',
         run: { already: 'Already analyzed — see the evidence board.', discover: 'account-misuse', output: [
           { t: 'account: svc_backup (service account)' },
           { t: 'home:    APAC-FILE-02 — nightly Veeam backup (expected)' },
           { t: 'here:    APAC-SEG-7, over the network, from a workstation', c: 'warn' },
           { t: '[+] The account is being used far outside its known, signed job.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'svc_backup is a backup service account, yet it is logging in over the network from a workstation it never touches.',
+          changes: 'The activity is provably out-of-role — it cannot be explained as the account doing its normal job.',
+          next: 'When did this happen, and does the timing look automated or hands-on?',
+        } } },
       { key: 'timeline',cmd: 'timeline',unlock: 2, icon: '⏱', name: 'Timeline',   hint: 'timeline',
         run: { already: 'Already analyzed — see the evidence board.', discover: 'offhours', output: [
           { t: '02:11  network logon to APAC-SEG-7', c: 'warn' },
           { t: '02:13  remote service created (2 min later)', c: 'warn' },
           { t: 'window: 02:00–02:30 UTC · off-hours · no change ticket', c: 'warn' },
           { t: '[+] A tight off-hours sequence with no ticket reads as hands-on-keyboard, not automation.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'A logon and a new remote service two minutes apart at 02:11, off-hours, with no change ticket behind it.',
+          changes: 'The four logon tells now agree: this is an active, hands-on intruder, not a misfiring scheduled job.',
+          next: 'Where did the attacker start, and how far across the estate did they reach?',
+        } } },
 
       { key: 'intel',   cmd: 'intel host',  unlock: 3, icon: '⚲', name: 'Threat intel',   hint: 'intel host',
         run: { already: 'Already looked up — see the evidence board.', advanceTo: 4, discover: 'patient-zero', output: [
           { t: '10.44.2.19 (APAC-SEG-3)', c: '' },
           { t: '  threat-intel verdict: PATIENT ZERO (prior breach)', c: 'warn' },
           { t: '  flagged for credential theft 6 days ago', c: 'warn' },
-        ] } },
+        ], fb: {
+          means: 'The source host was flagged for credential theft six days ago — threat intel calls it patient zero.',
+          changes: 'You have the origin of the intrusion: the foothold the attacker is moving out from.',
+          next: 'From that foothold, which other hosts did the traffic actually reach?',
+        } } },
       { key: 'flows',   cmd: 'netflow',     unlock: 3, icon: '↔', name: 'East-west flows', hint: 'netflow',
         run: { already: 'Already traced — see the evidence board.', advanceTo: 4, addNode: ['host7', 'host61'], discover: 'east-west', output: [
           { t: 'tracing east-west flows from 10.44.2.19 …', c: 'dim' },
           { t: '10.44.2.19 → 10.44.7.55 → 10.44.7.61', c: 'warn' },
           { t: 'ports: 445 (SMB), 135 (RPC) · short off-hours bursts', c: 'warn' },
           { t: '[+] Segments that never normally talk are now chaining host-to-host.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'Traffic chains host-to-host over SMB and RPC between segments that normally never communicate.',
+          changes: 'The movement is mapped: this is active lateral spread, not a single isolated logon.',
+          next: 'What is the attacker leaving behind on the hosts they reach?',
+        } } },
       { key: 'services',cmd: 'services',    unlock: 3, icon: '⚙', name: 'Services',        hint: 'services',
         run: { already: 'Already checked — see the evidence board.', advanceTo: 4, addNode: 'svc', discover: 'remote-svc', output: [
           { t: 'APAC-SEG-7  Event 7045 — new service installed', c: '' },
           { t: '  name: "WinHelpSvc"   path: C:\\Windows\\Temp\\wh.exe', c: 'warn' },
           { t: '  unsigned · created by svc_backup over SMB · 02:13', c: 'warn' },
           { t: '[+] A rogue remote service gives the attacker persistence on the host.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'An unsigned service (WinHelpSvc) was installed remotely from C:\\Windows\\Temp by svc_backup over SMB.',
+          changes: 'The attacker now has persistence — a way to survive a reboot and keep their foothold.',
+          next: 'How many hosts are implicated, and is the attacker reaching for anything bigger?',
+        } } },
       { key: 'spread',  cmd: 'spread',      unlock: 3, icon: '👥', name: 'Spread',          hint: 'spread',
         run: { already: 'Already checked — see the evidence board.', advanceTo: 4, addNode: 'core', discover: 'blast-radius', output: [
           { t: 'searching for the credential across the estate …', c: 'dim' },
           { t: '3 hosts implicated: 10.44.2.19, 10.44.7.55, 10.44.7.61', c: 'warn' },
           { t: 'next hop observed: probing the domain core (DC/KDC)', c: 'warn' },
-        ] } },
+        ], fb: {
+          means: 'Three hosts are implicated and the attacker is already probing the domain controller — the keys to the kingdom.',
+          changes: 'The blast radius is no longer one segment; the next hop threatens domain-wide compromise.',
+          next: 'Does the SIEM corroborate this movement chain end to end?',
+        } } },
       { key: 'siem',    cmd: 'review alerts', unlock: 3, icon: '🚨', name: 'Review alerts',  hint: 'review alerts',
         run: { already: 'Already reviewed — see the evidence board.', advanceTo: 4, discover: 'alert-corr', output: [
           { t: 'SIEM correlation:', c: 'head' },
@@ -973,7 +1053,11 @@ const LAB_MISSIONS = {
           { t: '  02:13 remote service created (7045)', c: 'warn' },
           { t: '  02:18 east-west SMB to the next host', c: 'warn' },
           { t: '[+] Alerts confirm the movement chain end to end.', c: 'ok' },
-        ] } },
+        ], fb: {
+          means: 'The SIEM lines up the NTLM logon, the new service, and the east-west SMB into one continuous movement chain.',
+          changes: 'Independent telemetry corroborates the spread — the case is evidence-backed and ready to act on.',
+          next: 'What sequence isolates the chain and locks the stolen credential out for good?',
+        } } },
 
       { key: 'isolate',  cmd: 'isolate hosts', unlock: 5, icon: '⊘', name: 'Isolate hosts',  hint: 'isolate hosts' },
       { key: 'rotate',   cmd: 'rotate account',unlock: 5, icon: '♻', name: 'Rotate account', hint: 'rotate account' },
@@ -1317,7 +1401,13 @@ function labUpdatePrompt() {
 function labRefreshObjective() {
   const def = LAB.def;
   const txt = $lab('labObjectiveText');
-  if (txt) txt.innerHTML = def.objective[LAB.stage] || '';
+  // Early-beginner support (001 & 002): the objective bar shows WHY this stage
+  // matters (the stakes) instead of an imperative that names the exact command —
+  // direction comes from the suspicion/question panel, feedback, and hints.
+  if (txt) {
+    const f = def.framing && def.framing[LAB.stage];
+    txt.innerHTML = labSupportV2() && f && f.why ? f.why : (def.objective[LAB.stage] || '');
+  }
   const prog = $lab('labObjectiveProgress');
   if (!prog) return;
   if (LAB.stage === 2) {
@@ -1540,6 +1630,7 @@ function labFileCmd(cmd, args) {
     if (aha && name === aha.file && (!aha.requireUrl || foundUrl)) {
       labPrint(aha.found);
       if (aha.discover) labDiscover(aha.discover);
+      if (labSupportV2() && aha.fb) labShowFeedback(aha.fb);
       if (LAB.stage === 1 && aha.advanceTo) {
         labSetStage(aha.advanceTo);
         if (aha.unlock) labPrint(aha.unlock);
@@ -1581,6 +1672,7 @@ function labDispatch(key) {
         nodes.forEach((n) => labAddNode(n));
       }
       if (run.discover) labDiscover(run.discover);
+      if (labSupportV2() && run.fb) labShowFeedback(run.fb);
       if (LAB.stage > fromStage) labShowFraming(LAB.stage);
     }
   }
@@ -1608,6 +1700,11 @@ function labGuide() {
   const def = LAB.def;
   const stage = LAB.stage;
   let line = '';
+
+  // Early-beginner support (001 & 002): the auto-coach must not name the exact
+  // next command unsolicited — that is the HINT ladder's job. Print only a soft,
+  // command-free nudge so direction stays with the suspicion/question + feedback.
+  if (labSupportV2()) { labGuideV2(); return; }
 
   if (stage === 2 || stage === 3 || stage === 4) {
     const flow = stage === 2 ? def.hintFlow.stage2 : def.hintFlow.stage4;
@@ -1645,6 +1742,42 @@ function labGuide() {
       line = `→ Next: contain the threat — ${todo.map((k) => '`' + def.contain[k].label + '`').join(', ')}.`;
     } else if (!LAB.done) {
       line = '→ Next: file your incident report — `submit report` — to close the case.';
+    }
+  }
+
+  if (line) labPrint([{ t: line, c: 'guide' }]);
+}
+
+/* Early-beginner auto-coach (001 & 002). Mirrors labGuide's pacing but never
+ * names a command, tool, or exact action — it nudges the player back to the
+ * support panel / evidence board / SOC Tool Kit, leaving the HINT ladder as the
+ * only path to a literal command. Presentation-only. */
+function labGuideV2() {
+  const def = LAB.def;
+  const stage = LAB.stage;
+  let line = '';
+
+  if (stage === 2 || stage === 3 || stage === 4) {
+    const flow = stage === 2 ? def.hintFlow.stage2 : def.hintFlow.stage4;
+    if (flow && flow.group) {
+      const need = flow.need;
+      const pinned = labPinnedCount(flow.group);
+      const left = Math.max(0, need - pinned);
+      const unpinned = LAB.discovered.filter(
+        (id) => def.ind[id] && def.ind[id].group === flow.group && !LAB.pinned.has(id),
+      );
+      if (unpinned.length) {
+        line = `→ You surfaced new evidence — commit what matters to your evidence board (${pinned}/${need} pinned).`;
+      } else if (left > 0) {
+        line = `→ Keep questioning the artifact — there are more tells to surface before the picture is complete (${pinned}/${need} pinned).`;
+      }
+    }
+  } else if (stage === 5) {
+    const todo = def.containRequired.filter((k) => !LAB.contained.has(k) && def.contain[k]);
+    if (todo.length) {
+      line = '→ Decide how to shut this down — your response actions are in the SOC Tool Kit.';
+    } else if (!LAB.done) {
+      line = '→ With the threat contained, close the case by filing your incident report.';
     }
   }
 
@@ -1777,6 +1910,14 @@ function labRenderDock() {
   const def = LAB.def;
   const dock = $lab('labDock');
   if (!dock) return;
+
+  // Early-beginner support model (001 & 002): replace the ordered command
+  // checklist with an investigation-support panel — what we currently suspect
+  // and the question this stage answers — so the player decides which tool fits
+  // rather than ticking off a given list. SOC TOOL KIT (reference) and HINT stay
+  // reachable in the dock footer.
+  if (labSupportV2()) { labRenderSupport(dock); return; }
+
   const visible = def.tools.filter((t) => t.unlock <= LAB.stage);
 
   // Phase 1 — group the dock by the three operational command CATEGORIES
@@ -1811,6 +1952,32 @@ function labRenderDock() {
   dock.querySelectorAll('[data-lab-key]').forEach((btn) => {
     btn.addEventListener('click', () => labOpenExplain(btn.dataset.labKey));
   });
+}
+
+/* Early-beginner support panel (001 & 002). Reads the active stage's framing —
+ * what we suspect and the question to answer — and points at the SOC Tool Kit
+ * (reference manual) and HINT (gradual ladder). No ordered command list: the
+ * player chooses the tool that fits the question. Presentation-only. */
+function labRenderSupport(dock) {
+  const def = LAB.def;
+  const f = (def.framing && def.framing[LAB.stage]) || {};
+  dock.innerHTML = `
+    <div class="sc-support">
+      <div class="sc-support-block">
+        <div class="sc-support-label">CURRENT SUSPICION</div>
+        <div class="sc-support-text">${labEsc(f.suspicion || '')}</div>
+      </div>
+      <div class="sc-support-block">
+        <div class="sc-support-label is-question">INVESTIGATIVE QUESTION</div>
+        <div class="sc-support-text">${labEsc(f.question || '')}</div>
+      </div>
+      <div class="sc-support-block sc-support-help">
+        <div class="sc-support-label">HOW TO INVESTIGATE</div>
+        <div class="sc-support-text">Pick the command that helps answer the question above. Open the
+          <strong>SOC Tool Kit</strong> below to see what each command does, then type it in the terminal.
+          Stuck? Press <strong>HINT</strong> — it frames the question first and only reveals a command as a last step.</div>
+      </div>
+    </div>`;
 }
 
 /* ------------------------------------------------------------------ *
@@ -1864,6 +2031,7 @@ function labOpenKit() {
   const def = LAB.def;
   const host = $lab('labKit');
   if (!host) return;
+  const v2 = labSupportV2();
   const visible = def.tools.filter((t) => t.unlock <= LAB.stage);
   const locked = def.tools.filter((t) => t.unlock > LAB.stage);
 
@@ -1873,8 +2041,11 @@ function labOpenKit() {
     const cat = labToolCategory(t.unlock);
     if (cat !== lastCat) { body += `<div class="lab-kit-group ${labCategoryClass(cat)}">${cat}</div>`; lastCat = cat; }
     const doc = def.doc[t.key] || {};
+    // In the early-beginner model the dock shows no command list, so the kit
+    // itself is the way in: each tool is clickable and opens its explainer.
+    const attrs = v2 ? ` data-lab-kit-key="${t.key}" role="button" tabindex="0" title="Click for the full story"` : '';
     body += `
-      <div class="lab-kit-item">
+      <div class="lab-kit-item${v2 ? ' is-clickable' : ''}"${attrs}>
         <span class="lab-kit-ico" aria-hidden="true">${t.icon}</span>
         <div class="lab-kit-body">
           <div><span class="lab-kit-name">${labEsc(t.name)}</span><span class="lab-kit-cmd">${labEsc(t.cmd)}</span></div>
@@ -1892,7 +2063,7 @@ function labOpenKit() {
         <span class="lab-modal-ico" aria-hidden="true">🧰</span>
         <div class="lab-modal-titles">
           <div class="lab-modal-title">SOC Tool Kit</div>
-          <div class="lab-modal-sub">Every command available to you right now — click a tool on the left for the full story.</div>
+          <div class="lab-modal-sub">${v2 ? 'Every command available to you right now — click one for the full story, then type it in the terminal.' : 'Every command available to you right now — click a tool on the left for the full story.'}</div>
         </div>
         <button class="lab-modal-close" type="button" data-lab-close aria-label="Close">×</button>
       </div>
@@ -1910,6 +2081,17 @@ function labOpenKit() {
     </div>`;
   host.hidden = false;
   labBindModal(host);
+  // V2 kit items open the command explainer (close the kit first so the two
+  // modals never stack). Keyboard-accessible via Enter/Space on the item.
+  if (v2) {
+    host.querySelectorAll('[data-lab-kit-key]').forEach((el) => {
+      const open = () => { const k = el.dataset.labKitKey; labCloseModals(); labOpenExplain(k); };
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      });
+    });
+  }
 }
 
 // Wire close buttons and "Load into terminal" for a modal. These live on the
@@ -1948,6 +2130,31 @@ function labDocText(s) {
 function labLearning() {
   const L = LAB.def && LAB.def.learning;
   return L && L.enabled ? L : null;
+}
+
+/* ------------------------------------------------------------------ *
+ * EARLY-BEGINNER SUPPORT MODEL (Assignments 001 & 002 only)
+ * Gated per-mission on `def.support.beginner`. When on, the left panel
+ * becomes an investigation-support area (current suspicion + investigative
+ * question) instead of an ordered command checklist, the objective bar and
+ * auto-coach stop naming the exact next command unsolicited, and meaningful
+ * commands print structured analyst feedback. 003–006 leave this off and are
+ * completely unchanged. Presentation-only: never touches stage logic,
+ * evidence, scoring, XP, or persistence.
+ * ------------------------------------------------------------------ */
+function labSupportV2() {
+  return !!(LAB.def && LAB.def.support && LAB.def.support.beginner);
+}
+
+/* Print the WHAT THIS MEANS / WHAT THIS CHANGES / NEXT UNKNOWN analyst read
+ * after a meaningful command. Driven by a tool/run `fb` block. */
+function labShowFeedback(fb) {
+  if (!fb) return;
+  const lines = [{ t: 'ANALYST READ', c: 'fb fb-head' }];
+  if (fb.means)   lines.push({ t: `<span class="fb-k">WHAT THIS MEANS</span> ${fb.means}`, c: 'fb', html: true });
+  if (fb.changes) lines.push({ t: `<span class="fb-k">WHAT THIS CHANGES</span> ${fb.changes}`, c: 'fb', html: true });
+  if (fb.next)    lines.push({ t: `<span class="fb-k">NEXT UNKNOWN</span> ${fb.next}`, c: 'fb fb-end', html: true });
+  labPrint(lines);
 }
 
 // The term keys this mission surfaces (filtered to ones the knowledge base has).

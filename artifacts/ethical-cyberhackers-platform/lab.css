@@ -490,6 +490,72 @@
   opacity: 0.9;
 }
 
+/* Analyst feedback (early-beginner 001 & 002) — the WHAT THIS MEANS / WHAT THIS
+   CHANGES / NEXT UNKNOWN read printed after a meaningful command. Mirrors the
+   framing block's left-rule treatment but in green so the player tells the
+   "here's what you just learned" recap apart from the stage's framing. */
+.sc-term-line.fb {
+  color: var(--text);
+  border-left: 2px solid var(--green);
+  padding-left: 9px;
+  margin: 0;
+}
+
+.sc-term-line.fb-head {
+  color: var(--green);
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  margin-top: 6px;
+  padding-top: 3px;
+}
+
+.sc-term-line.fb-end { padding-bottom: 3px; margin-bottom: 4px; }
+
+.fb-k {
+  color: var(--green);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  margin-right: 8px;
+  opacity: 0.9;
+}
+
+/* Investigation-support panel (early-beginner 001 & 002) — replaces the ordered
+   command checklist in the dock. Shows the current suspicion + the question this
+   stage answers, then points at the SOC Tool Kit / HINT footer actions. */
+.sc-support { display: flex; flex-direction: column; gap: 12px; }
+
+.sc-support-block {
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg-panel-alt); padding: 10px 11px;
+}
+
+.sc-support-label {
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.14em;
+  color: var(--text-muted); margin-bottom: 5px;
+}
+
+.sc-support-label.is-question { color: var(--cyan); }
+
+.sc-support-text {
+  font-family: var(--font-body); font-size: 12px; line-height: 1.5; color: var(--text);
+}
+
+.sc-support-block .sc-support-text strong { color: var(--text-bright); }
+
+.sc-support-help { border-style: dashed; background: transparent; }
+
+.sc-support-help .sc-support-text { color: var(--text-dim); }
+
+/* Clickable SOC Tool Kit items (V2 only) — the kit is the way into the command
+   explainer when the dock no longer lists commands. */
+.lab-kit-item.is-clickable { cursor: pointer; transition: var(--transition); }
+
+.lab-kit-item.is-clickable:hover,
+.lab-kit-item.is-clickable:focus-visible {
+  border-color: var(--cyan-dim); background: var(--bg-hover); outline: none;
+}
+
 .sc-term-form { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--border); flex: none; background: var(--bg-panel); }
 
 .sc-term-prompt { color: var(--green); font-size: 12.5px; }
