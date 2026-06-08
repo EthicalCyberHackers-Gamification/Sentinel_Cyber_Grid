@@ -11,7 +11,16 @@ on a mission's `lab.js` dataset, read through the single helper `labSupportV2()`
 
 **Why:** beginners blind-follow an ordered command dock instead of reasoning. The
 tier hides the dock's command list and surfaces suspicion/question + post-command
-analyst feedback instead. Currently on for 001/002 only.
+analyst feedback instead. On for internal mission-001, mission-002, and mission-003.
+
+**Player label ≠ internal id (important):** the "Lab NNN" shown to players does NOT
+match the internal `mission-NNN` id. Reconnaissance Detection is internal
+`mission-003` but is shown as **Lab 001** — it is the FIRST assignment players
+actually play. Map: Lab001=mission-003, Lab002=mission-006, Lab003=mission-001,
+Lab004=mission-005, Lab005=mission-004, Lab006=mission-002. A prior pass applied
+this tier to the wrong (locked) missions by trusting the id. Confirm against the
+play-order label before editing. (replit.md's "mission-002 = Network Exposure" is
+STALE — lab.js says mission-002 is Lateral Movement.)
 
 **How to apply / invariants:**
 - Branch every beginner-tier behavior on `labSupportV2()`, NEVER on a mission id —
@@ -26,5 +35,7 @@ analyst feedback instead. Currently on for 001/002 only.
   persistent support panel, and the objective bar). Panel + print overlap is
   intentional (panel persists, print scrolls away) — do not "dedupe" it.
 
-INTERMEDIATE/ADVANCED tiers are future direction only (see `docs/ui-guidelines.md`);
-they would extend the same `support` block with a `tier` field rather than new flags.
+INTERMEDIATE/ADVANCED tiers are future direction only; they would extend the same
+`support` block with a `tier` field rather than new flags. (Note: there is no
+`docs/ui-guidelines.md` in this artifact — docs live in `docs/MISSION_ENGINE_GUIDE.md`,
+`docs/PHASE_A_BASELINE.md`, `docs/README.md`.)

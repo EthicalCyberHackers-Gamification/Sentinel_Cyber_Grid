@@ -45,11 +45,12 @@ export default {
     { t: 'the quiet stage before an attack — repeated or unfamiliar connections are its', c: 'dim' },
     { t: 'first fingerprint. A busy log can look noisy, but a scan has a pattern.', c: 'dim' },
     { t: 'What you\'ll practice: reading connection logs and spotting the repeated, unfamiliar contact that gives a scan away — investigate first, act last.', c: 'dim' },
-    { t: 'New here? Click any command on the left to learn what it does (it will not run', c: 'dim' },
-    { t: 'until you type it), or open the SOC TOOL KIT for the full list of what you have.', c: 'dim' },
+    { t: 'New here? The panel on the left frames what to suspect and the question to', c: 'dim' },
+    { t: 'answer next; open the SOC TOOL KIT for the commands you can run.', c: 'dim' },
     { t: 'Not sure where to begin? Click HINT (or type `hint`) — the first nudge frames', c: 'dim' },
     { t: 'your approach, and each one after gets more specific, ending with the command.', c: 'dim' },
   ],
+  support: { beginner: true },
   objective: {
     1: 'Triage the telemetry: open the connection snapshot and find which outside address keeps coming back.',
     2: 'Prove it is reconnaissance — surface the tells in the traffic, then pin the indicators that matter (3 to continue).',
@@ -156,6 +157,11 @@ export default {
         { t: '    services from one outside host in seconds. A real peer talks to', c: 'ok' },
         { t: '    one service; this is a systematic sweep. That pattern is recon.', c: 'ok' },
       ],
+      fb: {
+        means: 'One outside address — 203.0.113.77 — touched ssh, http, https and mysql in seconds; a real peer uses a single service.',
+        changes: 'You found the core tell — this is no longer odd traffic, it is a confirmed port sweep.',
+        next: 'Who owns that address, and how far did the scan actually reach?',
+      },
       discover: 'multi-port-probe',
       advanceTo: 2,
       unlock: [
@@ -305,45 +311,73 @@ export default {
         { t: 'OrgName:   Unknown / Unregistered', c: 'warn' },
         { t: 'Country:   --   ·   abuse contact: none on file', c: 'warn' },
         { t: '[+] Anonymous, unregistered source — not a legitimate service.', c: 'ok' },
-      ] } },
+      ], fb: {
+        means: 'The source address resolves to no registered organisation and lists no abuse contact.',
+        changes: 'This is anonymous infrastructure, not a legitimate peer that merely looked unfamiliar.',
+        next: 'Which ports did it actually probe — and does this host even run them?',
+      } } },
     { key: 'ports', cmd: 'ports 203.0.113.77', unlock: 2, icon: '🔌', name: 'Probed ports', hint: 'ports <ip>',
       run: { already: 'Already mapped — see the evidence board.', discover: 'targeted-ports', output: [
         { t: 'ports touched by 203.0.113.77:  22, 80, 443, 3306' },
         { t: 'WS-4471 actually listens on:    22 (ssh), 445 (smb)' },
         { t: '[+] 80/443/3306 are doors this host does not even have — blind probing.', c: 'warn' },
-      ] } },
+      ], fb: {
+        means: 'The scanner hit 80, 443 and 3306 — services WS-4471 does not even run.',
+        changes: 'It is blindly testing for any open door, which proves discovery, not a real connection.',
+        next: 'Is this address on your approved peer list, or is it unauthorized?',
+      } } },
     { key: 'baseline', cmd: 'compare baseline', unlock: 2, icon: '📊', name: 'Compare baseline', hint: 'compare baseline',
       run: { already: 'Already compared — see the evidence board.', discover: 'not-in-baseline', output: [
         { t: 'checking 203.0.113.77 against known-good peers …', c: 'dim' },
         { t: '198.51.100.20  -> on baseline (Global CDN — benign)', c: '' },
         { t: '203.0.113.77   -> NOT on baseline', c: 'warn' },
         { t: '[+] The source is unauthorized; the CDN beside it is ruled out.', c: 'ok' },
-      ] } },
+      ], fb: {
+        means: 'The source is absent from the reviewed known-good peer list, while the CDN beside it is on it.',
+        changes: 'You can now call it unauthorized, not merely unfamiliar — and rule the benign CDN out.',
+        next: 'Is one host the whole story, or is the same source sweeping others too?',
+      } } },
 
     { key: 'intel', cmd: 'intel 203.0.113.77', unlock: 3, icon: '⚲', name: 'Threat intel', hint: 'intel <ip>',
       run: { already: 'Already checked — see the evidence board.', advanceTo: 4, addNode: 'attacker', discover: 'intel-recon', output: [
         { t: '203.0.113.77  ->  threat-intel feeds', c: '' },
         { t: '  verdict: KNOWN scanning / reconnaissance infrastructure', c: 'warn' },
         { t: '  seen probing other organisations this week', c: 'warn' },
-      ] } },
+      ], fb: {
+        means: 'Threat-intel feeds already classify 203.0.113.77 as known scanning / reconnaissance infrastructure.',
+        changes: 'Independent confirmation you are not chasing a false positive — the source is hostile.',
+        next: 'How many other hosts did this same source touch?',
+      } } },
     { key: 'scope', cmd: 'check hosts', unlock: 3, icon: '👥', name: 'Check scope', hint: 'check hosts',
       run: { already: 'Already checked — see the evidence board.', advanceTo: 4, addNode: 'peers', discover: 'multi-host-scope', output: [
         { t: 'querying SIEM for hosts touched by 203.0.113.77 …', c: 'dim' },
         { t: '7 workstations probed in the last hour (incl. WS-4471).', c: 'warn' },
         { t: '[+] This is a subnet-wide sweep, not a single-host probe.', c: 'ok' },
-      ] } },
+      ], fb: {
+        means: 'The same source probed seven workstations in the last hour, not just WS-4471.',
+        changes: 'This is a subnet-wide sweep — the blast radius is far larger than the one flagged host.',
+        next: 'Do the individual signals add up to one deliberate scan pattern?',
+      } } },
     { key: 'pattern', cmd: 'correlate recon', unlock: 3, icon: '🧭', name: 'Correlate pattern', hint: 'correlate recon',
       run: { already: 'Already reviewed — see the evidence board.', advanceTo: 4, addNode: 'svc', discover: 'scan-pattern', output: [
         { t: 'correlating: one source · many ports · no real session', c: '' },
         { t: '[+] Signals match a textbook reconnaissance scan.', c: 'ok' },
-      ] } },
+      ], fb: {
+        means: 'One source, many ports, no legitimate session — the signals match a textbook recon scan.',
+        changes: 'The separate indicators now read as one verdict: confirmed reconnaissance, not noise.',
+        next: 'Does the SIEM sensor timeline corroborate the sweep end to end?',
+      } } },
     { key: 'siem', cmd: 'review alerts', unlock: 3, icon: '🚨', name: 'Review alerts', hint: 'review alerts',
       run: { already: 'Already reviewed — see the evidence board.', advanceTo: 4, addNode: 'sensor', discover: 'siem-corr', output: [
         { t: 'SIEM correlation:', c: 'head' },
         { t: '  burst of SYN probes from 203.0.113.77 across the subnet' },
         { t: '  same source, sequential ports, sub-second spacing', c: 'warn' },
         { t: '[+] Sensor alerts confirm one coordinated sweep.', c: 'ok' },
-      ] } },
+      ], fb: {
+        means: 'SIEM sensor alerts across the subnet line up exactly with the probe timeline from one source.',
+        changes: 'Scattered alerts become one coordinated, evidence-backed reconnaissance incident.',
+        next: 'What response blocks the scanner and closes the doors it found?',
+      } } },
 
     { key: 'block',   cmd: 'block ip',        unlock: 5, icon: '⊘', name: 'Block source', hint: 'block ip' },
     { key: 'harden',  cmd: 'harden services', unlock: 5, icon: '🛡', name: 'Harden services', hint: 'harden services' },
