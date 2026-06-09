@@ -902,6 +902,36 @@ export const missionRegistry = [
     prerequisiteId:      "mission2",
     engineMissionDataId: "mission-003",   // Links to the live M3 engine
   },
+  {
+    missionId:           "mission4",
+    title:               "Reconnaissance Sweep",
+    description:         "Confirm and classify a coordinated reconnaissance sweep.",
+    order:               4,
+    status:              "locked",        // Becomes "unlocked" after Mission 3
+    placeholderOnly:     true,            // Surfaced in the course list once M3 is complete
+    prerequisiteId:      "mission3",
+    engineMissionDataId: "mission-004",   // Data-driven engine (GENERIC_MISSIONS)
+  },
+  {
+    missionId:           "mission5",
+    title:               "Account Takeover Investigation",
+    description:         "Investigate a suspected account takeover.",
+    order:               5,
+    status:              "locked",        // Becomes "unlocked" after Mission 4
+    placeholderOnly:     true,            // Surfaced in the course list once M4 is complete
+    prerequisiteId:      "mission4",
+    engineMissionDataId: "mission-005",   // Data-driven engine (GENERIC_MISSIONS)
+  },
+  {
+    missionId:           "mission6",
+    title:               "Anomalous Scan Triage",
+    description:         "Triage anomalous scanning activity on the network.",
+    order:               6,
+    status:              "locked",        // Becomes "unlocked" after Mission 5
+    placeholderOnly:     true,            // Surfaced in the course list once M5 is complete
+    prerequisiteId:      "mission5",
+    engineMissionDataId: "mission-006",   // Data-driven engine (GENERIC_MISSIONS)
+  },
 ];
 
 

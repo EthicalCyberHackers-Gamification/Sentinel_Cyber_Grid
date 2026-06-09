@@ -9323,30 +9323,45 @@ function resetProgressTracker() {
    ============================================================ */
 
 /**
- * Mirrors the live state flags onto the mission registry's `status`
- * field. Called at the top of renderCourseProgress() so the registry
- * always reflects current state without duplicating it.
+ * True when the registry mission `missionId` (e.g. "mission4") is complete,
+ * read from the live completion flags that remain the save/load source of
+ * truth. Mirrors the same chain used by missionMapStatus / the OC home so the
+ * Course Progress drawer never diverges from the map.
  */
+function isRegistryMissionComplete(missionId) {
+  switch (missionId) {
+    case "mission1": return !!missionComplete;
+    case "mission2": return !!mission2Complete;
+    case "mission3": return !!mission3Complete;
+    case "mission4": return !!mission4Complete;
+    case "mission5": return !!mission5Complete;
+    case "mission6": return !!mission6Complete;
+    default:         return false;
+  }
+}
+
 function syncRegistryFromState() {
-  // Mission 1 — Available until completed, then Completed
+  // Mission 1 — Available until completed, then Completed (no prerequisite).
   setRegistryMissionStatus(
     "mission1",
     missionComplete ? MISSION_STATUS.COMPLETED : MISSION_STATUS.AVAILABLE,
   );
 
-  // Mission 2 — Locked → Unlocked (after M1) → Completed
-  let m2;
-  if (mission2Complete)      m2 = MISSION_STATUS.COMPLETED;
-  else if (missionComplete)  m2 = MISSION_STATUS.UNLOCKED;
-  else                       m2 = MISSION_STATUS.LOCKED;
-  setRegistryMissionStatus("mission2", m2);
-
-  // Mission 3 — Locked → Unlocked (after M2) → Completed
-  let m3;
-  if (mission3Complete)      m3 = MISSION_STATUS.COMPLETED;
-  else if (mission2Complete) m3 = MISSION_STATUS.UNLOCKED;
-  else                       m3 = MISSION_STATUS.LOCKED;
-  setRegistryMissionStatus("mission3", m3);
+  // Missions 2–6 — Locked → Unlocked (once the prerequisite is complete) →
+  // Completed. Derived from the same chained completion flags as the OC map,
+  // so adding 4/5/6 needs no per-mission branch here.
+  missionRegistry.forEach((entry) => {
+    if (entry.missionId === "mission1") return;
+    let status;
+    if (isRegistryMissionComplete(entry.missionId)) {
+      status = MISSION_STATUS.COMPLETED;
+    } else if (entry.prerequisiteId && isRegistryMissionComplete(entry.prerequisiteId)) {
+      status = MISSION_STATUS.UNLOCKED;
+    } else {
+      status = MISSION_STATUS.LOCKED;
+    }
+    setRegistryMissionStatus(entry.missionId, status);
+  });
 }
 
 /** Capitalizes the first letter of a status string for display. */
@@ -9359,9 +9374,13 @@ function statusLabel(status) {
  * Returns "" for entries that should be hidden at this moment.
  */
 function buildCourseCardHTML(entry) {
-  // Mission 3 is a locked placeholder — only surface it once Mission 2 is
-  // complete, matching the prior milestone's UX.
-  if (entry.placeholderOnly && !mission2Complete) return "";
+  // Placeholder missions (3–6) only surface once their prerequisite is
+  // complete — e.g. Mission 3 appears after Mission 2, Mission 4 after Mission
+  // 3, etc. — mirroring the original Mission-3-hidden-until-Mission-2 UX.
+  if (entry.placeholderOnly && entry.prerequisiteId &&
+      !isRegistryMissionComplete(entry.prerequisiteId)) {
+    return "";
+  }
 
   const num    = String(entry.order).padStart(2, "0");
   const mod    = entry.status;            // "locked" | "available" | "unlocked" | "completed"
@@ -9422,9 +9441,14 @@ function renderCourseProgress() {
     .map(buildCourseCardHTML)
     .join("");
 
-  // 3. Header summary — Mission 3 only counts toward the total once it's
-  //    visible (after Mission 2 completion), preserving prior behavior.
-  const totalLabel = mission2Complete ? "3 missions" : "2 missions";
+  // 3. Header summary — count only the cards currently visible. Placeholder
+  //    missions (3–6) join the total once their prerequisite is complete,
+  //    matching which cards actually render.
+  const visibleCount = missionRegistry.filter((e) =>
+    !(e.placeholderOnly && e.prerequisiteId &&
+      !isRegistryMissionComplete(e.prerequisiteId)),
+  ).length;
+  const totalLabel = `${visibleCount} mission${visibleCount === 1 ? "" : "s"}`;
 
   courseProgressEl.innerHTML = `
     <div class="course-progress-header">
@@ -12843,9 +12867,15 @@ function runMissionEngineHealthCheck() {
     const next1 = getNextMissionId("mission1");
     const next2 = getNextMissionId("mission2");
     const next3 = getNextMissionId("mission3");
+    const next4 = getNextMissionId("mission4");
+    const next5 = getNextMissionId("mission5");
+    const next6 = getNextMissionId("mission6");
     check("getNextMissionId('mission1') === 'mission2'", next1 === "mission2");
     check("getNextMissionId('mission2') === 'mission3'", next2 === "mission3");
-    check("getNextMissionId('mission3') === null",       next3 === null);
+    check("getNextMissionId('mission3') === 'mission4'", next3 === "mission4");
+    check("getNextMissionId('mission4') === 'mission5'", next4 === "mission5");
+    check("getNextMissionId('mission5') === 'mission6'", next5 === "mission6");
+    check("getNextMissionId('mission6') === null",       next6 === null);
   } catch (e) {
     fail.push(`getNextMissionId() threw: ${e.message}`);
   }
