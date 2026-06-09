@@ -13228,6 +13228,13 @@ function boot() {
     // assignment must be unlocked. Without this, /?lab=mission-002 would bypass
     // gating and let notifyLabComplete persist out-of-order progression.
     canOpen: (missionId) => {
+      // Assignment 000 is a standalone beginner ORIENTATION reachable ONLY via
+      // ?lab=mission-000. It is intentionally outside the play-order/unlock
+      // chain (absent from the mission list, Ops Center map, and unlock flow),
+      // awards no XP, and never persists — notifyLabComplete no-ops for ids
+      // outside MISSION_PLAY_ORDER. So bypass the onboarding+unlock gate for
+      // this id alone; this cannot affect player progression.
+      if (missionId === "mission-000") return true;
       if (!studentName || !studentName.trim()) return false;
       return missionMapStatus(missionId) !== "locked";
     },

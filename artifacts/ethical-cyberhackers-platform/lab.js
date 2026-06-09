@@ -45,6 +45,7 @@ export function configureLab(hooks) { LAB_HOOKS = hooks || {}; }
  * their own ES modules under ./lab.missions/ and are spread into LAB_MISSIONS
  * (keeps each large dataset isolated and editable on its own). Adding a mission
  * = adding a dataset import here, not new engine code. */
+import LAB_M0 from './lab.missions/mission-000.js';
 import LAB_M3 from './lab.missions/mission-003.js';
 import LAB_M4 from './lab.missions/mission-004.js';
 import LAB_M5 from './lab.missions/mission-005.js';
@@ -1248,6 +1249,10 @@ const LAB_MISSIONS = {
     },
   },
 
+  // Assignment 000 — standalone beginner orientation. Reachable ONLY via the
+  // ?lab=mission-000 deep link (host canOpen has a surgical bypass); never on the
+  // mission list / Ops Center map / unlock chain, and awards no XP / never persists.
+  'mission-000': LAB_M0,
   'mission-003': LAB_M3,
   'mission-004': LAB_M4,
   'mission-005': LAB_M5,
@@ -1886,6 +1891,20 @@ function labContain(key) {
 function labSubmitReport() {
   const def = LAB.def;
   if (LAB.done) { labPrint([{ t: 'Report already submitted.', c: 'dim' }]); return; }
+  // Orientation report (Assignment 000): a multiple-choice determination instead
+  // of a containment-gated filing. Data-gated on `def.report` so the six real
+  // assignments are untouched. Require the analyst tools were run first so the
+  // choice is evidence-backed, then render the clickable choices.
+  if (def.report && Array.isArray(def.report.choices)) {
+    const need = def.report.requireRan || [];
+    const missingRan = need.filter((k) => !LAB.ran.has(k));
+    if (missingRan.length) {
+      labPrint([{ t: def.report.requireMsg || 'Run your analyst tools first, then file the report.', c: 'err' }]);
+      return;
+    }
+    labShowReportChoices();
+    return;
+  }
   const required = def.containRequired;
   const missing = required.filter((k) => !LAB.contained.has(k));
   if (missing.length) {
@@ -2053,9 +2072,33 @@ function labOpenKit() {
         </div>
       </div>`;
   });
-  const lockedNote = locked.length
-    ? `<div class="lab-kit-locked-note">+ ${locked.length} more command${locked.length === 1 ? '' : 's'} unlock as the investigation progresses.</div>`
-    : '';
+  // Orientation (Assignment 000): show the RESPONSE ACTIONS as visible-but-locked
+  // so the beginner learns these tools exist while understanding that orientation
+  // is observe-and-report only. Every other assignment keeps the compact count
+  // note (it unlocks its tools by progressing). Data-gated on labIsOrientation().
+  let lockedNote = '';
+  if (locked.length) {
+    if (labIsOrientation()) {
+      let lcat = null;
+      locked.forEach((t) => {
+        const cat = labToolCategory(t.unlock);
+        if (cat !== lcat) { lockedNote += `<div class="lab-kit-group ${labCategoryClass(cat)}">${cat}</div>`; lcat = cat; }
+        const doc = def.doc[t.key] || {};
+        lockedNote += `
+          <div class="lab-kit-item lab-kit-item--locked" aria-disabled="true" title="Locked during orientation — observe and report only">
+            <span class="lab-kit-ico" aria-hidden="true">${t.icon}</span>
+            <div class="lab-kit-body">
+              <div><span class="lab-kit-name">${labEsc(t.name)}</span><span class="lab-kit-cmd">${labEsc(t.cmd)}</span></div>
+              <div class="lab-kit-desc">${labEsc(doc.purpose || '')}</div>
+            </div>
+            <span class="lab-kit-lock" aria-hidden="true">🔒</span>
+          </div>`;
+      });
+      lockedNote += `<div class="lab-kit-locked-note">Response actions stay locked in this orientation — your job is to investigate and report, not to act.</div>`;
+    } else {
+      lockedNote = `<div class="lab-kit-locked-note">+ ${locked.length} more command${locked.length === 1 ? '' : 's'} unlock as the investigation progresses.</div>`;
+    }
+  }
 
   host.innerHTML = `
     <div class="lab-modal-card lab-modal-card--kit" role="document">
@@ -2144,6 +2187,15 @@ function labLearning() {
  * ------------------------------------------------------------------ */
 function labSupportV2() {
   return !!(LAB.def && LAB.def.support && LAB.def.support.beginner);
+}
+
+/* Orientation mode (Assignment 000 only): the report is multiple-choice rather
+ * than a typed analyst report. Gated on the report block carrying a `choices`
+ * array, so the six real assignments (no `choices`) are completely unchanged.
+ * Drives the MC report flow, the orientation scorecard, and the shown-but-locked
+ * RESPONSE ACTIONS in the SOC Tool Kit. Presentation/structure-only. */
+function labIsOrientation() {
+  return !!(LAB.def && LAB.def.report && Array.isArray(LAB.def.report.choices));
 }
 
 /* Print the WHAT THIS MEANS / WHAT THIS CHANGES / NEXT UNKNOWN analyst read
@@ -2552,6 +2604,10 @@ function labShowScorecard() {
   const panel = $lab('labOutcome');
   if (!panel) return;
 
+  // Orientation (Assignment 000) gets a determination-focused scorecard with no
+  // grade / response-action / "X/0" sections. Data-gated on def.report.
+  if (def.report && Array.isArray(def.report.choices)) { labShowOrientationScorecard(panel); return; }
+
   const evGroup = def.hintFlow.stage2.group;
   const socGroup = def.hintFlow.stage4.group;
   const evIds = Object.keys(def.ind).filter((id) => def.ind[id].group === evGroup);
@@ -2628,6 +2684,124 @@ function labShowScorecard() {
 ${debriefHtml}
       <div class="lab-card-actions">
         <button class="lab-card-btn lab-card-btn--primary" type="button" data-lab-replay>↻ Replay the lab</button>
+        <button class="lab-card-btn" type="button" data-lab-exit>Return to Operations Center</button>
+      </div>
+    </div>`;
+  panel.hidden = false;
+
+  panel.querySelector('[data-lab-replay]').addEventListener('click', () => openLab(LAB.missionId));
+  panel.querySelector('[data-lab-exit]').addEventListener('click', returnFromLab);
+}
+
+/* ------------------------------------------------------------------ *
+ * ORIENTATION REPORT (Assignment 000 only — data-gated on def.report)
+ * ------------------------------------------------------------------ *
+ * A multiple-choice "what did you determine?" report rendered as clickable
+ * buttons in the terminal. Wrong answers give feedback and stay open; the
+ * correct answer locks the choices and completes the lab. Presentation-only
+ * beyond the single completion call (LAB.done + onComplete + scorecard). */
+function labShowReportChoices() {
+  const r = LAB.def.report;
+  labPrint([
+    { t: '' },
+    { t: r.head || 'ORIENTATION REPORT', c: 'head' },
+    { t: r.question, c: '' },
+    { t: r.instruction || 'Pick the determination your evidence best supports:', c: 'dim' },
+  ]);
+  const out = $lab('labTermOut');
+  if (!out) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'lab-report-choices';
+  r.choices.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'lab-report-choice';
+    btn.innerHTML =
+      `<span class="lab-rc-key">${String.fromCharCode(65 + i)}</span>` +
+      `<span class="lab-rc-text">${labEsc(c.text)}</span>`;
+    btn.addEventListener('click', () => {
+      if (LAB.done || btn.disabled) return;
+      if (c.correct) {
+        wrap.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+        btn.classList.add('is-correct');
+        labPrint([{ t: c.feedback || '[+] Correct.', c: 'ok' }]);
+        labCompleteReport();
+      } else {
+        btn.disabled = true;
+        btn.classList.add('is-wrong');
+        labPrint([{ t: c.feedback || 'Not quite — review your evidence and try another answer.', c: 'warn' }]);
+      }
+    });
+    wrap.appendChild(btn);
+  });
+  out.appendChild(wrap);
+  out.scrollTop = out.scrollHeight;
+}
+
+function labCompleteReport() {
+  const def = LAB.def;
+  LAB.done = true;
+  if (def.reportDone) labPrint(def.reportDone);
+  // Best-effort host hook — for mission-000 the host no-ops (not in play order),
+  // so this awards no XP and never persists. A throwing host must not break the
+  // scorecard flow.
+  if (typeof LAB_HOOKS.onComplete === 'function') {
+    try { LAB_HOOKS.onComplete(LAB.missionId); } catch (_) { /* non-fatal */ }
+  }
+  labRenderDock();
+  labRefreshObjective();
+  labShowScorecard();
+}
+
+/* Determination-focused scorecard for the orientation: one evidence list (what
+ * the trainee confirmed), what they learned, and the SOC debrief — no grade,
+ * no response-action tally, no "X/0" counters. */
+function labShowOrientationScorecard(panel) {
+  const def = LAB.def;
+  const sc = def.scorecard || {};
+  const ids = Object.keys(def.ind);
+  const confirmed = (id) => LAB.discovered.includes(id) || LAB.pinned.has(id);
+  const indRow = (id) => `
+    <div class="lab-card-row ${confirmed(id) ? '' : 'is-miss'}">
+      <span class="ic">${confirmed(id) ? '✓' : '○'}</span>
+      <span>${def.ind[id].label}</span>
+    </div>`;
+
+  const L = labLearning();
+  const db = L && L.debrief;
+  const debriefHtml = db ? `
+      <div class="lab-card-sec lab-debrief">
+        <div class="lab-card-sec-head">SOC debrief</div>
+        <div class="lab-db-block"><div class="lab-db-h">What happened</div><div class="lab-db-b">${labEsc(db.whatHappened)}</div></div>
+        <div class="lab-db-block"><div class="lab-db-h">Why it looked suspicious</div><div class="lab-db-b">${labEsc(db.howItWorked)}</div></div>
+        <div class="lab-db-block"><div class="lab-db-h">Key evidence — and why it mattered</div>
+          <div class="lab-card-list">${(db.keyEvidence || []).map((e) => `<div class="lab-card-row"><span class="ic">▸</span><span><b>${labEsc(e.label)}</b> — ${labEsc(e.why)}</span></div>`).join('')}</div>
+        </div>
+        ${db.containment ? `<div class="lab-db-block"><div class="lab-db-h">What you would do next</div><div class="lab-db-b">${labEsc(db.containment)}</div></div>` : ''}
+        ${db.concepts && db.concepts.length ? `<div class="lab-db-block"><div class="lab-db-h">Concepts to keep — tap to revisit</div><div class="lab-term-row">${db.concepts.map(labTermChip).join('')}</div></div>` : ''}
+        <div class="lab-db-block lab-db-takeaway"><div class="lab-db-h">Real-world takeaway</div><div class="lab-db-b">${labEsc(db.takeaway)}</div></div>
+      </div>` : '';
+
+  panel.innerHTML = `
+    <div class="lab-card">
+      <div class="lab-card-grade">RESULT · ORIENTATION COMPLETE</div>
+      <div class="lab-card-title">${labEsc(sc.title || 'Orientation complete')}</div>
+      <div class="lab-card-sub">${labEsc(sc.subLead || '')}</div>
+
+      <div class="lab-card-sec">
+        <div class="lab-card-sec-head">${labEsc(sc.evHead || 'What you confirmed')}</div>
+        <div class="lab-card-list">${ids.map(indRow).join('')}</div>
+      </div>
+
+      <div class="lab-card-sec">
+        <div class="lab-card-sec-head">What you learned</div>
+        <div class="lab-card-list">
+          ${(sc.learned || []).map((l) => `<div class="lab-card-row"><span class="ic">▸</span><span>${l}</span></div>`).join('')}
+        </div>
+      </div>
+${debriefHtml}
+      <div class="lab-card-actions">
+        <button class="lab-card-btn lab-card-btn--primary" type="button" data-lab-replay>↻ Replay the orientation</button>
         <button class="lab-card-btn" type="button" data-lab-exit>Return to Operations Center</button>
       </div>
     </div>`;

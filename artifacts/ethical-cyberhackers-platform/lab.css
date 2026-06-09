@@ -770,6 +770,13 @@
 
 .lab-kit-locked-note { margin-top: 14px; font-size: 12px; color: var(--text-dim); font-style: italic; line-height: 1.5; }
 
+/* Orientation (Assignment 000): RESPONSE ACTIONS shown but locked. Dimmed,
+   non-interactive, with a trailing lock glyph. Presentation-only. */
+.lab-kit-item--locked { opacity: 0.5; cursor: default; }
+.lab-kit-item--locked .lab-kit-ico { color: var(--text-dim); }
+.lab-kit-item--locked .lab-kit-cmd { color: var(--text-dim); }
+.lab-kit-lock { margin-left: auto; align-self: center; flex: none; font-size: 13px; opacity: 0.8; }
+
 /* Learning layer — `explain`/`define` glossary chips + scorecard SOC debrief.
    Presentation-only surfaces; ported from the prototype. */
 .lab-term {
@@ -1141,6 +1148,50 @@
 .lab-card-btn--primary { border-color: var(--green); background: rgba(0,255,136,0.1); color: var(--green); }
 
 .lab-card-btn--primary:hover { background: rgba(0,255,136,0.18); }
+
+/* Orientation report (Assignment 000) — multiple-choice answer buttons rendered
+   into the terminal output. Presentation-only; no effect on the six assignments. */
+.lab-report-choices { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+
+.lab-report-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--cyan-dim);
+  background: rgba(0,229,255,0.06);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.lab-report-choice:hover:not(:disabled) { background: rgba(0,229,255,0.14); border-color: var(--cyan); }
+
+.lab-report-choice:disabled { cursor: default; opacity: 0.85; }
+
+.lab-rc-key {
+  flex: 0 0 auto;
+  width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--cyan-dim);
+  color: var(--cyan);
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.lab-rc-text { flex: 1 1 auto; }
+
+.lab-report-choice.is-correct { border-color: var(--green); background: rgba(0,255,136,0.12); }
+.lab-report-choice.is-correct .lab-rc-key { border-color: var(--green); color: var(--green); }
+
+.lab-report-choice.is-wrong { border-color: var(--orange); background: rgba(255,107,0,0.08); opacity: 0.6; }
+.lab-report-choice.is-wrong .lab-rc-key { border-color: var(--orange); color: var(--orange); }
 
 /* Highlighted token in terminal output (grep hit / IOC) */
 .sc-term-line .lab-hit { color: var(--orange); background: rgba(255,107,0,0.12); padding: 0 3px; border-radius: 2px; }
