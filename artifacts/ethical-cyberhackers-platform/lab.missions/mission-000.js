@@ -76,39 +76,75 @@ export default {
          question: 'Who owns it, which ports did it hit, and is it an approved peer?',
          why: 'Confirming the source and comparing it to the baseline is how you decide if traffic is suspicious.' },
   },
+  // SOC investigation workflow (orientation only). The guided tutorial renders
+  // this as a read-only "where am I in the process" tracker above the step list,
+  // so the beginner perceives SOC work as STAGES, not a list of commands. Each
+  // tutorial step is tagged with the stage it belongs to (`stage`); stages with
+  // no steps (response / debrief) light up once the report is filed. The `note`
+  // is a one-line aside shown when that stage is active. Presentation-only.
+  socStages: [
+    { key: 'triage',      label: 'Triage',             note: 'Inspect and search the exported evidence with Linux-style commands.' },
+    { key: 'analysis',    label: 'SOC Tool Analysis',  note: 'Validate the suspicion with SOC analyst tools — ownership, ports, baseline.' },
+    { key: 'correlation', label: 'Correlation',        note: 'Connect the separate clues into one analyst conclusion.' },
+    { key: 'escalation',  label: 'Escalation Decision', note: 'Decide whether the evidence is strong enough to escalate.' },
+    { key: 'response',    label: 'Response',           note: 'See the consequence your escalation set in motion.' },
+    { key: 'debrief',     label: 'Debrief',            note: 'Turn the investigation into retained learning.' },
+  ],
   // Guided tutorial (orientation only — gated on report.choices). The engine
   // (labRenderTutorial) renders these as an ordered, checkable step list in the
   // left panel: the CURRENT step shows `say` plus a one-click Run button, and
   // each COMPLETED step shows its `result` ("what that told you"). Command
   // strings live in ONE place — `tools[].cmd`, resolved via `toolKey` — so this
   // block only carries plain-language wording. `key` drives per-step completion
-  // detection in the engine. Presentation-only: nothing here runs or persists.
+  // detection in the engine; `stage` maps the step to a socStages entry. The
+  // `correlate` step carries no command — it shows a summary + an acknowledge
+  // button (see `correlation`). Presentation-only: nothing here runs or persists.
   tutorial: [
-    { key: 'ls', toolKey: 'ls', label: 'See what you\u2019re working with',
+    { key: 'ls', toolKey: 'ls', stage: 'triage', label: 'See what you\u2019re working with',
       say: 'List the files pulled off the flagged workstation so you know what evidence you have to work through.',
       result: 'Four files of telemetry from WS-4471 — the connection snapshot, the access log, the known-good baseline, and your notes.' },
-    { key: 'cat', toolKey: 'cat', label: 'Read the connection snapshot',
+    { key: 'cat', toolKey: 'cat', stage: 'triage', label: 'Read the connection snapshot',
       say: 'Open the live connection snapshot to see every address WS-4471 is currently talking to.',
       result: 'One outside address — 203.0.113.77 — keeps coming back, across four different ports.' },
-    { key: 'grep', toolKey: 'grep', label: 'Pull the suspect out of the log',
+    { key: 'grep', toolKey: 'grep', stage: 'triage', label: 'Pull the suspect out of the log',
       say: 'Search the access log for that one address to see exactly which services it reached for.',
       result: 'It touched ssh, http, https and mysql — one host poking many doors is probing, not normal use.' },
-    { key: 'pin', cmd: 'pin all', label: 'Save what you found',
+    { key: 'pin', cmd: 'pin all', stage: 'triage', label: 'Save what you found',
       say: 'Commit both observations to your evidence board so your findings are on the record.',
       result: 'Both observations are pinned — and a small map of the incident appears.' },
-    { key: 'whois', toolKey: 'whois', label: 'Look up who owns the source',
-      say: 'Check who the outside address is registered to.',
+    { key: 'whois', toolKey: 'whois', stage: 'analysis', label: 'Look up who owns the source',
+      say: 'These next tools are SOC analyst tools, not basic Linux commands. Start by checking who the outside address is registered to.',
       result: 'No registered owner and no abuse contact — anonymous infrastructure, not an accountable peer.' },
-    { key: 'ports', toolKey: 'ports', label: 'See which ports it hit',
+    { key: 'ports', toolKey: 'ports', stage: 'analysis', label: 'See which ports it hit',
       say: 'Map the ports the source reached against the ones this host actually runs.',
       result: 'It reached for services WS-4471 doesn\u2019t even run — the shape of blind probing.' },
-    { key: 'baseline', toolKey: 'baseline', label: 'Compare to known-good peers',
+    { key: 'baseline', toolKey: 'baseline', stage: 'analysis', label: 'Compare to known-good peers',
       say: 'Check the source against the reviewed list of peers WS-4471 is approved to talk to.',
       result: 'It\u2019s not on the baseline — so it\u2019s unexpected, while the CDN and DNS beside it are ruled out.' },
-    { key: 'report', toolKey: 'report', label: 'File your orientation report',
-      say: 'You have enough to decide. File your report, then pick the determination your evidence best supports.',
-      result: 'Report filed — orientation complete.' },
+    { key: 'correlate', stage: 'correlation', label: 'Connect the clues',
+      say: 'No single clue is enough on its own. Read how they fit together, then move to your decision.',
+      result: 'Repeated unknown source + unrelated ports + no registered owner + off-baseline — together, a pattern worth escalating.' },
+    { key: 'report', toolKey: 'report', stage: 'escalation', label: 'Make your escalation decision',
+      say: 'You have enough to decide. Open the escalation decision, then pick the action your evidence best supports.',
+      result: 'Decision made — escalated as suspicious reconnaissance.' },
   ],
+  // CORRELATION stage content (orientation only). Shown inside the current-step
+  // card when the `correlate` step is active and echoed to the terminal on
+  // acknowledge. Teaches that confidence is built by STACKING clues, with the
+  // benign CDN/DNS as deliberate contrast. Presentation-only.
+  correlation: {
+    head: 'CORRELATION — connect the clues',
+    intro: 'One clue is never enough. An analyst builds confidence by stacking them:',
+    clues: [
+      'One unknown outside address kept coming back.',
+      'It reached several unrelated ports/services at once.',
+      'WHOIS shows no registered owner — anonymous infrastructure.',
+      'It is not on the host\u2019s known-good baseline.',
+    ],
+    contrast: 'For contrast: the CDN (198.51.100.20) and internal DNS (10.0.5.1) ARE on the baseline — known-good, and ruled out. Not all external traffic is bad.',
+    summary: 'Multiple unrelated ports alone is not enough. Unknown ownership alone is not enough. Off-baseline alone is not enough. Together, they form a pattern worth escalating.',
+    ack: 'I see the pattern \u2014 continue',
+  },
   files: [
     { name: 'README.txt', icon: '📘', desc: 'orientation notes' },
     { name: 'network_snapshot.txt', icon: '🗂', desc: 'live connection snapshot', suspect: true },
@@ -441,28 +477,43 @@ export default {
     ],
     containment: [],
   },
-  reportDone: [{ t: '[+] Orientation report filed. Nice work — that is the core loop of network triage.', c: 'ok' }],
-  // MULTIPLE-CHOICE orientation report (engine branch keyed off `report`). The
+  reportDone: [{ t: '[+] Escalation decision recorded. Nice work — that is the core loop of SOC triage: investigate, correlate, then decide.', c: 'ok' }],
+  // MULTIPLE-CHOICE escalation decision (engine branch keyed off `report`). The
   // analyst tools must have been run first (requireRan); the engine renders the
-  // choices as clickable buttons in the terminal.
+  // choices as clickable buttons in the terminal. This is the ESCALATION DECISION
+  // stage — the player chooses the action their evidence supports, including a
+  // wrong over-reaction (block everything) so they learn proportionate response.
   report: {
-    head: 'ORIENTATION REPORT — your determination',
-    question: 'Based on everything you investigated, what did you determine about the traffic to WS-4471?',
-    instruction: 'Pick the determination your evidence best supports:',
+    head: 'ANALYST ESCALATION DECISION',
+    question: 'You have investigated and correlated the evidence. As the analyst on shift, what should happen next with the traffic to WS-4471?',
+    instruction: 'Pick the action your evidence best supports:',
     requireRan: ['whois', 'ports', 'baseline'],
-    requireMsg: 'File this last. First run your analyst tools — `whois 203.0.113.77`, `ports 203.0.113.77`, and `compare baseline` — so your determination is backed by evidence.',
+    requireMsg: 'Decide this last. First run your analyst tools — `whois 203.0.113.77`, `ports 203.0.113.77`, and `compare baseline` — so your decision is backed by evidence.',
     choices: [
-      { text: 'An unknown, unregistered source contacted the workstation across multiple unrelated ports — and it is not on the known-good baseline. Suspicious; worth escalating.',
+      { text: 'Escalate it as suspicious reconnaissance — an unknown, unregistered source hit multiple unrelated ports and is not on the known-good baseline.',
         correct: true,
-        feedback: '[+] Exactly. Unknown source + multiple unrelated ports + off-baseline = a pattern worth escalating. That instinct is the heart of network triage.' },
-      { text: 'It was just the known content-delivery server (the CDN) doing its normal job — nothing unusual.',
+        feedback: '[+] Exactly. Unknown source + multiple unrelated ports + off-baseline = a pattern worth escalating. Escalate and monitor — that is the right analyst call.' },
+      { text: 'Close it as normal CDN traffic — nothing unusual here.',
         feedback: 'Re-check your baseline comparison: the repeated source 203.0.113.77 is NOT the CDN, and it is absent from the known-good list.' },
-      { text: 'The workstation was offline, so there was no real traffic to review.',
-        feedback: 'The snapshot and access log show active connections from 203.0.113.77 — the host was online and being probed.' },
-      { text: 'A trusted internal server briefly used one odd port — most likely a harmless glitch.',
-        feedback: '203.0.113.77 is an external, unregistered address, not a trusted internal server — and it reached several unrelated ports, not one.' },
+      { text: 'Ignore it — no malware was found on the workstation.',
+        feedback: 'Reconnaissance comes before malware. The probing pattern is exactly what you escalate so it is caught early — you do not wait for damage.' },
+      { text: 'Block all external traffic to the network immediately.',
+        feedback: 'That is an over-reaction. Blocking everything breaks real users and destroys evidence. A single suspicious source is escalated and monitored, not met by shutting down the whole network.' },
     ],
   },
+  // RESPONSE / CONSEQUENCE stage (orientation only). Printed to the terminal by
+  // the engine right after the CORRECT escalation decision, before the debrief
+  // scorecard — so the player sees that escalating set real, proportionate things
+  // in motion (and that production was NOT blocked). Presentation-only.
+  consequence: [
+    { t: '' },
+    { t: 'RESPONSE / CONSEQUENCE — what your escalation set in motion', c: 'head' },
+    { t: '[+] CyberCorp SOC queue updated — the case is now with a senior analyst.', c: 'ok' },
+    { t: '[+] WS-4471 flagged for monitoring.', c: 'ok' },
+    { t: '[+] 203.0.113.77 added to the source watchlist.', c: 'ok' },
+    { t: '    No production systems were blocked — escalating and monitoring keeps users working while the case is reviewed.', c: 'dim' },
+    { t: 'Early analysts escalate and watch — they do not block everything on sight.', c: 'dim' },
+  ],
   scorecard: {
     title: 'Orientation complete — network triage basics',
     subLead: 'You worked through your first network investigation — reading a connection snapshot, identifying an unknown source, and deciding it was worth escalating.',
@@ -486,6 +537,7 @@ export default {
         { label: 'Not on the known-good baseline', why: 'the baseline is what lets you call a source unexpected rather than just unfamiliar.' },
       ],
       containment: 'In a real incident you would escalate this to a senior analyst and consider blocking the source — those response actions come later in your training. Orientation is about investigating and deciding.',
+      whatNotDone: 'You did NOT block all traffic or pull the workstation offline. With a pattern this early, an analyst escalates and monitors first — over-blocking breaks real users and destroys the evidence you would need. Proportionate response is part of the job.',
       concepts: ['whois', 'baseline', 'port-scan', 'reconnaissance'],
       takeaway: 'Suspicious traffic has a pattern: an unknown source, multiple unrelated ports, and a mismatch with the known-good baseline. Spotting that pattern is the core instinct of network triage.',
     },

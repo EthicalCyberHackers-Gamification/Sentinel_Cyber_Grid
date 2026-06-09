@@ -1,0 +1,355 @@
+Apply this only to Assignment 000.
+
+Do not modify Assignment 001 or later assignments yet.
+
+Goal:
+Revise Assignment 000 so it teaches the practical SOC workflow in clear operational stages while keeping the tutorial beginner-friendly, immersive, and not overly complex.
+
+Assignment 000 should become the player’s first structured exposure to how SOC analysts work.
+
+The player should learn that SOC analysis is not just typing commands. It follows an operational process:
+
+1. Triage
+2. SOC Tool Analysis
+3. Correlation
+4. Escalation Decision
+5. Response / Consequence
+6. Debrief
+
+Do not add unnecessary complexity.
+
+Do not turn this into a large branching simulation.
+
+Keep Assignment 000 short, guided, and focused.
+
+---
+
+## CORE DESIGN GOAL
+
+The player should understand:
+
+“I am not just running commands.
+I am moving through a SOC investigation process.”
+
+The experience should feel like:
+
+observe anomaly
+→ investigate evidence
+→ build confidence
+→ correlate clues
+→ decide whether to escalate
+→ observe consequences
+→ debrief learning
+
+NOT:
+
+command
+→ output
+→ command
+→ output
+
+---
+
+## WHAT STAYS THE SAME
+
+Keep:
+
+* terminal-first interaction
+* guided beginner tutorial
+* CyberCorp analyst orientation tone
+* WS-4471 network scenario
+* internal vs external explanation
+* IP/port/baseline learning
+* SOC Toolkit reference
+* simple map
+* evidence pinning
+* orientation report
+* no heavy scoring
+* no high-stakes punishment
+
+Do not:
+
+* modify later assignments
+* create complex branching logic
+* add large dashboards
+* add excessive text
+* add fake arcade pressure
+* overwhelm the player with enterprise complexity
+
+---
+
+## ASSIGNMENT 000 STRUCTURE
+
+Revise Assignment 000 into these clearly labeled SOC workflow stages.
+
+Each stage should have:
+
+* stage name
+* current purpose
+* investigative question
+* tool or action used
+* what the player learned
+* what remains unknown
+
+Keep all explanations concise.
+
+---
+
+## STAGE 1 — TRIAGE
+
+Purpose:
+Decide whether the alert deserves investigation.
+
+Player mindset:
+“What looks unusual?”
+
+Scenario:
+Sensors flagged repeated traffic to WS-4471 from an outside address.
+
+Player actions:
+
+* inspect available files
+* read network snapshot
+* identify repeated external activity
+
+Tools:
+
+* ls
+* cat
+* grep
+
+Important:
+These are Linux-style triage commands.
+
+Explain subtly:
+These commands help analysts inspect artifacts and search evidence.
+
+Learning:
+
+* IP addresses represent systems
+* internal vs external matters
+* repeated activity deserves review
+
+Do not immediately declare it malicious.
+
+Use uncertainty:
+“This may be normal automation, scanning, or something suspicious. Investigate before deciding.”
+
+---
+
+## STAGE 2 — SOC TOOL ANALYSIS
+
+Purpose:
+Use analyst tools to validate whether the activity is expected or suspicious.
+
+Player mindset:
+“What evidence supports or weakens suspicion?”
+
+Tools:
+
+* whois
+* ports
+* compare baseline
+
+Clarify:
+These are SOC analyst tools, not basic Linux commands.
+
+Learning:
+
+* whois helps identify ownership
+* port analysis shows which services were contacted
+* baseline comparison checks whether behavior matches known-good activity
+
+Important:
+Add at least one legitimate or benign traffic example so the player learns comparison.
+
+Example:
+
+* 198.51.100.20 = CDN, known-good
+* 10.0.5.1 = internal DNS, known-good
+* 203.0.113.77 = unknown external source
+
+This teaches:
+not all external traffic is bad.
+
+---
+
+## STAGE 3 — CORRELATION
+
+Purpose:
+Connect multiple clues into one analyst conclusion.
+
+Player mindset:
+“How do these clues fit together?”
+
+Evidence to correlate:
+
+* external source repeated
+* touched multiple unrelated ports
+* unknown or unregistered ownership
+* not on baseline
+
+Also show benign contrast:
+
+* CDN is on baseline
+* DNS is internal
+* approved systems have expected behavior
+
+Learning:
+One clue is not enough.
+Analysts build confidence from multiple clues.
+
+Add a short correlation summary:
+
+Example:
+“Multiple unrelated ports alone is not enough. Unknown ownership alone is not enough. Off-baseline alone is not enough. Together, they form a pattern worth escalating.”
+
+---
+
+## STAGE 4 — ESCALATION DECISION
+
+Purpose:
+Decide whether the case should be escalated.
+
+Player mindset:
+“Do I have enough confidence to escalate?”
+
+Use a simple decision prompt.
+
+Do not make it feel like a school quiz.
+
+Frame it as:
+Analyst Escalation Decision
+
+Example:
+Based on your evidence, what should happen next?
+
+A. Escalate as suspicious reconnaissance activity
+B. Close as normal CDN traffic
+C. Ignore because no malware was found
+D. Block all external traffic immediately
+
+Correct logic:
+Escalate as suspicious reconnaissance activity.
+
+Explain:
+The right decision is not based on one clue. It is based on repeated source activity, unrelated ports, unknown ownership, and baseline mismatch.
+
+---
+
+## STAGE 5 — RESPONSE / CONSEQUENCE
+
+Purpose:
+Show that analyst decisions affect operations.
+
+For Assignment 000, keep consequence simple and low-risk.
+
+Do not require real containment yet.
+
+Show what happens after escalation:
+
+Example:
+CyberCorp SOC queue updated.
+WS-4471 flagged for monitoring.
+Source 203.0.113.77 added to watchlist.
+No production systems were blocked during orientation.
+
+This teaches:
+early analysts often escalate and monitor rather than immediately block.
+
+Important:
+Do not teach beginners that every suspicious event means “block now.”
+
+That is unrealistic.
+
+---
+
+## STAGE 6 — SOC DEBRIEF
+
+Purpose:
+Convert the tutorial into retained learning.
+
+Debrief should include:
+
+What happened:
+An outside address repeatedly contacted WS-4471.
+
+How the analyst investigated:
+Reviewed evidence, checked ownership, analyzed ports, compared baseline.
+
+Why it mattered:
+The activity matched reconnaissance indicators.
+
+What was not done:
+The analyst did not immediately block everything.
+
+Real analyst takeaway:
+SOC analysts do not guess. They build confidence from multiple clues and escalate when the pattern is strong enough.
+
+Concepts learned:
+
+* triage
+* Linux command basics
+* SOC tools
+* internal vs external
+* ports
+* baseline
+* correlation
+* escalation
+* consequence
+
+---
+
+## CONSEQUENCE DESIGN RULE
+
+Consequences should grow in complexity later, but Assignment 000 should be gentle.
+
+For Assignment 000:
+
+* no failure punishment
+* no system breakage
+* no irreversible action
+* no complex branching
+
+Show only a simple operational consequence:
+the case is escalated, monitored, and documented.
+
+Later assignments can introduce stronger consequences.
+
+---
+
+## IMPORTANT LEARNING RULE
+
+Do not give the player only one obvious bad thing.
+
+Include:
+
+* benign traffic
+* suspicious traffic
+* comparison against baseline
+
+This makes the discovery more meaningful.
+
+The player should learn:
+“What makes this source different from the normal ones?”
+
+---
+
+## SUCCESS CRITERIA
+
+Assignment 000 succeeds if the player understands:
+
+* SOC analysis has stages
+* Linux commands are used for triage
+* SOC tools help validate suspicion
+* not all external traffic is malicious
+* evidence must be correlated
+* escalation is a decision
+* consequences should be proportional
+* analysts build confidence before acting
+
+The tutorial should feel:
+simple, structured, operational, and immersive.
+
+Not:
+academic, overloaded, or mechanically obvious.

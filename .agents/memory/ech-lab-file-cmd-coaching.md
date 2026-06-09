@@ -30,3 +30,22 @@ thing advancing orientation stage 1→2, so key the grep step on `LAB.stage >= 2
 Same principle for any content-dependent step: gate on the state the right action
 produces, not on the verb being typed. Command strings resolve from
 `def.tools[].cmd` (single source of truth); only wording lives in `def.tutorial`.
+
+**SOC workflow framing (6 stages) sits ON TOP of the step list.** Orientation is
+also presented as 6 named SOC stages — Triage, SOC Tool Analysis, Correlation,
+Escalation Decision, Response, Debrief — so the beginner perceives a PROCESS, not
+a command list. Implementation, all data-gated to mission-000:
+- `def.socStages[]` drives a read-only tracker rail above the steps; each
+  `def.tutorial[i].stage` tags its step to a stage. `stageDone(key)` = all that
+  stage's steps done; step-less stages (Response/Debrief) fall back to `allDone`
+  (report filed), so they flip ✓ together — neither shows as "current".
+- A command-less `correlate` step ("connect the clues") renders the `def.correlation`
+  block (clues + benign CDN/DNS contrast + summary) with an **acknowledge** button
+  (`data-lab-tut-ack`, distinct from `data-lab-tut-run`) that sets in-memory
+  `LAB._correlated`, prints the summary, re-renders. Completion fallback:
+  `_correlated || _reportOpen || done` so jumping straight to the decision can't
+  strand it. `LAB._correlated` is reset in `openLab` next to `_reportOpen`.
+- The report step is the "ANALYST ESCALATION DECISION" (4 choices incl. a wrong
+  over-reaction). `def.consequence` (terminal block) prints in `labCompleteReport`
+  before the scorecard; `debrief.whatNotDone` renders in the orientation scorecard.
+All of the above are presentation-only — no XP, no persist, no scoring change.

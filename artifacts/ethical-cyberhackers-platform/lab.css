@@ -660,6 +660,67 @@
   color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 9px;
 }
 
+/* ---- SOC workflow stage tracker (orientation only) ----
+   A read-only "where am I in the process" rail above the step list, so the
+   beginner perceives SOC work as a sequence of stages, not a flat command list. */
+.lab-tut-stages-head {
+  font-family: var(--font-hud); font-size: 9.5px; letter-spacing: 0.16em;
+  color: var(--text-dim); font-weight: 700;
+}
+.lab-tut-stages {
+  list-style: none; margin: 4px 0 2px; padding: 9px 10px;
+  display: flex; flex-direction: column; gap: 4px;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg-panel-alt);
+}
+.lab-tut-stage { display: flex; gap: 9px; align-items: flex-start; padding: 3px 4px; border-radius: var(--radius-sm); }
+.lab-tut-stage-mark {
+  flex: none; width: 17px; height: 17px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+  border: 1px solid var(--border); color: var(--text-muted);
+  background: var(--bg-panel); margin-top: 1px;
+}
+.lab-tut-stage-main { min-width: 0; flex: 1 1 auto; }
+.lab-tut-stage-label {
+  font-family: var(--font-body); font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim); line-height: 1.3;
+}
+.lab-tut-stage-note {
+  margin-top: 2px; font-family: var(--font-body); font-size: 10.5px;
+  line-height: 1.45; color: var(--text-muted);
+}
+.lab-tut-stage.is-done .lab-tut-stage-mark {
+  border-color: var(--green); color: var(--green); background: rgba(0,255,136,0.10);
+}
+.lab-tut-stage.is-done .lab-tut-stage-label { color: var(--text); }
+.lab-tut-stage.is-current {
+  background: rgba(0,229,255,0.06); border: 1px solid rgba(0,229,255,0.22);
+}
+.lab-tut-stage.is-current .lab-tut-stage-mark {
+  border-color: var(--cyan); color: var(--cyan); background: rgba(0,229,255,0.10);
+}
+.lab-tut-stage.is-current .lab-tut-stage-label { color: var(--text-bright); }
+.lab-tut-stage.is-upcoming { opacity: 0.55; }
+
+/* ---- Correlation step ("connect the clues") interior ---- */
+.lab-tut-clues {
+  margin: 8px 0 0; padding-left: 18px;
+  display: flex; flex-direction: column; gap: 4px;
+  font-family: var(--font-body); font-size: 11.5px; line-height: 1.45; color: var(--text);
+}
+.lab-tut-clues li::marker { color: var(--cyan); }
+.lab-tut-contrast {
+  margin-top: 9px; padding: 8px 10px; border-radius: var(--radius-sm);
+  border: 1px dashed rgba(0,255,136,0.30); background: rgba(0,255,136,0.05);
+  font-family: var(--font-body); font-size: 11px; line-height: 1.5; color: var(--text-dim);
+}
+.lab-tut-summary {
+  margin-top: 9px; font-family: var(--font-body); font-size: 12px;
+  line-height: 1.5; color: var(--text-bright); font-weight: 500;
+}
+.lab-tut-ack .lab-tut-run-txt { color: var(--text-bright); }
+
 /* Clickable SOC Tool Kit items (V2 only) — the kit is the way into the command
    explainer when the dock no longer lists commands. */
 .lab-kit-item.is-clickable { cursor: pointer; transition: var(--transition); }

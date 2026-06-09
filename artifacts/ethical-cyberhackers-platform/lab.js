@@ -1304,6 +1304,7 @@ function openLab(missionId) {
   LAB.done = false;
   LAB._justAdvanced = false;
   LAB._reportOpen = false;
+  LAB._correlated = false;  // orientation Correlation stage acknowledged (presentation-only)
   LAB.hintStep = null;
   LAB.hintLevel = 0;
 
@@ -1835,6 +1836,11 @@ function labTutorialDone(step) {
     case 'whois':    return LAB.ran.has('whois');
     case 'ports':    return LAB.ran.has('ports');
     case 'baseline': return LAB.ran.has('baseline');
+    // Correlation is a presentation-only "connect the clues" step: done once the
+    // learner acknowledges the summary. It also auto-completes if they jump
+    // straight to the decision (choices open / report filed) so it never gets
+    // stuck "current" behind a skipped acknowledge.
+    case 'correlate': return !!LAB._correlated || !!LAB._reportOpen || LAB.done;
     case 'report':   return LAB.done;
     default:         return false;
   }
@@ -1869,12 +1875,34 @@ function labRenderTutorial(dock) {
         </li>`;
     }
     if (isCurrent) {
+      // CORRELATION stage — this step carries no command. Show the "connect the
+      // clues" summary (with the benign CDN/DNS contrast) and an acknowledge
+      // button that advances to the escalation decision. Presentation-only.
+      if (step.key === 'correlate' && def.correlation) {
+        const c = def.correlation;
+        const clues = (c.clues || []).map((x) => `<li>${labEsc(x)}</li>`).join('');
+        return `
+        <li class="lab-tut-step is-current">
+          <span class="lab-tut-mark" aria-hidden="true">${stepNum}</span>
+          <div class="lab-tut-main">
+            <div class="lab-tut-label">${labEsc(step.label)}</div>
+            <div class="lab-tut-say">${labEsc(c.intro || step.say)}</div>
+            <ul class="lab-tut-clues">${clues}</ul>
+            ${c.contrast ? `<div class="lab-tut-contrast">${labEsc(c.contrast)}</div>` : ''}
+            <div class="lab-tut-summary">${labEsc(c.summary)}</div>
+            <button class="lab-tut-run lab-tut-ack" type="button" data-lab-tut-ack="1">
+              <span class="lab-tut-run-ico" aria-hidden="true">\u25B6</span>
+              <span class="lab-tut-run-txt">${labEsc(c.ack || 'Continue')}</span>
+            </button>
+          </div>
+        </li>`;
+      }
       // Once the report's multiple-choice options are already on screen, point
       // at the decision instead of offering a Run button for a command that has
       // already executed.
       const choicesOpen = step.key === 'report' && LAB._reportOpen && !LAB.done;
       const say = choicesOpen
-        ? 'Pick the determination your evidence best supports from the choices in the terminal below.'
+        ? 'Pick the action your evidence best supports from the choices in the terminal below.'
         : step.say;
       const action = choicesOpen ? '' : `
             <button class="lab-tut-run" type="button" data-lab-tut-run="${labEsc(cmd)}">
@@ -1907,6 +1935,40 @@ function labRenderTutorial(dock) {
     ? 'Orientation complete \u2014 every step done \u2713'
     : `Step ${stepNum} of ${total}`;
 
+  // SOC workflow stage tracker (orientation only) — a read-only "where am I in
+  // the process" rail above the steps, so the beginner perceives SOC work as a
+  // sequence of STAGES, not a flat list of commands. Derived purely from step
+  // completion; a stage with no steps (Response / Debrief) lights up once the
+  // report is filed. Presentation-only.
+  const stages = def.socStages || [];
+  let stagesHtml = '';
+  if (stages.length) {
+    const curStageKey = allDone ? null : (steps[currentIdx] && steps[currentIdx].stage);
+    const curStageIdx = stages.findIndex((s) => s.key === curStageKey);
+    const stageDone = (key) => {
+      const idxs = steps.map((s, i) => (s.stage === key ? i : -1)).filter((i) => i >= 0);
+      return idxs.length ? idxs.every((i) => dones[i]) : allDone;
+    };
+    const stageItems = stages.map((s, i) => {
+      const sdone = stageDone(s.key);
+      const isCur = !allDone && i === curStageIdx;
+      const cls = sdone ? 'is-done' : isCur ? 'is-current' : 'is-upcoming';
+      const mark = sdone ? '\u2713' : (i + 1);
+      const note = isCur && s.note ? `<div class="lab-tut-stage-note">${labEsc(s.note)}</div>` : '';
+      return `
+        <li class="lab-tut-stage ${cls}">
+          <span class="lab-tut-stage-mark" aria-hidden="true">${mark}</span>
+          <div class="lab-tut-stage-main">
+            <div class="lab-tut-stage-label">${labEsc(s.label)}</div>
+            ${note}
+          </div>
+        </li>`;
+    }).join('');
+    stagesHtml = `
+      <div class="lab-tut-stages-head">SOC WORKFLOW</div>
+      <ol class="lab-tut-stages">${stageItems}</ol>`;
+  }
+
   dock.innerHTML = `
     <div class="lab-tut">
       <div class="lab-tut-head">
@@ -1914,6 +1976,7 @@ function labRenderTutorial(dock) {
         <span class="lab-tut-count">${progress}</span>
       </div>
       <div class="lab-tut-bar"><span style="width:${pct}%"></span></div>
+      ${stagesHtml}
       <ol class="lab-tut-steps">${rows}</ol>
       <div class="lab-tut-foot">Follow the highlighted step. Each one tells you what just happened, then points you to the next.</div>
     </div>`;
@@ -1923,6 +1986,25 @@ function labRenderTutorial(dock) {
       labRun(b.dataset.labTutRun);
       const input = $lab('labTermInput'); if (input) input.focus();
     });
+  });
+
+  // Correlation acknowledge — advances the presentation-only Correlation stage.
+  // Echoes a concise summary to the terminal and re-renders. Never persists.
+  const ackBtn = dock.querySelector('[data-lab-tut-ack]');
+  if (ackBtn) ackBtn.addEventListener('click', () => {
+    if (!LAB._correlated) {
+      LAB._correlated = true;
+      const c = LAB.def.correlation;
+      if (c && c.summary) {
+        labPrint([
+          { t: '' },
+          { t: c.head || 'CORRELATION', c: 'head' },
+          { t: c.summary, c: 'dim' },
+        ]);
+      }
+      labRenderDock();
+    }
+    const input = $lab('labTermInput'); if (input) input.focus();
   });
 }
 
@@ -2894,6 +2976,10 @@ function labCompleteReport() {
   const def = LAB.def;
   LAB.done = true;
   if (def.reportDone) labPrint(def.reportDone);
+  // RESPONSE / CONSEQUENCE stage (orientation only) — show what the correct
+  // escalation set in motion before the debrief scorecard. Presentation-only:
+  // prints terminal lines and nothing else.
+  if (Array.isArray(def.consequence)) labPrint(def.consequence);
   // Best-effort host hook — for mission-000 the host no-ops (not in play order),
   // so this awards no XP and never persists. A throwing host must not break the
   // scorecard flow.
@@ -2930,6 +3016,7 @@ function labShowOrientationScorecard(panel) {
           <div class="lab-card-list">${(db.keyEvidence || []).map((e) => `<div class="lab-card-row"><span class="ic">▸</span><span><b>${labEsc(e.label)}</b> — ${labEsc(e.why)}</span></div>`).join('')}</div>
         </div>
         ${db.containment ? `<div class="lab-db-block"><div class="lab-db-h">What you would do next</div><div class="lab-db-b">${labEsc(db.containment)}</div></div>` : ''}
+        ${db.whatNotDone ? `<div class="lab-db-block"><div class="lab-db-h">What you did NOT do — and why</div><div class="lab-db-b">${labEsc(db.whatNotDone)}</div></div>` : ''}
         ${db.concepts && db.concepts.length ? `<div class="lab-db-block"><div class="lab-db-h">Concepts to keep — tap to revisit</div><div class="lab-term-row">${db.concepts.map(labTermChip).join('')}</div></div>` : ''}
         <div class="lab-db-block lab-db-takeaway"><div class="lab-db-h">Real-world takeaway</div><div class="lab-db-b">${labEsc(db.takeaway)}</div></div>
       </div>` : '';
