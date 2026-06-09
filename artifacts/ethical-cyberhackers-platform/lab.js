@@ -1303,6 +1303,7 @@ function openLab(missionId) {
   LAB.contained.clear();
   LAB.done = false;
   LAB._justAdvanced = false;
+  LAB._reportOpen = false;
   LAB.hintStep = null;
   LAB.hintLevel = 0;
 
@@ -1590,6 +1591,10 @@ function labFileCmd(cmd, args) {
     LAB.ran.add('ls');
     labPrint([{ t: def.files.map((f) => f.name).join('   ') }]);
     labRenderDock();
+    if (labIsOrientation()) {
+      if (def.coach && def.coach.ls) labPrint([{ t: '\u2192 ' + def.coach.ls, c: 'guide' }]);
+      labOrientationCoach();
+    }
     return;
   }
 
@@ -1609,6 +1614,7 @@ function labFileCmd(cmd, args) {
     }
     labRenderFiles();
     labRenderDock();
+    if (labIsOrientation()) labOrientationCoach();
     return;
   }
 
@@ -1642,6 +1648,7 @@ function labFileCmd(cmd, args) {
         labShowFraming(aha.advanceTo);
       }
     }
+    if (labIsOrientation()) labOrientationCoach();
     return;
   }
 }
@@ -1702,6 +1709,11 @@ function labGuide() {
   // A stage reveal (campaign / containment) prints its own direction —
   // don't pile a second nudge on top of it.
   if (LAB._justAdvanced) { LAB._justAdvanced = false; return; }
+  // The orientation tutorial (Assignment 000) gets its own explicit, step-by-step
+  // coach that NAMES the exact next command at every stage. Gated on the same
+  // report.choices flag as the rest of orientation, so the six real assignments
+  // (and 001/002's command-free labGuideV2) are untouched.
+  if (labIsOrientation()) { labOrientationCoach(); return; }
   const def = LAB.def;
   const stage = LAB.stage;
   let line = '';
@@ -1783,6 +1795,64 @@ function labGuideV2() {
       line = '→ Decide how to shut this down — your response actions are in the SOC Tool Kit.';
     } else if (!LAB.done) {
       line = '→ With the threat contained, close the case by filing your incident report.';
+    }
+  }
+
+  if (line) labPrint([{ t: line, c: 'guide' }]);
+}
+
+/* Step-by-step coach for the ORIENTATION tutorial (Assignment 000) ONLY.
+ * Unlike the early-beginner coach (labGuideV2, which deliberately never names a
+ * command), this names the EXACT next command at every step so an absolute
+ * first-timer is never left guessing after `ls`. The command strings come from
+ * `def.tools[].cmd` (single source of truth); only the plain-language wording
+ * lives in `def.coach`. Presentation-only: derived from existing state, it never
+ * mutates mechanics, evidence, scoring, XP, or persistence. */
+function labOrientationCoach() {
+  const def = LAB.def;
+  const C = def.coach || {};
+  const stage = LAB.stage;
+  const cmdOf = (key, fallback) => {
+    const t = def.tools.find((x) => x.key === key);
+    return t && t.cmd ? t.cmd : fallback;
+  };
+  let line = '';
+
+  if (stage === 1) {
+    // Triage: snapshot -> grep the suspect address.
+    if (!LAB.read.has('network_snapshot.txt')) {
+      line = `→ Next: ${C.catNext} — type \`${cmdOf('cat', 'cat network_snapshot.txt')}\`.`;
+    } else if (!LAB.ran.has('grep')) {
+      line = `→ Next: ${C.grepNext} — type \`${cmdOf('grep', 'grep 203.0.113.77 access.log')}\`.`;
+    }
+  } else if (stage === 2) {
+    // Commit observations to the evidence board.
+    const flow = def.hintFlow.stage2;
+    if (flow && flow.group) {
+      const pinned = labPinnedCount(flow.group);
+      if (pinned < flow.need) {
+        line = `→ Next: ${C.pinNext} — type \`pin all\`. (${pinned}/${flow.need} pinned.)`;
+      }
+    }
+  } else if (stage >= 3) {
+    // Confirm the source with the analyst tools, then file the report.
+    const grp = (def.hintFlow.stage4 && def.hintFlow.stage4.group) || 'soc';
+    const todo = def.tools.filter((t) => {
+      if (!t.run || t.unlock > stage || LAB.ran.has(t.key)) return false;
+      const disc = t.run.discover;
+      if (!disc) return false;
+      const ids = Array.isArray(disc) ? disc : [disc];
+      return ids.some((id) => def.ind[id] && def.ind[id].group === grp);
+    });
+    if (todo.length) {
+      // Step-by-step: name only THE next command, even though the analyst tools
+      // can be run in any order — one concrete instruction at a time.
+      line = `→ Next: ${C.toolsNext} — type \`${todo[0].cmd}\`.`;
+    } else if (LAB._reportOpen && !LAB.done) {
+      // Report choices already on screen — point at the decision, not the command.
+      line = `→ Next: ${C.reportChoose}.`;
+    } else if (!LAB.done) {
+      line = `→ Next: ${C.reportNext} — type \`${cmdOf(def.reportKey, 'submit orientation report')}\`.`;
     }
   }
 
@@ -1902,6 +1972,10 @@ function labSubmitReport() {
       labPrint([{ t: def.report.requireMsg || 'Run your analyst tools first, then file the report.', c: 'err' }]);
       return;
     }
+    // Idempotent: if the choices are already on screen (and not yet answered),
+    // don't render a second block — just re-point the player at the decision.
+    if (LAB._reportOpen && !LAB.done) { labOrientationCoach(); return; }
+    LAB._reportOpen = true;
     labShowReportChoices();
     return;
   }

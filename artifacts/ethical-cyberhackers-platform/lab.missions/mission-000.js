@@ -76,6 +76,19 @@ export default {
          question: 'Who owns it, which ports did it hit, and is it an approved peer?',
          why: 'Confirming the source and comparing it to the baseline is how you decide if traffic is suspicious.' },
   },
+  // Step-by-step tutorial coaching (orientation only — gated on report.choices).
+  // The engine appends the exact command from `tools` so the command strings live
+  // in ONE place; only the plain-language wording lives here. Beginner-friendly:
+  // explain the outcome, then point to the next concrete step by name.
+  coach: {
+    ls:           'Those are the files exported from the flagged workstation (WS-4471) — your raw evidence to work through.',
+    catNext:      'read the connection snapshot to see every address WS-4471 is talking to',
+    grepNext:     'pull that one outside address out of the access log to see which ports it touched',
+    pinNext:      'commit both findings to your evidence board',
+    toolsNext:    'confirm the source with your analyst tools',
+    reportChoose: 'pick the determination your evidence best supports from the choices above',
+    reportNext:   'you have enough to decide — file your orientation report',
+  },
   files: [
     { name: 'README.txt', icon: '📘', desc: 'orientation notes' },
     { name: 'network_snapshot.txt', icon: '🗂', desc: 'live connection snapshot', suspect: true },
