@@ -55,9 +55,9 @@ export default {
     { t: 'This is your warm-up — no score, no pressure. You will learn the core loop of', c: 'dim' },
     { t: 'network triage: read a connection snapshot, spot an outside address that keeps', c: 'dim' },
     { t: 'coming back, check who it is, and decide whether it is worth escalating.', c: 'dim' },
-    { t: 'Everything is explained as you reach it. The panel on the left frames what to', c: 'dim' },
-    { t: 'suspect; the SOC TOOL KIT lists the commands you can run; HINT nudges you one', c: 'dim' },
-    { t: 'step at a time. Investigate first, decide last.', c: 'dim' },
+    { t: 'Everything is explained as you reach it. Follow the GUIDED TUTORIAL on the', c: 'dim' },
+    { t: 'left — it walks you through one step at a time: the exact command to run, why', c: 'dim' },
+    { t: 'you are running it, and what each result means. Investigate first, decide last.', c: 'dim' },
   ],
   support: { beginner: true },
   objective: {
@@ -76,19 +76,39 @@ export default {
          question: 'Who owns it, which ports did it hit, and is it an approved peer?',
          why: 'Confirming the source and comparing it to the baseline is how you decide if traffic is suspicious.' },
   },
-  // Step-by-step tutorial coaching (orientation only — gated on report.choices).
-  // The engine appends the exact command from `tools` so the command strings live
-  // in ONE place; only the plain-language wording lives here. Beginner-friendly:
-  // explain the outcome, then point to the next concrete step by name.
-  coach: {
-    ls:           'Those are the files exported from the flagged workstation (WS-4471) — your raw evidence to work through.',
-    catNext:      'read the connection snapshot to see every address WS-4471 is talking to',
-    grepNext:     'pull that one outside address out of the access log to see which ports it touched',
-    pinNext:      'commit both findings to your evidence board',
-    toolsNext:    'confirm the source with your analyst tools',
-    reportChoose: 'pick the determination your evidence best supports from the choices above',
-    reportNext:   'you have enough to decide — file your orientation report',
-  },
+  // Guided tutorial (orientation only — gated on report.choices). The engine
+  // (labRenderTutorial) renders these as an ordered, checkable step list in the
+  // left panel: the CURRENT step shows `say` plus a one-click Run button, and
+  // each COMPLETED step shows its `result` ("what that told you"). Command
+  // strings live in ONE place — `tools[].cmd`, resolved via `toolKey` — so this
+  // block only carries plain-language wording. `key` drives per-step completion
+  // detection in the engine. Presentation-only: nothing here runs or persists.
+  tutorial: [
+    { key: 'ls', toolKey: 'ls', label: 'See what you\u2019re working with',
+      say: 'List the files pulled off the flagged workstation so you know what evidence you have to work through.',
+      result: 'Four files of telemetry from WS-4471 — the connection snapshot, the access log, the known-good baseline, and your notes.' },
+    { key: 'cat', toolKey: 'cat', label: 'Read the connection snapshot',
+      say: 'Open the live connection snapshot to see every address WS-4471 is currently talking to.',
+      result: 'One outside address — 203.0.113.77 — keeps coming back, across four different ports.' },
+    { key: 'grep', toolKey: 'grep', label: 'Pull the suspect out of the log',
+      say: 'Search the access log for that one address to see exactly which services it reached for.',
+      result: 'It touched ssh, http, https and mysql — one host poking many doors is probing, not normal use.' },
+    { key: 'pin', cmd: 'pin all', label: 'Save what you found',
+      say: 'Commit both observations to your evidence board so your findings are on the record.',
+      result: 'Both observations are pinned — and a small map of the incident appears.' },
+    { key: 'whois', toolKey: 'whois', label: 'Look up who owns the source',
+      say: 'Check who the outside address is registered to.',
+      result: 'No registered owner and no abuse contact — anonymous infrastructure, not an accountable peer.' },
+    { key: 'ports', toolKey: 'ports', label: 'See which ports it hit',
+      say: 'Map the ports the source reached against the ones this host actually runs.',
+      result: 'It reached for services WS-4471 doesn\u2019t even run — the shape of blind probing.' },
+    { key: 'baseline', toolKey: 'baseline', label: 'Compare to known-good peers',
+      say: 'Check the source against the reviewed list of peers WS-4471 is approved to talk to.',
+      result: 'It\u2019s not on the baseline — so it\u2019s unexpected, while the CDN and DNS beside it are ruled out.' },
+    { key: 'report', toolKey: 'report', label: 'File your orientation report',
+      say: 'You have enough to decide. File your report, then pick the determination your evidence best supports.',
+      result: 'Report filed — orientation complete.' },
+  ],
   files: [
     { name: 'README.txt', icon: '📘', desc: 'orientation notes' },
     { name: 'network_snapshot.txt', icon: '🗂', desc: 'live connection snapshot', suspect: true },

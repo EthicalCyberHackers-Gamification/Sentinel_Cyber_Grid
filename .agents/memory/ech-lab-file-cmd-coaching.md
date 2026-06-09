@@ -1,25 +1,32 @@
 ---
-name: Lab file-command coaching bypasses labGuide
-description: Why auto-coaching after ls/cat/grep in the terminal lab must be wired in labFileCmd, not labGuide
+name: Orientation guided-tutorial panel (Assignment 000)
+description: How orientation guidance is structured — a single left-dock step list, not scattered terminal coaching — and how it stays gated to mission-000 only
 ---
 
-In the progressive lab (`lab.js`), typed `ls`/`cat`/`less`/`grep` route to
-`labFileCmd` and **return without ever calling `labGuide()`**. Only tool/pin
-dispatch (`labDispatch`, `labPin`/`labPinCmd`) calls `labGuide()` at the end.
+Assignment 000 orientation (`?lab=mission-000`, deep-link only) consolidates ALL
+beginner guidance into ONE dominant left-dock panel: an ordered, checkable step
+list (`labRenderTutorial` in `lab.js`, driven by `def.tutorial` in
+`lab.missions/mission-000.js`). Current step = first incomplete; it shows a plain
+instruction + a one-click "Run `<cmd>`" button (calls `labRun`). Completed steps
+show a ✓ + a "what that told you" result line. Upcoming steps are dimmed labels
+(no command revealed). There is NO per-command terminal coach anymore.
 
-**Why:** that asymmetry is exactly why "after `ls` nothing prints" — `labGuide`
-(and its beginner variant `labGuideV2`) only ever fire on the tool/pin path, so
-any guidance that should follow a stage-1 file command has no hook unless you add
-it inside `labFileCmd`.
+**Why:** the earlier approach scattered guidance across multiple panels + a single
+abstract terminal line ("after ls nothing helpful prints"); the user found it too
+abstract and asked for FEWER places to look. A single stateful step list is the
+fix — guidance lives in exactly one place and advances itself.
 
-**How to apply:** to coach/explain after a file command, call your coach at the
-end of each of the `ls`/`cat`/`grep` branches in `labFileCmd` (gate it so it
-only runs where intended). For tool/pin steps, hooking `labGuide` is enough.
+**How to apply (gating — keep airtight):** the tutorial path is entered only when
+`labIsOrientation() && Array.isArray(def.tutorial)`. `labIsOrientation()` is true
+iff `def.report.choices` exists — which is mission-000 ONLY. So 001/002 keep
+`labSupportV2()` and graded 001–006 are untouched. Any new orientation surface
+must reuse this same gate. Presentation-only: never writes XP / progress / persist.
 
-The orientation tutorial (Assignment 000) is the live example: `labOrientationCoach()`
-names the exact next command at every step, is called from BOTH the file-command
-branches and the top of `labGuide`, and is gated on `labIsOrientation()`
-(true only when `def.report.choices` is an array — i.e. mission-000 only), so the
-six graded assignments and 001/002's command-free `labGuideV2` are untouched.
-Command strings come from `def.tools[].cmd` (single source of truth); only plain
-wording lives in `def.coach`. Presentation-only: never writes XP/progress/persist.
+**Step completion must reflect the INTENDED OUTCOME, not mere command invocation.**
+`labTutorialDone(step)` derives completion from lab state. Trap: `grep` cannot key
+on `LAB.ran.has('grep')` — a wrong/empty grep would still tick it done. Only the
+correct grep (right pattern + `access.log`) fires `grepAha`, which is the sole
+thing advancing orientation stage 1→2, so key the grep step on `LAB.stage >= 2`.
+Same principle for any content-dependent step: gate on the state the right action
+produces, not on the verb being typed. Command strings resolve from
+`def.tools[].cmd` (single source of truth); only wording lives in `def.tutorial`.

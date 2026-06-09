@@ -1591,10 +1591,6 @@ function labFileCmd(cmd, args) {
     LAB.ran.add('ls');
     labPrint([{ t: def.files.map((f) => f.name).join('   ') }]);
     labRenderDock();
-    if (labIsOrientation()) {
-      if (def.coach && def.coach.ls) labPrint([{ t: '\u2192 ' + def.coach.ls, c: 'guide' }]);
-      labOrientationCoach();
-    }
     return;
   }
 
@@ -1614,7 +1610,6 @@ function labFileCmd(cmd, args) {
     }
     labRenderFiles();
     labRenderDock();
-    if (labIsOrientation()) labOrientationCoach();
     return;
   }
 
@@ -1648,7 +1643,7 @@ function labFileCmd(cmd, args) {
         labShowFraming(aha.advanceTo);
       }
     }
-    if (labIsOrientation()) labOrientationCoach();
+    labRenderDock();
     return;
   }
 }
@@ -1709,11 +1704,12 @@ function labGuide() {
   // A stage reveal (campaign / containment) prints its own direction —
   // don't pile a second nudge on top of it.
   if (LAB._justAdvanced) { LAB._justAdvanced = false; return; }
-  // The orientation tutorial (Assignment 000) gets its own explicit, step-by-step
-  // coach that NAMES the exact next command at every stage. Gated on the same
-  // report.choices flag as the rest of orientation, so the six real assignments
-  // (and 001/002's command-free labGuideV2) are untouched.
-  if (labIsOrientation()) { labOrientationCoach(); return; }
+  // The orientation tutorial (Assignment 000) owns ALL of its guidance in the
+  // left-hand GUIDED TUTORIAL panel (labRenderTutorial, re-rendered on every
+  // labRenderDock), so it deliberately prints NO terminal next-step nudge here —
+  // keeping guidance in one place. Gated on the report.choices flag, so the six
+  // real assignments (and 001/002's command-free labGuideV2) are untouched.
+  if (labIsOrientation()) return;
   const def = LAB.def;
   const stage = LAB.stage;
   let line = '';
@@ -1801,62 +1797,133 @@ function labGuideV2() {
   if (line) labPrint([{ t: line, c: 'guide' }]);
 }
 
-/* Step-by-step coach for the ORIENTATION tutorial (Assignment 000) ONLY.
- * Unlike the early-beginner coach (labGuideV2, which deliberately never names a
- * command), this names the EXACT next command at every step so an absolute
- * first-timer is never left guessing after `ls`. The command strings come from
- * `def.tools[].cmd` (single source of truth); only the plain-language wording
- * lives in `def.coach`. Presentation-only: derived from existing state, it never
- * mutates mechanics, evidence, scoring, XP, or persistence. */
-function labOrientationCoach() {
+/* ------------------------------------------------------------------ *
+ * GUIDED TUTORIAL (Assignment 000 / orientation ONLY)
+ * The orientation lab replaces the left support panel with a single,
+ * dominant, ordered step list (driven by `def.tutorial`). It is the ONE
+ * place a first-timer looks: the CURRENT step shows a plain-language
+ * instruction plus a one-click Run button; each COMPLETED step shows what
+ * its result meant. This consolidates all guidance into one surface so the
+ * beginner is never hunting across the terminal, the framing panel and the
+ * tool kit. Gated on `def.tutorial`, so no other assignment is affected.
+ * Presentation-only: completion is DERIVED from existing lab state; nothing
+ * here mutates mechanics, evidence, scoring, XP, or persistence.
+ * ------------------------------------------------------------------ */
+
+/* Resolve a step's command string — preferring the single source of truth
+ * (`tools[].cmd` via `toolKey`) and falling back to a literal `cmd`. */
+function labTutorialCmd(step) {
   const def = LAB.def;
-  const C = def.coach || {};
-  const stage = LAB.stage;
-  const cmdOf = (key, fallback) => {
-    const t = def.tools.find((x) => x.key === key);
-    return t && t.cmd ? t.cmd : fallback;
-  };
-  let line = '';
-
-  if (stage === 1) {
-    // Triage: snapshot -> grep the suspect address.
-    if (!LAB.read.has('network_snapshot.txt')) {
-      line = `→ Next: ${C.catNext} — type \`${cmdOf('cat', 'cat network_snapshot.txt')}\`.`;
-    } else if (!LAB.ran.has('grep')) {
-      line = `→ Next: ${C.grepNext} — type \`${cmdOf('grep', 'grep 203.0.113.77 access.log')}\`.`;
-    }
-  } else if (stage === 2) {
-    // Commit observations to the evidence board.
-    const flow = def.hintFlow.stage2;
-    if (flow && flow.group) {
-      const pinned = labPinnedCount(flow.group);
-      if (pinned < flow.need) {
-        line = `→ Next: ${C.pinNext} — type \`pin all\`. (${pinned}/${flow.need} pinned.)`;
-      }
-    }
-  } else if (stage >= 3) {
-    // Confirm the source with the analyst tools, then file the report.
-    const grp = (def.hintFlow.stage4 && def.hintFlow.stage4.group) || 'soc';
-    const todo = def.tools.filter((t) => {
-      if (!t.run || t.unlock > stage || LAB.ran.has(t.key)) return false;
-      const disc = t.run.discover;
-      if (!disc) return false;
-      const ids = Array.isArray(disc) ? disc : [disc];
-      return ids.some((id) => def.ind[id] && def.ind[id].group === grp);
-    });
-    if (todo.length) {
-      // Step-by-step: name only THE next command, even though the analyst tools
-      // can be run in any order — one concrete instruction at a time.
-      line = `→ Next: ${C.toolsNext} — type \`${todo[0].cmd}\`.`;
-    } else if (LAB._reportOpen && !LAB.done) {
-      // Report choices already on screen — point at the decision, not the command.
-      line = `→ Next: ${C.reportChoose}.`;
-    } else if (!LAB.done) {
-      line = `→ Next: ${C.reportNext} — type \`${cmdOf(def.reportKey, 'submit orientation report')}\`.`;
-    }
+  if (step.toolKey) {
+    const t = def.tools.find((x) => x.key === step.toolKey);
+    if (t && t.cmd) return t.cmd;
   }
+  return step.cmd || '';
+}
 
-  if (line) labPrint([{ t: line, c: 'guide' }]);
+/* Has this tutorial step been completed? Derived purely from lab state. */
+function labTutorialDone(step) {
+  switch (step.key) {
+    case 'ls':       return LAB.ran.has('ls');
+    case 'cat':      return LAB.read.has('network_snapshot.txt');
+    // Only the CORRECT grep (right pattern + access.log) fires grepAha, which is
+    // the sole thing that advances orientation stage 1 -> 2. Keying on the stage
+    // (not merely `ran.has('grep')`) means a wrong/empty grep does NOT tick the
+    // step complete — the learner has to actually surface the probe.
+    case 'grep':     return LAB.stage >= 2;
+    case 'pin':      return LAB.stage >= 3;        // pinning the observations advances 2 -> 3
+    case 'whois':    return LAB.ran.has('whois');
+    case 'ports':    return LAB.ran.has('ports');
+    case 'baseline': return LAB.ran.has('baseline');
+    case 'report':   return LAB.done;
+    default:         return false;
+  }
+}
+
+function labRenderTutorial(dock) {
+  const def = LAB.def;
+  const steps = def.tutorial || [];
+  if (!steps.length) { labRenderSupport(dock); return; }
+
+  const dones = steps.map(labTutorialDone);
+  const total = steps.length;
+  const completed = dones.filter(Boolean).length;
+  const currentIdx = dones.findIndex((d) => !d);  // first incomplete = current
+  const allDone = currentIdx === -1;
+  const stepNum = allDone ? total : completed + 1;
+  const pct = Math.round((completed / total) * 100);
+
+  const rows = steps.map((step, i) => {
+    const done = dones[i];
+    const isCurrent = !allDone && i === currentIdx;
+    const cmd = labTutorialCmd(step);
+
+    if (done) {
+      return `
+        <li class="lab-tut-step is-done">
+          <span class="lab-tut-mark" aria-hidden="true">\u2713</span>
+          <div class="lab-tut-main">
+            <div class="lab-tut-label">${labEsc(step.label)}</div>
+            <div class="lab-tut-result">${labEsc(step.result)}</div>
+          </div>
+        </li>`;
+    }
+    if (isCurrent) {
+      // Once the report's multiple-choice options are already on screen, point
+      // at the decision instead of offering a Run button for a command that has
+      // already executed.
+      const choicesOpen = step.key === 'report' && LAB._reportOpen && !LAB.done;
+      const say = choicesOpen
+        ? 'Pick the determination your evidence best supports from the choices in the terminal below.'
+        : step.say;
+      const action = choicesOpen ? '' : `
+            <button class="lab-tut-run" type="button" data-lab-tut-run="${labEsc(cmd)}">
+              <span class="lab-tut-run-ico" aria-hidden="true">\u25B6</span>
+              <span class="lab-tut-run-txt">Run&nbsp; <code>${labEsc(cmd)}</code></span>
+            </button>
+            <div class="lab-tut-or">or type it into the terminal yourself</div>`;
+      return `
+        <li class="lab-tut-step is-current">
+          <span class="lab-tut-mark" aria-hidden="true">${stepNum}</span>
+          <div class="lab-tut-main">
+            <div class="lab-tut-label">${labEsc(step.label)}</div>
+            <div class="lab-tut-say">${labEsc(say)}</div>
+            ${action}
+          </div>
+        </li>`;
+    }
+    // Upcoming: show the label (the roadmap) but not the command, so the
+    // beginner sees the arc without being overwhelmed by what is ahead.
+    return `
+      <li class="lab-tut-step is-upcoming">
+        <span class="lab-tut-mark" aria-hidden="true">${i + 1}</span>
+        <div class="lab-tut-main">
+          <div class="lab-tut-label">${labEsc(step.label)}</div>
+        </div>
+      </li>`;
+  }).join('');
+
+  const progress = allDone
+    ? 'Orientation complete \u2014 every step done \u2713'
+    : `Step ${stepNum} of ${total}`;
+
+  dock.innerHTML = `
+    <div class="lab-tut">
+      <div class="lab-tut-head">
+        <span class="lab-tut-kicker">GUIDED TUTORIAL</span>
+        <span class="lab-tut-count">${progress}</span>
+      </div>
+      <div class="lab-tut-bar"><span style="width:${pct}%"></span></div>
+      <ol class="lab-tut-steps">${rows}</ol>
+      <div class="lab-tut-foot">Follow the highlighted step. Each one tells you what just happened, then points you to the next.</div>
+    </div>`;
+
+  dock.querySelectorAll('[data-lab-tut-run]').forEach((b) => {
+    b.addEventListener('click', () => {
+      labRun(b.dataset.labTutRun);
+      const input = $lab('labTermInput'); if (input) input.focus();
+    });
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -1924,7 +1991,7 @@ function labPinCmd(arg) {
       if (sup) lines.push({ t: `    \u2192 ${ind[id].label}: ${sup}`, c: 'dim' });
     });
     labPrint(lines);
-    labRenderRail(); labRefreshObjective(); labCheckAdvance(); labGuide();
+    labRenderRail(); labRefreshObjective(); labCheckAdvance(); labRenderDock(); labGuide();
     return;
   }
   // pin by partial label/id match
@@ -1932,7 +1999,7 @@ function labPinCmd(arg) {
   if (match) {
     LAB.pinned.add(match);
     labPrint(labPinLines(match));
-    labRenderRail(); labRefreshObjective(); labCheckAdvance(); labGuide();
+    labRenderRail(); labRefreshObjective(); labCheckAdvance(); labRenderDock(); labGuide();
   } else {
     labPrint([{ t: `No discovered indicator matches "${arg}". Try \`pin all\`.`, c: 'dim' }]);
   }
@@ -1973,10 +2040,12 @@ function labSubmitReport() {
       return;
     }
     // Idempotent: if the choices are already on screen (and not yet answered),
-    // don't render a second block — just re-point the player at the decision.
-    if (LAB._reportOpen && !LAB.done) { labOrientationCoach(); return; }
+    // don't render a second block — the tutorial panel already points at the
+    // decision; just re-render it (no-op if unchanged) and return.
+    if (LAB._reportOpen && !LAB.done) { labRenderDock(); return; }
     LAB._reportOpen = true;
     labShowReportChoices();
+    labRenderDock();
     return;
   }
   const required = def.containRequired;
@@ -2009,6 +2078,15 @@ function labRenderDock() {
   // and the question this stage answers — so the player decides which tool fits
   // rather than ticking off a given list. SOC TOOL KIT (reference) and HINT stay
   // reachable in the dock footer.
+  // Orientation (Assignment 000) gets a single, dominant GUIDED TUTORIAL panel
+  // here — an ordered, checkable step list that owns ALL guidance (what to run,
+  // why, and what each result meant), so the beginner looks in exactly ONE place
+  // and can act with a click. Gated on the dataset carrying a `tutorial` array
+  // (only mission-000 does), so 001/002 keep the command-free support panel and
+  // the six graded assignments keep the ordered command dock.
+  if (labIsOrientation() && Array.isArray(def.tutorial) && def.tutorial.length) {
+    labRenderTutorial(dock); return;
+  }
   if (labSupportV2()) { labRenderSupport(dock); return; }
 
   const visible = def.tools.filter((t) => t.unlock <= LAB.stage);
