@@ -1,0 +1,410 @@
+Create a guided beginner tutorial focused on network meaning and SOC investigation fundamentals.
+
+Do not redesign the main game yet.
+
+Goal:
+Help brand-new players understand what IP addresses, internal systems, external infrastructure, ports, baselines, and suspicious communication mean before they enter Assignment 001.
+
+The tutorial should make networking feel meaningful inside the simulation.
+
+Players should stop seeing IP addresses as random numbers and begin understanding:
+
+“Networks are systems talking to other systems.
+SOC analysts investigate whether that communication is expected or suspicious.”
+
+---
+
+## TUTORIAL NAME
+
+Assignment 000
+CyberCorp Analyst Orientation: Network Investigation Basics
+
+---
+
+## PLAYER ROLE
+
+CyberCorp Security Operations Intern
+
+---
+
+## CORE LEARNING GOAL
+
+Teach beginner network intuition, not deep networking theory.
+
+Do NOT teach:
+
+* subnet math
+* OSI model
+* CIDR notation
+* routing tables
+* advanced protocols
+
+Teach:
+
+* internal vs external systems
+* IP address as a system identifier
+* ports as services/doors
+* normal vs abnormal communication
+* known-good vs unknown infrastructure
+* why analysts compare behavior to baseline
+* why repeated probing is suspicious
+
+---
+
+## TUTORIAL STYLE
+
+Use guided participation, not passive autoplay.
+
+The player should type or click small actions, but the tutorial should heavily explain:
+
+* what they are looking at
+* why it matters
+* what question they are answering
+
+Avoid:
+
+* long lectures
+* classroom tone
+* giant text blocks
+* childish arrows
+* over-gamified popups
+
+Tone:
+Senior analyst coaching a new intern.
+
+---
+
+## TUTORIAL FLOW
+
+Step 1 — What Is A Network?
+
+Show a simple visual:
+CyberCorp Workstation → Internal Server → External Internet
+
+Explain:
+A network is a group of systems communicating with each other.
+
+Key idea:
+SOC analysts investigate whether communication is expected or suspicious.
+
+---
+
+Step 2 — What Is An IP Address?
+
+Show:
+WS-4471
+10.0.5.12
+Employee workstation
+
+Then:
+203.0.113.77
+Unknown external infrastructure
+
+Explain:
+An IP address identifies a system on a network.
+It is like a location label for a machine.
+
+Important:
+Do not over-explain IPv4.
+Do not introduce subnetting yet.
+
+---
+
+Step 3 — Internal vs External
+
+Show two categories:
+
+INTERNAL
+CyberCorp-owned systems:
+
+* employee workstation
+* file server
+* identity provider
+* mail server
+
+EXTERNAL
+Systems outside CyberCorp:
+
+* vendor services
+* cloud providers
+* unknown internet hosts
+* attacker infrastructure
+
+Explain:
+External does not automatically mean malicious.
+But unknown external systems require validation.
+
+---
+
+Step 4 — What Are Ports?
+
+Use simple operational language:
+
+A port represents a service a system can communicate with.
+
+Example:
+22 = SSH remote administration
+80/443 = web traffic
+445 = file sharing
+3306 = database
+
+Explain:
+If a system touches many unrelated ports quickly, analysts may suspect scanning or reconnaissance.
+
+---
+
+Step 5 — Known-Good vs Unknown
+
+Show:
+Known-good examples:
+
+* Microsoft update service
+* Cloudflare CDN
+* CyberCorp VPN
+* internal DNS
+
+Unknown examples:
+
+* anonymous host
+* no organization name
+* suspicious domain
+* bulletproof host
+
+Explain:
+Analysts do not trust or block based on one clue. They build confidence by checking multiple signals.
+
+---
+
+Step 6 — Baseline Thinking
+
+Explain:
+A baseline is what normal behavior usually looks like.
+
+Example:
+WS-4471 normally talks to:
+
+* Microsoft update service
+* internal file server
+* CyberCorp identity system
+
+Suspicious:
+An unknown external IP touches SSH, HTTP, HTTPS, and database ports within seconds.
+
+Explain:
+Baseline comparison helps analysts avoid guessing.
+
+---
+
+Step 7 — Mini Guided Investigation
+
+Give the player a very small scenario.
+
+Current Suspicion:
+One external source appears in the logs more than once.
+
+Investigative Question:
+Is this expected communication or possible reconnaissance?
+
+Tools:
+
+* ls
+* cat
+* grep
+* whois
+* ports
+* compare baseline
+
+But do not expose these as a step-by-step checklist.
+
+Put them inside SOC Toolkit as references.
+
+---
+
+Step 8 — Guided Commands
+
+Guide the player gradually.
+
+First:
+Ask them to list available evidence.
+
+Command:
+ls
+
+Explain:
+This shows the artifacts available for investigation.
+
+Then:
+Open the network snapshot.
+
+Command:
+cat network_snapshot.txt
+
+Explain:
+This lets the analyst inspect observed network activity.
+
+Then:
+Search for repeated activity.
+
+Command:
+grep 203.0.113.77 network_snapshot.txt
+
+Explain:
+Repeated activity from one external source may indicate probing.
+
+Then:
+Check ownership.
+
+Command:
+whois 203.0.113.77
+
+Explain:
+Ownership helps determine whether this source belongs to a known service, partner, or unknown actor.
+
+Then:
+Check ports.
+
+Command:
+ports 203.0.113.77
+
+Explain:
+Ports show what services the source attempted to reach.
+
+Then:
+Compare baseline.
+
+Command:
+compare baseline
+
+Explain:
+Baseline comparison determines whether the observed behavior matches normal traffic.
+
+---
+
+## IMPORTANT COMMAND FEEDBACK FORMAT
+
+After each meaningful command, show:
+
+WHAT THIS MEANS
+Short explanation of the result.
+
+WHY ANALYSTS CARE
+Why this matters operationally.
+
+NEXT QUESTION
+What remains unknown.
+
+Example:
+
+WHAT THIS MEANS
+The same external source touched several services.
+
+WHY ANALYSTS CARE
+Legitimate systems usually communicate with expected services. Broad probing can indicate reconnaissance.
+
+NEXT QUESTION
+Does this source belong to known-good infrastructure?
+
+---
+
+## VISUAL MAP REQUIREMENT
+
+Use a very simple reactive map.
+
+Start with:
+CyberCorp Workstation
+
+Then reveal:
+Unknown External Source
+
+Then reveal:
+services/ports touched
+
+Then reveal:
+known-good comparison
+
+The map should teach:
+who is communicating with whom.
+
+Do not make the map complex.
+
+---
+
+## SOC TOOLKIT REQUIREMENT
+
+The SOC Toolkit should be available as a reference.
+
+It should explain:
+
+* what each tool does
+* when to use it
+* example syntax
+
+But it should not present tools as an ordered checklist.
+
+Categories:
+
+* Triage Commands
+* Analyst Tools
+* Response Actions
+
+For Assignment 000, response actions can be shown but locked/not needed.
+
+---
+
+## NO HIGH-STAKES CONTAINMENT
+
+This tutorial should not require complex containment.
+
+End with:
+submit orientation report
+
+The report should ask:
+What did you determine?
+
+Expected answer:
+The external source is suspicious because it is unknown, touched multiple unrelated ports, and does not match baseline behavior.
+
+---
+
+## ENDING DEBRIEF
+
+At completion, show a short debrief:
+
+You learned:
+
+* IP addresses identify systems
+* internal and external systems have different trust levels
+* ports represent services
+* repeated probing can indicate reconnaissance
+* baselines help analysts compare normal vs abnormal behavior
+* SOC analysts build confidence from multiple clues
+
+Real analyst takeaway:
+Never judge an event from one clue. Analysts compare source ownership, behavior, ports, and baseline before deciding whether activity is suspicious.
+
+---
+
+## SUCCESS CRITERIA
+
+This tutorial succeeds if:
+
+* beginners understand that IP addresses represent systems
+* players understand internal vs external
+* players understand ports at a basic level
+* players understand why repeated probing matters
+* players understand what baseline comparison means
+* players enter Assignment 001 with less confusion
+* the tutorial preserves immersion
+* the player participates actively instead of passively watching
+
+---
+
+## IMPLEMENTATION SCOPE
+
+Build as Assignment 000 or a pre-Assignment-001 orientation.
+
+Do not modify later assignments yet.
+
+Keep it isolated and testable.
+
+This is a beginner onboarding tutorial only.
