@@ -1142,6 +1142,93 @@
 
 .lab-link.is-blocked { stroke: var(--text-muted); opacity: 0.3; stroke-dasharray: 1 1.5; }
 
+/* ---- Orientation network map (Assignment 000 only) ----
+   Scoped lab-zone* / lab-onode* / lab-flow* / lab-pulse* classes. The six graded
+   assignments use .lab-node / .lab-link above and are untouched by anything here. */
+
+/* Trust zones — labelled vertical bands, most-trusted (left) to least (right). */
+.lab-zone {
+  position: absolute; top: 0; bottom: 0;
+  border-left: 1px dashed rgba(120,140,170,0.14);
+  pointer-events: none;
+}
+.lab-zone.is-internal-user { border-left: none; background: linear-gradient(rgba(0,229,255,0.045), transparent 62%); }
+.lab-zone.is-internal-svc  { background: linear-gradient(rgba(0,229,255,0.03), transparent 62%); }
+.lab-zone.is-external      { background: linear-gradient(rgba(150,170,200,0.03), transparent 62%); }
+.lab-zone.is-suspicious    { background: linear-gradient(rgba(255,80,90,0.06), transparent 62%); }
+
+.lab-zone-label {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-dim); white-space: nowrap; opacity: 0.85;
+}
+.lab-zone.is-suspicious .lab-zone-label { color: var(--red); opacity: 0.75; }
+
+/* Systems — identity-rich chips with a trust state. */
+.lab-onode {
+  position: absolute; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  width: 122px; text-align: center; cursor: pointer;
+  animation: labNodeIn 420ms ease;
+}
+.lab-onode-dot {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; border-radius: 9px;
+  border: 1.5px solid var(--border); background: var(--bg-panel);
+  transition: border-color 300ms ease, box-shadow 300ms ease, color 300ms ease;
+}
+.lab-onode-label { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-bright); line-height: 1.2; }
+.lab-onode-type { font-size: 8.5px; color: var(--text-dim); line-height: 1.2; }
+.lab-onode-trust { font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.04em; color: var(--text-dim); }
+
+/* Trust states — neutral early, green when confirmed good, amber→red as a source
+   moves from unverified to off-baseline to suspicious. No node is red before the
+   evidence supports it. */
+.lab-onode.is-internal .lab-onode-dot { border-color: var(--cyan-dim); color: var(--cyan); box-shadow: 0 0 10px rgba(0,229,255,0.18); }
+.lab-onode.is-internal .lab-onode-trust { color: var(--cyan); }
+.lab-onode.is-knowngood .lab-onode-dot { border-color: var(--green); color: var(--green); box-shadow: 0 0 12px rgba(0,255,136,0.22); }
+.lab-onode.is-knowngood .lab-onode-trust { color: var(--green); }
+.lab-onode.is-unverified .lab-onode-dot { border-color: var(--orange); color: var(--orange); box-shadow: 0 0 10px rgba(255,107,0,0.18); }
+.lab-onode.is-unverified .lab-onode-trust { color: var(--orange); }
+.lab-onode.is-offbaseline .lab-onode-dot { border-color: var(--orange); color: var(--orange); box-shadow: 0 0 14px rgba(255,107,0,0.32); }
+.lab-onode.is-offbaseline .lab-onode-trust { color: var(--orange); }
+.lab-onode.is-suspicious .lab-onode-dot { border-color: var(--red); color: var(--red); box-shadow: 0 0 16px rgba(255,51,68,0.4); animation: scFlagPulse 1.6s ease-in-out infinite; }
+.lab-onode.is-suspicious .lab-onode-trust { color: var(--red); }
+.lab-onode.is-watched .lab-onode-dot { border-color: var(--red); color: var(--red); box-shadow: 0 0 16px rgba(255,51,68,0.4); }
+.lab-onode.is-watched .lab-onode-trust { color: var(--red); }
+.lab-onode.is-monitored .lab-onode-dot { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 12px rgba(0,229,255,0.3); }
+.lab-onode.is-monitored .lab-onode-trust { color: var(--cyan); }
+
+.lab-onode:hover .lab-onode-dot { border-color: var(--cyan); box-shadow: 0 0 16px rgba(0,229,255,0.45); }
+.lab-onode.is-suspicious:hover .lab-onode-dot,
+.lab-onode.is-watched:hover .lab-onode-dot { border-color: var(--red); box-shadow: 0 0 18px rgba(255,51,68,0.55); }
+.lab-onode:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: var(--radius-sm); }
+
+/* Consequence / detail chips. */
+.lab-onode-badge {
+  font-family: var(--font-mono); font-size: 7.5px; letter-spacing: 0.04em;
+  color: var(--orange); border: 1px solid rgba(255,107,0,0.35);
+  border-radius: var(--radius-sm); padding: 1px 4px; margin-top: 1px;
+}
+.lab-onode-chip {
+  font-family: var(--font-mono); font-size: 7.5px; letter-spacing: 0.06em;
+  border-radius: var(--radius-sm); padding: 1px 5px; margin-top: 1px;
+}
+.lab-onode-chip.is-watch { color: var(--red); border: 1px solid rgba(255,51,68,0.4); background: rgba(255,51,68,0.08); }
+.lab-onode-chip.is-monitor { color: var(--cyan); border: 1px solid rgba(0,229,255,0.4); background: rgba(0,229,255,0.08); }
+
+/* Traffic flow — animated dashed links + travelling pulse dots. */
+.lab-flow { fill: none; stroke-width: 0.6; opacity: 0.5; transition: stroke 300ms ease, opacity 300ms ease; }
+.lab-flow.is-calm { stroke: var(--cyan-dim); stroke-dasharray: 2 2.4; opacity: 0.55; animation: scDash 3.2s linear infinite; }
+.lab-flow.is-watch { stroke: var(--orange); stroke-width: 0.7; stroke-dasharray: 2 2; opacity: 0.82; animation: scDash 2s linear infinite; }
+.lab-flow.is-watch.is-emph { stroke-width: 0.85; opacity: 0.95; animation-duration: 1.3s; }
+.lab-flow.is-alert { stroke: var(--red); stroke-width: 0.9; stroke-dasharray: 2.4 1.6; opacity: 0.95; filter: drop-shadow(0 0 1.5px rgba(255,51,68,0.6)); animation: scDash 0.9s linear infinite; }
+.lab-pulse { opacity: 0.9; }
+.lab-pulse.is-calm { fill: var(--cyan); }
+.lab-pulse.is-watch { fill: var(--orange); }
+.lab-pulse.is-alert { fill: var(--red); }
+
 /* Evidence rail — discovered vs pinned (reuses .sc-ev base) */
 .sc-ev.lab-ev { cursor: pointer; }
 

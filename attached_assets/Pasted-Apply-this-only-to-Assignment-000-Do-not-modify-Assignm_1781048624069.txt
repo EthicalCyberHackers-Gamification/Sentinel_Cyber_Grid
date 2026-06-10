@@ -1,0 +1,319 @@
+Apply this only to Assignment 000.
+
+Do not modify Assignment 001 or later assignments yet.
+
+Goal:
+Make Assignment 000 more dynamic and visually useful by introducing simple network zones and live traffic visualization.
+
+This should help beginners understand:
+
+* what systems are communicating
+* whether communication is internal or external
+* what normal traffic looks like
+* what suspicious traffic looks like
+* how SOC analysts reason through network activity
+
+This must be functional visualization, not decorative cyber graphics.
+
+---
+
+## CORE DESIGN PRINCIPLE
+
+The visuals should answer:
+
+What is communicating with what?
+Should this communication be happening?
+What changed as the investigation progressed?
+
+Do not add meaningless animation.
+
+Every visual element should support learning.
+
+---
+
+## WHAT STAYS THE SAME
+
+Keep:
+
+* Assignment 000 only
+* terminal-first interaction
+* SOC workflow stages
+* guided beginner tutorial
+* evidence panel
+* SOC Toolkit
+* simple investigation flow
+* orientation report
+* CyberCorp tone
+
+Do not:
+
+* create a full SIEM dashboard
+* add too many nodes
+* add complex enterprise architecture
+* add random glowing effects
+* add alert spam
+* overload the screen
+
+---
+
+## NETWORK ZONES TO ADD
+
+Create a simple visual network map with clear zones:
+
+1. Internal User Zone
+   Examples:
+
+* WS-4471
+* employee workstation
+
+2. Internal Services Zone
+   Examples:
+
+* internal DNS
+* file server
+* identity service
+
+3. External Internet Zone
+   Examples:
+
+* CDN
+* vendor service
+* unknown external host
+
+4. Suspicious Infrastructure Zone
+   Examples:
+
+* unknown IP
+* suspicious host
+* possible scanning source
+
+Keep the zones minimal and readable.
+
+---
+
+## PROGRESSIVE ZONE REVEAL
+
+Do not show everything immediately.
+
+Reveal the network progressively as the investigation advances.
+
+Suggested flow:
+
+Stage 1 — Triage:
+Show only WS-4471 and limited traffic.
+
+Stage 2 — SOC Tool Analysis:
+Reveal external hosts and internal services.
+
+Stage 3 — Correlation:
+Separate known-good traffic from suspicious traffic.
+
+Stage 4 — Escalation:
+Highlight the suspicious source and show why it is worth escalation.
+
+Stage 5 — Response / Consequence:
+Show watchlist / monitoring status.
+
+---
+
+## TRAFFIC VISUALIZATION
+
+Add subtle animated traffic pulses.
+
+Examples:
+
+* WS-4471 ↔ internal DNS
+* WS-4471 ↔ CDN
+* unknown external source → WS-4471
+
+Rules:
+
+* normal traffic should feel stable and calm
+* suspicious traffic should feel irregular or isolated
+* animation should be subtle
+* avoid visual noise
+
+The purpose is to teach communication relationships.
+
+---
+
+## BENIGN VS SUSPICIOUS TRAFFIC
+
+Include at least three traffic types:
+
+1. Normal internal traffic
+   Example:
+   WS-4471 → internal DNS
+
+2. Normal external traffic
+   Example:
+   WS-4471 → known CDN
+
+3. Suspicious or ambiguous traffic
+   Example:
+   203.0.113.77 → WS-4471 across multiple unrelated ports
+
+The player should learn:
+external does not automatically mean malicious.
+
+The key question is:
+Does the behavior match expected activity?
+
+---
+
+## BASELINE VISUALIZATION
+
+Use the map to make baseline thinking visible.
+
+Known-good systems:
+
+* appear as trusted
+* remain stable
+* are labeled as expected after baseline comparison
+
+Suspicious systems:
+
+* remain uncertain at first
+* become more suspicious as evidence accumulates
+* are only highlighted after correlation
+
+Do not label the suspicious source as malicious too early.
+
+Use uncertainty first.
+
+---
+
+## DEVICE IDENTITY
+
+Avoid showing only random dots or IPs.
+
+Each node should have:
+
+* readable label
+* system type
+* trust status if known
+
+Examples:
+
+WS-4471
+Employee Workstation
+Internal
+
+10.0.5.1
+Internal DNS
+Known-good
+
+198.51.100.20
+CDN Service
+Known-good
+
+203.0.113.77
+Unknown External Source
+Unverified
+
+This helps players understand that IPs represent systems.
+
+---
+
+## STAGE-SPECIFIC VISUAL PURPOSE
+
+Each SOC stage should visually teach something.
+
+Triage:
+What systems are involved?
+
+SOC Tool Analysis:
+Who owns the source?
+What ports/services are involved?
+
+Correlation:
+Which activity is normal?
+Which activity is off-baseline?
+
+Escalation:
+Is there enough evidence to escalate?
+
+Response:
+What operational status changed?
+
+---
+
+## MAP REACTION EXAMPLES
+
+After `cat network_snapshot.txt`:
+Show all observed communication lightly.
+
+After `grep 203.0.113.77 access.log`:
+Emphasize the repeated suspicious source path.
+
+After `whois 203.0.113.77`:
+Mark the external source as unknown/unverified.
+
+After `ports 203.0.113.77`:
+Show port/service indicators around WS-4471.
+
+After `compare baseline`:
+Mark CDN and DNS as known-good.
+Mark 203.0.113.77 as off-baseline/unexpected.
+
+After escalation:
+Show:
+
+* source added to watchlist
+* WS-4471 monitoring increased
+* SOC queue updated
+
+---
+
+## OPERATIONAL CONSEQUENCE VISUALS
+
+Assignment 000 should not use harsh failure states.
+
+Consequences should be gentle and educational.
+
+Show:
+
+* watchlist updated
+* monitoring increased
+* case escalated
+* no production traffic blocked
+
+This teaches:
+beginner analysts escalate and monitor before taking disruptive action.
+
+---
+
+## IMPORTANT VISUAL TONE
+
+The map should feel like:
+a clean SOC network visualization.
+
+Not:
+a sci-fi holotable
+a world map
+a video game minimap
+a fake hacker dashboard
+
+Keep it:
+
+* dark
+* minimal
+* readable
+* operational
+* useful
+
+---
+
+## SUCCESS CRITERIA
+
+This update succeeds if:
+
+* Assignment 000 feels less static
+* players understand internal vs external visually
+* players understand that IPs represent systems
+* players understand normal vs abnormal traffic
+* players understand baseline comparison better
+* map changes reinforce investigation stages
+* visual activity increases immersion
+* no unnecessary complexity is added
+* beginners are not overwhelmed

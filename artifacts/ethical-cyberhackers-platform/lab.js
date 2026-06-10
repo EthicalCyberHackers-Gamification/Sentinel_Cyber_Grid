@@ -1307,6 +1307,11 @@ function openLab(missionId) {
   LAB._correlated = false;  // orientation Correlation stage acknowledged (presentation-only)
   LAB.hintStep = null;
   LAB.hintLevel = 0;
+  // Orientation network-map state (Assignment 000 only) — progressive reveal +
+  // per-system trust. Presentation-only: never scored, never persisted. The
+  // `start` reaction seeds the opening view (just the flagged workstation).
+  LAB.orient = { reveal: new Set(), trust: {}, ports: false, emphasizeSuspect: false, escalated: false };
+  if (labIsOrientation()) labOrientApply('start');
 
   // Mission-specific header chrome.
   const setText = (elId, txt) => { const el = $lab(elId); if (el) el.textContent = txt; };
@@ -1611,6 +1616,9 @@ function labFileCmd(cmd, args) {
     }
     labRenderFiles();
     labRenderDock();
+    // Orientation map (Assignment 000): reading the snapshot reveals the host's
+    // observed communications (presentation-only; no-op for graded missions).
+    if (name === 'network_snapshot.txt') labOrientReact('cat');
     return;
   }
 
@@ -1643,6 +1651,9 @@ function labFileCmd(cmd, args) {
         if (aha.unlock) labPrint(aha.unlock);
         labShowFraming(aha.advanceTo);
       }
+      // Orientation map (Assignment 000): isolating the suspect emphasises its
+      // path (presentation-only; no-op for graded missions).
+      labOrientReact('grep');
     }
     labRenderDock();
     return;
@@ -1680,6 +1691,8 @@ function labDispatch(key) {
         nodes.forEach((n) => labAddNode(n));
       }
       if (run.discover) labDiscover(run.discover);
+      // Orientation map (Assignment 000): analyst tools update per-system trust.
+      if (labIsOrientation()) labOrientReact(key);
       if (labSupportV2() && run.fb) labShowFeedback(run.fb);
       if (LAB.stage > fromStage) labShowFraming(LAB.stage);
     }
@@ -2003,6 +2016,8 @@ function labRenderTutorial(dock) {
         ]);
       }
       labRenderDock();
+      // Orientation map (Assignment 000): correlation marks the source suspicious.
+      labOrientReact('correlate');
     }
     const input = $lab('labTermInput'); if (input) input.focus();
   });
@@ -2556,6 +2571,15 @@ function labToolDone(key) {
 function labRenderStageSurface() {
   const files = $lab('labFiles');
   const topo = $lab('labTopo');
+  // Orientation (Assignment 000) owns a zone-based map that is visible from
+  // Triage and reveals progressively via labOrientReact — independent of the
+  // stage>=3 files/topo swap the six graded assignments use.
+  if (labIsOrientation()) {
+    if (files) files.hidden = true;
+    if (topo) { topo.hidden = false; topo.classList.add('is-live'); }
+    labRenderTopo();
+    return;
+  }
   if (files) files.hidden = LAB.stage >= 3;
   if (topo) {
     topo.hidden = LAB.stage < 3;
@@ -2702,6 +2726,9 @@ function labIntelBind(el, intel, title, kind, opts) {
 
 function labRenderTopo() {
   const def = LAB.def;
+  // Orientation (Assignment 000) has its own zone-based, identity-rich map with
+  // animated traffic. Graded missions have no `topo.zones` and fall through.
+  if (labIsOrientation() && def.topo && def.topo.zones) { labRenderOrientMap(); return; }
   const svg = $lab('labTopoSvg');
   const host = $lab('labTopoNodes');
   if (!svg || !host) return;
@@ -2777,6 +2804,180 @@ function labRenderTopo() {
     }
     host.appendChild(div);
   });
+}
+
+/* ------------------------------------------------------------------ *
+ * ORIENTATION MAP (Assignment 000 only) — presentation-only.
+ * A zone-based, identity-rich SOC network picture that reveals progressively
+ * as the trainee investigates and shifts each system's trust as evidence comes
+ * in. Strictly cosmetic: every function below reads/writes ONLY LAB.orient and
+ * the DOM. It NEVER pins, scores, awards XP, advances the lab, or persists.
+ * Gated entirely on labIsOrientation() + def.topo.zones / def.topo.mapReact, so
+ * the six graded assignments are completely untouched.
+ * ------------------------------------------------------------------ */
+function labOrientApply(event) {
+  if (!labIsOrientation() || !LAB.orient) return false;
+  const mr = LAB.def.topo && LAB.def.topo.mapReact;
+  const react = mr && mr[event];
+  if (!react) return false;
+  (react.reveal || []).forEach((id) => LAB.orient.reveal.add(id));
+  if (react.trust) Object.assign(LAB.orient.trust, react.trust);
+  if (react.ports) LAB.orient.ports = true;
+  if (react.emphasizeSuspect) LAB.orient.emphasizeSuspect = true;
+  if (react.escalated) LAB.orient.escalated = true;
+  return true;
+}
+
+function labOrientReact(event) {
+  if (labOrientApply(event)) labRenderTopo();
+}
+
+/* Human-readable trust label for a system's current state. */
+function labOrientTrustMeta(t) {
+  switch (t) {
+    case 'internal':    return 'Internal';
+    case 'service':     return 'Internal service';
+    case 'external':    return 'External';
+    case 'knowngood':   return 'Known-good ✓';
+    case 'unverified':  return 'Unverified ?';
+    case 'offbaseline': return 'Off-baseline ⚠';
+    case 'suspicious':  return 'Suspicious ⚠';
+    case 'watched':     return 'On watchlist';
+    case 'monitored':   return 'Monitoring ↑';
+    default:            return '';
+  }
+}
+
+/* Append one (or, for alert traffic, two staggered) animated pulse dots that
+ * travel along a link, conveying live traffic. SMIL animateMotion keeps the dot
+ * in the SVG's 0–100 coordinate space so it tracks the line exactly. */
+function labOrientPulse(svg, na, nb, tier, emph, idx) {
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const XLINK = 'http://www.w3.org/1999/xlink';
+  const pid = 'labPulsePath' + idx;
+  const path = document.createElementNS(SVGNS, 'path');
+  path.setAttribute('id', pid);
+  path.setAttribute('d', `M ${na.x} ${na.y} L ${nb.x} ${nb.y}`);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'none');
+  svg.appendChild(path);
+  let dur = 3.4;
+  if (tier === 'watch') dur = emph ? 1.7 : 2.3;
+  if (tier === 'alert') dur = 1.1;
+  const addDot = (begin) => {
+    const c = document.createElementNS(SVGNS, 'circle');
+    c.setAttribute('r', tier === 'alert' ? '1.6' : '1.3');
+    c.setAttribute('class', 'lab-pulse is-' + tier);
+    const am = document.createElementNS(SVGNS, 'animateMotion');
+    am.setAttribute('dur', dur + 's');
+    am.setAttribute('repeatCount', 'indefinite');
+    if (begin) am.setAttribute('begin', begin + 's');
+    const mp = document.createElementNS(SVGNS, 'mpath');
+    mp.setAttributeNS(XLINK, 'href', '#' + pid);  // older engines
+    mp.setAttribute('href', '#' + pid);           // modern engines
+    am.appendChild(mp);
+    c.appendChild(am);
+    svg.appendChild(c);
+  };
+  addDot(0);
+  if (tier === 'alert') addDot(dur * 0.45);  // bursty pair = irregular feel
+}
+
+function labRenderOrientMap() {
+  const def = LAB.def;
+  const svg = $lab('labTopoSvg');
+  const host = $lab('labTopoNodes');
+  if (!svg || !host) return;
+  const O = LAB.orient || { reveal: new Set(), trust: {} };
+  const nodes = def.topo.nodes;
+  const trust = O.trust || {};
+  svg.innerHTML = '';
+  host.innerHTML = '';
+
+  // 1) Trust zones — labelled background bands behind the map.
+  (def.topo.zones || []).forEach((z) => {
+    const band = document.createElement('div');
+    band.className = 'lab-zone is-' + z.id;
+    band.style.left = z.x + '%';
+    band.style.width = z.w + '%';
+    band.innerHTML = `<span class="lab-zone-label">${z.label}</span>`;
+    host.appendChild(band);
+  });
+
+  // 2) Links + animated traffic (only where both endpoints are revealed).
+  let pulseIdx = 0;
+  def.topo.links.forEach((lk) => {
+    if (!O.reveal.has(lk.a) || !O.reveal.has(lk.b)) return;
+    const na = nodes[lk.a], nb = nodes[lk.b];
+    if (!na || !nb) return;
+    let tier = 'calm';
+    if (lk.traffic === 'suspicious') {
+      const st = trust.source;
+      tier = (st === 'offbaseline' || st === 'suspicious' || st === 'watched') ? 'alert' : 'watch';
+    }
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', na.x); line.setAttribute('y1', na.y);
+    line.setAttribute('x2', nb.x); line.setAttribute('y2', nb.y);
+    let lcls = 'lab-flow is-' + tier;
+    if (tier === 'watch' && O.emphasizeSuspect) lcls += ' is-emph';
+    line.setAttribute('class', lcls);  // SVG className is read-only — use setAttribute
+    svg.appendChild(line);
+    labOrientPulse(svg, na, nb, tier, O.emphasizeSuspect, pulseIdx++);
+
+    // Intel overlay (reuses the shared, presentation-only training card).
+    if (lk.intel) {
+      const mx = (na.x + nb.x) / 2, my = (na.y + nb.y) / 2;
+      const mk = document.createElement('button');
+      mk.type = 'button';
+      mk.className = 'lab-link-mid' + (tier === 'alert' ? ' is-danger' : '');
+      mk.style.left = mx + '%';
+      mk.style.top = my + '%';
+      mk.setAttribute('aria-label', `Connection ${na.label} to ${nb.label} — analyst intel`);
+      mk.textContent = 'i';
+      host.appendChild(mk);
+      labIntelBind(mk, lk.intel, `${na.label} → ${nb.label}`, 'CONNECTION', { click: true });
+    }
+  });
+
+  // 3) Systems — identity + current trust.
+  O.reveal.forEach((id) => {
+    const n = nodes[id];
+    if (!n) return;
+    const t = trust[id] || n.baseTrust || 'service';
+    const div = document.createElement('div');
+    div.className = 'lab-onode is-' + t;
+    div.style.left = n.x + '%';
+    div.style.top = n.y + '%';
+    let chips = '';
+    if (id === 'source' && O.ports) chips += '<span class="lab-onode-badge">ports 22·80·443·3306</span>';
+    if (t === 'watched') chips += '<span class="lab-onode-chip is-watch">WATCHLIST</span>';
+    if (t === 'monitored') chips += '<span class="lab-onode-chip is-monitor">MONITORING ↑</span>';
+    div.innerHTML = `
+      <span class="lab-onode-dot" aria-hidden="true">${n.glyph}</span>
+      <span class="lab-onode-label">${n.label}</span>
+      <span class="lab-onode-type">${n.sysType} · ${n.ip}</span>
+      <span class="lab-onode-trust">${labOrientTrustMeta(t)}</span>
+      ${chips}`;
+    if (n.intel) {
+      div.tabIndex = 0;
+      div.setAttribute('role', 'button');
+      div.setAttribute('aria-label', `${n.label}, ${n.sysType} — analyst intel`);
+      labIntelBind(div, n.intel, n.label, n.sysType ? n.sysType.toUpperCase() : '', { click: true });
+    }
+    host.appendChild(div);
+  });
+
+  // 4) Caption — guidance early, the gentle consequence summary once escalated.
+  const cap = $lab('labTopoCap');
+  if (cap) {
+    if (O.escalated) {
+      cap.textContent = 'ESCALATED — source watchlisted · WS-4471 monitored · no traffic blocked';
+    } else if (O.reveal.size <= 1) {
+      cap.textContent = 'NETWORK MAP — read the connection snapshot to reveal this host\u2019s traffic';
+    } else {
+      cap.textContent = def.mapCap || 'NETWORK MAP — builds as you investigate';
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -2975,6 +3176,9 @@ function labShowReportChoices() {
 function labCompleteReport() {
   const def = LAB.def;
   LAB.done = true;
+  // Orientation map (Assignment 000): a correct escalation sets gentle, real
+  // consequences in motion — watchlist + monitoring, never "blocked".
+  labOrientReact('escalate');
   if (def.reportDone) labPrint(def.reportDone);
   // RESPONSE / CONSEQUENCE stage (orientation only) — show what the correct
   // escalation set in motion before the debrief scorecard. Presentation-only:

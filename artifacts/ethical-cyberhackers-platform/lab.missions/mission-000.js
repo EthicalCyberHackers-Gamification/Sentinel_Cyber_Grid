@@ -14,7 +14,7 @@
  *
  * Flow (a deliberately short, guided arc):
  *   1. TRIAGE   — read the connection snapshot, find the repeated outside address
- *   2. ANALYSIS — pin the two things you observed (reveals a small network map)
+ *   2. ANALYSIS — pin the two things you observed (unlocks the analyst tools)
  *   3. IDENTIFY — whois / ports / baseline confirm the source, then file a
  *                 MULTIPLE-CHOICE orientation report and read a short debrief.
  *
@@ -111,7 +111,7 @@ export default {
       result: 'It touched ssh, http, https and mysql — one host poking many doors is probing, not normal use.' },
     { key: 'pin', cmd: 'pin all', stage: 'triage', label: 'Save what you found',
       say: 'Commit both observations to your evidence board so your findings are on the record.',
-      result: 'Both observations are pinned — and a small map of the incident appears.' },
+      result: 'Both observations are pinned — the analyst tools unlock so you can confirm what you found.' },
     { key: 'whois', toolKey: 'whois', stage: 'analysis', label: 'Look up who owns the source',
       say: 'These next tools are SOC analyst tools, not basic Linux commands. Start by checking who the outside address is registered to.',
       result: 'No registered owner and no abuse contact — anonymous infrastructure, not an accountable peer.' },
@@ -280,51 +280,89 @@ export default {
         supports: 'Off-baseline — unexpected, not a known-good peer.' } },
   },
   topo: {
+    // Four trust zones, left to right (most trusted to least). Drawn as labelled
+    // background bands behind the nodes. Orientation-only (Assignment 000); the
+    // six graded assignments carry no `zones` and use the standard topology.
+    zones: [
+      { id: 'internal-user', label: 'Internal User',           x: 1,  w: 23 },
+      { id: 'internal-svc',  label: 'Internal Services',        x: 25, w: 23 },
+      { id: 'external',      label: 'External Internet',        x: 52, w: 22 },
+      { id: 'suspicious',    label: 'Suspicious / Unverified',  x: 76, w: 23 },
+    ],
+    // Each node carries a readable identity: a name, what kind of system it is,
+    // and its address — so it reads as a device, not a dot.
     nodes: {
-      'workstation': { x: 18, y: 50, glyph: '💻', label: 'WS-4471', sub: '10.0.5.12 · workstation', type: '',
+      'workstation': { x: 14, y: 50, zone: 'internal-user', glyph: '💻',
+        label: 'WS-4471', sysType: 'Employee Workstation', ip: '10.0.5.12', baseTrust: 'internal',
         intel: {
           what: 'The employee workstation that was flagged — your starting point.',
-          technique: 'Endpoint triage — review the host\u2019s own connection and log data.',
+          technique: 'Endpoint triage — review the connection and log data exported from this host.',
           why: 'Everything you analyse is traffic to or from this host.' } },
-      'source': { x: 56, y: 26, glyph: '❓', label: '203.0.113.77', sub: 'unknown external', type: 'threat',
+      'dns': { x: 36, y: 32, zone: 'internal-svc', glyph: '🧭',
+        label: 'Internal DNS', sysType: 'Name resolution', ip: '10.0.5.1', baseTrust: 'service',
+        intel: {
+          what: 'The internal DNS server the workstation uses to look up addresses.',
+          technique: 'Baseline comparison.',
+          why: 'A normal, expected internal peer — a picture of healthy traffic.' } },
+      'fileserver': { x: 36, y: 72, zone: 'internal-svc', glyph: '🗂️',
+        label: 'File Server', sysType: 'Internal file share', ip: '10.0.5.30', baseTrust: 'service',
+        intel: {
+          what: 'An internal file server the workstation talks to over SMB.',
+          technique: 'Baseline comparison.',
+          why: 'Routine internal file traffic — the kind of contact you expect.' } },
+      'cdn': { x: 62, y: 40, zone: 'external', glyph: '🌐',
+        label: 'CDN', sysType: 'Content delivery', ip: '198.51.100.20', baseTrust: 'external',
+        intel: {
+          what: 'A public content-delivery network the workstation fetches assets from.',
+          technique: 'Baseline comparison.',
+          why: 'External but expected — on the known-good list, so ruled out as benign.' } },
+      'source': { x: 86, y: 24, zone: 'suspicious', glyph: '❓',
+        label: 'Unknown Host', sysType: 'Unverified external', ip: '203.0.113.77', baseTrust: 'unknown',
         intel: {
           what: 'An unregistered outside address contacting the workstation repeatedly.',
-          technique: 'WHOIS lookup on the repeated source address.',
-          why: 'Unknown, unaccountable infrastructure is a classic red flag.',
-          supports: 'An unknown source.' } },
-      'svc': { x: 84, y: 52, glyph: '🚪', label: 'Ports 22 · 80 · 443 · 3306', sub: 'services probed', type: 'threat',
-        intel: {
-          what: 'The cluster of unrelated services the source reached for.',
-          technique: 'Port lookup on the source address.',
-          why: 'One peer rarely needs many unrelated services at once — this looks like probing.',
-          supports: 'Multiple unrelated ports.' } },
-      'known': { x: 50, y: 80, glyph: '✅', label: 'Known-good peers', sub: 'baseline · CDN + DNS', type: '',
-        intel: {
-          what: 'The host\u2019s approved, expected contacts (CDN and internal DNS).',
-          technique: 'Baseline comparison.',
-          why: 'The known-good baseline is what makes the unknown source stand out.',
-          supports: 'Off-baseline — the source is absent from this list.' } },
+          technique: 'WHOIS, port and baseline checks on the repeated source address.',
+          why: 'Unknown, unaccountable infrastructure reaching many ports is a classic red flag.',
+          supports: 'An unknown, off-baseline source.' } },
     },
+    // Traffic type drives the animated pulses: calm cyan for normal/expected
+    // contact, irregular red for the suspicious source.
     links: [
-      { a: 'workstation', b: 'source', danger: true,
+      { a: 'workstation', b: 'dns', traffic: 'normal',
+        intel: {
+          what: 'Routine name-resolution traffic to the internal DNS.',
+          technique: 'Connection snapshot review.',
+          why: 'A baseline of what normal internal traffic looks like.' } },
+      { a: 'workstation', b: 'fileserver', traffic: 'normal',
+        intel: {
+          what: 'Normal internal file-share traffic.',
+          technique: 'Connection snapshot review.',
+          why: 'Another example of expected, healthy internal contact.' } },
+      { a: 'workstation', b: 'cdn', traffic: 'benign',
+        intel: {
+          what: 'Expected external traffic to a content-delivery network.',
+          technique: 'Baseline comparison.',
+          why: 'External but approved — benign outside traffic, shown for contrast.' } },
+      { a: 'workstation', b: 'source', traffic: 'suspicious', danger: true,
         intel: {
           what: 'Repeated contact between the host and an unknown outside address.',
-          technique: 'Connection snapshot review.',
+          technique: 'Connection snapshot review, then WHOIS / ports / baseline.',
           why: 'This is the relationship the whole investigation turns on.',
           supports: 'An unknown source contacting the host.' } },
-      { a: 'source', b: 'svc', danger: true,
-        intel: {
-          what: 'The unknown source reached several unrelated services.',
-          technique: 'Port lookup.',
-          why: 'Touching many unrelated ports at once looks like probing.',
-          supports: 'Multiple unrelated ports.' } },
-      { a: 'workstation', b: 'known',
-        intel: {
-          what: 'Normal, expected traffic to approved peers.',
-          technique: 'Baseline comparison.',
-          why: 'Shows what legitimate traffic looks like, for contrast.',
-          supports: 'Ruling the baseline peers in as benign.' } },
     ],
+    // Orientation-only map reactions: each event reveals systems and/or updates
+    // trust as the investigation progresses. Consumed by labOrientReact (gated on
+    // labIsOrientation). Presentation-only — no scoring, XP, or persistence.
+    mapReact: {
+      start:     { reveal: ['workstation'], trust: { workstation: 'internal' } },
+      cat:       { reveal: ['dns', 'fileserver', 'cdn', 'source'],
+                   trust: { dns: 'service', fileserver: 'service', cdn: 'external', source: 'unverified' } },
+      grep:      { emphasizeSuspect: true },
+      whois:     { trust: { source: 'offbaseline' } },
+      ports:     { ports: true },
+      baseline:  { trust: { dns: 'knowngood', fileserver: 'knowngood', cdn: 'knowngood', source: 'offbaseline' } },
+      correlate: { trust: { source: 'suspicious' } },
+      escalate:  { escalated: true, trust: { source: 'watched', workstation: 'monitored' } },
+    },
   },
   tools: [
     { key: 'ls',   cmd: 'ls',                              unlock: 1, icon: '📁', name: 'List files',   hint: 'ls' },
@@ -343,7 +381,7 @@ export default {
         next: 'Which ports did it actually reach — and does this host even run them?',
       } } },
     { key: 'ports', cmd: 'ports 203.0.113.77', unlock: 3, icon: '🚪', name: 'Probed ports', hint: 'ports <ip>',
-      run: { already: 'Already mapped — see the evidence board.', addNode: 'svc', discover: 'targeted-ports', output: [
+      run: { already: 'Already mapped — see the evidence board.', discover: 'targeted-ports', output: [
         { t: 'ports reached by 203.0.113.77:  22, 80, 443, 3306' },
         { t: 'WS-4471 actually listens on:    22 (ssh), 445 (smb)' },
         { t: '[+] 80/443/3306 are services this host does not even run — blind probing.', c: 'warn' },
@@ -353,7 +391,7 @@ export default {
         next: 'Is this address on the host\u2019s approved peer list, or is it unexpected?',
       } } },
     { key: 'baseline', cmd: 'compare baseline', unlock: 3, icon: '📊', name: 'Compare baseline', hint: 'compare baseline',
-      run: { already: 'Already compared — see the evidence board.', addNode: 'known', discover: 'off-baseline', output: [
+      run: { already: 'Already compared — see the evidence board.', discover: 'off-baseline', output: [
         { t: 'checking 203.0.113.77 against known-good peers …', c: 'dim' },
         { t: '198.51.100.20  -> on baseline (CDN — benign)', c: '' },
         { t: '10.0.5.1       -> on baseline (internal DNS — benign)', c: '' },
@@ -470,10 +508,9 @@ export default {
     campaign: [
       { t: '' },
       { t: '── PICTURE FORMING ───────────────────────────────', c: 'head' },
-      { t: 'You committed your observations. A small network map is opening above the', c: 'dim' },
-      { t: 'terminal — it shows WS-4471 and the unknown source, and it will grow as you', c: 'dim' },
-      { t: 'investigate. Confirm the source: run `whois`, `ports`, then `compare baseline`,', c: 'dim' },
-      { t: 'and file your orientation report when you are ready.', c: 'dim' },
+      { t: 'You committed your observations. The analyst tools are unlocking — the', c: 'dim' },
+      { t: 'network map above will sharpen as you confirm the source. Run `whois`,', c: 'dim' },
+      { t: '`ports`, then `compare baseline`, and file your orientation report when ready.', c: 'dim' },
     ],
     containment: [],
   },
