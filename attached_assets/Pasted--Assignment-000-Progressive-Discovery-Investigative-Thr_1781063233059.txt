@@ -1,0 +1,455 @@
+# Assignment 000 — Progressive Discovery & Investigative Thrill Refinement
+
+## Dynamic SOC Investigation Experience
+
+Refine Assignment 000 only.
+
+Do not modify Assignment 001 or later assignments yet.
+
+This refinement is based on the latest implementation screenshots and current gameplay behavior.
+
+---
+
+## CURRENT PROBLEM
+
+The current network visualization reveals:
+
+* too many devices
+* too many traffic relationships
+* the unknown infrastructure
+* the suspicious path
+
+too early.
+
+This removes:
+
+* curiosity
+* investigative thrill
+* gradual discovery
+* analytical tension
+
+Right now the player immediately sees:
+
+* the suspicious infrastructure zone
+* the unknown host
+* many device relationships
+* large portions of the final network picture
+
+before earning that information through investigation.
+
+The investigation should feel like:
+discovering the network step-by-step.
+
+NOT:
+being shown the answer visually at mission start.
+
+---
+
+## CORE EXPERIENCE GOAL
+
+Assignment 000 should teach:
+
+1. Networks contain many communicating systems
+2. Analysts identify what devices are communicating
+3. Analysts determine whether communication is:
+
+   * normal
+   * approved
+   * suspicious
+   * off-baseline
+4. Analysts slowly build confidence
+5. Analysts escalate only after enough evidence exists
+
+The player should feel:
+“I uncovered the suspicious infrastructure myself.”
+
+NOT:
+“The game already showed me the suspicious infrastructure.”
+
+---
+
+## PRIMARY DESIGN PRINCIPLE
+
+The map must follow the investigation.
+
+The network picture should evolve only as evidence is discovered.
+
+The visual layer should reward investigation.
+
+---
+
+## DO NOT CHANGE
+
+Keep:
+
+* current Assignment 000 workflow
+* current stage system
+* current terminal-first design
+* current SOC Toolkit
+* current evidence board
+* current educational tone
+* current CyberCorp identity
+* current guided beginner support
+
+This is NOT a redesign.
+
+This is a progressive-reveal refinement.
+
+---
+
+## CRITICAL VISUAL REDUCTION
+
+At mission start:
+REMOVE:
+
+* full suspicious infrastructure zone
+* visible unknown host
+* extra employee workstation
+* Microsoft services
+* software update vendor
+* full network relationships
+* visible suspicious path
+* full external internet visibility
+
+The player should NOT initially see:
+the final investigation picture.
+
+---
+
+## INITIAL NETWORK STATE (MISSION START)
+
+At mission start show ONLY:
+
+1. WS-4471
+   (Employee workstation)
+
+2. Minimal internal context
+   (Optional faint DNS/internal infrastructure)
+
+3. Subtle unresolved external activity
+   without revealing:
+
+* source IP
+* hostname
+* device identity
+* threat status
+
+The player should feel:
+“Something external is happening,
+but I do not yet know what.”
+
+---
+
+## INITIAL VISUAL STATE
+
+The map should initially feel:
+
+* incomplete
+* unresolved
+* partially hidden
+* investigatory
+
+Use:
+
+* dimmed unknown activity
+* faint unresolved pulses
+* obscured/unresolved node
+* incomplete connection traces
+
+Avoid:
+
+* fully drawn attack chains
+* labeled suspicious infrastructure
+* visible final-state relationships
+
+---
+
+## PROGRESSIVE DISCOVERY FLOW
+
+---
+
+## STAGE 1 — TRIAGE
+
+Player actions:
+
+* inspect snapshot
+* identify repeated source activity
+
+At mission start:
+Show:
+
+* WS-4471
+* stable internal traffic
+* unresolved external activity pulse
+
+Do NOT show:
+203.0.113.77
+
+After:
+cat network_snapshot.txt
+
+Reveal:
+
+* external communication exists
+* several connections exist
+* unresolved source activity persists
+
+Still do NOT reveal:
+full source identity.
+
+After:
+grep 203.0.113.77 access.log
+
+NOW reveal:
+203.0.113.77
+Unverified External Source
+
+This creates:
+earned discovery.
+
+---
+
+## STAGE 2 — SOC TOOL ANALYSIS
+
+Only now should:
+the network expand further.
+
+After:
+whois 203.0.113.77
+
+Update node:
+Unknown / Unregistered Infrastructure
+
+After:
+ports 203.0.113.77
+
+Reveal:
+multi-port probing behavior.
+
+Visualize:
+probing reaching unrelated services.
+
+Only now:
+begin showing suspicious behavior visually.
+
+---
+
+## STAGE 3 — CORRELATION
+
+Only now reveal:
+
+* Internal DNS
+* CDN Service
+* baseline-supported peers
+* secondary relationships
+* additional workstation if desired
+
+Purpose:
+Teach:
+normal traffic vs suspicious traffic.
+
+The player should compare:
+known-good
+vs
+off-baseline behavior.
+
+This stage should feel:
+“the picture is finally coming together.”
+
+---
+
+## STAGE 4 — ESCALATION
+
+Only now:
+highlight suspicious infrastructure.
+
+Use labels like:
+
+* suspicious
+* off-baseline
+* unusual
+* unverified infrastructure
+
+Avoid:
+
+* confirmed attacker
+* malicious actor
+* threat actor
+
+Maintain:
+investigative realism.
+
+---
+
+## STAGE 5 — RESPONSE
+
+Only now show:
+
+* monitoring updates
+* SOC queue updates
+* watchlist additions
+* analyst tracking
+
+Do NOT aggressively isolate/block in Assignment 000.
+
+---
+
+## INVESTIGATIVE THRILL REQUIREMENT
+
+The investigation must create:
+
+curiosity
+→ uncertainty
+→ discovery
+→ correlation
+→ confidence
+→ escalation
+
+The player should progressively feel:
+“I think I’m uncovering something.”
+
+NOT:
+“I already saw the suspicious infrastructure.”
+
+---
+
+## NETWORK DISCOVERY REQUIREMENT
+
+The player should gradually discover:
+
+1. What devices exist
+2. Which systems are communicating
+3. Which systems are internal
+4. Which systems are external
+5. Which systems are approved
+6. Which systems are unusual
+7. Which traffic is expected
+8. Which traffic deserves escalation
+
+---
+
+## TRAFFIC VISUALIZATION RULES
+
+Keep traffic:
+
+* slow
+* readable
+* calm
+* subtle
+* operational
+
+Do NOT:
+
+* flood the screen
+* create excessive movement
+* create arcade visuals
+
+---
+
+## NORMAL TRAFFIC
+
+Normal traffic:
+
+* stable
+* bidirectional
+* predictable
+
+Examples:
+WS-4471 ↔ Internal DNS
+WS-4471 ↔ CDN
+
+---
+
+## SUSPICIOUS TRAFFIC
+
+Suspicious traffic:
+
+* unresolved initially
+* directional
+* irregular
+* probing-like
+
+The player should visually notice:
+“This traffic behaves differently.”
+
+---
+
+## ZONE VISIBILITY RULES
+
+Do NOT fully illuminate all zones initially.
+
+Zones should activate progressively.
+
+Suggested progression:
+
+Triage:
+Internal User Zone only.
+
+SOC Tool Analysis:
+Unknown External Activity Zone partially appears.
+
+Correlation:
+Internal Services + External Internet zones fully appear.
+
+Escalation:
+Suspicious Infrastructure Zone fully activates.
+
+---
+
+## NETWORK INSPECTOR REQUIREMENT
+
+Keep hover/click educational support.
+
+However:
+only provide educational information for:
+currently discovered devices.
+
+Do NOT spoil undiscovered infrastructure through hover systems.
+
+---
+
+## IMPORTANT PSYCHOLOGICAL GOAL
+
+The player must feel:
+the network is being uncovered.
+
+The environment should behave like:
+a gradually unfolding investigation.
+
+NOT:
+a completed diagram.
+
+---
+
+## TRIAGE LENGTH RULE
+
+Do NOT add excessive extra commands.
+
+The discovery pacing must come from:
+visual reveal logic.
+
+NOT:
+busywork.
+
+Triage should remain:
+short
+clear
+focused.
+
+---
+
+## SUCCESS CRITERIA
+
+This refinement succeeds if:
+
+* the unknown host is NOT visible immediately
+* the player discovers suspicious infrastructure through investigation
+* the map evolves progressively
+* curiosity increases naturally
+* the player feels investigative momentum
+* the player compares normal vs suspicious traffic
+* the investigation feels rewarding
+* the environment feels alive
+* the player builds confidence gradually
+* the final network picture feels earned
+* Assignment 000 remains beginner-friendly
