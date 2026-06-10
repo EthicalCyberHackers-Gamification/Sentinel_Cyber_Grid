@@ -83,12 +83,18 @@ export default {
   // no steps (response / debrief) light up once the report is filed. The `note`
   // is a one-line aside shown when that stage is active. Presentation-only.
   socStages: [
-    { key: 'triage',      label: 'Triage',             note: 'Inspect and search the exported evidence with Linux-style commands.' },
-    { key: 'analysis',    label: 'SOC Tool Analysis',  note: 'Validate the suspicion with SOC analyst tools — ownership, ports, baseline.' },
-    { key: 'correlation', label: 'Correlation',        note: 'Connect the separate clues into one analyst conclusion.' },
-    { key: 'escalation',  label: 'Escalation Decision', note: 'Decide whether the evidence is strong enough to escalate.' },
-    { key: 'response',    label: 'Response',           note: 'See the consequence your escalation set in motion.' },
-    { key: 'debrief',     label: 'Debrief',            note: 'Turn the investigation into retained learning.' },
+    { key: 'triage',      label: 'Triage',             question: 'What looks unusual?',
+      note: 'Inspect and search the exported evidence with Linux-style commands.' },
+    { key: 'analysis',    label: 'SOC Tool Analysis',  question: 'Does the evidence support the suspicion?',
+      note: 'Validate the suspicion with SOC analyst tools — ownership, ports, baseline.' },
+    { key: 'correlation', label: 'Correlation',        question: 'How do the clues connect?',
+      note: 'Connect the separate clues into one analyst conclusion.' },
+    { key: 'escalation',  label: 'Escalation',         question: 'Do I have enough confidence?',
+      note: 'Decide whether the evidence is strong enough to escalate.' },
+    { key: 'response',    label: 'Response',           question: 'What operational action changes?',
+      note: 'See the consequence your escalation set in motion.' },
+    { key: 'debrief',     label: 'Debrief',            question: 'What did we learn?',
+      note: 'Turn the investigation into retained learning.' },
   ],
   // Guided tutorial (orientation only — gated on report.choices). The engine
   // (labRenderTutorial) renders these as an ordered, checkable step list in the
@@ -297,32 +303,52 @@ export default {
         intel: {
           what: 'The employee workstation that was flagged — your starting point.',
           technique: 'Endpoint triage — review the connection and log data exported from this host.',
-          why: 'Everything you analyse is traffic to or from this host.' } },
+          why: 'Everything you analyse is traffic to or from this host.' },
+        inspect: {
+          means: 'An employee\u2019s computer — the host this whole investigation is about.',
+          care: 'Analysts check whether outside systems are talking to it in expected ways.',
+          next: 'Which outside addresses is it talking to, and are they expected?' } },
       'dns': { x: 36, y: 32, zone: 'internal-svc', glyph: '🧭',
         label: 'Internal DNS', sysType: 'Name resolution', ip: '10.0.5.1', baseTrust: 'service',
         intel: {
           what: 'The internal DNS server the workstation uses to look up addresses.',
           technique: 'Baseline comparison.',
-          why: 'A normal, expected internal peer — a picture of healthy traffic.' } },
+          why: 'A normal, expected internal peer — a picture of healthy traffic.' },
+        inspect: {
+          means: 'The internal server that turns names into addresses for the workstation.',
+          care: 'Internal DNS traffic is routine — it shows what normal looks like.',
+          next: 'Does this match the known-good baseline of expected peers?' } },
       'fileserver': { x: 36, y: 72, zone: 'internal-svc', glyph: '🗂️',
         label: 'File Server', sysType: 'Internal file share', ip: '10.0.5.30', baseTrust: 'service',
         intel: {
           what: 'An internal file server the workstation talks to over SMB.',
           technique: 'Baseline comparison.',
-          why: 'Routine internal file traffic — the kind of contact you expect.' } },
+          why: 'Routine internal file traffic — the kind of contact you expect.' },
+        inspect: {
+          means: 'An internal file share the workstation uses over SMB.',
+          care: 'Routine internal file traffic — the kind of contact you expect.',
+          next: 'Confirm it sits on the approved peer list, then move on.' } },
       'cdn': { x: 62, y: 40, zone: 'external', glyph: '🌐',
         label: 'CDN', sysType: 'Content delivery', ip: '198.51.100.20', baseTrust: 'external',
         intel: {
           what: 'A public content-delivery network the workstation fetches assets from.',
           technique: 'Baseline comparison.',
-          why: 'External but expected — on the known-good list, so ruled out as benign.' } },
+          why: 'External but expected — on the known-good list, so ruled out as benign.' },
+        inspect: {
+          means: 'A public content network the workstation fetches assets and updates from.',
+          care: 'External isn\u2019t automatically bad — if it matches baseline it\u2019s benign.',
+          next: 'Is this CDN on the known-good baseline? (It is.)' } },
       'source': { x: 86, y: 24, zone: 'suspicious', glyph: '❓',
         label: 'Unknown Host', sysType: 'Unverified external', ip: '203.0.113.77', baseTrust: 'unknown',
         intel: {
           what: 'An unregistered outside address contacting the workstation repeatedly.',
           technique: 'WHOIS, port and baseline checks on the repeated source address.',
           why: 'Unknown, unaccountable infrastructure reaching many ports is a classic red flag.',
-          supports: 'An unknown, off-baseline source.' } },
+          supports: 'An unknown, off-baseline source.' },
+        inspect: {
+          means: 'An unregistered outside address contacting the workstation repeatedly.',
+          care: 'Unknown infrastructure has to be validated — owner, ports, baseline.',
+          next: 'Who owns it, which ports did it hit, and is it on the baseline?' } },
     },
     // Traffic type drives the animated pulses: calm cyan for normal/expected
     // contact, irregular red for the suspicious source.
@@ -331,23 +357,39 @@ export default {
         intel: {
           what: 'Routine name-resolution traffic to the internal DNS.',
           technique: 'Connection snapshot review.',
-          why: 'A baseline of what normal internal traffic looks like.' } },
+          why: 'A baseline of what normal internal traffic looks like.' },
+        inspect: {
+          means: 'Normal two-way name-resolution traffic.',
+          care: 'Workstations query DNS and get answers — expected back-and-forth.',
+          next: 'Use this as your picture of healthy internal traffic.' } },
       { a: 'workstation', b: 'fileserver', traffic: 'normal',
         intel: {
           what: 'Normal internal file-share traffic.',
           technique: 'Connection snapshot review.',
-          why: 'Another example of expected, healthy internal contact.' } },
+          why: 'Another example of expected, healthy internal contact.' },
+        inspect: {
+          means: 'Normal two-way internal file-share traffic.',
+          care: 'Expected internal contact — a request and a response.',
+          next: 'Confirm it\u2019s on the baseline, then rule it out.' } },
       { a: 'workstation', b: 'cdn', traffic: 'benign',
         intel: {
           what: 'Expected external traffic to a content-delivery network.',
           technique: 'Baseline comparison.',
-          why: 'External but approved — benign outside traffic, shown for contrast.' } },
+          why: 'External but approved — benign outside traffic, shown for contrast.' },
+        inspect: {
+          means: 'Two-way traffic to a content-delivery network.',
+          care: 'Likely normal external traffic if the CDN is on the baseline.',
+          next: 'Check the baseline before ruling it in or out.' } },
       { a: 'workstation', b: 'source', traffic: 'suspicious', danger: true,
         intel: {
           what: 'Repeated contact between the host and an unknown outside address.',
           technique: 'Connection snapshot review, then WHOIS / ports / baseline.',
           why: 'This is the relationship the whole investigation turns on.',
-          supports: 'An unknown source contacting the host.' } },
+          supports: 'An unknown source contacting the host.' },
+        inspect: {
+          means: 'Repeated one-way contact from an unknown address toward the workstation.',
+          care: 'One-way or repeated probing can mean scanning — it must be verified.',
+          next: 'Check ownership, ports touched, and the baseline.' } },
     ],
     // Orientation-only map reactions: each event reveals systems and/or updates
     // trust as the investigation progresses. Consumed by labOrientReact (gated on

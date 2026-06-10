@@ -140,6 +140,82 @@
 
 .sc-objective-progress { color: var(--cyan); font-weight: 600; }
 
+/* ---- SOC workflow stage bar (Assignment 000 only) ----
+   A horizontal stepper of the six SOC stages plus the active stage's guiding
+   question. Self-gated in JS (labRenderStageBar); the graded missions never
+   render it. */
+.sc-stagebar {
+  flex: none; display: flex; flex-direction: column; gap: 9px;
+  padding: 11px 18px 12px; background: var(--bg-panel-alt);
+  border-bottom: 1px solid var(--border);
+}
+.sc-stagebar[hidden] { display: none; }
+
+.sc-stagebar-list {
+  display: flex; align-items: stretch; gap: 6px;
+  margin: 0; padding: 0; list-style: none;
+}
+
+.sc-stagebar-step {
+  flex: 1 1 0; min-width: 0; position: relative;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg-panel); transition: var(--transition);
+}
+/* connector tick between adjacent steps */
+.sc-stagebar-step + .sc-stagebar-step::before {
+  content: ''; position: absolute; left: -6px; top: 50%;
+  width: 6px; height: 1px; background: var(--border);
+}
+
+.sc-stagebar-mark {
+  flex: none; width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700; line-height: 1;
+  border: 1px solid var(--border); color: var(--text-dim); background: var(--bg-panel-alt);
+}
+
+.sc-stagebar-name {
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--text-dim); line-height: 1.15;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.sc-stagebar-lock { margin-left: auto; font-size: 9px; opacity: 0.55; flex: none; }
+
+/* Completed — subdued green */
+.sc-stagebar-step.is-done { border-color: rgba(0,255,136,0.3); }
+.sc-stagebar-step.is-done .sc-stagebar-mark { border-color: var(--green-dim); color: var(--green); background: rgba(0,255,136,0.08); }
+.sc-stagebar-step.is-done .sc-stagebar-name { color: var(--green-dim); }
+
+/* Current — highlighted cyan */
+.sc-stagebar-step.is-current {
+  border-color: var(--cyan); background: rgba(0,229,255,0.06);
+  box-shadow: 0 0 12px rgba(0,229,255,0.16);
+}
+.sc-stagebar-step.is-current .sc-stagebar-mark { border-color: var(--cyan); color: var(--cyan); background: rgba(0,229,255,0.12); }
+.sc-stagebar-step.is-current .sc-stagebar-name { color: var(--cyan); }
+
+/* Future — locked / dim */
+.sc-stagebar-step.is-locked { opacity: 0.5; }
+
+.sc-stagebar-q {
+  display: flex; align-items: baseline; gap: 9px;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.4;
+}
+.sc-stagebar-q-stage {
+  flex: none; font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.08em;
+  color: var(--cyan);
+}
+.sc-stagebar-q-text { color: var(--text-bright); }
+
+/* On narrow widths, collapse step names to keep the row from overflowing —
+   numbers + current-stage question still convey position. */
+@media (max-width: 900px) {
+  .sc-stagebar-name { display: none; }
+  .sc-stagebar-step { justify-content: center; }
+}
+
 /* ---- Main grid ---- */
 .sc-main {
   flex: 1; display: grid; grid-template-columns: 210px 1fr 252px;
@@ -660,49 +736,6 @@
   color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 9px;
 }
 
-/* ---- SOC workflow stage tracker (orientation only) ----
-   A read-only "where am I in the process" rail above the step list, so the
-   beginner perceives SOC work as a sequence of stages, not a flat command list. */
-.lab-tut-stages-head {
-  font-family: var(--font-hud); font-size: 9.5px; letter-spacing: 0.16em;
-  color: var(--text-dim); font-weight: 700;
-}
-.lab-tut-stages {
-  list-style: none; margin: 4px 0 2px; padding: 9px 10px;
-  display: flex; flex-direction: column; gap: 4px;
-  border: 1px solid var(--border); border-radius: var(--radius-md);
-  background: var(--bg-panel-alt);
-}
-.lab-tut-stage { display: flex; gap: 9px; align-items: flex-start; padding: 3px 4px; border-radius: var(--radius-sm); }
-.lab-tut-stage-mark {
-  flex: none; width: 17px; height: 17px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
-  border: 1px solid var(--border); color: var(--text-muted);
-  background: var(--bg-panel); margin-top: 1px;
-}
-.lab-tut-stage-main { min-width: 0; flex: 1 1 auto; }
-.lab-tut-stage-label {
-  font-family: var(--font-body); font-size: 11.5px; font-weight: 600;
-  color: var(--text-dim); line-height: 1.3;
-}
-.lab-tut-stage-note {
-  margin-top: 2px; font-family: var(--font-body); font-size: 10.5px;
-  line-height: 1.45; color: var(--text-muted);
-}
-.lab-tut-stage.is-done .lab-tut-stage-mark {
-  border-color: var(--green); color: var(--green); background: rgba(0,255,136,0.10);
-}
-.lab-tut-stage.is-done .lab-tut-stage-label { color: var(--text); }
-.lab-tut-stage.is-current {
-  background: rgba(0,229,255,0.06); border: 1px solid rgba(0,229,255,0.22);
-}
-.lab-tut-stage.is-current .lab-tut-stage-mark {
-  border-color: var(--cyan); color: var(--cyan); background: rgba(0,229,255,0.10);
-}
-.lab-tut-stage.is-current .lab-tut-stage-label { color: var(--text-bright); }
-.lab-tut-stage.is-upcoming { opacity: 0.55; }
-
 /* ---- Correlation step ("connect the clues") interior ---- */
 .lab-tut-clues {
   margin: 8px 0 0; padding-left: 18px;
@@ -750,6 +783,52 @@
 .sc-rail-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 
 .sc-rail-empty { font-family: var(--font-body); font-size: 11.5px; color: var(--text-dim); line-height: 1.5; padding: 8px 4px; }
+
+/* ---- Network Inspector (Assignment 000 only) ----
+   Fixed panel at the top of the evidence rail that reports the last system or
+   connection the player inspected. Self-gated in JS (labInspectorRender). It
+   sits above the (flex:1, scrolling) evidence list, so it never covers the
+   terminal, commands, or evidence. */
+.lab-inspector {
+  flex: none; margin: 10px 10px 0;
+  border: 1px solid var(--cyan-dim); border-radius: var(--radius-md);
+  background: var(--bg-panel-alt); overflow: hidden;
+}
+.lab-inspector[hidden] { display: none; }
+
+.lab-insp-bar {
+  font-family: var(--font-hud); font-size: 9.5px; letter-spacing: 0.12em;
+  color: var(--cyan); background: rgba(0,229,255,0.06);
+  padding: 7px 11px; border-bottom: 1px solid var(--border);
+}
+
+.lab-insp-empty {
+  font-family: var(--font-body); font-size: 11px; color: var(--text-dim);
+  line-height: 1.5; padding: 11px 12px;
+}
+
+.lab-insp-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 12px 6px;
+}
+.lab-insp-kind {
+  flex: none; font-family: var(--font-hud); font-size: 8px; letter-spacing: 0.1em;
+  color: var(--text-dim); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 1px 6px;
+}
+.lab-insp-title {
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--text-bright);
+  line-height: 1.2; word-break: break-word;
+}
+
+.lab-insp-row { padding: 5px 12px; }
+.lab-insp-row:last-child { padding-bottom: 11px; }
+.lab-insp-k {
+  display: block; font-family: var(--font-hud); font-size: 8px;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim);
+  margin-bottom: 2px;
+}
+.lab-insp-v { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--text); line-height: 1.45; }
 
 .sc-ev {
   display: flex; flex-direction: column; gap: 3px; text-align: left;
@@ -1228,6 +1307,31 @@
 .lab-pulse.is-calm { fill: var(--cyan); }
 .lab-pulse.is-watch { fill: var(--orange); }
 .lab-pulse.is-alert { fill: var(--red); }
+
+/* ---- Debrief legend (orientation map only) ----
+   Appears once the case is escalated, labelling the resolved trust categories so
+   the final map doubles as a learning summary. Bottom-left so it clears the
+   top-left caption. */
+.lab-legend {
+  position: absolute; left: 10px; bottom: 8px; z-index: 3;
+  display: flex; flex-wrap: wrap; gap: 5px 12px; max-width: calc(100% - 20px);
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: rgba(8,11,18,0.82); backdrop-filter: blur(2px);
+  animation: scEvIn 320ms ease;
+}
+.lab-legend-item {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.02em;
+  color: var(--text-bright);
+}
+.lab-legend-item::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%; flex: none;
+  background: var(--lg, var(--text-dim)); box-shadow: 0 0 6px var(--lg, var(--text-dim));
+}
+.lab-legend-item.is-knowngood   { --lg: var(--green); }
+.lab-legend-item.is-benign      { --lg: var(--cyan); }
+.lab-legend-item.is-offbaseline { --lg: var(--orange); }
+.lab-legend-item.is-suspicious  { --lg: var(--red); }
 
 /* Evidence rail — discovered vs pinned (reuses .sc-ev base) */
 .sc-ev.lab-ev { cursor: pointer; }

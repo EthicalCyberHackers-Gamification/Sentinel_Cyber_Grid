@@ -31,14 +31,18 @@ Same principle for any content-dependent step: gate on the state the right actio
 produces, not on the verb being typed. Command strings resolve from
 `def.tools[].cmd` (single source of truth); only wording lives in `def.tutorial`.
 
-**SOC workflow framing (6 stages) sits ON TOP of the step list.** Orientation is
+**SOC workflow framing (6 stages) is a TOP horizontal stage bar.** Orientation is
 also presented as 6 named SOC stages — Triage, SOC Tool Analysis, Correlation,
 Escalation Decision, Response, Debrief — so the beginner perceives a PROCESS, not
-a command list. Implementation, all data-gated to mission-000:
-- `def.socStages[]` drives a read-only tracker rail above the steps; each
-  `def.tutorial[i].stage` tags its step to a stage. `stageDone(key)` = all that
-  stage's steps done; step-less stages (Response/Debrief) fall back to `allDone`
-  (report filed), so they flip ✓ together — neither shows as "current".
+a command list. The framing lives in a horizontal stage bar across the TOP of the
+lab shell (`labRenderStageBar` → `#labStageBar`), NOT a vertical tracker in the
+left dock (that duplicate was removed — left dock = the guided step list only).
+Each `def.socStages[]` entry carries a guiding `question` shown under the active
+stage. Implementation, all data-gated to mission-000:
+- `def.socStages[]` + the current step's `stage` drive the bar: active highlighted,
+  completed subdued, future locked. `stageDone(key)` = all that stage's steps done;
+  step-less stages (Response/Debrief) fall back to `allDone` (report filed), so they
+  flip ✓ together — neither shows as "current".
 - A command-less `correlate` step ("connect the clues") renders the `def.correlation`
   block (clues + benign CDN/DNS contrast + summary) with an **acknowledge** button
   (`data-lab-tut-ack`, distinct from `data-lab-tut-run`) that sets in-memory

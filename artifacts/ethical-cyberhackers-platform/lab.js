@@ -1293,6 +1293,11 @@ function openLab(missionId) {
   LAB.runToken++;
   labIntelHide();
   labCloseModals(); // dismiss any stale teaching popup (glossary/kit) before re-gating
+  // The orientation-only stage bar + network inspector are shared DOM elements
+  // that live in the lab shell for EVERY mission. Re-hide them on each open so
+  // Assignment-000 chrome never leaks into the graded six; the orientation
+  // renderers (labRenderStageBar / labInspectorRender) re-show them when gated in.
+  ['labStageBar', 'labInspector'].forEach((eid) => { const el = $lab(eid); if (el) el.hidden = true; });
   LAB.stage = 1;
   LAB.ran.clear();
   LAB.read.clear();
@@ -1310,7 +1315,7 @@ function openLab(missionId) {
   // Orientation network-map state (Assignment 000 only) — progressive reveal +
   // per-system trust. Presentation-only: never scored, never persisted. The
   // `start` reaction seeds the opening view (just the flagged workstation).
-  LAB.orient = { reveal: new Set(), trust: {}, ports: false, emphasizeSuspect: false, escalated: false };
+  LAB.orient = { reveal: new Set(), trust: {}, ports: false, emphasizeSuspect: false, escalated: false, inspect: null };
   if (labIsOrientation()) labOrientApply('start');
 
   // Mission-specific header chrome.
@@ -1859,16 +1864,80 @@ function labTutorialDone(step) {
   }
 }
 
+/* Shared tutorial-progress snapshot (orientation guided tutorial). Single source
+ * of truth for BOTH the left-dock step list and the top SOC stage bar, so the two
+ * can never drift. Derived purely from step completion — presentation-only. */
+function labTutorialProgress() {
+  const steps = (LAB.def && LAB.def.tutorial) || [];
+  const dones = steps.map(labTutorialDone);
+  const total = steps.length;
+  const completed = dones.filter(Boolean).length;
+  const currentIdx = dones.findIndex((d) => !d);  // first incomplete = current
+  const allDone = total > 0 && currentIdx === -1;
+  return { steps, dones, total, completed, currentIdx, allDone };
+}
+
+/* Per-stage state (done / current / upcoming) for the SOC workflow, derived from
+ * tutorial progress. A stage with no steps (Response / Debrief) is "done" only once
+ * every tutorial step is complete. Presentation-only. */
+function labStageStates() {
+  const stages = (LAB.def && LAB.def.socStages) || [];
+  const { steps, dones, currentIdx, allDone } = labTutorialProgress();
+  const curStageKey = allDone ? null : (steps[currentIdx] && steps[currentIdx].stage);
+  const curStageIdx = stages.findIndex((s) => s.key === curStageKey);
+  const stageDone = (key) => {
+    const idxs = steps.map((s, i) => (s.stage === key ? i : -1)).filter((i) => i >= 0);
+    return idxs.length ? idxs.every((i) => dones[i]) : allDone;
+  };
+  return stages.map((s, i) => {
+    const done = stageDone(s.key);
+    const current = !allDone && i === curStageIdx;
+    return Object.assign({}, s, { idx: i, done, current, upcoming: !done && !current });
+  });
+}
+
+/* Top SOC workflow stage bar (Assignment 000 only) — a horizontal stepper of the
+ * six SOC stages plus the ACTIVE stage's guiding question. Self-gates: hides the
+ * shared #labStageBar for any mission without socStages (i.e. the graded six), so
+ * it can be called unconditionally from labRenderDock. Presentation-only. */
+function labRenderStageBar() {
+  const bar = $lab('labStageBar');
+  if (!bar) return;
+  const def = LAB.def;
+  if (!labIsOrientation() || !def || !Array.isArray(def.socStages) || !def.socStages.length) {
+    bar.hidden = true; bar.innerHTML = ''; return;
+  }
+  const states = labStageStates();
+  const steps = states.map((s) => {
+    const cls = s.done ? 'is-done' : s.current ? 'is-current' : 'is-locked';
+    const mark = s.done ? '\u2713' : (s.idx + 1);
+    const lock = s.upcoming ? '<span class="sc-stagebar-lock" aria-hidden="true">\uD83D\uDD12</span>' : '';
+    return `
+      <li class="sc-stagebar-step ${cls}" ${s.current ? 'aria-current="step"' : ''}
+          title="${labEsc(s.label + (s.question ? ' \u2014 ' + s.question : ''))}">
+        <span class="sc-stagebar-mark" aria-hidden="true">${mark}</span>
+        <span class="sc-stagebar-name">${labEsc(s.label)}</span>
+        ${lock}
+      </li>`;
+  }).join('');
+  const cur = states.find((s) => s.current) || states[states.length - 1];
+  const q = cur
+    ? `<span class="sc-stagebar-q-stage">${labEsc(String(cur.label).toUpperCase())}</span>` +
+      `<span class="sc-stagebar-q-text">${labEsc(cur.question || '')}</span>`
+    : '';
+  bar.innerHTML = `
+    <ol class="sc-stagebar-list">${steps}</ol>
+    <div class="sc-stagebar-q">${q}</div>`;
+  bar.hidden = false;
+}
+
 function labRenderTutorial(dock) {
   const def = LAB.def;
   const steps = def.tutorial || [];
   if (!steps.length) { labRenderSupport(dock); return; }
 
-  const dones = steps.map(labTutorialDone);
-  const total = steps.length;
-  const completed = dones.filter(Boolean).length;
-  const currentIdx = dones.findIndex((d) => !d);  // first incomplete = current
-  const allDone = currentIdx === -1;
+  const prog = labTutorialProgress();
+  const { dones, total, completed, currentIdx, allDone } = prog;
   const stepNum = allDone ? total : completed + 1;
   const pct = Math.round((completed / total) * 100);
 
@@ -1948,39 +2017,9 @@ function labRenderTutorial(dock) {
     ? 'Orientation complete \u2014 every step done \u2713'
     : `Step ${stepNum} of ${total}`;
 
-  // SOC workflow stage tracker (orientation only) — a read-only "where am I in
-  // the process" rail above the steps, so the beginner perceives SOC work as a
-  // sequence of STAGES, not a flat list of commands. Derived purely from step
-  // completion; a stage with no steps (Response / Debrief) lights up once the
-  // report is filed. Presentation-only.
-  const stages = def.socStages || [];
-  let stagesHtml = '';
-  if (stages.length) {
-    const curStageKey = allDone ? null : (steps[currentIdx] && steps[currentIdx].stage);
-    const curStageIdx = stages.findIndex((s) => s.key === curStageKey);
-    const stageDone = (key) => {
-      const idxs = steps.map((s, i) => (s.stage === key ? i : -1)).filter((i) => i >= 0);
-      return idxs.length ? idxs.every((i) => dones[i]) : allDone;
-    };
-    const stageItems = stages.map((s, i) => {
-      const sdone = stageDone(s.key);
-      const isCur = !allDone && i === curStageIdx;
-      const cls = sdone ? 'is-done' : isCur ? 'is-current' : 'is-upcoming';
-      const mark = sdone ? '\u2713' : (i + 1);
-      const note = isCur && s.note ? `<div class="lab-tut-stage-note">${labEsc(s.note)}</div>` : '';
-      return `
-        <li class="lab-tut-stage ${cls}">
-          <span class="lab-tut-stage-mark" aria-hidden="true">${mark}</span>
-          <div class="lab-tut-stage-main">
-            <div class="lab-tut-stage-label">${labEsc(s.label)}</div>
-            ${note}
-          </div>
-        </li>`;
-    }).join('');
-    stagesHtml = `
-      <div class="lab-tut-stages-head">SOC WORKFLOW</div>
-      <ol class="lab-tut-stages">${stageItems}</ol>`;
-  }
+  // The SOC workflow tracker now lives in the dedicated top stage bar
+  // (labRenderStageBar), so the left dock stays focused purely on the guided
+  // tutorial step the player should act on next.
 
   dock.innerHTML = `
     <div class="lab-tut">
@@ -1989,7 +2028,6 @@ function labRenderTutorial(dock) {
         <span class="lab-tut-count">${progress}</span>
       </div>
       <div class="lab-tut-bar"><span style="width:${pct}%"></span></div>
-      ${stagesHtml}
       <ol class="lab-tut-steps">${rows}</ol>
       <div class="lab-tut-foot">Follow the highlighted step. Each one tells you what just happened, then points you to the next.</div>
     </div>`;
@@ -2169,6 +2207,9 @@ function labRenderDock() {
   const def = LAB.def;
   const dock = $lab('labDock');
   if (!dock) return;
+
+  // Top SOC workflow stage bar (orientation only; self-gates for graded missions).
+  labRenderStageBar();
 
   // Early-beginner support model (001 & 002): replace the ordered command
   // checklist with an investigation-support panel — what we currently suspect
@@ -2848,23 +2889,33 @@ function labOrientTrustMeta(t) {
   }
 }
 
-/* Append one (or, for alert traffic, two staggered) animated pulse dots that
- * travel along a link, conveying live traffic. SMIL animateMotion keeps the dot
- * in the SVG's 0–100 coordinate space so it tracks the line exactly. */
+/* Append animated pulse dots conveying live traffic along a link. SMIL
+ * animateMotion keeps each dot in the SVG's 0–100 coordinate space so it tracks
+ * the line exactly. Direction encodes meaning for the beginner:
+ *   • calm  (normal / benign)        → TWO-WAY: a request and a response,
+ *                                       offset so it reads as healthy back-and-forth.
+ *   • watch (suspicious, unconfirmed) → ONE-WAY INBOUND: a single dot from the
+ *                                       source toward the workstation.
+ *   • alert (suspicious, confirmed)   → ONE-WAY INBOUND, bursty/irregular pair —
+ *                                       the shape of repeated probing.
+ * na/nb are the link's a/b nodes; for the suspicious link a=workstation, b=source,
+ * so inbound probing is nb → na. Presentation-only. */
 function labOrientPulse(svg, na, nb, tier, emph, idx) {
   const SVGNS = 'http://www.w3.org/2000/svg';
   const XLINK = 'http://www.w3.org/1999/xlink';
-  const pid = 'labPulsePath' + idx;
-  const path = document.createElementNS(SVGNS, 'path');
-  path.setAttribute('id', pid);
-  path.setAttribute('d', `M ${na.x} ${na.y} L ${nb.x} ${nb.y}`);
-  path.setAttribute('fill', 'none');
-  path.setAttribute('stroke', 'none');
-  svg.appendChild(path);
   let dur = 3.4;
   if (tier === 'watch') dur = emph ? 1.7 : 2.3;
   if (tier === 'alert') dur = 1.1;
-  const addDot = (begin) => {
+  let seq = 0;
+  // One travelling dot from p1 -> p2, optionally delayed so paired dots stagger.
+  const addStream = (p1, p2, begin) => {
+    const pid = 'labPulsePath' + idx + '_' + (seq++);
+    const path = document.createElementNS(SVGNS, 'path');
+    path.setAttribute('id', pid);
+    path.setAttribute('d', `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', 'none');
+    svg.appendChild(path);
     const c = document.createElementNS(SVGNS, 'circle');
     c.setAttribute('r', tier === 'alert' ? '1.6' : '1.3');
     c.setAttribute('class', 'lab-pulse is-' + tier);
@@ -2879,8 +2930,131 @@ function labOrientPulse(svg, na, nb, tier, emph, idx) {
     c.appendChild(am);
     svg.appendChild(c);
   };
-  addDot(0);
-  if (tier === 'alert') addDot(dur * 0.45);  // bursty pair = irregular feel
+  if (tier === 'calm') {
+    addStream(na, nb, 0);            // request
+    addStream(nb, na, dur * 0.5);    // response (offset)
+  } else if (tier === 'alert') {
+    addStream(nb, na, 0);            // confirmed probing — bursty inbound pair
+    addStream(nb, na, dur * 0.4);
+  } else {
+    addStream(nb, na, 0);            // watch — single one-way inbound hint
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * NETWORK INSPECTOR (Assignment 000 only)
+ * A FIXED panel in the evidence rail reporting the last system/connection the
+ * player inspected — Name / Type / Zone / Trust plus three plain-language lines
+ * (what it means, why SOC analysts care, the next question). Preferred over the
+ * floating card here: it never covers the terminal/evidence/commands and updates
+ * live as trust changes. Transient: the selection lives on LAB.orient.inspect
+ * (never persisted) and is re-rendered at the end of labRenderOrientMap so it
+ * survives the map's innerHTML wipe. Presentation-only.
+ * ------------------------------------------------------------------ */
+function labInspectorZoneLabel(zoneId) {
+  const zones = (LAB.def && LAB.def.topo && LAB.def.topo.zones) || [];
+  const z = zones.find((zz) => zz.id === zoneId);
+  return z ? z.label : '';
+}
+
+/* Record the player's current selection (transient) and refresh the panel. */
+function labInspectorShow(kind, id) {
+  if (!labIsOrientation() || !LAB.orient) return;
+  LAB.orient.inspect = { kind, id: String(id) };
+  labInspectorRender();
+}
+
+/* Wire a map element (node or link marker) to update the fixed inspector on
+ * hover, focus and click/tap. Mirrors labIntelBind's event set but targets the
+ * panel instead of the floating card. Never mutates lab state. */
+function labInspectorBind(el, kind, id) {
+  if (!el) return;
+  const show = () => labInspectorShow(kind, id);
+  el.addEventListener('mouseenter', show);
+  el.addEventListener('focus', show);
+  el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); show(); });
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(); }
+  });
+}
+
+function labInspectorRow(k, v) {
+  return v ? `<div class="lab-insp-row"><span class="lab-insp-k">${labEsc(k)}</span><span class="lab-insp-v">${labEsc(v)}</span></div>` : '';
+}
+
+/* Build the inspector body for the current selection (node or link), reading
+ * LIVE trust from LAB.orient. Returns '' when nothing valid is selected. */
+function labInspectorBody() {
+  const def = LAB.def;
+  const O = LAB.orient;
+  const sel = O && O.inspect;
+  if (!sel || !def.topo) return '';
+  const trust = O.trust || {};
+
+  if (sel.kind === 'node') {
+    const n = def.topo.nodes[sel.id];
+    if (!n) return '';
+    const t = trust[sel.id] || n.baseTrust || 'service';
+    const ins = n.inspect || {};
+    return `
+      <div class="lab-insp-head">
+        <span class="lab-insp-kind">SYSTEM</span>
+        <span class="lab-insp-title">${labEsc(n.label)}</span>
+      </div>
+      ${labInspectorRow('Type', n.sysType)}
+      ${labInspectorRow('Zone', labInspectorZoneLabel(n.zone))}
+      ${labInspectorRow('Trust', labOrientTrustMeta(t))}
+      ${labInspectorRow('What this means', ins.means)}
+      ${labInspectorRow('Why SOC analysts care', ins.care)}
+      ${labInspectorRow('Next question', ins.next)}`;
+  }
+
+  if (sel.kind === 'link') {
+    const lk = def.topo.links[Number(sel.id)];
+    if (!lk) return '';
+    const na = def.topo.nodes[lk.a], nb = def.topo.nodes[lk.b];
+    if (!na || !nb) return '';
+    const ins = lk.inspect || {};
+    let trafficLabel, name;
+    if (lk.traffic === 'suspicious') {
+      const st = trust.source;
+      const confirmed = (st === 'offbaseline' || st === 'suspicious' || st === 'watched');
+      trafficLabel = confirmed ? 'Irregular inbound \u2014 one-way probing \u26A0' : 'Unverified \u2014 one-way inbound';
+      name = `${nb.label} \u2192 ${na.label}`;   // inbound: source \u2192 workstation
+    } else {
+      trafficLabel = 'Expected \u2014 two-way traffic';
+      name = `${na.label} \u2194 ${nb.label}`;
+    }
+    const zone = `${labInspectorZoneLabel(na.zone)} \u2194 ${labInspectorZoneLabel(nb.zone)}`;
+    return `
+      <div class="lab-insp-head">
+        <span class="lab-insp-kind">CONNECTION</span>
+        <span class="lab-insp-title">${labEsc(name)}</span>
+      </div>
+      ${labInspectorRow('Type', 'Network connection')}
+      ${labInspectorRow('Zone', zone)}
+      ${labInspectorRow('Trust', trafficLabel)}
+      ${labInspectorRow('What this means', ins.means)}
+      ${labInspectorRow('Why SOC analysts care', ins.care)}
+      ${labInspectorRow('Next question', ins.next)}`;
+  }
+  return '';
+}
+
+/* Render the fixed inspector panel. Self-gates to orientation; shows a friendly
+ * prompt until the player inspects something. Presentation-only. */
+function labInspectorRender() {
+  const panel = $lab('labInspector');
+  if (!panel) return;
+  const def = LAB.def;
+  if (!labIsOrientation() || !def || !def.topo) {
+    panel.hidden = true; panel.innerHTML = ''; return;
+  }
+  const body = labInspectorBody();
+  panel.innerHTML = `
+    <div class="lab-insp-bar">NETWORK INSPECTOR</div>
+    ${body || '<div class="lab-insp-empty">Hover or tap a system or connection on the map to inspect it here.</div>'}`;
+  panel.hidden = false;
 }
 
 function labRenderOrientMap() {
@@ -2906,7 +3080,7 @@ function labRenderOrientMap() {
 
   // 2) Links + animated traffic (only where both endpoints are revealed).
   let pulseIdx = 0;
-  def.topo.links.forEach((lk) => {
+  def.topo.links.forEach((lk, lkIdx) => {
     if (!O.reveal.has(lk.a) || !O.reveal.has(lk.b)) return;
     const na = nodes[lk.a], nb = nodes[lk.b];
     if (!na || !nb) return;
@@ -2924,18 +3098,19 @@ function labRenderOrientMap() {
     svg.appendChild(line);
     labOrientPulse(svg, na, nb, tier, O.emphasizeSuspect, pulseIdx++);
 
-    // Intel overlay (reuses the shared, presentation-only training card).
-    if (lk.intel) {
+    // Inspector overlay — hovering/clicking the connection marker reports it in
+    // the fixed Network Inspector (orientation prefers the panel over the card).
+    if (lk.inspect || lk.intel) {
       const mx = (na.x + nb.x) / 2, my = (na.y + nb.y) / 2;
       const mk = document.createElement('button');
       mk.type = 'button';
       mk.className = 'lab-link-mid' + (tier === 'alert' ? ' is-danger' : '');
       mk.style.left = mx + '%';
       mk.style.top = my + '%';
-      mk.setAttribute('aria-label', `Connection ${na.label} to ${nb.label} — analyst intel`);
+      mk.setAttribute('aria-label', `Connection ${na.label} to ${nb.label} — inspect`);
       mk.textContent = 'i';
       host.appendChild(mk);
-      labIntelBind(mk, lk.intel, `${na.label} → ${nb.label}`, 'CONNECTION', { click: true });
+      labInspectorBind(mk, 'link', lkIdx);
     }
   });
 
@@ -2958,16 +3133,30 @@ function labRenderOrientMap() {
       <span class="lab-onode-type">${n.sysType} · ${n.ip}</span>
       <span class="lab-onode-trust">${labOrientTrustMeta(t)}</span>
       ${chips}`;
-    if (n.intel) {
+    if (n.inspect || n.intel) {
       div.tabIndex = 0;
       div.setAttribute('role', 'button');
-      div.setAttribute('aria-label', `${n.label}, ${n.sysType} — analyst intel`);
-      labIntelBind(div, n.intel, n.label, n.sysType ? n.sysType.toUpperCase() : '', { click: true });
+      div.setAttribute('aria-label', `${n.label}, ${n.sysType} — inspect`);
+      labInspectorBind(div, 'node', id);
     }
     host.appendChild(div);
   });
 
-  // 4) Caption — guidance early, the gentle consequence summary once escalated.
+  // 4) Debrief legend — once the case is escalated, label the resolved categories
+  // so the final map doubles as a learning summary. Presentation-only.
+  if (O.escalated) {
+    const legend = document.createElement('div');
+    legend.className = 'lab-legend';
+    legend.setAttribute('aria-hidden', 'true');
+    legend.innerHTML = `
+      <span class="lab-legend-item is-knowngood">Known-good</span>
+      <span class="lab-legend-item is-benign">Benign external</span>
+      <span class="lab-legend-item is-offbaseline">Off-baseline</span>
+      <span class="lab-legend-item is-suspicious">Escalated source</span>`;
+    host.appendChild(legend);
+  }
+
+  // 5) Caption — guidance early, the gentle consequence summary once escalated.
   const cap = $lab('labTopoCap');
   if (cap) {
     if (O.escalated) {
@@ -2978,6 +3167,10 @@ function labRenderOrientMap() {
       cap.textContent = def.mapCap || 'NETWORK MAP — builds as you investigate';
     }
   }
+
+  // 6) Keep the fixed Network Inspector in sync — re-rendering here means the panel
+  // survives this function's innerHTML wipe and always reflects current trust.
+  labInspectorRender();
 }
 
 /* ------------------------------------------------------------------ *

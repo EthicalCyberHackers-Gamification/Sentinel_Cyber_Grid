@@ -1,0 +1,438 @@
+Apply this only to Assignment 000.
+
+Do not modify Assignment 001 or later assignments yet.
+
+Goal:
+Adapt the generated SOC workflow graphic into a dynamic, functional gameplay interface for Assignment 000.
+
+Do NOT use the graphic as a static background image.
+
+Recreate the design as live HTML/CSS/JS UI components that respond to mission progress.
+
+The interface should support progressive reveal from TRIAGE through DEBRIEF and visually teach basic networking, SOC workflow, device relationships, and traffic behavior.
+
+---
+
+## CORE DESIGN REQUIREMENT
+
+The new visual system must be:
+
+* dynamic
+* interactive
+* educational
+* progressive
+* readable
+* beginner-friendly
+* operationally realistic
+
+The graphic should be used as a layout and design reference only.
+
+Do not copy it as a flat image.
+
+---
+
+## WHAT STAYS THE SAME
+
+Keep:
+
+* Assignment 000 only
+* current terminal-first gameplay
+* current mission progression logic
+* current SOC workflow stages
+* current evidence system
+* current SOC Toolkit
+* current CyberCorp identity
+* current guided orientation purpose
+* current no-pressure tutorial tone
+
+Do not:
+
+* redesign the full platform
+* modify later assignments
+* create a full enterprise dashboard
+* add unnecessary complexity
+* overload the screen with widgets
+* create meaningless cyber animations
+
+---
+
+## TARGET LAYOUT STRUCTURE
+
+Rebuild the Assignment 000 play session using the graphic as inspiration.
+
+Recommended layout:
+
+Top:
+SOC workflow stage bar
+
+Center:
+Dynamic network zone visualization
+
+Left:
+Mission objective / current stage / investigation guidance
+
+Right:
+Evidence board / analyst notes / stage summary
+
+Bottom:
+Terminal + SOC Toolkit access
+
+Keep the terminal important.
+Do not let the graphic replace the investigation.
+
+---
+
+## SOC WORKFLOW STAGE BAR
+
+Create a visual step-by-step workflow bar:
+
+1. TRIAGE
+   Question: What looks unusual?
+
+2. SOC TOOL ANALYSIS
+   Question: Does evidence support suspicion?
+
+3. CORRELATION
+   Question: How do the clues connect?
+
+4. ESCALATION
+   Question: Do I have enough confidence?
+
+5. RESPONSE
+   Question: What operational action changes?
+
+6. DEBRIEF
+   Question: What did we learn?
+
+The active stage should be highlighted.
+Completed stages should remain visible but subdued.
+Future stages should be locked/subdued until reached.
+
+This teaches that SOC analysis follows a process.
+
+---
+
+## DYNAMIC NETWORK ZONES
+
+Create clear network zones:
+
+1. Internal User Zone
+   Example:
+   WS-4471
+   Employee workstation
+   10.0.5.12
+
+2. Internal Services Zone
+   Examples:
+   Internal DNS
+   File Server
+   Identity Service
+
+3. External Internet Zone
+   Examples:
+   CDN Service
+   Software Update Vendor
+   Microsoft Services
+
+4. Suspicious Infrastructure Zone
+   Examples:
+   Unknown Host
+   203.0.113.77
+
+Keep zone names visible but not oversized.
+
+The purpose is to teach trust boundaries:
+internal systems, known external services, and unknown infrastructure.
+
+---
+
+## PROGRESSIVE REVEAL RULE
+
+Do not reveal all devices and connections immediately.
+
+Reveal devices, connections, and zones as the player advances.
+
+Suggested reveal flow:
+
+Stage 1 — TRIAGE:
+Show WS-4471 and a small number of observed connections.
+Network mostly dim.
+Unknown source may appear as “unverified external source.”
+
+Stage 2 — SOC TOOL ANALYSIS:
+Reveal Internal DNS, CDN, and Unknown Host.
+Show traffic relationships.
+Show two-way normal traffic where appropriate.
+
+Stage 3 — CORRELATION:
+Separate known-good activity from suspicious activity.
+Show baseline-supported traffic differently from off-baseline traffic.
+
+Stage 4 — ESCALATION:
+Highlight suspicious infrastructure and evidence chain.
+Show why the source is worth escalation.
+
+Stage 5 — RESPONSE:
+Show watchlist / monitoring update.
+Do not show aggressive blocking in Assignment 000 unless already designed.
+This is orientation, so consequence should be gentle.
+
+Stage 6 — DEBRIEF:
+Show final resolved learning map with labels:
+known-good traffic
+suspicious traffic
+off-baseline source
+escalated case
+
+---
+
+## TRAFFIC VISUALIZATION
+
+Add slow, subtle traffic movement.
+
+Rules:
+
+Normal bidirectional traffic:
+Use slow two-way movement when request/response behavior applies.
+
+Examples:
+WS-4471 ↔ Internal DNS
+WS-4471 ↔ CDN Service
+WS-4471 ↔ approved internal service
+
+Suspicious probing:
+Use one-way or irregular movement when the source is probing.
+
+Examples:
+Unknown Host → WS-4471
+Unknown Host → multiple ports
+Repeated probes toward workstation
+
+Traffic should be:
+
+* slow
+* readable
+* subtle
+* not exaggerated
+* not arcade-like
+* not distracting
+
+The animation should illustrate communication, not create visual noise.
+
+---
+
+## EDUCATIONAL HOVER SYSTEM
+
+Add hover/click educational info for devices and connections.
+
+Hover content should help beginners understand:
+
+* what the device is
+* whether it is internal or external
+* why it matters
+* what traffic means
+* whether the behavior is normal, unknown, or suspicious
+* what SOC analysts would check next
+
+Do not use long paragraphs.
+Keep hover material short and operational.
+
+---
+
+## DEVICE HOVER EXAMPLES
+
+WS-4471
+Employee Workstation
+Internal User Zone
+
+Explanation:
+A workstation is an employee computer. SOC analysts check whether outside systems are communicating with it in expected ways.
+
+10.0.5.1
+Internal DNS
+Internal Services Zone
+
+Explanation:
+DNS helps systems translate names into IP addresses. Internal DNS traffic is often normal for workstations.
+
+198.51.100.20
+CDN Service
+External Internet Zone
+
+Explanation:
+A CDN delivers trusted web content or updates. External traffic is not automatically malicious if it matches baseline behavior.
+
+203.0.113.77
+Unknown Host
+Suspicious Infrastructure Zone
+
+Explanation:
+Unknown external infrastructure requires validation. Analysts check ownership, ports touched, and whether it appears on the baseline.
+
+---
+
+## CONNECTION HOVER EXAMPLES
+
+WS-4471 ↔ Internal DNS
+
+Explanation:
+Normal bidirectional traffic. Workstations commonly query DNS and receive responses.
+
+WS-4471 ↔ CDN Service
+
+Explanation:
+Likely normal external traffic if the CDN is on the known-good baseline.
+
+Unknown Host → WS-4471
+
+Explanation:
+One-way or repeated probing can indicate scanning. Analysts verify this by checking ports, ownership, and baseline.
+
+Unknown Host → multiple ports
+
+Explanation:
+Touching several unrelated ports may suggest reconnaissance, especially if the host does not normally provide those services.
+
+---
+
+## HOVER PLACEMENT RULES
+
+Hover panels must not block critical gameplay areas.
+
+Rules:
+
+* Do not cover terminal input/output
+* Do not cover evidence cards
+* Do not cover active command areas
+* Prefer placing hover cards near the network map edge
+* If space is limited, pin hover info to a dedicated “Learning Lens” / “Inspector” panel instead of floating over the map
+* Hover should disappear cleanly when the pointer moves away
+* Keep hover panels compact
+* Avoid jitter
+
+Preferred approach:
+Use a fixed small “Network Inspector” panel near the map or side area rather than large floating boxes over important content.
+
+---
+
+## NETWORK INSPECTOR OPTION
+
+If hover boxes become intrusive, implement a fixed Network Inspector panel.
+
+When the player hovers or clicks a node/connection, the panel updates with:
+
+Name:
+Type:
+Zone:
+Trust:
+What this means:
+Why SOC analysts care:
+Next question:
+
+This is likely cleaner for gameplay than floating tooltips.
+
+---
+
+## VISUAL TRUST STATES
+
+Use clear but subtle states:
+
+Unknown:
+unverified / needs investigation
+
+Known-good:
+baseline-supported / expected
+
+Suspicious:
+off-baseline / unusual behavior
+
+Escalated:
+sent to SOC queue / monitored
+
+Do not label something malicious too early unless the evidence supports it.
+
+Preserve uncertainty.
+
+---
+
+## BASELINE VISUALIZATION
+
+After compare baseline:
+
+Known-good systems should visually settle into a trusted state.
+
+Unknown source should remain highlighted as off-baseline.
+
+This should teach:
+baseline comparison helps analysts separate normal activity from suspicious activity.
+
+---
+
+## STAGE-SPECIFIC VISUAL LEARNING GOALS
+
+Triage:
+Teach what systems are involved.
+
+SOC Tool Analysis:
+Teach ownership, ports, and baseline checks.
+
+Correlation:
+Teach that multiple clues together matter more than one clue alone.
+
+Escalation:
+Teach confidence-based decision making.
+
+Response:
+Teach proportional operational consequence.
+
+Debrief:
+Reinforce the full SOC workflow.
+
+---
+
+## IMPORTANT TONE RULE
+
+This must feel like:
+a clean SOC training interface.
+
+Not:
+a sci-fi holotable
+a fake hacker screen
+a static infographic
+an arcade minigame
+
+The visual layer should improve understanding, not replace analysis.
+
+---
+
+## PERFORMANCE / RESPONSIVENESS
+
+Keep animations lightweight.
+
+Avoid:
+
+* heavy canvas effects if unnecessary
+* excessive particles
+* too many animated nodes
+* performance-heavy rendering
+
+Assignment 000 should remain smooth.
+
+---
+
+## SUCCESS CRITERIA
+
+This succeeds if:
+
+* Assignment 000 feels visually alive
+* devices reveal progressively
+* connections reveal progressively
+* traffic movement is understandable
+* normal two-way traffic is distinguishable from one-way probing
+* hover/click explanations teach networking basics
+* hover content does not block gameplay
+* the player understands internal vs external systems
+* the player understands device roles
+* the player understands why traffic direction matters
+* the SOC workflow feels more engaging
+* the terminal remains central to gameplay

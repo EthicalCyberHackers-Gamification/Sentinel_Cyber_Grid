@@ -2226,6 +2226,11 @@
         <span class="sc-objective-progress" id="labObjectiveProgress"></span>
       </div>
 
+      <!-- SOC workflow stage bar (Assignment 000 only) — a horizontal stepper of
+           the six SOC stages plus the active stage's guiding question. Hidden by
+           default; shown/hidden by labRenderStageBar (gated on socStages). -->
+      <div class="sc-stagebar" id="labStageBar" hidden aria-label="SOC workflow stages"></div>
+
       <div class="sc-main">
 
         <div class="sc-dock-col">
@@ -2276,6 +2281,10 @@
         </section>
 
         <aside class="sc-rail" aria-label="Evidence board">
+          <!-- Network Inspector (Assignment 000 only) — fixed panel reporting the
+               last-inspected system/connection. Hidden by default; shown/hidden by
+               labInspectorRender (gated on orientation). -->
+          <div class="lab-inspector" id="labInspector" hidden aria-label="Network Inspector" aria-live="polite"></div>
           <div class="sc-rail-head">
             <span class="sc-rail-head-title">EVIDENCE</span>
             <span class="sc-rail-count" id="labRailCount">0</span>

@@ -31,6 +31,18 @@ the alarm earlier/later in the lesson even though nothing else changed.
 **How to apply:** decide which investigation step should "trip" the red alarm, and put
 the first `offbaseline` (or higher) source-trust there.
 
+## Traffic directionality teaches "normal vs probing"
+
+Normal/benign traffic (`calm` tier) animates TWO-WAY (request + response). Irregular
+probing — a `traffic:'suspicious'` link — animates ONE-WAY INBOUND (source →
+workstation) at BOTH the `watch` and `alert` tiers; only `calm` is two-way.
+**Why:** to a beginner, unsolicited one-directional inbound contact reads as "someone
+is reaching IN at us," which is the whole point of the lesson; making watch two-way
+would blur normal vs probing.
+**How to apply:** `labOrientPulse` keys direction on tier, and the suspicious link's
+endpoints are ordered workstation-first/source-second so inbound = `b → a`. Keep that
+ordering if you add probing links.
+
 ## Finite trust ladder
 
 States: internal / service / external / knowngood / unverified / offbaseline /
