@@ -1814,16 +1814,25 @@
 .lab-obchip.is-on { color: var(--text-bright); }
 .lab-obchip.is-on .lab-obchip-mark { color: var(--purple); }
 
-/* Traffic flow recolor (green normal / amber benign / purple suspicious) */
+/* Point-to-point traffic (green normal / amber benign / purple suspicious).
+   The connection LINES are static, faint connectors — NO marching-dash stream.
+   The live traffic is the discrete travelling dot(s) emitted by labOrientPulse,
+   so one connection reads as occasional communication events, not a network-wide
+   stream. Only the suspicious link stays dashed (irregular / probing). */
+.lab--orient .lab-flow {
+  animation: none !important; stroke-dasharray: none;
+  stroke-width: 0.45; opacity: 0.3;
+}
 .lab--orient .lab-flow.is-calm { stroke: var(--green); }
 .lab--orient .lab-pulse.is-calm { fill: var(--green); }
-.lab--orient .lab-flow.is-benign {
-  fill: none; stroke: var(--amber); stroke-width: 0.6; stroke-dasharray: 2 2.6;
-  opacity: 0.5; animation: scDash 3.6s linear infinite;
-}
-.lab--orient .lab-pulse.is-benign { fill: var(--amber); opacity: 0.9; }
+.lab--orient .lab-flow.is-benign { stroke: var(--amber); opacity: 0.3; }
+.lab--orient .lab-pulse.is-benign { fill: var(--amber); opacity: 0.95; }
 .lab--orient .lab-flow.is-watch,
-.lab--orient .lab-flow.is-alert { stroke: var(--purple); filter: drop-shadow(0 0 1.5px rgba(168,85,247,0.6)); }
+.lab--orient .lab-flow.is-alert {
+  stroke: var(--purple); stroke-width: 0.6; opacity: 0.55;
+  stroke-dasharray: 2 1.6;
+  filter: drop-shadow(0 0 1.5px rgba(168,85,247,0.55));
+}
 .lab--orient .lab-pulse.is-watch,
 .lab--orient .lab-pulse.is-alert { fill: var(--purple); }
 

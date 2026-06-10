@@ -31,6 +31,32 @@ the alarm earlier/later in the lesson even though nothing else changed.
 **How to apply:** decide which investigation step should "trip" the red alarm, and put
 the first `offbaseline` (or higher) source-trust there.
 
+## Traffic = discrete dots; connection LINES are static (no streaming)
+
+In orientation mode the `.lab-flow` connection lines are deliberately STATIC — `.lab--orient
+.lab-flow { animation: none !important; stroke-dasharray: none }` kills the base `scDash`
+marching-dash flow (only the suspicious link keeps a static dash for an "irregular" look).
+The live traffic is therefore ONLY the discrete travelling dots (`labOrientPulse` SMIL
+`animateMotion` circles — unaffected by CSS `animation:none`).
+**Why:** the user rejected marching-dash "streaming that covers the entire network";
+one connection should read as occasional point-to-point communication events, not a flow.
+**How to apply:** never re-enable a dash/flow animation on `.lab--orient .lab-flow`; convey
+liveness with the dots, not the lines.
+
+## Map links must stay faithful to the telemetry the learner reads
+
+Snapshot/baseline/access-log peers of WS-4471 (`source`, `cdn`, `dns`, `fileserver`) MUST
+keep `a:'workstation'` so the map agrees with `network_snapshot.txt` / `baseline.txt`.
+`cdn` (`198.51.100.20`) + `source` legitimately cross the whole map — that's the intended
+benign-vs-suspicious external contrast, not noise. Only the DECORATIVE nodes absent from all
+telemetry (`identity`, `update`, `microsoft`, `ws2`) may be re-routed for a clean
+internal-svc→external flow — and their node copy must then be endpoint-neutral (don't say
+"the workstation").
+**Why:** a re-route of `cdn` to `dns→cdn` made the map contradict the snapshot (which shows
+`10.0.5.12 → 198.51.100.20`); an attentive learner catches that.
+**How to apply:** before re-routing any orientation link, grep `fs`/`network_snapshot.txt`
+for its IP — if WS-4471 talks to it in the evidence, it stays workstation-rooted.
+
 ## Traffic directionality teaches "normal vs probing"
 
 `labOrientPulse` emits ONE travelling dot per call (animation budget — a busy map of

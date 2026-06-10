@@ -417,21 +417,21 @@ export default {
       'update': { x: 63, y: 50, zone: 'external', glyph: '⬇️',
         label: 'Software Update Vendor', sysType: 'Patch / update service', ip: '198.51.100.42', baseTrust: 'external',
         intel: {
-          what: 'A public software-update vendor the workstation pulls patches from.',
+          what: 'An approved external software-update vendor internal services pull patches from.',
           technique: 'Baseline comparison.',
           why: 'External but approved — known-good once matched to the baseline.' },
         inspect: {
-          means: 'A public vendor the workstation downloads software updates from.',
+          means: 'An approved external vendor that internal services download software updates from.',
           care: 'External traffic is not automatically bad — approved vendors are benign.',
           next: 'Check it against the baseline (it is approved).' } },
       'microsoft': { x: 63, y: 74, zone: 'external', glyph: '☁️',
         label: 'Microsoft Services', sysType: 'Cloud productivity', ip: '52.96.0.10', baseTrust: 'external',
         intel: {
-          what: 'Public Microsoft cloud services (mail / productivity) the workstation uses.',
+          what: 'Approved external Microsoft cloud services (mail / productivity) used from inside the network.',
           technique: 'Baseline comparison.',
           why: 'Expected external SaaS traffic — approved and benign.' },
         inspect: {
-          means: 'Public Microsoft cloud services the workstation legitimately uses.',
+          means: 'Approved external Microsoft cloud services reached from inside the network.',
           care: 'Well-known approved SaaS — benign external traffic.',
           next: 'Confirm on the baseline and rule it out.' } },
     },
@@ -484,7 +484,7 @@ export default {
           means: 'Normal two-way single-sign-on traffic.',
           care: 'Workstations authenticate against identity — expected back-and-forth.',
           next: 'Another picture of healthy internal traffic.' } },
-      { a: 'workstation', b: 'update', traffic: 'benign',
+      { a: 'fileserver', b: 'update', traffic: 'benign',
         intel: {
           what: 'Two-way traffic to an approved software-update vendor.',
           technique: 'Baseline comparison.',
@@ -493,7 +493,7 @@ export default {
           means: 'Two-way traffic to an approved software-update vendor.',
           care: 'Approved external updates are benign if on the baseline.',
           next: 'Check the baseline before ruling it in or out.' } },
-      { a: 'workstation', b: 'microsoft', traffic: 'benign',
+      { a: 'identity', b: 'microsoft', traffic: 'benign',
         intel: {
           what: 'Two-way traffic to Microsoft cloud services.',
           technique: 'Baseline comparison.',
