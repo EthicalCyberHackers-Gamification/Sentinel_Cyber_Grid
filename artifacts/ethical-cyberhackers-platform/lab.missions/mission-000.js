@@ -115,7 +115,7 @@ export default {
   // Timestamps are generated at render time — presentation-only, never persisted.
   alertFeed: {
     start:     [{ sev: 'warn', text: 'Sensor flagged repeated inbound contact to WS-4471 from an outside address.' }],
-    cat:       [{ sev: 'info', text: 'Connection snapshot opened — 203.0.113.77 seen across several ports.' }],
+    cat:       [{ sev: 'info', text: 'Connection snapshot opened — several active connections; one repeated outside address still unidentified.' }],
     grep:      [{ sev: 'warn', text: '203.0.113.77 touched ssh, http, https & mysql — multi-service probing.' }],
     whois:     [{ sev: 'high', text: 'WHOIS: 203.0.113.77 has no registered owner and no abuse contact.' }],
     ports:     [{ sev: 'warn', text: 'Port map: source reached services WS-4471 does not even run.' }],
@@ -126,7 +126,7 @@ export default {
   // ANALYST NOTES (orientation only). Auto-notes accrue as findings land, keyed
   // by event. The trainee can also add their own (kept in memory only).
   analystNotes: {
-    cat:       'One outside address (203.0.113.77) keeps reappearing across multiple ports.',
+    cat:       'One repeated outside address keeps reappearing — identity not yet resolved.',
     grep:      'Suspect touched four unrelated services — looks like probing, not normal use.',
     whois:     'Source is anonymous infrastructure — no registered owner, no abuse contact.',
     ports:     'Source reached ports this host does not run — the shape of blind probing.',
@@ -516,15 +516,34 @@ export default {
     // trust as the investigation progresses. Consumed by labOrientReact (gated on
     // labIsOrientation). Presentation-only — no scoring, XP, or persistence.
     mapReact: {
-      start:     { reveal: ['workstation'], trust: { workstation: 'internal' } },
-      cat:       { reveal: ['dns', 'fileserver', 'identity', 'cdn', 'update', 'microsoft', 'source', 'ws2'],
-                   trust: { dns: 'service', fileserver: 'service', identity: 'service', cdn: 'external', update: 'external', microsoft: 'external', source: 'unverified', ws2: 'internal' } },
-      grep:      { emphasizeSuspect: true },
+      // Progressive discovery — the map FOLLOWS the investigation. At start only the
+      // flagged workstation + faint internal context are resolved; the outside source
+      // is present but MASKED (an anonymous blip) until `grep` identifies it. Known-good
+      // peers light up at `compare baseline`. Zones activate as evidence arrives.
+      start:     { reveal: ['workstation', 'dns'], mask: ['source'], zones: ['internal-user', 'internal-svc'],
+                   trust: { workstation: 'internal', dns: 'service' } },
+      cat:       { reveal: ['fileserver'], trust: { fileserver: 'service' } },
+      grep:      { unmask: ['source'], zones: ['suspicious'], emphasizeSuspect: true,
+                   trust: { source: 'unverified' } },
       whois:     { trust: { source: 'offbaseline' } },
       ports:     { ports: true },
-      baseline:  { trust: { dns: 'knowngood', fileserver: 'knowngood', identity: 'knowngood', cdn: 'knowngood', update: 'knowngood', microsoft: 'knowngood', source: 'offbaseline' } },
+      baseline:  { reveal: ['cdn', 'identity', 'update', 'microsoft', 'ws2'], zones: ['external'],
+                   trust: { dns: 'knowngood', fileserver: 'knowngood', identity: 'knowngood', cdn: 'knowngood', update: 'knowngood', microsoft: 'knowngood', ws2: 'internal', source: 'offbaseline' } },
       correlate: { trust: { source: 'suspicious' } },
       escalate:  { escalated: true, trust: { source: 'watched', workstation: 'monitored' } },
+    },
+    // Rendering for a revealed-but-unidentified node (the source before `grep`).
+    // Keeps identity hidden so discovery is earned and hover/inspect cannot spoil it.
+    maskedNode: {
+      glyph: '📡',
+      label: 'Unresolved Activity',
+      sysType: 'External \u2014 not yet identified',
+      trustLabel: 'Unresolved \u2014 investigate',
+      inspect: {
+        means: 'Unidentified external activity reaching WS-4471 \u2014 not yet resolved.',
+        care: 'Something outside is making contact, but its identity is still unknown.',
+        next: 'Pull the repeated outside address out of the access log to identify it.',
+      },
     },
   },
   tools: [
