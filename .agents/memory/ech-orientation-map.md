@@ -33,15 +33,18 @@ the first `offbaseline` (or higher) source-trust there.
 
 ## Traffic directionality teaches "normal vs probing"
 
-Normal/benign traffic (`calm` tier) animates TWO-WAY (request + response). Irregular
-probing — a `traffic:'suspicious'` link — animates ONE-WAY INBOUND (source →
-workstation) at BOTH the `watch` and `alert` tiers; only `calm` is two-way.
-**Why:** to a beginner, unsolicited one-directional inbound contact reads as "someone
-is reaching IN at us," which is the whole point of the lesson; making watch two-way
-would blur normal vs probing.
-**How to apply:** `labOrientPulse` keys direction on tier, and the suspicious link's
-endpoints are ordered workstation-first/source-second so inbound = `b → a`. Keep that
-ordering if you add probing links.
+`labOrientPulse` emits ONE travelling dot per call (animation budget — a busy map of
+two-way streams was too noisy/heavy):
+- `calm` / `benign` (normal traffic): a single REQUEST-direction dot (`a → b`).
+- `watch` (suspect, pre-confirmation): a single ONE-WAY INBOUND dot (`b → a`).
+- `alert` (confirmed probing): TWO staggered inbound dots (`b → a`, second delayed
+  ~0.4·dur) so it reads as bursty repeated contact.
+**Why:** to a beginner, unsolicited inbound contact reads as "someone is reaching IN at
+us," which is the lesson; normal traffic flows outward as a request. Capping to a single
+dot (alert excepted) keeps the SMIL load sane.
+**How to apply:** the suspicious link's endpoints are ordered workstation-first /
+source-second so inbound = `b → a`. Keep that ordering if you add probing links. Tier
+also drives `dur` (alert fastest, benign slowest); `slowMo` multiplies `dur` ×2.6.
 
 ## Finite trust ladder
 

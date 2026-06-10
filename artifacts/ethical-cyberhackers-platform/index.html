@@ -2220,6 +2220,25 @@
         </div>
       </div>
 
+      <!-- Orientation header strip (Assignment 000 only) — brand, workflow title,
+           live clock + session + mode badge. Hidden by default; shown/hidden by
+           labRenderOrientHeader (gated on orientation). -->
+      <div class="lab-ohead" id="labOrientHeader" hidden>
+        <div class="lab-ohead-brand">
+          <span class="lab-ohead-logo" aria-hidden="true">🛡️</span>
+          <span class="lab-ohead-brandtext">CYBERCORP SOC<small>Analyst Orientation</small></span>
+        </div>
+        <div class="lab-ohead-title">
+          <span class="lab-ohead-h">SOC Analysis — Step-by-Step Workflow</span>
+          <span class="lab-ohead-sub" id="labOrientSub">Learn the core triage loop on one live case</span>
+        </div>
+        <div class="lab-ohead-meta">
+          <span class="lab-ohead-clock" id="labOrientClock" aria-hidden="true">00:00:00</span>
+          <span class="lab-ohead-session">SESSION 000</span>
+          <span class="lab-ohead-badge">ORIENTATION MODE</span>
+        </div>
+      </div>
+
       <div class="sc-objective">
         <span class="sc-objective-icon" aria-hidden="true">▸</span>
         <span class="sc-objective-text" id="labObjectiveText">List the files in your mailbox — type <code>ls</code>.</span>
@@ -2256,8 +2275,22 @@
             <!-- Stage 3+: reactive campaign topology (fades in) -->
             <div class="sc-map lab-topo" id="labTopo" hidden aria-label="Campaign topology">
               <div class="sc-map-grid" aria-hidden="true"></div>
+              <!-- Orientation map header + slow-motion toggle (Assignment 000 only).
+                   Hidden by default; shown/hidden by labRenderOrientMap. -->
+              <div class="lab-maphead" id="labMapHeader" hidden>
+                <span class="lab-maphead-title">NETWORK VIEW — LIVE TRAFFIC</span>
+                <button class="lab-slowmo" id="labSlowMoBtn" type="button" aria-pressed="false">
+                  <span aria-hidden="true">🐢</span> SLOW MOTION
+                </button>
+              </div>
               <svg class="sc-map-svg" id="labTopoSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
               <div class="sc-map-nodes" id="labTopoNodes"></div>
+              <!-- Orientation traffic legend (Assignment 000 only). -->
+              <div class="lab-traffic-legend" id="labTrafficLegend" hidden aria-hidden="true">
+                <span class="lab-tl-item is-normal">Two-Way (Normal)</span>
+                <span class="lab-tl-item is-benign">Two-Way (Approved)</span>
+                <span class="lab-tl-item is-probe">One-Way / Irregular</span>
+              </div>
               <div class="lab-topo-cap" id="labTopoCap">CAMPAIGN MAP — grows as you uncover evidence</div>
             </div>
 
@@ -2281,10 +2314,9 @@
         </section>
 
         <aside class="sc-rail" aria-label="Evidence board">
-          <!-- Network Inspector (Assignment 000 only) — fixed panel reporting the
-               last-inspected system/connection. Hidden by default; shown/hidden by
-               labInspectorRender (gated on orientation). -->
-          <div class="lab-inspector" id="labInspector" hidden aria-label="Network Inspector" aria-live="polite"></div>
+          <!-- LIVE ALERT FEED (Assignment 000 only) — running sensor/analyst alerts.
+               Hidden by default; shown/hidden by labRenderOrientPanels. -->
+          <div class="lab-rpanel lab-alertfeed" id="labAlertFeed" hidden aria-label="Live alert feed" aria-live="polite"></div>
           <div class="sc-rail-head">
             <span class="sc-rail-head-title">EVIDENCE</span>
             <span class="sc-rail-count" id="labRailCount">0</span>
@@ -2292,6 +2324,16 @@
           <div class="sc-rail-list" id="labRailList">
             <div class="sc-rail-empty">No evidence yet. Investigate the files, then pin the indicators you find.</div>
           </div>
+          <!-- ANALYST NOTES (Assignment 000 only). -->
+          <div class="lab-rpanel lab-notes" id="labNotes" hidden aria-label="Analyst notes"></div>
+          <!-- STAGE SUMMARY (Assignment 000 only) — the full SOC roadmap checklist. -->
+          <div class="lab-rpanel lab-stagesummary" id="labStageSummary" hidden aria-label="Stage summary"></div>
+          <!-- CONFIDENCE LEVEL (Assignment 000 only) — pure derivation, never scored. -->
+          <div class="lab-rpanel lab-confidence" id="labConfidence" hidden aria-label="Confidence level"></div>
+          <!-- Network Inspector (Assignment 000 only) — fixed panel reporting the
+               last-inspected system/connection. Hidden by default; shown/hidden by
+               labInspectorRender (gated on orientation). -->
+          <div class="lab-inspector" id="labInspector" hidden aria-label="Network Inspector" aria-live="polite"></div>
         </aside>
 
       </div>

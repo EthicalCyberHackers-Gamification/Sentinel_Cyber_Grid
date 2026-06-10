@@ -1283,6 +1283,13 @@ function labEcho(text) { labPrint([{ t: text, c: 'cmd' }]); }
 /* ------------------------------------------------------------------ *
  * OPEN / RESET / RETURN
  * ------------------------------------------------------------------ */
+// Orientation SOC-console (Assignment 000) module state. The session clock
+// interval is runToken-guarded and cleared on return; the slow-motion toggle is
+// bound exactly once (its button is a persistent shell element). Both are inert
+// for the graded six. Presentation-only.
+let labOrientClockTimer = null;
+let labSlowMoBound = false;
+
 function openLab(missionId) {
   // Select the active mission dataset (fall back to mission-001).
   const id = (missionId && LAB_MISSIONS[missionId]) ? missionId : 'mission-001';
@@ -1297,7 +1304,15 @@ function openLab(missionId) {
   // that live in the lab shell for EVERY mission. Re-hide them on each open so
   // Assignment-000 chrome never leaks into the graded six; the orientation
   // renderers (labRenderStageBar / labInspectorRender) re-show them when gated in.
-  ['labStageBar', 'labInspector'].forEach((eid) => { const el = $lab(eid); if (el) el.hidden = true; });
+  ['labStageBar', 'labInspector', 'labOrientHeader', 'labMapHeader', 'labTrafficLegend',
+   'labAlertFeed', 'labNotes', 'labStageSummary', 'labConfidence'].forEach((eid) => {
+    const el = $lab(eid); if (el) el.hidden = true;
+  });
+  // Assignment-000 SOC-console redesign: the `lab--orient` root class scopes ALL
+  // orientation CSS. Set it iff this is the orientation lab; remove it for the
+  // graded six so none of the dense-console styling can leak. Presentation-only.
+  const consoleClassEl = $lab('labConsole');
+  if (consoleClassEl) consoleClassEl.classList.toggle('lab--orient', labIsOrientation());
   LAB.stage = 1;
   LAB.ran.clear();
   LAB.read.clear();
@@ -1315,7 +1330,14 @@ function openLab(missionId) {
   // Orientation network-map state (Assignment 000 only) — progressive reveal +
   // per-system trust. Presentation-only: never scored, never persisted. The
   // `start` reaction seeds the opening view (just the flagged workstation).
-  LAB.orient = { reveal: new Set(), trust: {}, ports: false, emphasizeSuspect: false, escalated: false, inspect: null };
+  LAB.orient = {
+    reveal: new Set(), trust: {}, ports: false, emphasizeSuspect: false, escalated: false, inspect: null,
+    // SOC-console redesign (Assignment 000): ordered event log (drives the live
+    // alert feed + analyst notes), per-event timestamps, trainee-added notes, the
+    // slow-motion toggle, and a session start time for the header clock. All
+    // transient — never persisted.
+    events: [], eventTs: {}, userNotes: [], slowMo: false, startTs: Date.now(),
+  };
   if (labIsOrientation()) labOrientApply('start');
 
   // Mission-specific header chrome.
@@ -1342,6 +1364,12 @@ function openLab(missionId) {
   labRefreshObjective();
   labUpdatePrompt();
 
+  // Assignment-000 orientation chrome: header (self-gates), the live session clock
+  // (runToken-guarded interval), and the one-time slow-motion toggle binding.
+  labRenderOrientHeader();
+  labStartOrientClock();
+  labBindSlowMo();
+
   // Host (script.js) hides its own screens; the lab only owns #labConsole.
   if (typeof LAB_HOOKS.onOpen === 'function') LAB_HOOKS.onOpen(LAB.missionId);
   $lab('labConsole').style.display = 'flex';
@@ -1352,6 +1380,11 @@ function openLab(missionId) {
 
 function returnFromLab() {
   LAB.runToken++;
+  // Stop the orientation session clock and drop the orientation CSS scope so the
+  // dense console can never bleed into the Operations Center or a graded mission.
+  if (labOrientClockTimer) { clearInterval(labOrientClockTimer); labOrientClockTimer = null; }
+  const consoleClassEl = $lab('labConsole');
+  if (consoleClassEl) consoleClassEl.classList.remove('lab--orient');
   labIntelHide();
   labCloseModals(); // ensure no glossary/kit popup survives leaving the lab
   $lab('labConsole').style.display = 'none';
@@ -1908,26 +1941,25 @@ function labRenderStageBar() {
     bar.hidden = true; bar.innerHTML = ''; return;
   }
   const states = labStageStates();
-  const steps = states.map((s) => {
-    const cls = s.done ? 'is-done' : s.current ? 'is-current' : 'is-locked';
+  // SOC-console redesign: a 6-up chevron track. Each chevron shows its number (or
+  // a ✓ when done), the stage label, the stage's guiding question, and its two
+  // sub-bullets. Per-chevron accent colours come from CSS nth-child. The older
+  // `.sc-stagebar-list`/`-step` markup is no longer emitted anywhere.
+  const chevs = states.map((s) => {
+    const cls = s.done ? 'is-done' : s.current ? 'is-current' : 'is-upcoming';
     const mark = s.done ? '\u2713' : (s.idx + 1);
-    const lock = s.upcoming ? '<span class="sc-stagebar-lock" aria-hidden="true">\uD83D\uDD12</span>' : '';
+    const subs = (s.sub || []).map((x) => `<li>${labEsc(x)}</li>`).join('');
     return `
-      <li class="sc-stagebar-step ${cls}" ${s.current ? 'aria-current="step"' : ''}
-          title="${labEsc(s.label + (s.question ? ' \u2014 ' + s.question : ''))}">
-        <span class="sc-stagebar-mark" aria-hidden="true">${mark}</span>
-        <span class="sc-stagebar-name">${labEsc(s.label)}</span>
-        ${lock}
-      </li>`;
+      <div class="lab-chev ${cls}" ${s.current ? 'aria-current="step"' : ''}>
+        <div class="lab-chev-top">
+          <span class="lab-chev-num" aria-hidden="true">${mark}</span>
+          <span class="lab-chev-label">${labEsc(s.label)}</span>
+        </div>
+        ${s.question ? `<div class="lab-chev-q">${labEsc(s.question)}</div>` : ''}
+        ${subs ? `<ul class="lab-chev-sub">${subs}</ul>` : ''}
+      </div>`;
   }).join('');
-  const cur = states.find((s) => s.current) || states[states.length - 1];
-  const q = cur
-    ? `<span class="sc-stagebar-q-stage">${labEsc(String(cur.label).toUpperCase())}</span>` +
-      `<span class="sc-stagebar-q-text">${labEsc(cur.question || '')}</span>`
-    : '';
-  bar.innerHTML = `
-    <ol class="sc-stagebar-list">${steps}</ol>
-    <div class="sc-stagebar-q">${q}</div>`;
+  bar.innerHTML = `<div class="lab-chevtrack">${chevs}</div>`;
   bar.hidden = false;
 }
 
@@ -1939,98 +1971,107 @@ function labRenderTutorial(dock) {
   const prog = labTutorialProgress();
   const { dones, total, completed, currentIdx, allDone } = prog;
   const stepNum = allDone ? total : completed + 1;
-  const pct = Math.round((completed / total) * 100);
+  const pct = total ? Math.round((completed / total) * 100) : 0;
+  const curStep = allDone ? null : steps[currentIdx];
 
-  const rows = steps.map((step, i) => {
-    const done = dones[i];
-    const isCurrent = !allDone && i === currentIdx;
-    const cmd = labTutorialCmd(step);
+  // Active SOC stage drives the CURRENT STAGE + TIPS sidebar blocks.
+  const states = labStageStates();
+  const curStage = states.find((s) => s.current) || states[states.length - 1] || null;
 
-    if (done) {
-      return `
-        <li class="lab-tut-step is-done">
-          <span class="lab-tut-mark" aria-hidden="true">\u2713</span>
-          <div class="lab-tut-main">
-            <div class="lab-tut-label">${labEsc(step.label)}</div>
-            <div class="lab-tut-result">${labEsc(step.result)}</div>
-          </div>
-        </li>`;
-    }
-    if (isCurrent) {
-      // CORRELATION stage — this step carries no command. Show the "connect the
-      // clues" summary (with the benign CDN/DNS contrast) and an acknowledge
-      // button that advances to the escalation decision. Presentation-only.
-      if (step.key === 'correlate' && def.correlation) {
-        const c = def.correlation;
-        const clues = (c.clues || []).map((x) => `<li>${labEsc(x)}</li>`).join('');
-        return `
-        <li class="lab-tut-step is-current">
-          <span class="lab-tut-mark" aria-hidden="true">${stepNum}</span>
-          <div class="lab-tut-main">
-            <div class="lab-tut-label">${labEsc(step.label)}</div>
-            <div class="lab-tut-say">${labEsc(c.intro || step.say)}</div>
-            <ul class="lab-tut-clues">${clues}</ul>
-            ${c.contrast ? `<div class="lab-tut-contrast">${labEsc(c.contrast)}</div>` : ''}
-            <div class="lab-tut-summary">${labEsc(c.summary)}</div>
-            <button class="lab-tut-run lab-tut-ack" type="button" data-lab-tut-ack="1">
-              <span class="lab-tut-run-ico" aria-hidden="true">\u25B6</span>
-              <span class="lab-tut-run-txt">${labEsc(c.ack || 'Continue')}</span>
-            </button>
-          </div>
-        </li>`;
-      }
-      // Once the report's multiple-choice options are already on screen, point
-      // at the decision instead of offering a Run button for a command that has
-      // already executed.
-      const choicesOpen = step.key === 'report' && LAB._reportOpen && !LAB.done;
-      const say = choicesOpen
-        ? 'Pick the action your evidence best supports from the choices in the terminal below.'
-        : step.say;
-      const action = choicesOpen ? '' : `
-            <button class="lab-tut-run" type="button" data-lab-tut-run="${labEsc(cmd)}">
-              <span class="lab-tut-run-ico" aria-hidden="true">\u25B6</span>
-              <span class="lab-tut-run-txt">Run&nbsp; <code>${labEsc(cmd)}</code></span>
-            </button>
-            <div class="lab-tut-or">or type it into the terminal yourself</div>`;
-      return `
-        <li class="lab-tut-step is-current">
-          <span class="lab-tut-mark" aria-hidden="true">${stepNum}</span>
-          <div class="lab-tut-main">
-            <div class="lab-tut-label">${labEsc(step.label)}</div>
-            <div class="lab-tut-say">${labEsc(say)}</div>
-            ${action}
-          </div>
-        </li>`;
-    }
-    // Upcoming: show the label (the roadmap) but not the command, so the
-    // beginner sees the arc without being overwhelmed by what is ahead.
-    return `
-      <li class="lab-tut-step is-upcoming">
-        <span class="lab-tut-mark" aria-hidden="true">${i + 1}</span>
-        <div class="lab-tut-main">
-          <div class="lab-tut-label">${labEsc(step.label)}</div>
-        </div>
-      </li>`;
-  }).join('');
-
-  const progress = allDone
-    ? 'Orientation complete \u2014 every step done \u2713'
-    : `Step ${stepNum} of ${total}`;
-
-  // The SOC workflow tracker now lives in the dedicated top stage bar
-  // (labRenderStageBar), so the left dock stays focused purely on the guided
-  // tutorial step the player should act on next.
-
-  dock.innerHTML = `
-    <div class="lab-tut">
-      <div class="lab-tut-head">
-        <span class="lab-tut-kicker">GUIDED TUTORIAL</span>
-        <span class="lab-tut-count">${progress}</span>
-      </div>
-      <div class="lab-tut-bar"><span style="width:${pct}%"></span></div>
-      <ol class="lab-tut-steps">${rows}</ol>
-      <div class="lab-tut-foot">Follow the highlighted step. Each one tells you what just happened, then points you to the next.</div>
+  // ---- MISSION ----
+  const m = def.mission || {};
+  const metaRow = (k, v) => (v
+    ? `<div class="lab-side-metarow"><span class="lab-side-metak">${labEsc(k)}</span><span class="lab-side-metav">${labEsc(v)}</span></div>`
+    : '');
+  const missionBlock = `
+    <div class="lab-side-block" style="--accent:var(--cyan)">
+      <div class="lab-side-head">Mission</div>
+      <div class="lab-side-mission-sum">${labEsc(m.summary || def.context || '')}</div>
+      ${(m.host || m.role) ? `<div class="lab-side-meta">${metaRow('Host', m.host)}${metaRow('Role', m.role)}</div>` : ''}
     </div>`;
+
+  // ---- PROGRESS (ring) ----
+  const C = 150.8;            // 2·π·r for r=24 in the 56×56 ring viewBox
+  const dash = ((pct / 100) * C).toFixed(1);
+  const progLabel = allDone ? 'Orientation complete \u2713' : `Step ${stepNum} of ${total}`;
+  const progressBlock = `
+    <div class="lab-side-block" style="--accent:var(--green)">
+      <div class="lab-side-head">Progress</div>
+      <div class="lab-side-progress">
+        <div class="lab-ring-wrap">
+          <svg class="lab-ring" viewBox="0 0 56 56" aria-hidden="true">
+            <circle class="lab-ring-bg" cx="28" cy="28" r="24"></circle>
+            <circle class="lab-ring-fg" cx="28" cy="28" r="24" stroke-dasharray="${dash} ${C}"></circle>
+          </svg>
+          <span class="lab-ring-pct">${pct}%</span>
+        </div>
+        <div class="lab-prog-txt"><b>${completed}/${total}</b>${labEsc(progLabel)}</div>
+      </div>
+    </div>`;
+
+  // ---- CURRENT STAGE ----
+  const stageBlock = curStage ? `
+    <div class="lab-side-block" style="--accent:var(--blue)">
+      <div class="lab-side-head">Current Stage</div>
+      <div class="lab-side-stage-label">${curStage.idx + 1}. ${labEsc(curStage.label)}</div>
+      ${curStage.question ? `<div class="lab-side-stage-q">${labEsc(curStage.question)}</div>` : ''}
+    </div>` : '';
+
+  // ---- OBJECTIVE (active step + action) ----
+  // Preserves the two non-Run branches: the Correlation acknowledge (no command)
+  // and the report once its multiple-choice options are already on screen.
+  let objBody;
+  if (!curStep) {
+    objBody = '<div class="lab-side-obj-step">Orientation complete \u2014 every step done \u2713</div>';
+  } else if (curStep.key === 'correlate' && def.correlation) {
+    const c = def.correlation;
+    const clues = (c.clues || []).map((x) => `<li>${labEsc(x)}</li>`).join('');
+    objBody = `
+      <div class="lab-side-obj-step">${labEsc(c.intro || curStep.say)}</div>
+      ${clues ? `<ul class="lab-tut-clues">${clues}</ul>` : ''}
+      ${c.contrast ? `<div class="lab-tut-contrast">${labEsc(c.contrast)}</div>` : ''}
+      <button class="lab-side-run is-ghost" type="button" data-lab-tut-ack="1">${labEsc(c.ack || 'Continue')}</button>`;
+  } else {
+    const cmd = labTutorialCmd(curStep);
+    const choicesOpen = curStep.key === 'report' && LAB._reportOpen && !LAB.done;
+    const say = choicesOpen
+      ? 'Pick the action your evidence best supports from the choices in the terminal below.'
+      : curStep.say;
+    objBody = `<div class="lab-side-obj-step">${labEsc(say)}</div>`;
+    if (!choicesOpen) {
+      objBody += `<button class="lab-side-run" type="button" data-lab-tut-run="${labEsc(cmd)}">Run&nbsp;<code>${labEsc(cmd)}</code></button>`;
+    }
+  }
+  const objBlock = `
+    <div class="lab-side-block" style="--accent:var(--green)">
+      <div class="lab-side-head">Objective \u2014 ${labEsc(curStep ? curStep.label : 'Complete')}</div>
+      ${objBody}
+    </div>`;
+
+  // ---- TIPS (active stage aside, else the mission tip) ----
+  const tipText = (curStage && curStage.note) || def.tips || '';
+  const tipsBlock = tipText ? `
+    <div class="lab-side-block" style="--accent:var(--amber)">
+      <div class="lab-side-head">Tips</div>
+      <div class="lab-side-tip">${labEsc(tipText)}</div>
+    </div>` : '';
+
+  // ---- SOC TOOLS (read-only roster; done ✓ / locked 🔒) ----
+  const toolRows = (def.tools || []).map((t) => {
+    const done = labToolDone(t.key);
+    const locked = t.unlock > LAB.stage;
+    const cls = ['lab-tool-row', done ? 'is-done' : '', locked ? 'is-locked' : ''].filter(Boolean).join(' ');
+    const state = done ? '\u2713' : (locked ? '\uD83D\uDD12' : '');
+    return `<div class="${cls}"><span class="lab-tool-ico" aria-hidden="true">${t.icon}</span><span class="lab-tool-name">${labEsc(t.name)}</span><span class="lab-tool-state" aria-hidden="true">${state}</span></div>`;
+  }).join('');
+  const toolsBlock = `
+    <div class="lab-side-block" style="--accent:var(--purple)">
+      <div class="lab-side-head">SOC Tools</div>
+      <div class="lab-side-tools-list">${toolRows}</div>
+    </div>`;
+
+  // Mockup IA order: mission, progress, current stage, objective, tips, tools.
+  dock.innerHTML = missionBlock + progressBlock + stageBlock + objBlock + tipsBlock + toolsBlock;
 
   dock.querySelectorAll('[data-lab-tut-run]').forEach((b) => {
     b.addEventListener('click', () => {
@@ -2866,11 +2907,19 @@ function labOrientApply(event) {
   if (react.ports) LAB.orient.ports = true;
   if (react.emphasizeSuspect) LAB.orient.emphasizeSuspect = true;
   if (react.escalated) LAB.orient.escalated = true;
+  // Record the event (ordered, de-duped) with a wall-clock timestamp so the live
+  // alert feed + analyst notes can key off it. Transient — never persisted.
+  if (!Array.isArray(LAB.orient.events)) LAB.orient.events = [];
+  if (!LAB.orient.eventTs) LAB.orient.eventTs = {};
+  if (!LAB.orient.events.includes(event)) {
+    LAB.orient.events.push(event);
+    LAB.orient.eventTs[event] = labNowHMS();
+  }
   return true;
 }
 
 function labOrientReact(event) {
-  if (labOrientApply(event)) labRenderTopo();
+  if (labOrientApply(event)) { labRenderTopo(); labRenderOrientPanels(); }
 }
 
 /* Human-readable trust label for a system's current state. */
@@ -2892,20 +2941,26 @@ function labOrientTrustMeta(t) {
 /* Append animated pulse dots conveying live traffic along a link. SMIL
  * animateMotion keeps each dot in the SVG's 0–100 coordinate space so it tracks
  * the line exactly. Direction encodes meaning for the beginner:
- *   • calm  (normal / benign)        → TWO-WAY: a request and a response,
- *                                       offset so it reads as healthy back-and-forth.
+ *   • calm  (normal)                  → ONE dot in the request direction.
+ *   • benign (approved external)      → ONE amber dot in the request direction.
  *   • watch (suspicious, unconfirmed) → ONE-WAY INBOUND: a single dot from the
  *                                       source toward the workstation.
  *   • alert (suspicious, confirmed)   → ONE-WAY INBOUND, bursty/irregular pair —
  *                                       the shape of repeated probing.
- * na/nb are the link's a/b nodes; for the suspicious link a=workstation, b=source,
- * so inbound probing is nb → na. Presentation-only. */
+ * calm/benign are capped to a SINGLE dot: with many benign peers revealed at once,
+ * two-way pairs on every link overwhelmed the SVG animation budget. The slow-motion
+ * toggle (LAB.orient.slowMo) stretches every duration so a beginner can follow the
+ * direction of travel. na/nb are the link's a/b nodes; for the suspicious link
+ * a=workstation, b=source, so inbound probing is nb → na. Presentation-only. */
 function labOrientPulse(svg, na, nb, tier, emph, idx) {
   const SVGNS = 'http://www.w3.org/2000/svg';
   const XLINK = 'http://www.w3.org/1999/xlink';
   let dur = 3.4;
   if (tier === 'watch') dur = emph ? 1.7 : 2.3;
   if (tier === 'alert') dur = 1.1;
+  if (tier === 'benign') dur = 3.8;
+  // Slow-motion toggle stretches every dot so the direction of travel is legible.
+  if (LAB.orient && LAB.orient.slowMo) dur *= 2.6;
   let seq = 0;
   // One travelling dot from p1 -> p2, optionally delayed so paired dots stagger.
   const addStream = (p1, p2, begin) => {
@@ -2930,14 +2985,13 @@ function labOrientPulse(svg, na, nb, tier, emph, idx) {
     c.appendChild(am);
     svg.appendChild(c);
   };
-  if (tier === 'calm') {
-    addStream(na, nb, 0);            // request
-    addStream(nb, na, dur * 0.5);    // response (offset)
-  } else if (tier === 'alert') {
+  if (tier === 'alert') {
     addStream(nb, na, 0);            // confirmed probing — bursty inbound pair
     addStream(nb, na, dur * 0.4);
-  } else {
+  } else if (tier === 'watch') {
     addStream(nb, na, 0);            // watch — single one-way inbound hint
+  } else {
+    addStream(na, nb, 0);            // calm / benign — single request-direction dot
   }
 }
 
@@ -3068,6 +3122,13 @@ function labRenderOrientMap() {
   svg.innerHTML = '';
   host.innerHTML = '';
 
+  // Reveal the orientation map chrome — the header strip + slow-motion toggle and
+  // the traffic legend. They are siblings of #labTopoNodes (host), so the wipe
+  // above leaves them intact; show them here and sync the toggle to current state.
+  const mapHead = $lab('labMapHeader'); if (mapHead) mapHead.hidden = false;
+  const tLegend = $lab('labTrafficLegend'); if (tLegend) tLegend.hidden = false;
+  const slowBtn = $lab('labSlowMoBtn'); if (slowBtn) slowBtn.setAttribute('aria-pressed', (O.slowMo ? 'true' : 'false'));
+
   // 1) Trust zones — labelled background bands behind the map.
   (def.topo.zones || []).forEach((z) => {
     const band = document.createElement('div');
@@ -3088,6 +3149,8 @@ function labRenderOrientMap() {
     if (lk.traffic === 'suspicious') {
       const st = trust.source;
       tier = (st === 'offbaseline' || st === 'suspicious' || st === 'watched') ? 'alert' : 'watch';
+    } else if (lk.traffic === 'benign') {
+      tier = 'benign';
     }
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', na.x); line.setAttribute('y1', na.y);
@@ -3142,6 +3205,26 @@ function labRenderOrientMap() {
     host.appendChild(div);
   });
 
+  // 3b) Observed-behavior box — chips beside the suspicious zone that light up as
+  // the matching evidence is confirmed (read-only from existing flags / ran set).
+  // Shown once the unknown source is on the map. Presentation-only.
+  if (O.reveal.has('source') && Array.isArray(def.observedBehavior)) {
+    const lit = {
+      repeat: O.emphasizeSuspect,
+      ports:  LAB.ran.has('ports') || O.ports,
+      owner:  LAB.ran.has('whois'),
+      base:   LAB.ran.has('baseline'),
+    };
+    const chips = def.observedBehavior.map((o) => {
+      const on = !!lit[o.key];
+      return `<div class="lab-obchip ${on ? 'is-on' : ''}"><span class="lab-obchip-mark" aria-hidden="true">${on ? '\u25C9' : '\u25CB'}</span>${labEsc(o.label)}</div>`;
+    }).join('');
+    const box = document.createElement('div');
+    box.className = 'lab-observed';
+    box.innerHTML = `<div class="lab-observed-head">Observed Behavior</div><div class="lab-observed-list">${chips}</div>`;
+    host.appendChild(box);
+  }
+
   // 4) Debrief legend — once the case is escalated, label the resolved categories
   // so the final map doubles as a learning summary. Presentation-only.
   if (O.escalated) {
@@ -3183,6 +3266,10 @@ function labRenderRail(justNew) {
   if (!list) return;
   if (count) count.textContent = String(LAB.pinned.size);
 
+  // Orientation right-rail panels (alert feed / notes / stage summary / confidence)
+  // refresh alongside the evidence count. Self-gates → no-op for graded missions.
+  labRenderOrientPanels();
+
   if (LAB.discovered.length === 0) {
     list.innerHTML = `<div class="sc-rail-empty">${def.fileInvestigation.railEmpty}</div>`;
     return;
@@ -3222,6 +3309,203 @@ function labRenderRail(justNew) {
     // click:true → presentation-only, stops propagation so it never pins.
     if (ind && ind.intel) labIntelBind(btn, ind.intel, ind.label, ind.kind, { click: true });
   });
+}
+
+/* ================================================================== *
+ * ORIENTATION SOC CONSOLE (Assignment 000 only)
+ * The dense-console redesign: a live session clock, a slow-motion traffic
+ * toggle, and four right-rail panels (live alert feed, analyst notes, stage
+ * summary, confidence meter). Every renderer self-gates on labIsOrientation()
+ * and reads ONLY in-memory orientation state — nothing here pins, scores,
+ * awards XP, advances the lab, or persists. Presentation-only.
+ * ================================================================== */
+
+/* Wall-clock HH:MM:SS stamp for a freshly-surfaced alert (transient). */
+function labNowHMS() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+/* Elapsed-session HH:MM:SS for the orientation header clock. */
+function labFmtClock(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(Math.floor(s / 3600))}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`;
+}
+
+function labTickClock() {
+  const el = $lab('labOrientClock');
+  if (!el || !LAB.orient) return;
+  el.textContent = labFmtClock(Date.now() - (LAB.orient.startTs || Date.now()));
+}
+
+/* Start (or restart) the session clock, guarded by the current runToken so a
+ * stale interval from a previous open/return can never keep ticking. */
+function labStartOrientClock() {
+  if (labOrientClockTimer) { clearInterval(labOrientClockTimer); labOrientClockTimer = null; }
+  if (!labIsOrientation()) return;
+  labTickClock();
+  const tok = LAB.runToken;
+  labOrientClockTimer = setInterval(() => {
+    if (tok !== LAB.runToken) { clearInterval(labOrientClockTimer); labOrientClockTimer = null; return; }
+    labTickClock();
+  }, 1000);
+}
+
+/* Show/hide the orientation header strip (its content is static HTML). */
+function labRenderOrientHeader() {
+  const head = $lab('labOrientHeader');
+  if (!head) return;
+  head.hidden = !labIsOrientation();
+}
+
+/* Bind the slow-motion toggle ONCE (its button is a persistent shell element, so
+ * re-binding per render would stack listeners). Toggles LAB.orient.slowMo and
+ * re-renders the map so the new pulse durations take effect. */
+function labBindSlowMo() {
+  if (labSlowMoBound) return;
+  const btn = $lab('labSlowMoBtn');
+  if (!btn) return;
+  labSlowMoBound = true;
+  btn.addEventListener('click', () => {
+    if (!LAB.orient) return;
+    LAB.orient.slowMo = !LAB.orient.slowMo;
+    btn.setAttribute('aria-pressed', LAB.orient.slowMo ? 'true' : 'false');
+    labRenderTopo();
+  });
+}
+
+/* Pure confidence derivation (0..8) — stage reached, evidence pinned, analyst
+ * tools run, correlation acknowledged, report filed. Never scored or persisted. */
+function labConfidenceScore() {
+  let pts = 0;
+  if (LAB.stage >= 2) pts += 1;
+  pts += Math.min(LAB.pinned.size, 2);
+  ['whois', 'ports', 'baseline'].forEach((k) => { if (LAB.ran.has(k)) pts += 1; });
+  if (LAB._correlated) pts += 1;
+  if (LAB.done) pts += 1;
+  return pts;
+}
+
+/* Refresh the four orientation right-rail panels. Self-gates → for graded
+ * missions every panel is hidden and emptied. */
+function labRenderOrientPanels() {
+  const feed = $lab('labAlertFeed');
+  const notes = $lab('labNotes');
+  const summ = $lab('labStageSummary');
+  const conf = $lab('labConfidence');
+  if (!labIsOrientation() || !LAB.def) {
+    [feed, notes, summ, conf].forEach((p) => { if (p) { p.hidden = true; p.innerHTML = ''; } });
+    return;
+  }
+  labRenderAlertFeed(feed);
+  labRenderAnalystNotes(notes);
+  labRenderStageSummary(summ);
+  labRenderConfidence(conf);
+}
+
+/* LIVE ALERT FEED — every surfaced event's alerts, most-recent first. */
+function labRenderAlertFeed(panel) {
+  if (!panel) return;
+  const def = LAB.def;
+  const feed = def.alertFeed || {};
+  const O = LAB.orient || { events: [], eventTs: {} };
+  const items = [];
+  (O.events || []).forEach((ev) => {
+    (feed[ev] || []).forEach((a) => items.push({ sev: a.sev, text: a.text, ts: (O.eventTs && O.eventTs[ev]) || '' }));
+  });
+  items.reverse();
+  const sevCls = (s) => (s === 'high' ? 'is-crit' : s === 'warn' ? 'is-warn' : 'is-info');
+  const sevTxt = (s) => (s === 'high' ? 'Critical' : s === 'warn' ? 'Warning' : 'Info');
+  const body = items.length
+    ? items.map((a) => `
+        <div class="lab-alert ${sevCls(a.sev)}">
+          <span class="lab-alert-time">${labEsc(a.ts)}</span>
+          <div class="lab-alert-body">
+            <div class="lab-alert-sev">${sevTxt(a.sev)}</div>
+            <div class="lab-alert-msg">${labEsc(a.text)}</div>
+          </div>
+        </div>`).join('')
+    : '<div class="lab-alert-empty">No alerts yet — start the investigation.</div>';
+  panel.innerHTML = `
+    <div class="lab-rpanel-head" style="--accent:var(--amber)">
+      <span class="lab-rpanel-dot"></span>Live Alert Feed
+      <span class="lab-rpanel-count">${items.length}</span>
+    </div>${body}`;
+  panel.hidden = false;
+}
+
+/* ANALYST NOTES — auto-notes as findings land, plus trainee-added notes (memory
+ * only). The Add-note button captures a transient note via a prompt. */
+function labRenderAnalystNotes(panel) {
+  if (!panel) return;
+  const def = LAB.def;
+  const auto = def.analystNotes || {};
+  const O = LAB.orient || { events: [], userNotes: [] };
+  const notes = [];
+  (O.events || []).forEach((ev) => { if (auto[ev]) notes.push({ who: 'Auto', text: auto[ev] }); });
+  (O.userNotes || []).forEach((t) => notes.push({ who: 'You', text: t }));
+  const body = notes.length
+    ? notes.map((n) => `<div class="lab-note"><b>${labEsc(n.who)}:</b> ${labEsc(n.text)}</div>`).join('')
+    : '<div class="lab-note-empty">Notes will appear here as you confirm findings.</div>';
+  panel.innerHTML = `
+    <div class="lab-rpanel-head" style="--accent:var(--cyan)">
+      <span class="lab-rpanel-dot"></span>Analyst Notes
+      <span class="lab-rpanel-count">${notes.length}</span>
+    </div>
+    ${body}
+    <button type="button" class="lab-side-run is-ghost" data-lab-note-add="1" style="margin-top:8px">+ Add note</button>`;
+  panel.hidden = false;
+  const add = panel.querySelector('[data-lab-note-add]');
+  if (add) add.addEventListener('click', () => {
+    const t = (window.prompt('Add an analyst note:') || '').trim();
+    if (t && LAB.orient) {
+      (LAB.orient.userNotes = LAB.orient.userNotes || []).push(t);
+      labRenderAnalystNotes(panel);
+    }
+  });
+}
+
+/* STAGE SUMMARY — the full SOC roadmap as a checklist (done ✓ / current ▸). */
+function labRenderStageSummary(panel) {
+  if (!panel) return;
+  const states = labStageStates();
+  const rows = states.map((s) => {
+    const cls = s.done ? 'is-done' : s.current ? 'is-current' : '';
+    const mark = s.done ? '\u2713' : (s.current ? '\u25B8' : '\u25CB');
+    return `<div class="lab-sum-step ${cls}"><span class="lab-sum-mark" aria-hidden="true">${mark}</span>${labEsc(s.label)}</div>`;
+  }).join('');
+  panel.innerHTML = `
+    <div class="lab-rpanel-head" style="--accent:var(--green)">
+      <span class="lab-rpanel-dot"></span>Stage Summary
+    </div>${rows}`;
+  panel.hidden = false;
+}
+
+/* CONFIDENCE LEVEL — pure derivation rendered as a word + meter. */
+function labRenderConfidence(panel) {
+  if (!panel) return;
+  const pts = labConfidenceScore();
+  const pct = Math.round((pts / 8) * 100);
+  const level = pts <= 2 ? 'low' : pts <= 5 ? 'med' : 'high';
+  const word = level === 'low' ? 'LOW' : level === 'med' ? 'MEDIUM' : 'HIGH';
+  const note = level === 'low'
+    ? 'Keep investigating — gather more evidence before deciding.'
+    : level === 'med'
+      ? 'Building a case — a few more checks will confirm it.'
+      : 'Strong, corroborated evidence — enough to escalate.';
+  panel.innerHTML = `
+    <div class="lab-rpanel-head" style="--accent:var(--cyan)">
+      <span class="lab-rpanel-dot"></span>Confidence Level
+    </div>
+    <div class="lab-conf-level">
+      <span class="lab-conf-word is-${level}">${word}</span>
+      <span class="lab-conf-cap">${pct}%</span>
+    </div>
+    <div class="lab-conf-track"><div class="lab-conf-fill is-${level}" style="width:${pct}%"></div></div>
+    <div class="lab-conf-note">${labEsc(note)}</div>`;
+  panel.hidden = false;
 }
 
 /* ------------------------------------------------------------------ *

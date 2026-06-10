@@ -84,17 +84,62 @@ export default {
   // is a one-line aside shown when that stage is active. Presentation-only.
   socStages: [
     { key: 'triage',      label: 'Triage',             question: 'What looks unusual?',
-      note: 'Inspect and search the exported evidence with Linux-style commands.' },
+      note: 'Inspect and search the exported evidence with Linux-style commands.',
+      sub: ['Review the connection snapshot & logs', 'Find the address that keeps coming back'] },
     { key: 'analysis',    label: 'SOC Tool Analysis',  question: 'Does the evidence support the suspicion?',
-      note: 'Validate the suspicion with SOC analyst tools — ownership, ports, baseline.' },
+      note: 'Validate the suspicion with SOC analyst tools — ownership, ports, baseline.',
+      sub: ['Run WHOIS, ports & baseline checks', 'Confirm who owns it and what it touched'] },
     { key: 'correlation', label: 'Correlation',        question: 'How do the clues connect?',
-      note: 'Connect the separate clues into one analyst conclusion.' },
+      note: 'Connect the separate clues into one analyst conclusion.',
+      sub: ['Stack the separate indicators together', 'See the pattern they form'] },
     { key: 'escalation',  label: 'Escalation',         question: 'Do I have enough confidence?',
-      note: 'Decide whether the evidence is strong enough to escalate.' },
+      note: 'Decide whether the evidence is strong enough to escalate.',
+      sub: ['Judge if confidence is high enough', 'Choose the proportionate action'] },
     { key: 'response',    label: 'Response',           question: 'What operational action changes?',
-      note: 'See the consequence your escalation set in motion.' },
+      note: 'See the consequence your escalation set in motion.',
+      sub: ['Watch the consequence of escalating', 'Confirm nothing was over-blocked'] },
     { key: 'debrief',     label: 'Debrief',            question: 'What did we learn?',
-      note: 'Turn the investigation into retained learning.' },
+      note: 'Turn the investigation into retained learning.',
+      sub: ['Capture what the investigation taught', 'Lock in the core triage loop'] },
+  ],
+  // Left-sidebar mission summary + a single analyst tip (orientation only —
+  // presentation-only, never scored). Read by labRenderTutorial's left sidebar.
+  mission: {
+    summary: 'Investigate suspicious activity targeting workstation WS-4471 and decide whether it is worth escalating.',
+    host: 'WS-4471 · 10.0.5.12',
+    role: 'Tier-1 SOC Analyst · Orientation',
+  },
+  tips: 'Investigate first, decide last. Read each result before moving on — every command answers one small question.',
+  // LIVE ALERT FEED (orientation only). Keyed by the mapReact event names; each
+  // event's alerts surface (most-recent first) as the trainee reaches that step.
+  // Timestamps are generated at render time — presentation-only, never persisted.
+  alertFeed: {
+    start:     [{ sev: 'warn', text: 'Sensor flagged repeated inbound contact to WS-4471 from an outside address.' }],
+    cat:       [{ sev: 'info', text: 'Connection snapshot opened — 203.0.113.77 seen across several ports.' }],
+    grep:      [{ sev: 'warn', text: '203.0.113.77 touched ssh, http, https & mysql — multi-service probing.' }],
+    whois:     [{ sev: 'high', text: 'WHOIS: 203.0.113.77 has no registered owner and no abuse contact.' }],
+    ports:     [{ sev: 'warn', text: 'Port map: source reached services WS-4471 does not even run.' }],
+    baseline:  [{ sev: 'warn', text: 'Baseline check: 203.0.113.77 is NOT on the known-good peer list.' }],
+    correlate: [{ sev: 'high', text: 'Correlation: unknown source + unrelated ports + off-baseline = recon.' }],
+    escalate:  [{ sev: 'high', text: 'Case escalated to tier-2 · WS-4471 monitored · source watchlisted.' }],
+  },
+  // ANALYST NOTES (orientation only). Auto-notes accrue as findings land, keyed
+  // by event. The trainee can also add their own (kept in memory only).
+  analystNotes: {
+    cat:       'One outside address (203.0.113.77) keeps reappearing across multiple ports.',
+    grep:      'Suspect touched four unrelated services — looks like probing, not normal use.',
+    whois:     'Source is anonymous infrastructure — no registered owner, no abuse contact.',
+    ports:     'Source reached ports this host does not run — the shape of blind probing.',
+    baseline:  'Source is off-baseline; the CDN and DNS beside it are known-good.',
+    correlate: 'The clues stack into one pattern — recommending escalation.',
+  },
+  // OBSERVED BEHAVIOR box (orientation only) — chips beside the Unknown Host on
+  // the map. Each lights up once the matching evidence is confirmed.
+  observedBehavior: [
+    { key: 'repeat', label: 'Repeated attempts' },
+    { key: 'ports',  label: 'Multiple ports' },
+    { key: 'owner',  label: 'Unknown ownership' },
+    { key: 'base',   label: 'Off-baseline' },
   ],
   // Guided tutorial (orientation only — gated on report.choices). The engine
   // (labRenderTutorial) renders these as an ordered, checkable step list in the
@@ -298,7 +343,7 @@ export default {
     // Each node carries a readable identity: a name, what kind of system it is,
     // and its address — so it reads as a device, not a dot.
     nodes: {
-      'workstation': { x: 14, y: 50, zone: 'internal-user', glyph: '💻',
+      'workstation': { x: 14, y: 40, zone: 'internal-user', glyph: '💻',
         label: 'WS-4471', sysType: 'Employee Workstation', ip: '10.0.5.12', baseTrust: 'internal',
         intel: {
           what: 'The employee workstation that was flagged — your starting point.',
@@ -308,7 +353,7 @@ export default {
           means: 'An employee\u2019s computer — the host this whole investigation is about.',
           care: 'Analysts check whether outside systems are talking to it in expected ways.',
           next: 'Which outside addresses is it talking to, and are they expected?' } },
-      'dns': { x: 36, y: 32, zone: 'internal-svc', glyph: '🧭',
+      'dns': { x: 37, y: 22, zone: 'internal-svc', glyph: '🧭',
         label: 'Internal DNS', sysType: 'Name resolution', ip: '10.0.5.1', baseTrust: 'service',
         intel: {
           what: 'The internal DNS server the workstation uses to look up addresses.',
@@ -318,7 +363,7 @@ export default {
           means: 'The internal server that turns names into addresses for the workstation.',
           care: 'Internal DNS traffic is routine — it shows what normal looks like.',
           next: 'Does this match the known-good baseline of expected peers?' } },
-      'fileserver': { x: 36, y: 72, zone: 'internal-svc', glyph: '🗂️',
+      'fileserver': { x: 37, y: 50, zone: 'internal-svc', glyph: '🗂️',
         label: 'File Server', sysType: 'Internal file share', ip: '10.0.5.30', baseTrust: 'service',
         intel: {
           what: 'An internal file server the workstation talks to over SMB.',
@@ -328,7 +373,7 @@ export default {
           means: 'An internal file share the workstation uses over SMB.',
           care: 'Routine internal file traffic — the kind of contact you expect.',
           next: 'Confirm it sits on the approved peer list, then move on.' } },
-      'cdn': { x: 62, y: 40, zone: 'external', glyph: '🌐',
+      'cdn': { x: 63, y: 22, zone: 'external', glyph: '🌐',
         label: 'CDN', sysType: 'Content delivery', ip: '198.51.100.20', baseTrust: 'external',
         intel: {
           what: 'A public content-delivery network the workstation fetches assets from.',
@@ -349,6 +394,46 @@ export default {
           means: 'An unregistered outside address contacting the workstation repeatedly.',
           care: 'Unknown infrastructure has to be validated — owner, ports, baseline.',
           next: 'Who owns it, which ports did it hit, and is it on the baseline?' } },
+      'ws2': { x: 14, y: 72, zone: 'internal-user', glyph: '💻',
+        label: 'WS-4488', sysType: 'Employee Workstation', ip: '10.0.5.18', baseTrust: 'internal',
+        intel: {
+          what: 'A neighbouring employee workstation on the same internal segment.',
+          technique: 'Baseline comparison.',
+          why: 'A second normal host — a picture of healthy internal activity for contrast.' },
+        inspect: {
+          means: 'Another employee computer on the same internal network as WS-4471.',
+          care: 'Its traffic is routine — a baseline for what normal looks like.',
+          next: 'Nothing to chase here — compare it against the flagged host.' } },
+      'identity': { x: 37, y: 78, zone: 'internal-svc', glyph: '🔑',
+        label: 'Identity Service', sysType: 'Single sign-on / auth', ip: '10.0.5.8', baseTrust: 'service',
+        intel: {
+          what: 'The internal identity / single-sign-on service the workstations authenticate against.',
+          technique: 'Baseline comparison.',
+          why: 'Expected internal auth traffic — part of the known-good picture.' },
+        inspect: {
+          means: 'The internal service that signs employees in across the network.',
+          care: 'Routine auth traffic is expected — it is on the baseline.',
+          next: 'Confirm it is known-good, then rule it out.' } },
+      'update': { x: 63, y: 50, zone: 'external', glyph: '⬇️',
+        label: 'Software Update Vendor', sysType: 'Patch / update service', ip: '198.51.100.42', baseTrust: 'external',
+        intel: {
+          what: 'A public software-update vendor the workstation pulls patches from.',
+          technique: 'Baseline comparison.',
+          why: 'External but approved — known-good once matched to the baseline.' },
+        inspect: {
+          means: 'A public vendor the workstation downloads software updates from.',
+          care: 'External traffic is not automatically bad — approved vendors are benign.',
+          next: 'Check it against the baseline (it is approved).' } },
+      'microsoft': { x: 63, y: 74, zone: 'external', glyph: '☁️',
+        label: 'Microsoft Services', sysType: 'Cloud productivity', ip: '52.96.0.10', baseTrust: 'external',
+        intel: {
+          what: 'Public Microsoft cloud services (mail / productivity) the workstation uses.',
+          technique: 'Baseline comparison.',
+          why: 'Expected external SaaS traffic — approved and benign.' },
+        inspect: {
+          means: 'Public Microsoft cloud services the workstation legitimately uses.',
+          care: 'Well-known approved SaaS — benign external traffic.',
+          next: 'Confirm on the baseline and rule it out.' } },
     },
     // Traffic type drives the animated pulses: calm cyan for normal/expected
     // contact, irregular red for the suspicious source.
@@ -390,18 +475,54 @@ export default {
           means: 'Repeated one-way contact from an unknown address toward the workstation.',
           care: 'One-way or repeated probing can mean scanning — it must be verified.',
           next: 'Check ownership, ports touched, and the baseline.' } },
+      { a: 'workstation', b: 'identity', traffic: 'normal',
+        intel: {
+          what: 'Normal two-way single-sign-on traffic.',
+          technique: 'Connection snapshot review.',
+          why: 'Workstations authenticate against identity — expected back-and-forth.' },
+        inspect: {
+          means: 'Normal two-way single-sign-on traffic.',
+          care: 'Workstations authenticate against identity — expected back-and-forth.',
+          next: 'Another picture of healthy internal traffic.' } },
+      { a: 'workstation', b: 'update', traffic: 'benign',
+        intel: {
+          what: 'Two-way traffic to an approved software-update vendor.',
+          technique: 'Baseline comparison.',
+          why: 'Approved external updates are benign if on the baseline.' },
+        inspect: {
+          means: 'Two-way traffic to an approved software-update vendor.',
+          care: 'Approved external updates are benign if on the baseline.',
+          next: 'Check the baseline before ruling it in or out.' } },
+      { a: 'workstation', b: 'microsoft', traffic: 'benign',
+        intel: {
+          what: 'Two-way traffic to Microsoft cloud services.',
+          technique: 'Baseline comparison.',
+          why: 'Well-known approved SaaS — benign external traffic.' },
+        inspect: {
+          means: 'Two-way traffic to Microsoft cloud services.',
+          care: 'Well-known approved SaaS — benign external traffic.',
+          next: 'Confirm on the baseline, then rule it out.' } },
+      { a: 'ws2', b: 'identity', traffic: 'normal',
+        intel: {
+          what: 'A neighbouring workstation authenticating normally.',
+          technique: 'Connection snapshot review.',
+          why: 'Routine internal auth — healthy background traffic.' },
+        inspect: {
+          means: 'A neighbouring workstation authenticating normally.',
+          care: 'Routine internal auth — healthy background traffic.',
+          next: 'Nothing to chase — a baseline of normal.' } },
     ],
     // Orientation-only map reactions: each event reveals systems and/or updates
     // trust as the investigation progresses. Consumed by labOrientReact (gated on
     // labIsOrientation). Presentation-only — no scoring, XP, or persistence.
     mapReact: {
       start:     { reveal: ['workstation'], trust: { workstation: 'internal' } },
-      cat:       { reveal: ['dns', 'fileserver', 'cdn', 'source'],
-                   trust: { dns: 'service', fileserver: 'service', cdn: 'external', source: 'unverified' } },
+      cat:       { reveal: ['dns', 'fileserver', 'identity', 'cdn', 'update', 'microsoft', 'source', 'ws2'],
+                   trust: { dns: 'service', fileserver: 'service', identity: 'service', cdn: 'external', update: 'external', microsoft: 'external', source: 'unverified', ws2: 'internal' } },
       grep:      { emphasizeSuspect: true },
       whois:     { trust: { source: 'offbaseline' } },
       ports:     { ports: true },
-      baseline:  { trust: { dns: 'knowngood', fileserver: 'knowngood', cdn: 'knowngood', source: 'offbaseline' } },
+      baseline:  { trust: { dns: 'knowngood', fileserver: 'knowngood', identity: 'knowngood', cdn: 'knowngood', update: 'knowngood', microsoft: 'knowngood', source: 'offbaseline' } },
       correlate: { trust: { source: 'suspicious' } },
       escalate:  { escalated: true, trust: { source: 'watched', workstation: 'monitored' } },
     },
