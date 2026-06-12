@@ -1,0 +1,743 @@
+# ETHICAL CYBERHACKERS
+
+# CAREER SIMULATION REBUILD
+
+# MASTER REPLIT IMPLEMENTATION PROMPT
+
+## PROJECT DIRECTION
+
+We are refactoring the cybersecurity simulation into a role-based cybersecurity career simulator.
+
+The objective is no longer to teach isolated cybersecurity concepts.
+
+The objective is to simulate the responsibilities, decisions, tradeoffs, pressures, and consequences experienced by cybersecurity professionals throughout their careers.
+
+The platform must start with the Cybersecurity Intern role but be architected from the beginning to support future career progression without requiring major rewrites.
+
+Future roles will introduce increasing authority, budget responsibility, policy influence, executive communication, and organizational risk management.
+
+Do not build future roles yet.
+
+Build only the Cybersecurity Intern experience.
+
+However, all architecture must be role-aware and future-ready.
+
+---
+
+# CORE DESIGN PHILOSOPHY
+
+Do NOT build:
+
+* quiz engine
+* flashcard engine
+* lesson engine
+* command memorization engine
+
+Build:
+
+* investigation engine
+* decision engine
+* consequence engine
+* career progression engine
+* organizational risk engine
+
+Every mission must follow:
+
+Alert
+→
+Investigation
+→
+Evidence Collection
+→
+Risk Assessment
+→
+Decision
+→
+Response
+→
+Consequence
+→
+Mission Report
+→
+Future Impact
+
+The student should feel like a member of a cybersecurity department.
+
+Not a student completing lessons.
+
+---
+
+# CAREER PROGRESSION ARCHITECTURE
+
+Future Roles (Locked)
+
+1. Cybersecurity Intern
+2. Junior SOC Analyst
+3. SOC Analyst
+4. Senior Security Analyst
+5. Security Manager
+6. Director of Cybersecurity
+7. Chief Information Security Officer
+
+Only Cybersecurity Intern is active.
+
+All future roles should exist as configuration objects only.
+
+No future role missions should be built yet.
+
+---
+
+# ROLE SYSTEM
+
+Create a reusable role configuration framework.
+
+Example:
+
+{
+id: "cybersecurity_intern",
+title: "Cybersecurity Intern",
+department: "Security Operations",
+authorityLevel: 1,
+
+canViewBudget: true,
+canAffectBudget: true,
+
+canRecommend: true,
+canEscalate: true,
+
+canRequestBudget: false,
+canApproveBudget: false,
+
+canPurchaseTools: false,
+canChangePolicy: false,
+canHireConsultants: false,
+canEngageExecutives: false,
+
+allowedActions: [
+"investigate",
+"classify",
+"recommend",
+"escalate",
+"document"
+]
+}
+
+Future roles will progressively unlock authority.
+
+---
+
+# ALWAYS VISIBLE RESOURCE BAR
+
+The following resources must always remain visible at the top of the screen.
+
+ROLE: Cybersecurity Intern
+
+Authority:
+Investigate | Recommend | Escalate | Document
+
+Security Posture: 72
+Organization Budget: $50,000
+Executive Trust: 75
+Compliance Exposure: 0
+Career Reputation: 0
+Business Continuity: 85
+
+These values remain visible throughout every mission.
+
+Students must continuously see the impact of their decisions.
+
+---
+
+# RESOURCE DEFINITIONS
+
+## Security Posture
+
+Represents organizational security health.
+
+Range:
+
+0-100
+
+Higher is better.
+
+---
+
+## Organization Budget
+
+Represents organizational spending capacity.
+
+Used to demonstrate:
+
+* legal costs
+* incident response costs
+* recovery costs
+* consultant costs
+* security investments
+
+Interns cannot spend budget.
+
+Interns can only affect budget through decisions.
+
+---
+
+## Executive Trust
+
+Represents leadership confidence.
+
+High trust improves future approvals.
+
+Low trust restricts opportunities.
+
+Range:
+
+0-100
+
+---
+
+## Compliance Exposure
+
+Represents legal and regulatory risk.
+
+Range:
+
+0-100
+
+Lower is better.
+
+---
+
+## Career Reputation
+
+Represents student progression.
+
+Used for:
+
+* promotions
+* unlocks
+* future role advancement
+
+Range:
+
+0-100
+
+---
+
+## Business Continuity
+
+Represents operational stability.
+
+Range:
+
+0-100
+
+Higher is better.
+
+Security actions can improve security while reducing continuity.
+
+Students must learn tradeoffs.
+
+---
+
+# PERSISTENT PLAYER STATE
+
+Create persistent state storage.
+
+Store:
+
+{
+securityPosture,
+organizationBudget,
+executiveTrust,
+complianceExposure,
+careerReputation,
+businessContinuity,
+currentRole,
+currentRank,
+missionFlags
+}
+
+Persist using localStorage.
+
+---
+
+# OPERATING CENTER LAYOUT
+
+Four primary panels only.
+
+1. Mission Brief
+2. Evidence Panel
+3. Terminal / Action Panel
+4. Feedback / Consequence Panel
+
+Do not add additional complex interface systems.
+
+Keep layout clean.
+
+Keep layout expandable.
+
+---
+
+# TERMINAL DESIGN RULE
+
+Commands are not lessons.
+
+Commands are tools.
+
+Every command must reveal evidence.
+
+Allowed commands:
+
+ls
+cat
+less
+grep
+tail
+stat
+ip addr
+ping
+nmap
+history
+
+Do not reward command usage.
+
+Reward investigation quality.
+
+---
+
+# DECISION ENGINE
+
+Every major decision must affect multiple dimensions.
+
+Every decision must modify at least three of:
+
+* Security Posture
+* Organization Budget
+* Executive Trust
+* Compliance Exposure
+* Career Reputation
+* Business Continuity
+* Future Mission Flags
+
+No simple:
+
+Correct = +10 XP
+
+Wrong = -10 XP
+
+Every decision should create tradeoffs.
+
+---
+
+# CONSEQUENCE ENGINE
+
+Every decision should display:
+
+Immediate Impact
+
+Business Impact
+
+Resource Changes
+
+Future Impact
+
+Example:
+
+Employee salary data exposed.
+
+Security Posture:
+-25
+
+Organization Budget:
+-$15,000
+
+Executive Trust:
+-20
+
+Compliance Exposure:
++35
+
+Career Reputation:
+-10
+
+Business Continuity:
++3
+
+Business Impact:
+
+Legal review required.
+HR investigation initiated.
+Employee confidence reduced.
+
+Future Impact:
+
+Future missions may contain legal scrutiny.
+
+---
+
+# LOCKED AUTHORITY SYSTEM
+
+When Intern selects unavailable action:
+
+Example:
+
+Purchase Endpoint Detection
+
+Display:
+
+ACTION LOCKED
+
+Cybersecurity Interns do not have authority to purchase tools.
+
+Alternative Available:
+
+Submit Recommendation
+
+Never simply disable buttons.
+
+Explain why authority is restricted.
+
+---
+
+# RECOMMENDATION SYSTEM
+
+Interns cannot:
+
+* spend budget
+* purchase tools
+* approve controls
+* hire consultants
+
+Interns can submit recommendations.
+
+Recommendations:
+
+* MFA Deployment
+* Endpoint Detection
+* Security Awareness Training
+* Device Removal
+* Incident Escalation
+* Legal Review
+* Account Lockout
+* Policy Review
+
+Recommendation outcomes:
+
+Approved
+
+Denied
+
+Deferred
+
+Partially Approved
+
+Approval depends on:
+
+* evidence quality
+* incident severity
+* executive trust
+* career reputation
+* timing
+
+---
+
+# CYBERSECURITY INTERN CURRICULUM
+
+The first role contains four connected missions.
+
+All missions are part of the same attack campaign.
+
+Students should gradually realize they are investigating one attacker.
+
+---
+
+# MISSION 1
+
+Protect Sensitive Information
+
+Curriculum Goals:
+
+* Data Classification
+* Information Handling
+* Compliance Risk
+* Business Consequences
+
+Terminal Actions:
+
+ls
+cat
+less
+
+Student Tasks:
+
+Review files.
+
+Classify files.
+
+Determine handling action.
+
+Explain reasoning.
+
+Investigate suspicious contractor activity.
+
+Classification:
+
+Public
+Internal
+Confidential
+Restricted
+
+Actions:
+
+Approve Release
+Restrict Access
+Recommend Legal Review
+Archive
+Escalate
+
+Locked:
+
+Change Policy
+Direct Executive Approval
+
+Carry Forward Flags:
+
+contractorAccessDiscovered
+sensitiveDataExposed
+legalReviewTriggered
+
+---
+
+# MISSION 2
+
+Investigate Network Assets
+
+Curriculum Goals:
+
+* Networking Fundamentals
+* Asset Discovery
+* Service Enumeration
+* Risk Assessment
+
+Terminal Actions:
+
+ip addr
+ping
+nmap
+cat asset_inventory.txt
+cat dhcp_leases.txt
+
+Student Tasks:
+
+Identify unknown device.
+
+Determine risk.
+
+Recommend action.
+
+Investigate relationship to contractor activity.
+
+Actions:
+
+Recommend Disconnect
+Monitor
+Escalate
+Continue Investigation
+Ignore
+
+Locked:
+
+Disconnect Device Directly
+Purchase Security Tools
+Modify Network Policy
+
+Carry Forward Flags:
+
+rogueDeviceActive
+rogueDeviceContained
+contractorDeviceLinked
+
+---
+
+# MISSION 3
+
+Investigate Suspicious Authentication Activity
+
+Curriculum Goals:
+
+* Log Analysis
+* Authentication Security
+* Threat Detection
+* Credential Attack Investigation
+
+Terminal Actions:
+
+cat auth.log
+grep
+tail
+cat login_locations.log
+cat user_access.log
+
+Student Tasks:
+
+Analyze login activity.
+
+Determine attack type.
+
+Collect evidence.
+
+Recommend response.
+
+Actions:
+
+Recommend Password Reset
+
+Recommend MFA
+
+Recommend Account Lock
+
+Escalate Incident
+
+Ignore Alert
+
+Locked:
+
+Enable MFA Directly
+Disable Account Directly
+Modify Authentication Policy
+
+Carry Forward Flags:
+
+mfaRecommended
+mfaApproved
+contractorAccountCompromised
+credentialRiskHigh
+
+---
+
+# MISSION 4
+
+Data Exfiltration Investigation
+
+Curriculum Goals:
+
+* Incident Response
+* Timeline Reconstruction
+* Root Cause Analysis
+* Business Impact Assessment
+* Executive Reporting
+
+Terminal Actions:
+
+cat file_access.log
+cat transfer.log
+cat login_history.log
+grep "download"
+stat
+history
+
+Student Tasks:
+
+Build timeline.
+
+Identify root cause.
+
+Determine breach path.
+
+Assess business impact.
+
+Prepare incident report.
+
+Actions:
+
+Recommend Account Disablement
+
+Recommend Device Block
+
+Recommend Legal Notification
+
+Recommend Forensics Review
+
+Recommend Customer Notification
+
+Submit Incident Report
+
+Locked:
+
+Hire Consultant
+Engage Legal Directly
+Notify Executives Directly
+Approve Public Disclosure
+
+Mission outcome must dynamically change based on:
+
+Mission 1 decisions
+
+Mission 2 decisions
+
+Mission 3 decisions
+
+---
+
+# PROMOTION SYSTEM
+
+After Mission 4 evaluate:
+
+Security Posture
+
+Organization Budget
+
+Executive Trust
+
+Compliance Exposure
+
+Career Reputation
+
+Business Continuity
+
+Evidence Quality
+
+Recommendation Quality
+
+Report Quality
+
+Results:
+
+Needs Additional Training
+
+Cybersecurity Intern II
+
+Senior Cybersecurity Intern
+
+Junior SOC Analyst Candidate
+
+Do not unlock Junior SOC Analyst yet.
+
+Only display preview.
+
+---
+
+# FUTURE ROLE READINESS
+
+Build all systems so future roles can later unlock:
+
+Budget Requests
+
+Budget Approvals
+
+Tool Purchases
+
+Policy Changes
+
+Vendor Management
+
+Executive Communication
+
+Board Presentations
+
+Incident Command
+
+Security Program Management
+
+The Cybersecurity Intern role should expose these concepts through visibility and recommendations while withholding authority.
+
+The architecture must support future expansion without requiring redesign of the mission engine, resource engine, decision engine, consequence engine, recommendation engine, or operating center.
