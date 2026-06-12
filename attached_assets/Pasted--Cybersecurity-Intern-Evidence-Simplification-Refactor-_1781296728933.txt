@@ -1,0 +1,314 @@
+# Cybersecurity Intern Evidence Simplification Refactor
+
+The current investigation flow is good and should remain intact.
+
+Do NOT redesign the mission engine.
+
+Do NOT redesign the operating center.
+
+Do NOT remove investigation mechanics.
+
+Do NOT remove professional cybersecurity terminology.
+
+The problem is that Cybersecurity Intern missions are exposing SOC Analyst-level evidence and terminology too early.
+
+The current experience assumes knowledge that beginners do not yet possess.
+
+Examples:
+
+* rundll32.exe
+* unsigned DLL
+* beaconing
+* jitter
+* C2
+* process spawning
+* IP reputation
+* netflow patterns
+
+These concepts should not be the primary information shown to Cybersecurity Intern students.
+
+The student should first learn how to think like an analyst before being exposed to analyst-level terminology.
+
+---
+
+# Design Goal
+
+Refactor evidence presentation into progressive learning layers.
+
+Every artifact, evidence item, alert, process, log, or investigation finding should support three layers:
+
+## Layer 1: Beginner View
+
+Show plain-language explanation.
+
+Example:
+
+Instead of:
+
+rundll32.exe loading an unsigned DLL from a public directory
+
+Display:
+
+A Microsoft Word document started another program.
+
+That program is contacting an unknown internet server every minute.
+
+The file was not verified by the company.
+
+Question:
+
+Does this behavior seem normal or suspicious?
+
+---
+
+## Layer 2: Analyst Observation
+
+Show semi-technical explanation.
+
+Example:
+
+Word launched rundll32.exe.
+
+The program is making regular outbound connections.
+
+The file is unsigned.
+
+This pattern is often associated with malware.
+
+---
+
+## Layer 3: Technical Details
+
+Show full professional details.
+
+Example:
+
+Parent:
+winword.exe
+
+Process:
+rundll32.exe
+
+DLL:
+C:\Users\Public\msupd.dll
+
+Signature:
+Unsigned
+
+Behavior:
+HTTPS beacon every 60s ± jitter
+
+Potential C2 activity
+
+---
+
+# Cybersecurity Intern Evidence Rules
+
+For the Cybersecurity Intern role:
+
+Always show Beginner View first.
+
+Technical details should be hidden behind:
+
+"Show Analyst Notes"
+
+or
+
+"Technical Details"
+
+button.
+
+Students should not be required to understand advanced terminology to complete missions.
+
+Students should be rewarded for reasoning, not memorization.
+
+---
+
+# Replace Immediate Classification
+
+Current:
+
+Flag Malicious
+Mark Benign
+
+Replace with:
+
+What concerns you?
+
+□ Unknown internet communication
+
+□ Unexpected program started
+
+□ File not verified
+
+□ Activity seems normal
+
+□ Need more information
+
+After selecting observations:
+
+Then ask:
+
+Based on your findings:
+
+○ Benign
+○ Suspicious
+○ Malicious
+
+This teaches analytical thinking.
+
+---
+
+# Mission Difficulty Progression
+
+Mission 1
+
+Use almost no advanced cybersecurity terminology.
+
+Focus on:
+
+* sensitive information
+* suspicious activity
+* business risk
+* security decisions
+
+---
+
+Mission 2
+
+Introduce:
+
+* device
+* network
+* IP address
+* server
+
+Avoid:
+
+* beaconing
+* jitter
+* lateral movement
+
+---
+
+Mission 3
+
+Introduce:
+
+* login attempts
+* failed passwords
+* account compromise
+* authentication
+
+Introduce only a small amount of log terminology.
+
+---
+
+Mission 4
+
+Introduce:
+
+* data transfer
+* file access
+* timeline analysis
+* incident response
+
+Still avoid excessive SOC terminology.
+
+---
+
+# Progressive Terminology System
+
+Create terminology unlocks.
+
+Cybersecurity Intern:
+
+Beginner terminology.
+
+Junior SOC Analyst:
+
+Mixed terminology.
+
+SOC Analyst:
+
+Professional terminology.
+
+Example:
+
+Cybersecurity Intern:
+
+"Unknown internet connection"
+
+Junior SOC Analyst:
+
+"Regular outbound network communication"
+
+SOC Analyst:
+
+"Periodic HTTPS beaconing"
+
+The same evidence can exist underneath.
+
+Only the presentation changes.
+
+---
+
+# Add Educational Tooltips
+
+Every technical term should support hover or click explanation.
+
+Example:
+
+Beaconing
+
+Definition:
+
+A compromised device repeatedly contacting a remote server at regular intervals.
+
+Why it matters:
+
+Attackers often use this behavior to maintain communication with infected systems.
+
+---
+
+# Add Beginner Mode Toggle
+
+For Cybersecurity Intern missions:
+
+Display:
+
+Evidence View
+
+○ Beginner View
+○ Analyst View
+
+Beginner View should be default.
+
+Analyst View should expose the professional terminology for curious students.
+
+---
+
+# Goal
+
+The student should first learn:
+
+1. What looks suspicious.
+2. Why it looks suspicious.
+3. What action should be taken.
+
+Only afterward should they learn:
+
+* process names
+* DLLs
+* beaconing
+* jitter
+* command-line artifacts
+* advanced SOC terminology
+
+Keep the current mission flow.
+
+Keep the current investigation structure.
+
+Keep the current evidence engine.
+
+Only refactor how evidence is presented so that Cybersecurity Intern students can understand and reason about the information before being exposed to advanced cybersecurity terminology.
