@@ -457,7 +457,8 @@ function simPrint(text, cls) {
 /* ================================================================== *
  * INVESTIGATION ENGINE (P2) — terminal (ls/cat/less), evidence,
  * file classification. Reward is investigation QUALITY (weighted
- * evidence surfaced), never command count. All content is data-driven.
+ * evidence surfaced + files classified correctly), never command count.
+ * All content is data-driven.
  * ================================================================== */
 const CLASSIFICATIONS = [
   { id: 'public',       label: 'Public' },
@@ -490,6 +491,19 @@ function evidenceQuality() {
   let got = 0;
   SIM.evidence.forEach(id => { const e = evidenceById(id); if (e) got += (e.qualityWeight || 0); });
   return Math.min(1, got / total);
+}
+
+/* Fraction (0..1) of files classified CORRECTLY against ground truth. This feeds
+ * the recommendation engine alongside evidence quality, so misfiling sensitive
+ * data (or leaving files unclassified) weakens the case — classification is a
+ * real gameplay input, never cosmetic. Measured over EVERY file (the objective
+ * is to classify each one), so skipping files costs accuracy. */
+function classificationQuality() {
+  const files = simFiles();
+  if (!files.length) return 0;
+  let correct = 0;
+  files.forEach(f => { if (SIM.classified[f.name] === f.trueClassification) correct++; });
+  return correct / files.length;
 }
 
 /* Terminal command router. ls / cat / less per the Mission 1 spec, plus help,
@@ -672,22 +686,24 @@ function submitRecommendation(recId) {
  * trust + career reputation + timing (evidence gathered before deciding). */
 function computeRecommendationOutcome() {
   const q = evidenceQuality();
+  const cq = classificationQuality();
   const timing = SIM.evidence.size > 0 ? 1 : 0;
   const sev = (SIM.def && SIM.def.severity) || 'MEDIUM';
   const sevBoost = sev === 'CRITICAL' ? 10 : sev === 'HIGH' ? 10 : sev === 'MEDIUM' ? 5 : 0;
   let score = 0;
-  score += q * 45;                                   // investigation quality dominates
-  score += (CAREER.executiveTrust / 100) * 20;
-  score += (CAREER.careerReputation / 100) * 15;
-  score += timing ? 10 : 0;
-  score += allFilesRead() ? 10 : 0;
+  score += q * 30;                                   // evidence surfaced
+  score += cq * 25;                                  // files classified correctly
+  score += (CAREER.executiveTrust / 100) * 12;
+  score += (CAREER.careerReputation / 100) * 8;
+  score += timing ? 8 : 0;
+  score += allFilesRead() ? 7 : 0;
   score += sevBoost;
   let verdict, multiplier;
   if (score >= 70)      { verdict = 'Approved';            multiplier = 1;   }
   else if (score >= 50) { verdict = 'Partially Approved';  multiplier = 0.6; }
   else if (score >= 30) { verdict = 'Deferred';            multiplier = 0.3; }
   else                  { verdict = 'Denied';              multiplier = 0;   }
-  return { verdict, multiplier, score: Math.round(score), evidenceQuality: q };
+  return { verdict, multiplier, score: Math.round(score), evidenceQuality: q, classificationQuality: cq };
 }
 
 function scaleDeltas(deltas, m) {
@@ -697,11 +713,12 @@ function scaleDeltas(deltas, m) {
 }
 
 function recommendationReason(o) {
-  const pct = Math.round(o.evidenceQuality * 100);
-  if (o.verdict === 'Approved')           return `Strong, well-evidenced case (${pct}% of evidence gathered). Leadership approved it in full.`;
-  if (o.verdict === 'Partially Approved') return `Reasonable case (${pct}% of evidence gathered). Leadership approved part of it, pending more support.`;
-  if (o.verdict === 'Deferred')           return `Thin evidence (${pct}% gathered). Leadership deferred the decision for now.`;
-  return `Insufficient evidence (${pct}% gathered). Leadership declined — gather more before recommending.`;
+  const ev = Math.round(o.evidenceQuality * 100);
+  const cl = Math.round((o.classificationQuality || 0) * 100);
+  if (o.verdict === 'Approved')           return `Strong, well-evidenced case — ${ev}% of evidence gathered, ${cl}% of files classified correctly. Leadership approved it in full.`;
+  if (o.verdict === 'Partially Approved') return `Reasonable case — ${ev}% evidence, ${cl}% classified correctly. Leadership approved part of it, pending tighter work.`;
+  if (o.verdict === 'Deferred')           return `Thin work — ${ev}% evidence, ${cl}% classified correctly. Leadership deferred the decision for now.`;
+  return `Insufficient case — ${ev}% evidence, ${cl}% classified correctly. Leadership declined — investigate and classify before recommending.`;
 }
 
 /* CONSEQUENCE + REPORT — Immediate / Business / Resource / Future, plus the
@@ -771,11 +788,14 @@ function reportSectionHtml() {
     ? setFlags.map(f => `<li class="sim-report-flag"><span class="sim-report-flag-icon">▸</span><span>${FLAG_LABELS[f] || f}</span></li>`).join('')
     : `<li class="sim-report-flag"><span class="sim-report-flag-icon">▸</span><span>No carry-forward flags raised.</span></li>`;
 
-  // Classification review — learning feedback (suggested handling), never scored.
-  const rows = simFiles().map(f => {
+  // Classification review — GRADED: accuracy feeds the recommendation outcome.
+  const files = simFiles();
+  const correct = files.filter(f => SIM.classified[f.name] === f.trueClassification).length;
+  const accPct = files.length ? Math.round((correct / files.length) * 100) : 0;
+  const rows = files.map(f => {
     const chosen = SIM.classified[f.name];
     const mark = !chosen ? '—' : (chosen === f.trueClassification ? '✓' : '✗');
-    return `<li class="sim-report-flag"><span class="sim-report-flag-icon">${mark}</span><span>${f.name} — suggested <strong>${classLabel(f.trueClassification)}</strong>${chosen ? ` · you marked ${classLabel(chosen)}` : ' · unclassified'}</span></li>`;
+    return `<li class="sim-report-flag"><span class="sim-report-flag-icon">${mark}</span><span>${f.name} — should be <strong>${classLabel(f.trueClassification)}</strong>${chosen ? ` · you marked ${classLabel(chosen)}` : ' · unclassified'}</span></li>`;
   }).join('');
 
   return `
@@ -785,7 +805,7 @@ function reportSectionHtml() {
         <ul class="sim-report-flags">${flagItems}</ul>
       </div>
       <div class="sim-report-section">
-        <div class="sim-conseq-label sim-conseq-label--business">CLASSIFICATION REVIEW</div>
+        <div class="sim-conseq-label sim-conseq-label--business">CLASSIFICATION REVIEW — ${correct}/${files.length} correct (${accPct}%)</div>
         <ul class="sim-report-flags">${rows}</ul>
       </div>
       <button type="button" class="sim-report-done" data-done="1">RETURN TO OPERATIONS CENTER</button>
