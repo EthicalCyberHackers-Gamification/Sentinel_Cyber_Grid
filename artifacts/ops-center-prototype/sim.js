@@ -123,6 +123,7 @@ const CAREER_DEFAULTS = {
   businessContinuity: 85,
   currentRole: 'cybersecurity_intern',
   currentRank: 'Cybersecurity Intern',
+  evidenceView: 'beginner',   // 'beginner' | 'analyst' — presentation only
   missionFlags: {},
   completedMissions: [],
 };
@@ -155,6 +156,9 @@ function loadCareerState() {
       base.currentRole = saved.currentRole;
     }
     base.currentRank = roleById(base.currentRole).title;
+    if (saved.evidenceView === 'analyst' || saved.evidenceView === 'beginner') {
+      base.evidenceView = saved.evidenceView;
+    }
     if (saved.missionFlags && typeof saved.missionFlags === 'object') {
       base.missionFlags = { ...saved.missionFlags };
     }
@@ -274,6 +278,8 @@ const SIM = {
   classified: {},           // fileName -> classification value
   decision: null,           // chosen action id
   recommendations: [],      // submitted recommendation results
+  evReveal: {},             // evidenceId -> 'analyst' | 'technical' (per-item disclosure)
+  reflection: { concerns: new Set(), judgment: null }, // suspicious-activity reasoning (ungraded)
   runToken: 0,              // invalidates stray timers across opens
 };
 
@@ -293,6 +299,8 @@ function openCareerMission(missionId) {
   SIM.classified = {};
   SIM.decision = null;
   SIM.recommendations = [];
+  SIM.evReveal = {};
+  SIM.reflection = { concerns: new Set(), judgment: null };
 
   document.getElementById('opsCenter').style.display = 'none';
   document.getElementById('careerOps').style.display = 'flex';
@@ -371,46 +379,151 @@ function renderEvidencePanel() {
   const host = document.getElementById('simEvidence');
   if (!host) return;
 
+  const mode = evidenceView();
+
+  // Global Beginner / Analyst view toggle (Beginner is the default).
+  const viewbar = `
+    <div class="sim-ev-viewbar">
+      <span class="sim-ev-viewbar-label">EVIDENCE VIEW</span>
+      <div class="sim-ev-viewtoggle" role="group" aria-label="Evidence view mode">
+        <button type="button" class="sim-ev-viewbtn${mode === 'beginner' ? ' sim-ev-viewbtn--on' : ''}" data-ev-view="beginner" aria-pressed="${mode === 'beginner'}">Beginner</button>
+        <button type="button" class="sim-ev-viewbtn${mode === 'analyst' ? ' sim-ev-viewbtn--on' : ''}" data-ev-view="analyst" aria-pressed="${mode === 'analyst'}">Analyst</button>
+      </div>
+    </div>`;
+
   const evItems = simEvidenceDefs()
     .filter(e => SIM.evidence.has(e.id))
-    .map(e => {
-      const tier = e.qualityWeight >= 3 ? 'KEY' : e.qualityWeight === 2 ? 'NOTABLE' : 'MINOR';
-      return `
-        <div class="sim-ev-item">
-          <div class="sim-ev-label">${e.label}</div>
-          <div class="sim-ev-meta">
-            <span class="sim-ev-quality">${tier} FINDING</span>
-            <span class="sim-ev-src">${e.source || ''}</span>
-          </div>
-        </div>`;
-    }).join('');
-
+    .map(e => renderEvItem(e, mode))
+    .join('');
   const evHtml = evItems ||
     `<p class="sim-empty">No evidence yet. Use the terminal to review the files, then classify what you find.</p>`;
 
-  // Classification rows appear for every file the player has read.
-  const readFiles = simFiles().filter(f => SIM.read.has(f.name));
-  let classHtml = '';
-  if (readFiles.length) {
-    const rows = readFiles.map(f => {
-      const chosen = SIM.classified[f.name];
-      const opts = CLASSIFICATIONS.map(c =>
-        `<button type="button" class="sim-classify-btn${chosen === c.id ? ' sim-classify-btn--active' : ''}" data-classify-file="${f.name}" data-classify-val="${c.id}">${c.label}</button>`
-      ).join('');
-      return `<div class="sim-classify-row"><div class="sim-classify-file">${f.name}</div><div class="sim-classify-opts">${opts}</div></div>`;
-    }).join('');
-    const done = simFiles().filter(f => SIM.classified[f.name]).length;
-    classHtml = `
-      <div class="sim-classify">
-        <div class="sim-classify-head">FILE CLASSIFICATION — ${done}/${simFiles().length}</div>
-        ${rows}
-      </div>`;
-  }
+  // "What concerns you?" reasoning step — appears once the suspicious activity
+  // it belongs to has been surfaced. Reasoning practice, never graded.
+  const reflectEv = activeReflectionEv();
+  const reflectHtml = reflectEv ? reflectionCardHtml(reflectEv) : '';
+
+  const classHtml = renderClassifyHtml(mode);
 
   host.innerHTML = `
     <div class="sim-panel-head">EVIDENCE <span class="sim-panel-count">${SIM.evidence.size}</span></div>
-    <div class="sim-evidence-body">${evHtml}${classHtml}</div>`;
+    <div class="sim-evidence-body">${viewbar}${evHtml}${reflectHtml}${classHtml}</div>`;
 }
+
+/* One evidence item, presented at the active depth. Beginner mode leads with
+ * plain language + why-it-matters + a reasoning prompt, then discloses Analyst
+ * Notes and Technical Details on demand. Analyst mode leads with the analyst
+ * observation and discloses Technical Details. Per-item reveal state lives in
+ * SIM.evReveal so it survives the panel's full re-renders. */
+function renderEvItem(e, mode) {
+  const tier = e.qualityWeight >= 3 ? 'KEY' : e.qualityWeight === 2 ? 'NOTABLE' : 'MINOR';
+  const L = evLayers(e);
+  const reveal = SIM.evReveal[e.id]; // undefined | 'analyst' | 'technical'
+
+  let body = '';
+  let control = '';
+
+  if (mode === 'beginner') {
+    body += `<div class="sim-ev-plain">${L.beginner.summary}</div>`;
+    if (L.beginner.why) body += `<div class="sim-ev-why"><span class="sim-ev-why-label">Why it matters</span>${L.beginner.why}</div>`;
+    if (L.beginner.prompt) body += `<div class="sim-ev-prompt">${L.beginner.prompt}</div>`;
+    if (reveal === 'analyst' || reveal === 'technical') {
+      body += `<div class="sim-ev-layer sim-ev-layer--analyst"><span class="sim-ev-layer-label">Analyst notes</span><span class="sim-ev-layer-text">${L.analyst}</span>${evTermsHtml(L.terms)}</div>`;
+    }
+    if (reveal === 'technical') {
+      body += `<div class="sim-ev-layer sim-ev-layer--tech"><span class="sim-ev-layer-label">Technical details</span><pre class="sim-ev-tech">${L.technical}</pre></div>`;
+    }
+    if (!reveal)                control = layerBtn(e.id, 'analyst', 'Show analyst notes ▾');
+    else if (reveal === 'analyst') control = layerBtn(e.id, 'technical', 'Show technical details ▾');
+    else                        control = layerBtn(e.id, 'hide', 'Hide details ▴');
+  } else {
+    body += `<div class="sim-ev-plain">${L.analyst}</div>`;
+    body += evTermsHtml(L.terms);
+    if (reveal === 'technical') {
+      body += `<div class="sim-ev-layer sim-ev-layer--tech"><span class="sim-ev-layer-label">Technical details</span><pre class="sim-ev-tech">${L.technical}</pre></div>`;
+      control = layerBtn(e.id, 'hide', 'Hide technical details ▴');
+    } else {
+      control = layerBtn(e.id, 'technical', 'Show technical details ▾');
+    }
+  }
+
+  return `
+    <div class="sim-ev-item sim-ev-item--${mode}">
+      <div class="sim-ev-meta">
+        <span class="sim-ev-quality">${tier} FINDING</span>
+        <span class="sim-ev-src">${e.source || ''}</span>
+      </div>
+      <div class="sim-ev-content">${body}</div>
+      <div class="sim-ev-controls">${control}</div>
+    </div>`;
+}
+function layerBtn(id, level, label) {
+  return `<button type="button" class="sim-ev-more" data-ev-reveal="${id}" data-ev-level="${level}">${label}</button>`;
+}
+
+/* The first surfaced evidence item that carries a reflection config. */
+function activeReflectionEv() {
+  return simEvidenceDefs().find(e => e.reflection && SIM.evidence.has(e.id)) || null;
+}
+
+/* "What concerns you?" — a checklist of plain-language observations followed by
+ * a Benign / Suspicious / Malicious judgment. This teaches analytical thinking;
+ * it is intentionally UNGRADED and touches no resources, flags, or scoring. */
+function reflectionCardHtml(e) {
+  const r = e.reflection;
+  const st = SIM.reflection;
+  const concerns = (r.concerns || []).map((c, i) => {
+    const on = st.concerns.has(i);
+    return `<button type="button" class="sim-concern${on ? ' sim-concern--on' : ''}" data-concern="${i}" aria-pressed="${on}">` +
+      `<span class="sim-concern-box" aria-hidden="true">${on ? '☑' : '☐'}</span><span>${c}</span></button>`;
+  }).join('');
+  const judgments = JUDGMENTS.map(j =>
+    `<button type="button" class="sim-judgment${st.judgment === j ? ' sim-judgment--on' : ''}" data-judgment="${j}" aria-pressed="${st.judgment === j}">${j}</button>`
+  ).join('');
+  const feedback = st.judgment
+    ? `<div class="sim-reflect-feedback"><span class="sim-reflect-feedback-label">Analyst note</span>${r.feedback || ''}</div>`
+    : '';
+  return `
+    <div class="sim-reflect">
+      <div class="sim-reflect-head">${r.title || 'REVIEW THE SUSPICIOUS ACTIVITY'}</div>
+      <div class="sim-reflect-prompt">${r.prompt || 'What concerns you?'}</div>
+      <div class="sim-reflect-concerns">${concerns}</div>
+      <div class="sim-reflect-prompt sim-reflect-prompt--judge">${r.judgmentPrompt || 'Based on your findings, how would you judge this activity?'}</div>
+      <div class="sim-reflect-judgments">${judgments}</div>
+      ${feedback}
+    </div>`;
+}
+
+/* File classification rows. Beginner mode adds a plain-language note about what
+ * each file holds, plus a legend explaining the four levels (glossary tooltips).
+ * Classification logic/scoring is unchanged — only the helper text is new. */
+function renderClassifyHtml(mode) {
+  const readFiles = simFiles().filter(f => SIM.read.has(f.name));
+  if (!readFiles.length) return '';
+  const legend = mode === 'beginner' ? classifyLegendHtml() : '';
+  const rows = readFiles.map(f => {
+    const chosen = SIM.classified[f.name];
+    const opts = CLASSIFICATIONS.map(c =>
+      `<button type="button" class="sim-classify-btn${chosen === c.id ? ' sim-classify-btn--active' : ''}" data-classify-file="${f.name}" data-classify-val="${c.id}" title="${classDef(c.id)}">${c.label}</button>`
+    ).join('');
+    const note = (mode === 'beginner' && f.beginnerNote)
+      ? `<div class="sim-classify-hint">${f.beginnerNote}</div>` : '';
+    return `<div class="sim-classify-row"><div class="sim-classify-file">${f.name}</div>${note}<div class="sim-classify-opts">${opts}</div></div>`;
+  }).join('');
+  const done = simFiles().filter(f => SIM.classified[f.name]).length;
+  return `
+    <div class="sim-classify">
+      <div class="sim-classify-head">FILE CLASSIFICATION — ${done}/${simFiles().length}</div>
+      ${legend}
+      ${rows}
+    </div>`;
+}
+function classifyLegendHtml() {
+  const chips = CLASSIFICATIONS.map(c => glossaryTermHtml(c.id)).filter(Boolean).join(' ');
+  if (!chips) return '';
+  return `<div class="sim-classify-legend"><span class="sim-classify-legend-label">What the levels mean:</span> ${chips}</div>`;
+}
+function classDef(id) { const g = glossaryEntry(id); return g ? g.definition : ''; }
 
 /* ------------------------------------------------------------------ *
  * Panel 3 — Terminal output + action dock
@@ -467,6 +580,113 @@ const CLASSIFICATIONS = [
   { id: 'restricted',   label: 'Restricted' },
 ];
 function classLabel(id) { const c = CLASSIFICATIONS.find(x => x.id === id); return c ? c.label : id; }
+
+/* ================================================================== *
+ * PROGRESSIVE EVIDENCE LAYERS — beginner-first presentation
+ * ------------------------------------------------------------------ *
+ * The investigation engine is unchanged; only HOW evidence reads changes.
+ * Every evidence item may carry a `layers` block with three presentation
+ * depths so a true beginner reasons about WHAT looks off and WHY before
+ * meeting the professional terminology:
+ *   layers.beginner = { summary, why, prompt }  (plain language, Layer 1)
+ *   layers.analyst  = "semi-technical observation" (Layer 2)
+ *   layers.technical= "full professional detail"   (Layer 3)
+ *   layers.terms    = ['pii', ...]  glossary keys surfaced with L2/L3
+ * The legacy `label` stays as a fallback so missions without layers still
+ * render. Shape is generic: future missions / role tiers supply their own.
+ * ================================================================== */
+const JUDGMENTS = ['Benign', 'Suspicious', 'Malicious'];
+
+/* Reusable glossary. Classification ids (public/internal/confidential/
+ * restricted) double as glossary keys so the classification legend reuses
+ * the same definitions. Add terms here; reference by key from a dataset. */
+const SIM_GLOSSARY = {
+  public: {
+    term: 'Public',
+    definition: 'Information already cleared for anyone to see, such as published marketing material.',
+    why: 'Safe to share outside the company — there is no harm if it spreads.',
+  },
+  internal: {
+    term: 'Internal',
+    definition: 'Information meant for people inside the company — not secret, but not for outsiders either.',
+    why: 'Sending it outside is usually unnecessary and can reveal how the company works.',
+  },
+  confidential: {
+    term: 'Confidential',
+    definition: 'Sensitive business information limited to specific people, like negotiated pricing or unannounced plans.',
+    why: 'Exposure can damage deals, competitiveness, or partner trust.',
+  },
+  restricted: {
+    term: 'Restricted',
+    definition: 'The most tightly controlled information, like employee personal data or regulated payment records.',
+    why: 'A leak can trigger legal penalties and real harm — this should never leave the company.',
+  },
+  pii: {
+    term: 'PII',
+    definition: 'Personally identifiable information — details that identify a specific person, like names, salaries, or addresses.',
+    why: 'If it leaks, real people can be harmed and the company can face legal penalties.',
+  },
+  pci: {
+    term: 'PCI scope',
+    definition: 'Payment-card data covered by the PCI security standard — card numbers, payment details, and the systems that touch them.',
+    why: 'This data is regulated; mishandling it can mean heavy fines and customer harm.',
+  },
+  materialNonPublic: {
+    term: 'material non-public information',
+    definition: 'Significant business information that has not been announced publicly, such as a planned acquisition.',
+    why: 'Sharing or acting on it early can break the law and tip off competitors.',
+  },
+};
+function glossaryEntry(key) { return SIM_GLOSSARY[key] || null; }
+
+/* Normalize an evidence item into the three layers, with the legacy `label`
+ * as a fallback so un-layered evidence (or future missions) still render. */
+function evLayers(e) {
+  const L = (e && e.layers) || {};
+  const b = L.beginner || {};
+  return {
+    beginner: {
+      summary: b.summary || (e && e.label) || '',
+      why: b.why || '',
+      prompt: b.prompt || '',
+    },
+    analyst: L.analyst || (e && e.label) || '',
+    technical: L.technical || (e && e.label) || '',
+    terms: Array.isArray(L.terms) ? L.terms : [],
+  };
+}
+
+/* The active evidence presentation mode (beginner default). */
+function evidenceView() { return CAREER.evidenceView === 'analyst' ? 'analyst' : 'beginner'; }
+function setEvidenceView(mode) {
+  const next = mode === 'analyst' ? 'analyst' : 'beginner';
+  if (CAREER.evidenceView === next) return;
+  CAREER.evidenceView = next;
+  saveCareerState();
+  renderEvidencePanel();
+}
+
+/* A glossary term rendered as an inline, hover/focus/tap-accessible chip.
+ * CSS shows the tooltip on :hover / :focus-within; tap toggles --open via the
+ * delegated handler. Definition + "why it matters" come straight from the
+ * glossary so terminology stays consistent everywhere it appears. */
+function glossaryTermHtml(key) {
+  const g = glossaryEntry(key);
+  if (!g) return '';
+  return `<span class="sim-term-wrap">` +
+    `<button type="button" class="sim-term" data-term="${key}" aria-expanded="false">${g.term}</button>` +
+    `<span class="sim-tip" role="tooltip">` +
+      `<span class="sim-tip-term">${g.term}</span>` +
+      `<span class="sim-tip-def">${g.definition}</span>` +
+      `<span class="sim-tip-why"><span class="sim-tip-why-label">Why it matters:</span> ${g.why}</span>` +
+    `</span></span>`;
+}
+function evTermsHtml(terms) {
+  if (!terms || !terms.length) return '';
+  const chips = terms.map(glossaryTermHtml).filter(Boolean).join(' ');
+  if (!chips) return '';
+  return `<div class="sim-ev-terms"><span class="sim-ev-terms-label">Key terms:</span> ${chips}</div>`;
+}
 
 /* Carry-forward flags this mission can raise (persisted into CAREER.missionFlags
  * for later missions to read). Human labels for the debrief. */
@@ -581,6 +801,47 @@ function setClassification(fileName, value) {
   if (!simFileByName(fileName)) return;
   if (!CLASSIFICATIONS.some(c => c.id === value)) return;
   SIM.classified[fileName] = value;
+  renderEvidencePanel();
+}
+
+/* ------------------------------------------------------------------ *
+ * Evidence-presentation handlers (Task #91) — PRESENTATION ONLY.
+ * None of these touch resources, flags, classification, or scoring.
+ * ------------------------------------------------------------------ */
+function toggleEvidenceLayer(id, level) {
+  if (!id) return;
+  if (level === 'hide') delete SIM.evReveal[id];
+  else if (level === 'analyst' || level === 'technical') SIM.evReveal[id] = level;
+  renderEvidencePanel();
+}
+
+/* Tooltip toggle for tap/click — one open at a time. Hover + keyboard focus are
+ * handled purely in CSS, so this only manages the tap-to-pin --open state. */
+function toggleTerm(btn) {
+  const wrap = btn.closest('.sim-term-wrap');
+  if (!wrap) return;
+  const wasOpen = wrap.classList.contains('sim-term-wrap--open');
+  document.querySelectorAll('.sim-term-wrap--open').forEach(w => {
+    w.classList.remove('sim-term-wrap--open');
+    const b = w.querySelector('.sim-term');
+    if (b) b.setAttribute('aria-expanded', 'false');
+  });
+  if (!wasOpen) {
+    wrap.classList.add('sim-term-wrap--open');
+    btn.setAttribute('aria-expanded', 'true');
+  }
+}
+
+function toggleConcern(i) {
+  if (!Number.isFinite(i)) return;
+  if (SIM.reflection.concerns.has(i)) SIM.reflection.concerns.delete(i);
+  else SIM.reflection.concerns.add(i);
+  renderEvidencePanel();
+}
+
+function setJudgment(j) {
+  if (!JUDGMENTS.includes(j)) return;
+  SIM.reflection.judgment = j;
   renderEvidencePanel();
 }
 
@@ -874,6 +1135,7 @@ const CAREER_MISSIONS = {
           'Purpose:      share Q3 logistics collateral with the partner.',
           'Note:         "Bundled a few extra finance files to save a round trip." ',
         ],
+        beginnerNote: 'A cover note for the release. It admits extra finance files were added in.',
         evidenceIds: ['ev_release_context'],
       },
       {
@@ -884,6 +1146,7 @@ const CAREER_MISSIONS = {
           'Throughput, supported regions, published list pricing.',
           'Cleared for public distribution by Marketing.',
         ],
+        beginnerNote: 'A marketing sheet that is already published — meant for the public.',
         evidenceIds: ['ev_public_safe'],
       },
       {
@@ -895,6 +1158,7 @@ const CAREER_MISSIONS = {
           'Halden Freight,Silver,0.51/unit,2026-04-15',
           '# Internal negotiated rates — not for external eyes.',
         ],
+        beginnerNote: 'The special prices the company privately agreed with each partner.',
         evidenceIds: ['ev_confidential_pricing'],
       },
       {
@@ -906,6 +1170,7 @@ const CAREER_MISSIONS = {
           'L. Brandt,Engineering,Staff Engineer,176000',
           '# HR-Restricted. PII + compensation.',
         ],
+        beginnerNote: 'Employees'+"'"+' names and how much each person is paid.',
         evidenceIds: ['ev_pii_salary'],
       },
       {
@@ -917,6 +1182,7 @@ const CAREER_MISSIONS = {
           'Bryce & Hall,8820,3275.50,TX-99318',
           '# Regulated cardholder data (PCI scope).',
         ],
+        beginnerNote: 'Customers'+"'"+' card and payment details — protected by law.',
         evidenceIds: ['ev_customer_pii'],
       },
       {
@@ -927,6 +1193,7 @@ const CAREER_MISSIONS = {
           'Target shortlist, valuation ranges, timeline through 2027.',
           '# Material non-public information. Confidential.',
         ],
+        beginnerNote: 'A secret, unannounced plan about companies CyberCorp may buy.',
         evidenceIds: ['ev_confidential_roadmap'],
       },
       {
@@ -939,19 +1206,126 @@ const CAREER_MISSIONS = {
           '2026-06-11 02:21    ext-contractor-07  acquisition_roadmap.txt',
           '# Vendor account reading HR/Finance files at 02:00, outside its remit.',
         ],
+        beginnerNote: 'A record of who opened which files, and at what time.',
         evidenceIds: ['ev_contractor_access'],
       },
     ],
 
-    /* ---- Ground-truth evidence (weighted; quality drives recommendations) ---- */
+    /* ---- Ground-truth evidence (weighted; quality drives recommendations) ----
+     * `label` is the legacy one-liner (still used in the terminal log + fallback).
+     * `layers` adds beginner-first presentation; the engine never reads them.   */
     evidence: [
-      { id: 'ev_release_context',     label: 'Release was prepared by the contractor account itself.',        qualityWeight: 1, source: 'release_notes.txt' },
-      { id: 'ev_public_safe',         label: 'Public marketing collateral — safe to release externally.',     qualityWeight: 1, source: 'product_datasheet.txt' },
-      { id: 'ev_confidential_pricing',label: 'Confidential partner pricing bundled into the release set.',     qualityWeight: 2, source: 'partner_pricing_2026.csv' },
-      { id: 'ev_pii_salary',          label: 'Employee names and salaries (PII) present in the release set.',  qualityWeight: 3, source: 'employee_salaries.csv' },
-      { id: 'ev_customer_pii',        label: 'Regulated customer payment records present (PCI scope).',        qualityWeight: 3, source: 'customer_payment_records.csv' },
-      { id: 'ev_confidential_roadmap',label: 'Unannounced acquisition roadmap (material non-public info).',    qualityWeight: 2, source: 'acquisition_roadmap.txt' },
-      { id: 'ev_contractor_access',   label: 'Contractor account read HR/Finance files outside its remit.',   qualityWeight: 3, source: 'access_log.txt', setFlag: 'contractorAccessDiscovered' },
+      {
+        id: 'ev_release_context', label: 'Release was prepared by the contractor account itself.',
+        qualityWeight: 1, source: 'release_notes.txt',
+        layers: {
+          beginner: {
+            summary: 'The outside contractor put this release package together on their own.',
+            why: 'Normally someone inside the company checks what an outsider is about to send out.',
+            prompt: 'Should an outside contractor decide by themselves what leaves the company?',
+          },
+          analyst: 'The release set was assembled by the external contractor account, with no internal reviewer in the chain.',
+          technical: 'Prepared by: ext-contractor-07 (vendor account). No internal data-owner sign-off recorded on the release manifest.',
+          terms: [],
+        },
+      },
+      {
+        id: 'ev_public_safe', label: 'Public marketing collateral — safe to release externally.',
+        qualityWeight: 1, source: 'product_datasheet.txt',
+        layers: {
+          beginner: {
+            summary: 'This is a marketing sheet that has already been published.',
+            why: 'Information that is already public is fine to share with a partner.',
+            prompt: 'Is there any real risk in sharing something that is already public?',
+          },
+          analyst: 'Product datasheet — marketing-cleared collateral approved for public distribution.',
+          technical: 'product_datasheet.txt — Classification: Public. Cleared for public distribution by Marketing.',
+          terms: ['public'],
+        },
+      },
+      {
+        id: 'ev_confidential_pricing', label: 'Confidential partner pricing bundled into the release set.',
+        qualityWeight: 2, source: 'partner_pricing_2026.csv',
+        layers: {
+          beginner: {
+            summary: 'This file lists the special prices the company privately gives each partner.',
+            why: 'Those negotiated prices are private — a competitor, or another partner, should not see them.',
+            prompt: 'Should one partner be able to see the deal another partner was given?',
+          },
+          analyst: 'Negotiated partner pricing (per-unit rates and renewal dates) bundled into an outbound release — internal commercial data.',
+          technical: 'partner_pricing_2026.csv — negotiated_rate + renewal_date per partner. Internal-only commercial terms; Confidential.',
+          terms: ['confidential'],
+        },
+      },
+      {
+        id: 'ev_pii_salary', label: 'Employee names and salaries (PII) present in the release set.',
+        qualityWeight: 3, source: 'employee_salaries.csv',
+        layers: {
+          beginner: {
+            summary: 'This file has employees'+"'"+' names and how much each person is paid.',
+            why: 'Pay and personal details are private — they should never leave the company.',
+            prompt: 'Should employee salary information ever be sent to an outside partner?',
+          },
+          analyst: 'Employee personal data and compensation (PII) found in the outbound release set.',
+          technical: 'employee_salaries.csv — name, department, title, annual_salary. HR-Restricted PII + compensation. Classification: Restricted.',
+          terms: ['pii'],
+        },
+      },
+      {
+        id: 'ev_customer_pii', label: 'Regulated customer payment records present (PCI scope).',
+        qualityWeight: 3, source: 'customer_payment_records.csv',
+        layers: {
+          beginner: {
+            summary: 'This file holds customers'+"'"+' card and payment details.',
+            why: 'Card and payment data is strictly protected by law — leaking it can mean fines and real harm to customers.',
+            prompt: 'What could go wrong if customer payment details were sent outside the company?',
+          },
+          analyst: 'Customer cardholder data (card last-4, amounts, processor references) — regulated payment records in the release set.',
+          technical: 'customer_payment_records.csv — card_last4, amount, processor_ref. Regulated cardholder data (PCI scope). Classification: Restricted.',
+          terms: ['pci', 'pii'],
+        },
+      },
+      {
+        id: 'ev_confidential_roadmap', label: 'Unannounced acquisition roadmap (material non-public info).',
+        qualityWeight: 2, source: 'acquisition_roadmap.txt',
+        layers: {
+          beginner: {
+            summary: 'This is a secret plan about companies CyberCorp might buy.',
+            why: 'Unannounced business plans are highly sensitive — sharing them early can break the law and tip off competitors.',
+            prompt: 'Should an unannounced business plan be included in a partner release?',
+          },
+          analyst: 'Draft acquisition roadmap (targets, valuation ranges, timeline) — unannounced, market-sensitive material.',
+          technical: 'acquisition_roadmap.txt — PROJECT NORTHSTAR target shortlist + valuation ranges through 2027. Material non-public information. Classification: Confidential.',
+          terms: ['materialNonPublic', 'confidential'],
+        },
+      },
+      {
+        id: 'ev_contractor_access', label: 'Contractor account read HR/Finance files outside its remit.',
+        qualityWeight: 3, source: 'access_log.txt', setFlag: 'contractorAccessDiscovered',
+        layers: {
+          beginner: {
+            summary: 'The outside contractor'+"'"+'s account opened private HR and Finance files in the middle of the night.',
+            why: 'An outside account reading files that have nothing to do with its job — at 2 in the morning — is unusual and worth a closer look.',
+            prompt: 'Does this look like normal work, or something to flag?',
+          },
+          analyst: 'Vendor account ext-contractor-07 accessed HR/Finance files (salaries, payment records, roadmap) at ~02:00 — outside its expected scope.',
+          technical: 'access_log.txt — ext-contractor-07 read employee_salaries.csv, customer_payment_records.csv, acquisition_roadmap.txt between 02:14–02:21. Vendor account active off-hours, outside its remit.',
+          terms: [],
+        },
+        reflection: {
+          title: 'REVIEW THE SUSPICIOUS ACTIVITY',
+          prompt: 'What concerns you about this activity? (Tick anything that stands out.)',
+          concerns: [
+            'An outside contractor account opened private files',
+            'The files were opened in the middle of the night',
+            'The files were outside the contractor'+"'"+'s normal work',
+            'This looks like normal release preparation',
+            'I need more information before deciding',
+          ],
+          judgmentPrompt: 'Based on what you found, how would you judge this activity?',
+          feedback: 'There is no single right answer here — analysts reason from what they observe. Noticing WHO touched the data, WHEN, and whether it fits their job is exactly the kind of thinking that catches a problem early.',
+        },
+      },
     ],
 
     /* ---- DECISION: handling actions (each moves >=3 of 6 resources) ---- */
@@ -1111,6 +1485,18 @@ function simInit() {
   const careerOps = document.getElementById('careerOps');
   if (careerOps) {
     careerOps.addEventListener('click', e => {
+      // Evidence presentation (Task #91) — all presentation-only, no scoring.
+      const view = e.target.closest('[data-ev-view]');
+      if (view) { setEvidenceView(view.dataset.evView); return; }
+      const reveal = e.target.closest('[data-ev-reveal]');
+      if (reveal) { toggleEvidenceLayer(reveal.dataset.evReveal, reveal.dataset.evLevel); return; }
+      const term = e.target.closest('[data-term]');
+      if (term) { toggleTerm(term); return; }
+      const concern = e.target.closest('[data-concern]');
+      if (concern) { toggleConcern(Number(concern.dataset.concern)); return; }
+      const judg = e.target.closest('[data-judgment]');
+      if (judg) { setJudgment(judg.dataset.judgment); return; }
+
       const cls = e.target.closest('[data-classify-file]');
       if (cls) { setClassification(cls.dataset.classifyFile, cls.dataset.classifyVal); return; }
       const act = e.target.closest('[data-action]');

@@ -398,6 +398,272 @@
 .sim-class-tag--confidential { color: var(--yellow); border: 1px solid var(--yellow); }
 .sim-class-tag--restricted { color: var(--red); border: 1px solid var(--red); }
 
+/* ==================================================================
+ * Evidence presentation layers (Task #91) — beginner-first view,
+ * per-item disclosure, glossary tooltips, and the ungraded
+ * "What concerns you?" reflection step. Presentation only.
+ * ================================================================== */
+
+/* View toggle: Beginner / Analyst */
+.sim-ev-viewbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.sim-ev-viewbar-label {
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  color: var(--cyan-dim);
+}
+.sim-ev-viewtoggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.sim-ev-viewbtn {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border: none;
+  padding: 4px 11px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-ev-viewbtn + .sim-ev-viewbtn { border-left: 1px solid var(--border); }
+.sim-ev-viewbtn:hover { color: var(--text-bright); }
+.sim-ev-viewbtn--on { background: var(--green-dark); color: var(--green); }
+
+/* Evidence item content */
+.sim-ev-content { margin-top: 6px; }
+.sim-ev-plain { font-size: 12.5px; line-height: 1.55; color: var(--text-bright); }
+.sim-ev-item--analyst .sim-ev-plain { color: var(--text); font-weight: 500; }
+.sim-ev-why {
+  margin-top: 6px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text);
+  border-left: 2px solid var(--yellow);
+  padding-left: 8px;
+}
+.sim-ev-why-label {
+  display: block;
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.2px;
+  color: var(--yellow);
+  margin-bottom: 2px;
+}
+.sim-ev-prompt {
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--cyan-dim);
+}
+
+/* Disclosure layers (analyst notes / technical details) */
+.sim-ev-layer {
+  margin-top: 8px;
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  animation: simEvIn 200ms ease;
+}
+.sim-ev-layer--analyst { border-left: 2px solid var(--cyan-dim); }
+.sim-ev-layer--tech { border-left: 2px solid var(--purple); }
+.sim-ev-layer-label {
+  display: block;
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.2px;
+  margin-bottom: 4px;
+}
+.sim-ev-layer--analyst .sim-ev-layer-label { color: var(--cyan-dim); }
+.sim-ev-layer--tech .sim-ev-layer-label { color: var(--purple); }
+.sim-ev-layer-text { font-size: 11.5px; line-height: 1.5; color: var(--text); }
+.sim-ev-tech {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Disclosure control */
+.sim-ev-controls:empty { display: none; }
+.sim-ev-controls { margin-top: 8px; }
+.sim-ev-more {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  color: var(--cyan);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-ev-more:hover { border-color: var(--cyan-dim); color: var(--text-bright); }
+
+/* Key-terms row */
+.sim-ev-terms { margin-top: 8px; font-size: 11px; color: var(--text-dim); }
+.sim-ev-terms-label {
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.1px;
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+
+/* Glossary term chip + tooltip (hover / keyboard focus / tap-to-pin) */
+.sim-term-wrap { position: relative; display: inline-block; }
+.sim-term {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--cyan);
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px dashed var(--cyan-dim);
+  border-radius: var(--radius-sm);
+  padding: 0 5px;
+  cursor: help;
+  transition: all var(--transition);
+}
+.sim-term:hover,
+.sim-term:focus-visible { background: rgba(0, 229, 255, 0.16); color: var(--text-bright); outline: none; }
+.sim-tip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 0;
+  z-index: 60;
+  width: 240px;
+  max-width: 70vw;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 11px;
+  background: #0a0d16;
+  border: 1px solid var(--cyan-dim);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+  text-align: left;
+}
+.sim-tip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 16px;
+  border: 6px solid transparent;
+  border-top-color: var(--cyan-dim);
+}
+.sim-term-wrap:hover .sim-tip,
+.sim-term-wrap:focus-within .sim-tip,
+.sim-term-wrap--open .sim-tip { display: flex; }
+.sim-tip-term { font-family: var(--font-hud); font-size: 10px; letter-spacing: 0.6px; color: var(--cyan); }
+.sim-tip-def { font-size: 11px; line-height: 1.5; color: var(--text-bright); }
+.sim-tip-why { font-size: 10.5px; line-height: 1.5; color: var(--text-dim); }
+.sim-tip-why-label { color: var(--yellow); }
+
+/* "What concerns you?" reflection step (ungraded) */
+.sim-reflect {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--cyan-dim);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-alt);
+  padding: 11px 12px;
+  animation: simEvIn 280ms ease;
+}
+.sim-reflect-head {
+  font-family: var(--font-hud);
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  color: var(--cyan);
+  margin-bottom: 8px;
+}
+.sim-reflect-prompt { font-size: 12px; line-height: 1.5; color: var(--text-bright); margin-bottom: 8px; }
+.sim-reflect-prompt--judge { margin-top: 12px; }
+.sim-reflect-concerns { display: flex; flex-direction: column; gap: 6px; }
+.sim-concern {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-concern:hover { border-color: var(--border-glow); color: var(--text-bright); }
+.sim-concern--on { border-color: var(--cyan-dim); background: rgba(0, 229, 255, 0.08); color: var(--text-bright); }
+.sim-concern-box { color: var(--cyan); font-size: 13px; line-height: 1.2; }
+.sim-reflect-judgments { display: flex; flex-wrap: wrap; gap: 6px; }
+.sim-judgment {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-judgment:hover { color: var(--text-bright); border-color: var(--border-glow); }
+.sim-judgment--on { background: var(--green-dark); color: var(--green); border-color: var(--green-dim); }
+.sim-reflect-feedback {
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text);
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
+.sim-reflect-feedback-label {
+  display: block;
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.2px;
+  color: var(--cyan-dim);
+  margin-bottom: 3px;
+}
+
+/* Beginner classify legend + per-file plain-language hint */
+.sim-classify-legend {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 2;
+  margin-bottom: 10px;
+}
+.sim-classify-legend-label {
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.1px;
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+.sim-classify-hint {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  margin-bottom: 5px;
+}
+
 /* ---------- Panel 4: Feedback / Consequence ---------- */
 .sim-feedback-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px; }
 .sim-conseq { animation: simEvIn 280ms ease; }
