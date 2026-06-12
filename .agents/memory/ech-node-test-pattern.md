@@ -30,3 +30,15 @@ Runtime assertions on an extracted helper are meaningful and stable.
   artifact `package.json` `"test"` script (chained `node tests/*.js`).
 - A full A1→A3 playthrough via the DOM is not viable here (see
   ech-e2e-runtest-timeout); prefer small pure-logic + data-shape smoke tests.
+
+**Alternative (no extraction, no jsdom):** for a DOM-coupled module that uses
+**no import/export** and exposes its API via `window.*` (e.g. the prototype's
+`sim.js`/`oc.js`), drive the *whole* engine loop under node by `vm.runInContext`
+of the file source PLUS an appended hook string that re-exports module-scoped
+`let`/`const` internals onto `globalThis` (getters keep reassigned `let`s live).
+Stub only what the flow touches: `document.getElementById/createElement` →
+cached fake nodes with an `innerHTML` setter + no-op `appendChild`, a Map-backed
+`localStorage`, `window.location.search`, no-op `setTimeout`. Render output is
+ignored — you assert on the exposed state (resources/flags/verdict), and the
+render fns still run so they'd throw if broken. jsdom is NOT installed; don't add
+it (lockfile churn). Keep the harness in `/tmp` so it isn't committed.

@@ -1,0 +1,504 @@
+/* ==================================================================
+ * sim.css — Cybersecurity Career Simulator (prototype)
+ * Styles the always-visible resource bar and the four-panel Career
+ * Operating Center (#careerOps). Reuses oc.css :root tokens so the
+ * career sim matches the SOC aesthetic. Scoped to .sim-* / .career-*
+ * so it never touches the legacy Ops Center / holotable / console / lab.
+ * ================================================================== */
+
+/* ---------- Resource bar (top of home + mission screens) ---------- */
+.sim-resbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 7px 16px;
+  min-height: 50px;
+  background: linear-gradient(180deg, #0c1019 0%, #080b13 100%);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  z-index: 5;
+}
+.sim-resbar::-webkit-scrollbar { height: 5px; }
+.sim-resbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.sim-resbar-role {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding-right: 20px;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+.sim-resbar-role-tag,
+.sim-resbar-auth-tag {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px 5px;
+}
+.sim-resbar-role-name {
+  font-family: var(--font-hud);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
+}
+.sim-resbar-auth {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  letter-spacing: 0.4px;
+}
+
+.sim-resbar-resources {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.sim-res {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 92px;
+  flex: 0 0 auto;
+}
+.sim-res-label {
+  font-size: 8.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.sim-res-val {
+  font-family: var(--font-hud);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+  line-height: 1;
+  transition: color var(--transition);
+}
+.sim-res--good .sim-res-val { color: var(--green); }
+.sim-res--warn .sim-res-val { color: var(--yellow); }
+.sim-res--bad  .sim-res-val { color: var(--red); }
+.sim-res-val--flash { animation: simResFlash 700ms ease; }
+@keyframes simResFlash {
+  0%   { text-shadow: 0 0 14px currentColor; transform: scale(1.18); }
+  100% { text-shadow: none; transform: scale(1); }
+}
+.sim-res-meter {
+  display: block;
+  height: 3px;
+  width: 100%;
+  background: var(--bg-hover);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.sim-res-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  transition: width 450ms ease, background var(--transition);
+}
+.sim-res-good { background: var(--green); }
+.sim-res-warn { background: var(--yellow); }
+.sim-res-bad  { background: var(--red); }
+
+/* ---------- Career Operating Center screen ---------- */
+.screen--career {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(0, 229, 255, 0.05), transparent 60%),
+    var(--bg);
+  color: var(--text);
+}
+
+.career-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+.career-back-btn,
+.career-reset-btn {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 11px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.career-back-btn:hover { color: var(--green); border-color: var(--border-glow); }
+.career-reset-btn { margin-left: auto; color: var(--text-muted); }
+.career-reset-btn:hover { color: var(--orange); border-color: var(--orange); }
+
+.career-incident-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-width: 0;
+}
+.career-severity {
+  font-family: var(--font-hud);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+.career-severity[data-severity="HIGH"]     { color: var(--orange); border-color: var(--orange); }
+.career-severity[data-severity="CRITICAL"] { color: var(--red);    border-color: var(--red); }
+.career-severity[data-severity="MEDIUM"]   { color: var(--yellow); border-color: var(--yellow); }
+.career-region { color: var(--cyan); letter-spacing: 0.8px; }
+.career-sep { color: var(--text-muted); }
+.career-title {
+  color: var(--text-bright);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Four-panel grid ---------- */
+.career-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(420px, 1.6fr) minmax(300px, 1.1fr);
+  gap: 12px;
+  padding: 12px;
+  overflow: hidden;
+}
+.career-col--right {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
+  min-height: 0;
+}
+
+.sim-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.sim-panel--work { display: flex; }
+.sim-panel-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-hud);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: var(--green-dim);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel-alt);
+}
+.sim-panel-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--bg);
+  background: var(--green);
+  border-radius: 10px;
+  padding: 1px 8px;
+  min-width: 20px;
+  text-align: center;
+}
+.sim-empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 14px;
+}
+
+/* ---------- Panel 1: Mission Brief ---------- */
+.sim-brief-body { padding: 12px; overflow-y: auto; font-size: 12.5px; }
+.sim-brief-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.sim-brief-key { color: var(--text-muted); letter-spacing: 0.6px; }
+.sim-brief-v { color: var(--text-bright); text-align: right; }
+.sim-brief-v--alert { color: var(--orange); }
+.sim-brief-divider { height: 1px; background: var(--border); margin: 11px 0; }
+.sim-brief-section-label {
+  font-family: var(--font-hud);
+  font-size: 9.5px;
+  letter-spacing: 1.4px;
+  color: var(--cyan-dim);
+  margin-bottom: 6px;
+}
+.sim-brief-text, .sim-brief-note { line-height: 1.65; color: var(--text); margin-bottom: 12px; }
+.sim-brief-note { color: var(--text-dim); font-style: italic; border-left: 2px solid var(--border); padding-left: 10px; }
+.sim-brief-objs { list-style: none; margin: 0 0 12px; padding: 0; }
+.sim-brief-obj { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; line-height: 1.45; }
+.sim-brief-obj-icon { color: var(--cyan); flex: 0 0 auto; }
+.sim-brief-obj--done .sim-brief-obj-icon { color: var(--green); }
+.sim-brief-obj--done span:last-child { color: var(--text-muted); text-decoration: line-through; }
+
+/* ---------- Panel 3: Terminal + Actions ---------- */
+.sim-term-out {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.sim-term-line { white-space: pre-wrap; word-break: break-word; }
+.sim-term-line--head { color: var(--green); }
+.sim-term-line--dim { color: var(--text-dim); }
+.sim-term-line--cmd { color: var(--cyan); }
+.sim-term-line--err { color: var(--red); }
+.sim-term-line--ok { color: var(--green); }
+.sim-term-line--warn { color: var(--yellow); }
+.sim-term-line--file { color: var(--text-bright); }
+.sim-term-line--evidence { color: var(--yellow); }
+.sim-term-line--spacer { height: 8px; }
+.sim-term-form {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel-alt);
+}
+.sim-term-prompt { font-family: var(--font-mono); font-size: 12px; color: var(--green-dim); white-space: nowrap; }
+.sim-term-input {
+  flex: 1 1 auto;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.sim-term-input::placeholder { color: var(--text-muted); }
+
+.sim-actions {
+  flex: 0 0 auto;
+  max-height: 42%;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.sim-actions:empty { display: none; }
+.sim-actions-head {
+  font-family: var(--font-hud);
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  color: var(--green-dim);
+  padding: 9px 12px 5px;
+}
+.sim-actions-grid { display: flex; flex-direction: column; gap: 7px; padding: 4px 12px 12px; }
+
+.sim-action-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--green-dim);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: var(--font-body);
+}
+.sim-action-btn:hover { background: var(--bg-hover); border-left-color: var(--green); }
+.sim-action-btn-label { font-size: 12.5px; font-weight: 600; color: var(--text-bright); }
+.sim-action-btn-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+.sim-action-btn--locked {
+  border-left-color: var(--text-muted);
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+.sim-action-btn--locked .sim-action-btn-label { color: var(--text-dim); }
+.sim-action-btn--locked .sim-action-btn-label::before { content: "🔒 "; }
+.sim-action-btn--rec { border-left-color: var(--cyan); }
+.sim-action-btn--rec:hover { border-left-color: var(--cyan); }
+
+/* ---------- Panel 2: Evidence ---------- */
+.sim-evidence-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 12px; }
+.sim-ev-item {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--yellow);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: var(--bg-panel-alt);
+  animation: simEvIn 280ms ease;
+}
+@keyframes simEvIn { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
+.sim-ev-label { font-size: 12px; color: var(--text-bright); font-weight: 600; }
+.sim-ev-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: 10px; font-family: var(--font-mono); color: var(--text-dim); }
+.sim-ev-quality { color: var(--green-dim); letter-spacing: 0.5px; }
+.sim-ev-src { color: var(--text-muted); }
+
+/* ---------- Classification controls ---------- */
+.sim-classify { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+.sim-classify-head { font-family: var(--font-hud); font-size: 9.5px; letter-spacing: 1.4px; color: var(--cyan-dim); margin-bottom: 8px; }
+.sim-classify-row { margin-bottom: 10px; }
+.sim-classify-file { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-bright); margin-bottom: 5px; }
+.sim-classify-opts { display: flex; flex-wrap: wrap; gap: 5px; }
+.sim-classify-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-classify-btn:hover { color: var(--text-bright); border-color: var(--border-glow); }
+.sim-classify-btn--active { background: var(--green-dark); color: var(--green); border-color: var(--green-dim); }
+.sim-class-tag { font-size: 9px; letter-spacing: 0.6px; padding: 1px 5px; border-radius: 2px; font-family: var(--font-mono); }
+.sim-class-tag--public { color: var(--text-dim); border: 1px solid var(--text-muted); }
+.sim-class-tag--internal { color: var(--cyan); border: 1px solid var(--cyan-dim); }
+.sim-class-tag--confidential { color: var(--yellow); border: 1px solid var(--yellow); }
+.sim-class-tag--restricted { color: var(--red); border: 1px solid var(--red); }
+
+/* ---------- Panel 4: Feedback / Consequence ---------- */
+.sim-feedback-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px; }
+.sim-conseq { animation: simEvIn 280ms ease; }
+.sim-conseq-title { font-family: var(--font-hud); font-size: 13px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+.sim-conseq-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; }
+.sim-conseq-block { margin-bottom: 12px; }
+.sim-conseq-label {
+  font-family: var(--font-hud);
+  font-size: 9.5px;
+  letter-spacing: 1.3px;
+  margin-bottom: 5px;
+}
+.sim-conseq-label--immediate { color: var(--green-dim); }
+.sim-conseq-label--business { color: var(--cyan-dim); }
+.sim-conseq-label--resource { color: var(--yellow); }
+.sim-conseq-label--future { color: var(--purple); }
+.sim-conseq-text { font-size: 12px; line-height: 1.6; color: var(--text); }
+.sim-conseq-changes { list-style: none; margin: 0; padding: 0; }
+.sim-conseq-change {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 3px 0;
+}
+.sim-conseq-change-name { color: var(--text-dim); }
+.sim-conseq-change-delta--up { color: var(--green); }
+.sim-conseq-change-delta--down { color: var(--red); }
+.sim-conseq-change-delta--flat { color: var(--text-muted); }
+
+/* Recommendation outcome banner */
+.sim-rec-outcome {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.sim-rec-outcome--approved  { border-color: var(--green);  background: rgba(0, 255, 136, 0.07); }
+.sim-rec-outcome--partial   { border-color: var(--yellow); background: rgba(255, 215, 0, 0.07); }
+.sim-rec-outcome--deferred  { border-color: var(--cyan);   background: rgba(0, 229, 255, 0.07); }
+.sim-rec-outcome--denied    { border-color: var(--red);    background: rgba(255, 51, 68, 0.07); }
+.sim-rec-verdict { font-family: var(--font-hud); font-size: 13px; font-weight: 700; letter-spacing: 0.5px; }
+.sim-rec-outcome--approved .sim-rec-verdict { color: var(--green); }
+.sim-rec-outcome--partial  .sim-rec-verdict { color: var(--yellow); }
+.sim-rec-outcome--deferred .sim-rec-verdict { color: var(--cyan); }
+.sim-rec-outcome--denied   .sim-rec-verdict { color: var(--red); }
+.sim-rec-reason { font-size: 11.5px; line-height: 1.55; color: var(--text-dim); margin-top: 5px; }
+
+/* Locked-authority notice */
+.sim-locked-note {
+  border: 1px solid var(--orange);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 107, 0, 0.07);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  animation: simEvIn 280ms ease;
+}
+.sim-locked-title { font-family: var(--font-hud); font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--orange); margin-bottom: 5px; }
+.sim-locked-why { font-size: 11.5px; line-height: 1.55; color: var(--text); margin-bottom: 8px; }
+.sim-locked-alt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan);
+  background: transparent;
+  border: 1px solid var(--cyan-dim);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-locked-alt:hover { background: rgba(0, 229, 255, 0.1); }
+
+/* ---------- Mission report ---------- */
+.sim-report { animation: simEvIn 320ms ease; }
+.sim-report-title { font-family: var(--font-hud); font-size: 15px; font-weight: 700; color: var(--green); margin-bottom: 6px; }
+.sim-report-grade { font-family: var(--font-hud); font-size: 12px; color: var(--text-bright); margin-bottom: 12px; }
+.sim-report-section { margin-bottom: 12px; }
+.sim-report-flags { list-style: none; margin: 0; padding: 0; }
+.sim-report-flag { display: flex; gap: 8px; font-size: 11.5px; padding: 3px 0; color: var(--text); }
+.sim-report-flag-icon { color: var(--green); }
+.sim-report-done {
+  width: 100%;
+  font-family: var(--font-hud);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--bg);
+  background: var(--green);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.sim-report-done:hover { background: var(--green-dim); }
+
+/* ---------- Responsive: stack panels on narrow widths ---------- */
+@media (max-width: 1100px) {
+  .career-main { grid-template-columns: 1fr; grid-auto-rows: minmax(220px, auto); overflow-y: auto; }
+  .career-col--right { grid-template-rows: minmax(220px, auto) minmax(220px, auto); }
+}

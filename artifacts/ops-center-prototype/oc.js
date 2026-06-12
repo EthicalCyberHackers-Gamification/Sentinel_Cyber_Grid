@@ -101,29 +101,29 @@ function getCareerState() {
 const INCIDENTS = {
   "emea": {
     id: "emea",
-    severity: "CRITICAL",
+    severity: "HIGH",
     region: "EMEA REGION",
-    title: "Credential Phishing Campaign",
-    desc: "Active credential harvesting operation across EMEA corporate accounts. Multi-vector phishing with spoofed executive domains targeting 400+ employees. Finance manager J. Okafor reported the first spoofed email.",
-    detected: "Today 06:14 UTC",
-    systems: "Email · Identity · VPN",
+    title: "Protect Sensitive Information",
+    desc: "A contractor has requested an external release of a Finance shared folder. Access logs show the same contractor account reading files well outside its remit. Before anything leaves the building, the release folder must be classified and the suspicious access reviewed.",
+    detected: "Today 08:20 UTC",
+    systems: "Data Governance · File Shares · Identity",
     assigned: "Unassigned — Priority Queue",
     opId: "OPS-2026-001",
-    threatClass: "Spear Phishing / BEC",
-    priority: "P1 — IMMEDIATE",
+    threatClass: "Data Classification & Information Handling",
+    priority: "P2 — HIGH",
     objectives: [
-      "Identify phishing email headers",
-      "Map affected user accounts",
-      "Trace external domain origin",
-      "Draft containment & user advisory"
+      "Review every file in the release folder",
+      "Classify each file by sensitivity",
+      "Investigate the suspicious contractor access",
+      "Recommend how the release should be handled"
     ],
-    managerNote: '"Ghost Zero — this one\'s active right now. Credential theft in progress. Move fast. — Reyes"',
-    terminalBrief: "ALERT OPS-2026-001: Credential phishing campaign active. Spoofed domain external-reyes@cybercorp-support[.]net collecting VPN credentials.",
+    managerNote: '"You\'re the intern on this one — classify carefully, and if something feels off, recommend or escalate. Don\'t approve a release yourself. — Reyes"',
+    terminalBrief: "ALERT OPS-2026-001: External release queued for a Finance shared folder. Contractor account flagged for out-of-scope reads. Classify before release.",
     commsOnSelect: {
       author: "lead",
       name: "Sarah Reyes",
       role: "SOC Lead",
-      text: "Analyst — OPS-001 needs eyes now. Phishing wave is live. This is your priority."
+      text: "Analyst — OPS-001 is a data-handling review. Classify the release folder and tell me if that contractor access is a problem."
     }
   },
   "apac": {
@@ -472,6 +472,15 @@ const REAL_MISSION_MAP = {
   "latam":   "mission-004",
   "mena":    "mission-005",
   "sea":     "mission-006",
+};
+
+// Career Simulator nodes. These map an incident node to a rebuilt, role-based
+// career mission (sim.js) instead of the legacy lab/holotable/console interiors.
+// launchWorkspace() checks this FIRST so the career mission wins the launch even
+// though the same mission id may also exist in lab.js's LAB_MISSIONS. Adding a
+// node here opts it into the new four-panel Career Operating Center.
+const CAREER_MISSION_MAP = {
+  "emea": "mission-001",
 };
 
 /* ============================================================
@@ -2496,6 +2505,22 @@ function launchWorkspace() {
   if (!activeNodeId) return;
   const incident = INCIDENTS[activeNodeId];
   if (!incident) return;
+
+  // Career Simulator branch — checked FIRST, before the lock check and before the
+  // lab/holotable/console routing. Career missions own their own gating and open
+  // the rebuilt four-panel Career Operating Center (sim.js) via a window bridge,
+  // mirroring the lab bridge. This must precede the lab check because the same
+  // mission id (e.g. mission-001) also lives in lab.js's LAB_MISSIONS, which
+  // would otherwise steal the launch.
+  const careerMissionId = CAREER_MISSION_MAP[activeNodeId];
+  if (careerMissionId) {
+    if (typeof window.openCareerMission === 'function') {
+      window.openCareerMission(careerMissionId);
+    }
+    // If sim.js hasn't loaded yet, do nothing rather than fall through to a
+    // legacy interior — the career node should never open the old workspace.
+    return;
+  }
 
   // Block locked real missions — their prerequisite isn't complete yet.
   if (getMissionStates()[activeNodeId] === 'locked') return;

@@ -8,11 +8,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./oc.css" />
+  <link rel="stylesheet" href="./sim.css" />
 </head>
 <body>
 
   <!-- ===== OPS CENTER SCREEN ===== -->
   <div id="opsCenter" class="screen screen--ops">
+
+    <!-- Career resource bar (always visible across home + missions; populated by sim.js) -->
+    <div class="sim-resbar" aria-label="Organizational resources"></div>
 
     <!-- HEADER -->
     <header class="oc-header">
@@ -692,7 +696,61 @@
     <div class="lab-modal" id="labKit" hidden role="dialog" aria-modal="true" aria-label="SOC Tool Kit"></div>
   </div>
 
+  <!-- ============================================================
+       CAREER OPERATING CENTER (career simulator — Mission interior).
+       Four panels: Mission Brief / Evidence / Terminal+Action /
+       Feedback. Static hosts; sim.js populates them. Prototype-only,
+       persists to its own localStorage key (never the shipping game).
+       ============================================================ -->
+  <div id="careerOps" class="screen screen--career" style="display:none;" aria-label="Career Operating Center">
+
+    <!-- Always-visible resource bar (populated by sim.js) -->
+    <div class="sim-resbar" aria-label="Organizational resources"></div>
+
+    <div class="career-header">
+      <button class="career-back-btn" id="careerBackBtn" type="button">
+        ← RETURN TO OPERATIONS CENTER
+      </button>
+      <div class="career-incident-strip">
+        <span class="career-severity" id="careerSeverity" data-severity="HIGH">HIGH</span>
+        <span class="career-region" id="careerRegion">EMEA REGION</span>
+        <span class="career-sep" aria-hidden="true">—</span>
+        <span class="career-title" id="careerTitle">Protect Sensitive Information</span>
+      </div>
+      <button class="career-reset-btn" id="simResetBtn" type="button" title="Reset career progress (prototype only)">
+        ⟲ RESET
+      </button>
+    </div>
+
+    <div class="career-main">
+
+      <!-- Panel 1 — Mission Brief -->
+      <section class="sim-panel sim-panel--brief" id="simBrief" aria-label="Mission brief"></section>
+
+      <!-- Panel 3 — Investigation terminal + decision actions -->
+      <section class="sim-panel sim-panel--work" aria-label="Investigation terminal and actions">
+        <div class="sim-panel-head">INVESTIGATION TERMINAL</div>
+        <div class="sim-term-out" id="simTerminal" aria-live="polite"></div>
+        <form class="sim-term-form" id="simTermForm">
+          <span class="sim-term-prompt" aria-hidden="true">intern@cybercorp:~/release$</span>
+          <input class="sim-term-input" id="simTermInput" type="text" autocomplete="off"
+                 autocapitalize="off" spellcheck="false"
+                 placeholder="type a command — try `ls`, then `cat <file>`, or `help`" aria-label="Command input" />
+        </form>
+        <div class="sim-actions" id="simActions"></div>
+      </section>
+
+      <!-- Right column — Panel 2 Evidence (top) + Panel 4 Feedback/Consequence (bottom) -->
+      <div class="career-col career-col--right">
+        <section class="sim-panel sim-panel--evidence" id="simEvidence" aria-label="Evidence"></section>
+        <section class="sim-panel sim-panel--feedback" id="simFeedback" aria-label="Feedback and consequence"></section>
+      </div>
+
+    </div>
+  </div>
+
   <script type="module" src="./oc.js"></script>
   <script type="module" src="./lab.js"></script>
+  <script type="module" src="./sim.js"></script>
 </body>
 </html>
