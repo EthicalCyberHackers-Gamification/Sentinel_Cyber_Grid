@@ -1,0 +1,770 @@
+# ETHICAL CYBERHACKERS
+
+# CYBERSECURITY INTERN CURRICULUM REBUILD
+
+# MASTER REPLIT CURRICULUM PROMPT
+
+## OBJECTIVE
+
+Refactor the Cybersecurity Intern curriculum into a realistic cybersecurity career simulation that teaches:
+
+* Investigation
+* Analytical thinking
+* Risk assessment
+* Decision making
+* Business consequences
+* Professional cybersecurity workflows
+
+The curriculum must not become:
+
+* Linux training
+* Command memorization
+* Quiz-based learning
+* Flashcard learning
+
+Students should feel like cybersecurity professionals investigating real incidents.
+
+---
+
+# CORE CURRICULUM PRINCIPLE
+
+The student should learn:
+
+```text
+What happened?
+Why does it matter?
+How serious is it?
+What should happen next?
+```
+
+Not:
+
+```text
+What command should I memorize?
+```
+
+Commands are tools.
+
+Investigation is the goal.
+
+---
+
+# CURRICULUM PROGRESSION MODEL
+
+Difficulty should increase through:
+
+* More evidence
+* More ambiguity
+* More conflicting indicators
+* More business consequences
+* More decision complexity
+
+Difficulty should NOT increase through:
+
+* More jargon
+* More unexplained logs
+* More complex commands
+* More technical terminology
+
+---
+
+# ROLE
+
+Current Active Role:
+
+Cybersecurity Intern
+
+Authority:
+
+✓ Investigate
+✓ Classify
+✓ Recommend
+✓ Escalate
+✓ Document
+
+Cannot:
+
+✗ Approve Budgets
+✗ Purchase Tools
+✗ Change Policy
+✗ Hire Consultants
+✗ Directly Engage Executives
+
+Students should see these concepts but not control them.
+
+---
+
+# ALWAYS VISIBLE RESOURCE BAR
+
+Display permanently during every mission:
+
+ROLE: Cybersecurity Intern
+
+Authority:
+Investigate | Recommend | Escalate | Document
+
+Security Posture
+Organization Budget
+Executive Trust
+Compliance Exposure
+Career Reputation
+Business Continuity
+
+Students should continuously see consequences.
+
+---
+
+# INVESTIGATION DESIGN RULE
+
+Every command must contribute to answering:
+
+1. What happened?
+2. Who did it?
+3. How serious is it?
+4. What should we do next?
+
+If a command does not contribute to one of these questions, remove it.
+
+---
+
+# COMMAND LEARNING LOOP
+
+Every command should follow:
+
+Command
+↓
+Raw Evidence
+↓
+Observation
+↓
+Interpretation Question
+↓
+Risk Assessment
+↓
+Recommendation
+↓
+Feedback
+↓
+Analyst Notebook Update
+
+Students should never stare at logs without guidance.
+
+---
+
+# EVIDENCE DISPLAY SYSTEM
+
+Every evidence item must support:
+
+## Beginner View
+
+Plain-language explanation.
+
+## Analyst View
+
+Semi-technical explanation.
+
+## Technical View
+
+Professional cybersecurity terminology.
+
+Cybersecurity Intern defaults to:
+
+Beginner View
+
+Analyst View and Technical View remain expandable.
+
+---
+
+# TERMINOLOGY RULE
+
+Never introduce terminology before behavior.
+
+Bad:
+
+"Beaconing"
+
+Good:
+
+"This computer contacts the same internet server every minute."
+
+Student identifies behavior.
+
+Then unlock:
+
+Analyst Term:
+Beaconing
+
+Definition:
+Repeated communication between systems at regular intervals.
+
+---
+
+# ANALYST NOTEBOOK
+
+Create a persistent notebook.
+
+Every command automatically adds findings.
+
+Example:
+
+Evidence Collected
+
+✓ Unknown device discovered
+
+✓ Contractor account accessed restricted files
+
+✓ Multiple failed logins followed by success
+
+✓ Large customer data transfer
+
+Potential Risks
+
+□ Unauthorized Device
+
+□ Compromised Account
+
+□ Data Exfiltration
+
+Recommended Actions
+
+□ Escalate Incident
+
+□ Recommend Account Lock
+
+□ Recommend Legal Review
+
+Notebook updates throughout mission.
+
+---
+
+# INVESTIGATION CONFIDENCE
+
+Add confidence meter.
+
+Mission Start:
+
+10%
+
+Commands increase confidence.
+
+Example:
+
+Review File Listing
++10%
+
+Review Access Logs
++20%
+
+Review Login History
++25%
+
+Correlate Evidence
++30%
+
+Confidence helps students understand why evidence gathering matters.
+
+---
+
+# COMMAND PHILOSOPHY
+
+Students enjoy command lines because commands create:
+
+* Discovery
+* Exploration
+* Professional identity
+* Investigation feeling
+
+Increase command interactions.
+
+Do NOT increase command complexity.
+
+Target:
+
+Mission 1:
+8-10 commands
+
+Mission 2:
+10-12 commands
+
+Mission 3:
+12-15 commands
+
+Mission 4:
+15-20 commands
+
+Every command should reveal useful evidence.
+
+---
+
+# MISSION 1
+
+Protect Sensitive Information
+
+Curriculum Goals:
+
+* Data Classification
+* Sensitive Information Identification
+* Compliance Risk
+* Business Consequences
+
+Scenario:
+
+Company preparing files for public release.
+
+Student investigates before publication.
+
+---
+
+## Commands
+
+pwd
+
+ls
+
+ls public_release_queue
+
+cat employee_salaries.xlsx.preview
+
+cat customer_contacts.csv.preview
+
+cat contractor_access_notes.txt
+
+grep contractor access_log.txt
+
+cat policy_data_classification.txt
+
+cat publication_schedule.txt
+
+cat legal_review_notes.txt
+
+---
+
+## Evidence
+
+Realistic file listings.
+
+Realistic document previews.
+
+Simple access logs.
+
+No advanced cybersecurity terminology.
+
+---
+
+## Student Tasks
+
+Identify sensitive information.
+
+Determine classification.
+
+Review contractor access.
+
+Determine appropriate handling.
+
+Recommend actions.
+
+---
+
+## Decisions
+
+Approve Release
+
+Restrict Access
+
+Recommend Legal Review
+
+Archive
+
+Escalate To Security Manager
+
+---
+
+## Carry Forward
+
+contractorAccessDiscovered
+
+sensitiveDataExposed
+
+legalReviewTriggered
+
+---
+
+# MISSION 2
+
+Investigate Network Assets
+
+Curriculum Goals:
+
+* Network Fundamentals
+* Asset Discovery
+* Risk Assessment
+* Unauthorized Device Detection
+
+---
+
+## Commands
+
+ip addr
+
+ping 192.168.1.57
+
+ping 192.168.1.20
+
+nmap 192.168.1.57
+
+cat asset_inventory.txt
+
+cat dhcp_leases.txt
+
+grep 192.168.1.57 network_notes.txt
+
+cat contractor_assignments.txt
+
+cat network_diagram.txt
+
+cat security_baseline.txt
+
+grep contractor network_access.txt
+
+tail network_events.log
+
+---
+
+## Evidence
+
+Asset inventory.
+
+IP address lists.
+
+DHCP assignments.
+
+Simple scan results.
+
+Introduce:
+
+* Device
+* Network
+* IP Address
+* Service
+
+Do NOT introduce:
+
+* Beaconing
+* C2
+* Lateral Movement
+
+---
+
+## Student Tasks
+
+Identify unknown device.
+
+Compare inventory.
+
+Determine risk.
+
+Investigate contractor relationship.
+
+Recommend action.
+
+---
+
+## Decisions
+
+Recommend Disconnect
+
+Monitor
+
+Escalate
+
+Continue Investigation
+
+Ignore
+
+---
+
+## Carry Forward
+
+rogueDeviceActive
+
+rogueDeviceContained
+
+contractorDeviceLinked
+
+---
+
+# MISSION 3
+
+Investigate Suspicious Authentication Activity
+
+Curriculum Goals:
+
+* Authentication Security
+* Log Analysis
+* Account Compromise Detection
+* Evidence Correlation
+
+---
+
+## Commands
+
+cat auth.log
+
+tail auth.log
+
+grep contractor01 auth.log
+
+grep failed auth.log
+
+cat login_locations.log
+
+cat user_access.log
+
+cat account_changes.log
+
+grep successful auth.log
+
+cat authentication_policy.txt
+
+cat contractor_activity.log
+
+grep unknown login_locations.log
+
+tail security_events.log
+
+cat mfa_status.txt
+
+grep password_reset user_access.log
+
+cat manager_notes.txt
+
+---
+
+## Evidence
+
+Realistic simplified authentication logs.
+
+Repeated failures.
+
+Unknown location access.
+
+Successful login after failures.
+
+---
+
+## Student Tasks
+
+Determine attack pattern.
+
+Assess risk.
+
+Identify compromised account.
+
+Recommend response.
+
+---
+
+## Decisions
+
+Recommend Password Reset
+
+Recommend MFA
+
+Recommend Account Lock
+
+Escalate Incident
+
+Continue Investigation
+
+Ignore Alert
+
+---
+
+## Carry Forward
+
+mfaRecommended
+
+mfaApproved
+
+contractorAccountCompromised
+
+credentialRiskHigh
+
+---
+
+# MISSION 4
+
+Data Exfiltration Investigation
+
+Curriculum Goals:
+
+* Incident Response
+* Timeline Analysis
+* Root Cause Analysis
+* Business Impact Assessment
+
+---
+
+## Commands
+
+cat login_history.log
+
+grep contractor01 login_history.log
+
+cat file_access.log
+
+grep customer_database file_access.log
+
+cat transfer.log
+
+grep archive transfer.log
+
+cat endpoint_activity.log
+
+cat network_activity.log
+
+grep external network_activity.log
+
+cat archive_creation.log
+
+stat customer_database.csv
+
+history
+
+grep contractor endpoint_activity.log
+
+cat incident_notes.txt
+
+cat legal_exposure_report.txt
+
+cat compliance_review.txt
+
+grep customer_records transfer.log
+
+cat system_alerts.log
+
+cat manager_briefing.txt
+
+cat board_concerns.txt
+
+---
+
+## Evidence
+
+Multiple realistic log sources.
+
+Students correlate:
+
+Login
+↓
+File Access
+↓
+Archive Creation
+↓
+Data Transfer
+
+---
+
+## Student Tasks
+
+Build timeline.
+
+Determine root cause.
+
+Identify attack path.
+
+Assess impact.
+
+Prepare incident report.
+
+Recommend response.
+
+---
+
+## Decisions
+
+Recommend Account Disablement
+
+Recommend Device Block
+
+Recommend Legal Notification
+
+Recommend Forensics Review
+
+Recommend Customer Notification
+
+Submit Incident Report
+
+---
+
+## Dynamic Mission Conditions
+
+Mission 4 changes based on:
+
+Mission 1 decisions
+
+Mission 2 decisions
+
+Mission 3 decisions
+
+Earlier mistakes should visibly affect outcomes.
+
+---
+
+# COMMAND OUTPUT TEMPLATE
+
+Every command should use this structure:
+
+RAW EVIDENCE
+
+(actual data)
+
+OBSERVATION
+
+(plain-language summary)
+
+GUIDED QUESTION
+
+(what should student notice?)
+
+INTERPRETATION
+
+(student response)
+
+FEEDBACK
+
+(explanation)
+
+ANALYST NOTE
+
+(optional)
+
+TECHNICAL DETAILS
+
+(optional)
+
+NOTEBOOK UPDATE
+
+(add finding)
+
+CONFIDENCE UPDATE
+
+(add confidence)
+
+NEXT SUGGESTED STEP
+
+(guide investigation)
+
+---
+
+# END GOAL
+
+Students should complete the Cybersecurity Intern curriculum feeling:
+
+"I investigated real cybersecurity incidents."
+
+Not:
+
+"I memorized cybersecurity terminology."
+
+The curriculum should progressively expose realistic evidence, realistic logs, realistic workflows, and realistic consequences while continuously supporting student understanding through guided investigation and reasoning.

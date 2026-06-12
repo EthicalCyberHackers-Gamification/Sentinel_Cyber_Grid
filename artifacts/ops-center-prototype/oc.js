@@ -481,6 +481,8 @@ const REAL_MISSION_MAP = {
 // node here opts it into the new four-panel Career Operating Center.
 const CAREER_MISSION_MAP = {
   "emea": "mission-001",
+  "apac": "mission-002",
+  "na-east": "mission-003",
 };
 
 /* ============================================================
@@ -1903,14 +1905,37 @@ function readGameProgress() {
   }
 }
 
+// Career Simulator completion mirror. The rebuilt career missions (sim.js)
+// persist ONLY to `ocp.career.v1` and never touch `ech.progress.v1`. The map's
+// unlock chain still reads `ech.progress.v1`, so completing a career mission
+// would never unlock the next career node. We READ (never write) the career
+// store so career completion unlocks the following career node on the map.
+const CAREER_STORAGE_KEY = "ocp.career.v1";
+
+function readCareerCompleted() {
+  try {
+    const raw = localStorage.getItem(CAREER_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const arr = (parsed && Array.isArray(parsed.completedMissions))
+      ? parsed.completedMissions
+      : [];
+    return arr.filter((m) => typeof m === "string");
+  } catch {
+    return [];
+  }
+}
+
 // Returns { nodeId: "completed" | "active" | "locked" } for all six
 // real-mission nodes. The unlock chain mirrors the main game's gating:
 // emea→apac→na-east→latam→mena→sea (each needs the prior completed).
 function getMissionStates() {
   const p = readGameProgress() || {};
-  const m1 = !!p.mission1Complete;
-  const m2 = !!p.mission2Complete;
-  const m3 = !!p.mission3Complete;
+  const career = readCareerCompleted();
+  const cc = (id) => career.includes(id);
+  const m1 = !!p.mission1Complete || cc("mission-001");
+  const m2 = !!p.mission2Complete || cc("mission-002");
+  const m3 = !!p.mission3Complete || cc("mission-003");
   const m4 = !!p.mission4Complete;
   const m5 = !!p.mission5Complete;
   const m6 = !!p.mission6Complete;
@@ -2514,6 +2539,12 @@ function launchWorkspace() {
   // would otherwise steal the launch.
   const careerMissionId = CAREER_MISSION_MAP[activeNodeId];
   if (careerMissionId) {
+    // Defensive node gating: a locked career node (its prerequisite mission isn't
+    // complete) must not open from the map. The disabled launch button is the
+    // primary gate; this guards any future programmatic launch path too. The
+    // ?career=<id> deep-link in sim.js calls openCareerMission directly and
+    // intentionally bypasses this for demos/testing.
+    if (getMissionStates()[activeNodeId] === 'locked') return;
     if (typeof window.openCareerMission === 'function') {
       window.openCareerMission(careerMissionId);
     }

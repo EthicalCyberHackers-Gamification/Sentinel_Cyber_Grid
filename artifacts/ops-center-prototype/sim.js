@@ -274,8 +274,10 @@ const SIM = {
   stage: 'investigation',   // investigation -> decision -> report
   listed: false,            // `ls` has been run
   read: new Set(),          // files cat/less'd
+  ranCommands: new Set(),   // command ids run (command-model missions)
   evidence: new Set(),      // evidence ids surfaced
   classified: {},           // fileName -> classification value
+  identified: null,         // chosen identify option id (command-model missions)
   decision: null,           // chosen action id
   recommendations: [],      // submitted recommendation results
   evReveal: {},             // evidenceId -> 'analyst' | 'technical' (per-item disclosure)
@@ -295,8 +297,10 @@ function openCareerMission(missionId) {
   SIM.stage = 'investigation';
   SIM.listed = false;
   SIM.read = new Set();
+  SIM.ranCommands = new Set();
   SIM.evidence = new Set();
   SIM.classified = {};
+  SIM.identified = null;
   SIM.decision = null;
   SIM.recommendations = [];
   SIM.evReveal = {};
@@ -304,6 +308,9 @@ function openCareerMission(missionId) {
 
   document.getElementById('opsCenter').style.display = 'none';
   document.getElementById('careerOps').style.display = 'flex';
+
+  const promptEl = document.getElementById('simTermPrompt');
+  if (promptEl) promptEl.textContent = def.promptLabel || 'intern@cybercorp:~/release$';
 
   renderResourceBar();
   renderCareerHeader();
@@ -375,6 +382,94 @@ function renderBriefPanel() {
 /* ------------------------------------------------------------------ *
  * Panel 2 — Evidence + file classification (INVESTIGATION engine, P2)
  * ------------------------------------------------------------------ */
+/* Investigation confidence (0..100) — a presentation-only mirror of evidence
+ * quality. Starts at 10 (you always know *something*) and climbs to 100 as the
+ * weighted evidence is surfaced. Touches no scoring; the recommendation engine
+ * still reads evidenceQuality()/classificationQuality() directly. */
+function investigationConfidence() {
+  return Math.max(10, Math.min(100, Math.round(10 + 90 * evidenceQuality())));
+}
+
+function confidenceMeterHtml() {
+  const c = investigationConfidence();
+  const tone = c >= 70 ? 'good' : c >= 40 ? 'warn' : 'low';
+  return `
+    <div class="sim-confidence sim-confidence--${tone}">
+      <div class="sim-confidence-head"><span>INVESTIGATION CONFIDENCE</span><span class="sim-confidence-pct">${c}%</span></div>
+      <div class="sim-confidence-meter"><span class="sim-confidence-fill" style="width:${c}%"></span></div>
+      <div class="sim-confidence-note">Climbs as your commands uncover evidence.</div>
+    </div>`;
+}
+
+/* A risk is "confirmed" once any evidence item that proves it has surfaced. */
+function riskConfirmed(r) {
+  return (r.triggeredBy || []).some(id => SIM.evidence.has(id));
+}
+
+function risksNotebookHtml() {
+  const risks = (SIM.def && SIM.def.risks) || [];
+  if (!risks.length) return '';
+  const found = risks.filter(riskConfirmed).length;
+  const items = risks.map(r => {
+    const on = riskConfirmed(r);
+    return `<li class="sim-risk${on ? ' sim-risk--on' : ''}"><span class="sim-risk-box" aria-hidden="true">${on ? '☑' : '☐'}</span><span>${r.label}</span></li>`;
+  }).join('');
+  return `
+    <div class="sim-notebook-section">
+      <div class="sim-notebook-head">POTENTIAL RISKS <span class="sim-notebook-count">${found}/${risks.length}</span></div>
+      <ul class="sim-risks">${items}</ul>
+    </div>`;
+}
+
+/* The single "what is this?" determination for command-model missions. Single
+ * select; correctness is NOT shown live (no quiz feel) — it surfaces only in the
+ * debrief's identification review and feeds the recommendation outcome there. */
+function identifyNotebookHtml() {
+  const idf = SIM.def && SIM.def.identify;
+  if (!idf) return '';
+  if (SIM.evidence.size === 0) return '';   // nothing to reason about yet
+  const opts = (idf.options || []).map(o => {
+    const on = SIM.identified === o.id;
+    return `<button type="button" class="sim-identify-btn${on ? ' sim-identify-btn--on' : ''}" data-identify="${o.id}" aria-pressed="${on}">${o.label}</button>`;
+  }).join('');
+  const note = SIM.identified
+    ? `<div class="sim-identify-note">${idf.note || 'Determination recorded — this feeds the strength of your recommendation.'}</div>`
+    : '';
+  return `
+    <div class="sim-notebook-section">
+      <div class="sim-notebook-head">${idf.head || 'YOUR DETERMINATION'}</div>
+      <div class="sim-identify-prompt">${idf.prompt || ''}</div>
+      <div class="sim-identify-opts">${opts}</div>
+      ${note}
+    </div>`;
+}
+
+/* Response checklist line: □ until a decision/recommendation is recorded, then
+ * ☑ with the chosen action. Presentation-only mirror of SIM.decision. */
+function responseStatusHtml() {
+  const d = SIM.decision;
+  let label = 'Recommend or take a response action';
+  if (d) {
+    let chosen = '';
+    if (d.actionId) {
+      const a = (SIM.def.actions || []).find(x => x.id === d.actionId);
+      chosen = a ? a.label : d.actionId;
+    } else if (d.recommendationId) {
+      const rc = (SIM.def.recommendations || {})[d.recommendationId];
+      chosen = rc ? rc.label : d.recommendationId;
+    }
+    label = chosen ? ('Response recorded — ' + chosen) : 'Response recorded';
+  }
+  const on = !!d;
+  return `
+    <div class="sim-notebook-section">
+      <div class="sim-notebook-head">RECOMMENDED RESPONSE</div>
+      <ul class="sim-risks">
+        <li class="sim-risk${on ? ' sim-risk--on' : ''}"><span class="sim-risk-box" aria-hidden="true">${on ? '☑' : '☐'}</span><span>${label}</span></li>
+      </ul>
+    </div>`;
+}
+
 function renderEvidencePanel() {
   const host = document.getElementById('simEvidence');
   if (!host) return;
@@ -395,19 +490,34 @@ function renderEvidencePanel() {
     .filter(e => SIM.evidence.has(e.id))
     .map(e => renderEvItem(e, mode))
     .join('');
-  const evHtml = evItems ||
-    `<p class="sim-empty">No evidence yet. Use the terminal to review the files, then classify what you find.</p>`;
+  const emptyMsg = (SIM.def && SIM.def.evidenceEmpty) ||
+    'No evidence yet. Use the terminal to investigate — each command can surface new findings.';
+  const evSection = `
+    <div class="sim-notebook-section">
+      <div class="sim-notebook-head">EVIDENCE COLLECTED <span class="sim-notebook-count">${SIM.evidence.size}</span></div>
+      ${evItems || `<p class="sim-empty">${emptyMsg}</p>`}
+    </div>`;
 
   // "What concerns you?" reasoning step — appears once the suspicious activity
   // it belongs to has been surfaced. Reasoning practice, never graded.
   const reflectEv = activeReflectionEv();
   const reflectHtml = reflectEv ? reflectionCardHtml(reflectEv) : '';
 
-  const classHtml = renderClassifyHtml(mode);
+  const classHtml = renderClassifyHtml(mode);    // M1 file flow ('' for command-model)
+  const identifyHtml = identifyNotebookHtml();    // command-model ('' for M1)
 
   host.innerHTML = `
-    <div class="sim-panel-head">EVIDENCE <span class="sim-panel-count">${SIM.evidence.size}</span></div>
-    <div class="sim-evidence-body">${viewbar}${evHtml}${reflectHtml}${classHtml}</div>`;
+    <div class="sim-panel-head">ANALYST NOTEBOOK</div>
+    <div class="sim-evidence-body">
+      ${confidenceMeterHtml()}
+      ${viewbar}
+      ${evSection}
+      ${risksNotebookHtml()}
+      ${reflectHtml}
+      ${classHtml}
+      ${identifyHtml}
+      ${responseStatusHtml()}
+    </div>`;
 }
 
 /* One evidence item, presented at the active depth. Beginner mode leads with
@@ -636,6 +746,65 @@ const SIM_GLOSSARY = {
     definition: 'Significant business information that has not been announced publicly, such as a planned acquisition.',
     why: 'Sharing or acting on it early can break the law and tip off competitors.',
   },
+
+  /* ---- Mission 2 — Network Assets ---- */
+  device: {
+    term: 'Device',
+    definition: 'Any piece of hardware connected to the network — a laptop, server, printer, or phone.',
+    why: 'Every device on the network is a way in. One you do not recognize is one you cannot trust.',
+  },
+  network: {
+    term: 'Network',
+    definition: 'The system that links devices together so they can share data and talk to each other.',
+    why: 'Anything on the same network can often reach the company'+"'"+'s internal systems and files.',
+  },
+  ipAddress: {
+    term: 'IP address',
+    definition: 'A numbered address (like 192.168.1.57) that identifies one device on the network.',
+    why: 'It tells you which exact device is doing something — your first handle on who is who.',
+  },
+  service: {
+    term: 'Service',
+    definition: 'A program running on a device that listens for requests, such as a website, file share, or remote login.',
+    why: 'Open services are doors. The more a device exposes, the more an attacker can try to push on.',
+  },
+  subnet: {
+    term: 'Subnet',
+    definition: 'A slice of the network grouped under a shared address range, like 192.168.1.0/24.',
+    why: 'Devices on the same subnet can usually reach each other directly — useful, and risky.',
+  },
+  portScan: {
+    term: 'Port scan',
+    definition: 'Checking a device to see which services (ports) it has open and listening.',
+    why: 'It reveals what a device exposes — the same first step an attacker takes.',
+  },
+
+  /* ---- Mission 3 — Authentication Activity ---- */
+  authentication: {
+    term: 'Authentication',
+    definition: 'Proving who you are before being let in — typically a username plus a password.',
+    why: 'If someone defeats it, they become that user, with all of their access.',
+  },
+  mfa: {
+    term: 'MFA',
+    definition: 'Multi-factor authentication — a second proof of identity beyond the password, like a phone code.',
+    why: 'It stops most stolen-password attacks. Turning it off is a classic move once an account is taken over.',
+  },
+  bruteForce: {
+    term: 'Brute force',
+    definition: 'Guessing a password over and over, often automatically, until one attempt works.',
+    why: 'A burst of failed logins followed by a success is a textbook sign of it.',
+  },
+  credentialCompromise: {
+    term: 'Account compromise',
+    definition: 'When someone other than the real owner gains control of an account.',
+    why: 'The attacker now acts as a trusted insider — much harder to spot than an outsider.',
+  },
+  impossibleTravel: {
+    term: 'Impossible travel',
+    definition: 'Two logins from places too far apart to reach in the time between them — so they cannot be the same person.',
+    why: 'It is strong evidence that someone else is using the account from another location.',
+  },
 };
 function glossaryEntry(key) { return SIM_GLOSSARY[key] || null; }
 
@@ -731,33 +900,148 @@ function classificationQuality() {
 function simRunCommand(raw) {
   const cmd = String(raw || '').trim();
   if (!cmd) return;
-  simPrint('intern@cybercorp:~/release$ ' + cmd, 'cmd');
+  const promptLabel = (SIM.def && SIM.def.promptLabel) || 'intern@cybercorp:~/release$';
+  simPrint(promptLabel + ' ' + cmd, 'cmd');
   const parts = cmd.split(/\s+/);
   const verb = parts[0].toLowerCase();
+
+  // Universal verbs available in every mission.
+  if (verb === 'help')  return simCmdHelp();
+  if (verb === 'clear') { const out = document.getElementById('simTerminal'); if (out) out.innerHTML = ''; return; }
+  if (verb === 'decide' || verb === 'actions') return simRevealActions(true);
+
+  // Command-model missions (M2+) define their own command set.
+  if (SIM.def && Array.isArray(SIM.def.commands) && SIM.def.commands.length) {
+    return simRunMissionCommand(cmd);
+  }
+
+  // File-model missions (Mission 1) — original ls / cat flow.
   const arg = parts.slice(1).join(' ').trim();
   switch (verb) {
-    case 'help':   return simCmdHelp();
-    case 'clear':  { const out = document.getElementById('simTerminal'); if (out) out.innerHTML = ''; return; }
     case 'ls':
     case 'dir':    return simCmdLs();
     case 'cat':
     case 'less':
     case 'more':
     case 'open':   return simCmdRead(arg, verb);
-    case 'decide':
-    case 'actions':return simRevealActions(true);
     default:
       simPrint(`command not found: ${verb}. Try: ls, cat <file>, less <file>, decide, help.`, 'err');
   }
 }
 
 function simCmdHelp() {
+  // Command-model missions list their own command set.
+  if (SIM.def && Array.isArray(SIM.def.commands) && SIM.def.commands.length) {
+    simPrint('Available commands:', 'head');
+    SIM.def.commands.forEach(c => {
+      const name = (c.match && c.match[0]) || c.id;
+      simPrint('  ' + name.padEnd(26) + (c.help || ''), 'dim');
+    });
+    simPrint('  ' + 'decide'.padEnd(26) + 'review your findings and choose a response', 'dim');
+    simPrint('  ' + 'clear'.padEnd(26) + 'clear the terminal', 'dim');
+    return;
+  }
   simPrint('Available commands:', 'head');
   simPrint('  ls            list the files queued for release', 'dim');
   simPrint('  cat <file>    read a file (surfaces evidence)', 'dim');
   simPrint('  less <file>   page through a file (same as cat here)', 'dim');
   simPrint('  decide        reveal the handling actions when ready', 'dim');
   simPrint('  clear         clear the terminal', 'dim');
+}
+
+/* ------------------------------------------------------------------ *
+ * COMMAND-MODEL ENGINE (Mission 2+). Missions define `def.commands[]`;
+ * each entry prints output, surfaces evidence, and runs a per-command
+ * learning loop (observation ▸ / rhetorical question ? / confidence ↑ /
+ * next →). Mission 1's file flow is untouched.
+ * ------------------------------------------------------------------ */
+function normalizeCmd(s) {
+  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/* Match a typed command against the active mission's command set: exact
+ * normalized match against any alias first, then an arg-bearing prefix match. */
+function findMissionCommand(cmd) {
+  const norm = normalizeCmd(cmd);
+  const cmds = (SIM.def && SIM.def.commands) || [];
+  for (const c of cmds) {
+    if ((c.match || []).map(normalizeCmd).includes(norm)) return c;
+  }
+  for (const c of cmds) {
+    if ((c.match || []).map(normalizeCmd).some(a => norm === a || norm.startsWith(a + ' '))) return c;
+  }
+  return null;
+}
+
+function simRunMissionCommand(cmd) {
+  const c = findMissionCommand(cmd);
+  if (!c) {
+    const verb = normalizeCmd(cmd).split(' ')[0];
+    simPrint(`command not found: ${verb}. Type  help  to see available commands, or  decide  when ready.`, 'err');
+    return;
+  }
+  runCommandEntry(c);
+}
+
+/* Run one mission command: print its output, surface evidence on first run,
+ * then the presentation-only learning loop. Mirrors Mission 1's first-read gate
+ * so re-running a command never double-counts evidence or confidence. */
+function runCommandEntry(c) {
+  const firstRun = !SIM.ranCommands.has(c.id);
+  SIM.ranCommands.add(c.id);
+
+  (c.output || []).forEach(line => {
+    if (typeof line === 'string') simPrint('  ' + line, 'file');
+    else simPrint(line.t, line.c || 'file');
+  });
+
+  if (firstRun) (c.reveals || []).forEach(surfaceEvidence);
+
+  if (c.observation) simPrint('▸ ' + c.observation, 'observe');
+  if (c.question)    simPrint('? ' + c.question, 'question');
+  if (firstRun && (c.reveals || []).length) {
+    simPrint('  confidence ↑ — now ' + investigationConfidence() + '%', 'confidence');
+  }
+  if (c.next) simPrint('→ Next: ' + c.next, 'next');
+  simPrint('', 'spacer');
+
+  renderEvidencePanel();
+
+  if (firstRun && coreCommandsRun() && SIM.stage === 'investigation') {
+    simPrint('You have gathered the core evidence. Make your determination in the notebook, then type  decide  to choose a response.', 'ok');
+    simRevealActions(false);
+  }
+}
+
+/* True once every command flagged `core: true` has been run. Gates the "decide"
+ * nudge and the thoroughness bonus for command-model missions. */
+function coreCommandsRun() {
+  const core = ((SIM.def && SIM.def.commands) || []).filter(c => c.core);
+  if (!core.length) return false;
+  return core.every(c => SIM.ranCommands.has(c.id));
+}
+
+/* Mission-agnostic "did the analyst finish the investigation?": all files read
+ * for file-model missions, all core commands run for command-model missions. */
+function investigationComplete() {
+  return simFiles().length ? allFilesRead() : coreCommandsRun();
+}
+
+/* The single identification (which device / which account) for command-model
+ * missions. Single-select; feeds the recommendation outcome like classification
+ * does for Mission 1. */
+function setIdentification(id) {
+  const idf = SIM.def && SIM.def.identify;
+  if (!idf) return;
+  if (!(idf.options || []).some(o => o.id === id)) return;
+  SIM.identified = id;
+  renderEvidencePanel();
+}
+
+function identificationQuality() {
+  const idf = SIM.def && SIM.def.identify;
+  if (!idf) return 0;
+  return SIM.identified === idf.correctId ? 1 : 0;
 }
 
 function simCmdLs() {
@@ -852,8 +1136,11 @@ function simRevealActions(manual) {
   if (SIM.stage === 'report') return;   // decision already made
   SIM.stage = 'decision';
   renderActions();
-  if (manual && !allFilesRead()) {
-    simPrint('Note: you have not reviewed every file. Acting on incomplete evidence weakens your recommendation.', 'warn');
+  if (manual && !investigationComplete()) {
+    const msg = simFiles().length
+      ? 'Note: you have not reviewed every file. Acting on incomplete evidence weakens your recommendation.'
+      : 'Note: you have not finished the core investigation. Acting on incomplete evidence weakens your recommendation.';
+    simPrint(msg, 'warn');
   }
 }
 
@@ -947,24 +1234,30 @@ function submitRecommendation(recId) {
  * trust + career reputation + timing (evidence gathered before deciding). */
 function computeRecommendationOutcome() {
   const q = evidenceQuality();
-  const cq = classificationQuality();
+  // Accuracy is the mission's "did you get the right answer" input. File-model
+  // missions (M1) use classification accuracy; command-model missions use the
+  // single identification; a mission with neither falls back to evidence quality.
+  // For M1 (files present) this is identical to the original classificationQuality().
+  const accuracy = simFiles().length ? classificationQuality()
+    : (SIM.def && SIM.def.identify) ? identificationQuality()
+    : evidenceQuality();
   const timing = SIM.evidence.size > 0 ? 1 : 0;
   const sev = (SIM.def && SIM.def.severity) || 'MEDIUM';
   const sevBoost = sev === 'CRITICAL' ? 10 : sev === 'HIGH' ? 10 : sev === 'MEDIUM' ? 5 : 0;
   let score = 0;
   score += q * 30;                                   // evidence surfaced
-  score += cq * 25;                                  // files classified correctly
+  score += accuracy * 25;                            // correct answer (classify / identify)
   score += (CAREER.executiveTrust / 100) * 12;
   score += (CAREER.careerReputation / 100) * 8;
   score += timing ? 8 : 0;
-  score += allFilesRead() ? 7 : 0;
+  score += investigationComplete() ? 7 : 0;          // M1: allFilesRead(); M2+: coreCommandsRun()
   score += sevBoost;
   let verdict, multiplier;
   if (score >= 70)      { verdict = 'Approved';            multiplier = 1;   }
   else if (score >= 50) { verdict = 'Partially Approved';  multiplier = 0.6; }
   else if (score >= 30) { verdict = 'Deferred';            multiplier = 0.3; }
   else                  { verdict = 'Denied';              multiplier = 0;   }
-  return { verdict, multiplier, score: Math.round(score), evidenceQuality: q, classificationQuality: cq };
+  return { verdict, multiplier, score: Math.round(score), evidenceQuality: q, classificationQuality: accuracy };
 }
 
 function scaleDeltas(deltas, m) {
@@ -976,10 +1269,21 @@ function scaleDeltas(deltas, m) {
 function recommendationReason(o) {
   const ev = Math.round(o.evidenceQuality * 100);
   const cl = Math.round((o.classificationQuality || 0) * 100);
-  if (o.verdict === 'Approved')           return `Strong, well-evidenced case — ${ev}% of evidence gathered, ${cl}% of files classified correctly. Leadership approved it in full.`;
-  if (o.verdict === 'Partially Approved') return `Reasonable case — ${ev}% evidence, ${cl}% classified correctly. Leadership approved part of it, pending tighter work.`;
-  if (o.verdict === 'Deferred')           return `Thin work — ${ev}% evidence, ${cl}% classified correctly. Leadership deferred the decision for now.`;
-  return `Insufficient case — ${ev}% evidence, ${cl}% classified correctly. Leadership declined — investigate and classify before recommending.`;
+  if (simFiles().length) {
+    // FILE-MODEL (Mission 1) — wording unchanged.
+    if (o.verdict === 'Approved')           return `Strong, well-evidenced case — ${ev}% of evidence gathered, ${cl}% of files classified correctly. Leadership approved it in full.`;
+    if (o.verdict === 'Partially Approved') return `Reasonable case — ${ev}% evidence, ${cl}% classified correctly. Leadership approved part of it, pending tighter work.`;
+    if (o.verdict === 'Deferred')           return `Thin work — ${ev}% evidence, ${cl}% classified correctly. Leadership deferred the decision for now.`;
+    return `Insufficient case — ${ev}% evidence, ${cl}% classified correctly. Leadership declined — investigate and classify before recommending.`;
+  }
+  // COMMAND-MODEL (Mission 2+) — accuracy is the identification, not classification.
+  const idOk = (SIM.def && SIM.def.identify) ? identificationQuality() === 1 : null;
+  const accLabel = idOk === null ? `${cl}% accuracy`
+    : idOk ? 'the right target identified' : 'the wrong target identified';
+  if (o.verdict === 'Approved')           return `Strong, well-evidenced case — ${ev}% of evidence gathered, ${accLabel}. Leadership approved it in full.`;
+  if (o.verdict === 'Partially Approved') return `Reasonable case — ${ev}% evidence, ${accLabel}. Leadership approved part of it, pending tighter work.`;
+  if (o.verdict === 'Deferred')           return `Thin work — ${ev}% evidence, ${accLabel}. Leadership deferred the decision for now.`;
+  return `Insufficient case — ${ev}% evidence, ${accLabel}. Leadership declined — gather evidence and confirm the target before recommending.`;
 }
 
 /* CONSEQUENCE + REPORT — Immediate / Business / Resource / Future, plus the
@@ -1043,21 +1347,54 @@ function renderDebrief(action, outcome, changes) {
   host.innerHTML = html;
 }
 
+/* Carry-forward flags for the active mission. Each mission may define its own
+ * `carryFlags:[{key,label}]`; the legacy CANON_FLAGS/FLAG_LABELS are the fallback
+ * so Mission 1 (and any un-migrated mission) still reports correctly. */
+function missionCarryFlags() {
+  const def = SIM.def;
+  if (def && Array.isArray(def.carryFlags) && def.carryFlags.length) return def.carryFlags;
+  return CANON_FLAGS.map(k => ({ key: k, label: FLAG_LABELS[k] || k }));
+}
+
 function reportSectionHtml() {
-  const setFlags = CANON_FLAGS.filter(f => CAREER.missionFlags[f]);
+  const setFlags = missionCarryFlags().filter(f => CAREER.missionFlags[f.key]);
   const flagItems = setFlags.length
-    ? setFlags.map(f => `<li class="sim-report-flag"><span class="sim-report-flag-icon">▸</span><span>${FLAG_LABELS[f] || f}</span></li>`).join('')
+    ? setFlags.map(f => `<li class="sim-report-flag"><span class="sim-report-flag-icon">▸</span><span>${f.label}</span></li>`).join('')
     : `<li class="sim-report-flag"><span class="sim-report-flag-icon">▸</span><span>No carry-forward flags raised.</span></li>`;
 
-  // Classification review — GRADED: accuracy feeds the recommendation outcome.
+  // Accuracy review — GRADED: this feeds the recommendation outcome. File-model
+  // missions (M1) review classification; command-model missions review the single
+  // identification (which device / which account). Missions with neither skip it.
+  let reviewHtml = '';
   const files = simFiles();
-  const correct = files.filter(f => SIM.classified[f.name] === f.trueClassification).length;
-  const accPct = files.length ? Math.round((correct / files.length) * 100) : 0;
-  const rows = files.map(f => {
-    const chosen = SIM.classified[f.name];
-    const mark = !chosen ? '—' : (chosen === f.trueClassification ? '✓' : '✗');
-    return `<li class="sim-report-flag"><span class="sim-report-flag-icon">${mark}</span><span>${f.name} — should be <strong>${classLabel(f.trueClassification)}</strong>${chosen ? ` · you marked ${classLabel(chosen)}` : ' · unclassified'}</span></li>`;
-  }).join('');
+  if (files.length) {
+    const correct = files.filter(f => SIM.classified[f.name] === f.trueClassification).length;
+    const accPct = Math.round((correct / files.length) * 100);
+    const rows = files.map(f => {
+      const chosen = SIM.classified[f.name];
+      const mark = !chosen ? '—' : (chosen === f.trueClassification ? '✓' : '✗');
+      return `<li class="sim-report-flag"><span class="sim-report-flag-icon">${mark}</span><span>${f.name} — should be <strong>${classLabel(f.trueClassification)}</strong>${chosen ? ` · you marked ${classLabel(chosen)}` : ' · unclassified'}</span></li>`;
+    }).join('');
+    reviewHtml = `
+      <div class="sim-report-section">
+        <div class="sim-conseq-label sim-conseq-label--business">CLASSIFICATION REVIEW — ${correct}/${files.length} correct (${accPct}%)</div>
+        <ul class="sim-report-flags">${rows}</ul>
+      </div>`;
+  } else if (SIM.def && SIM.def.identify) {
+    const idf = SIM.def.identify;
+    const opts = idf.options || [];
+    const chosenOpt = opts.find(o => o.id === SIM.identified);
+    const correctOpt = opts.find(o => o.id === idf.correctId);
+    const ok = SIM.identified === idf.correctId;
+    const mark = !SIM.identified ? '—' : (ok ? '✓' : '✗');
+    reviewHtml = `
+      <div class="sim-report-section">
+        <div class="sim-conseq-label sim-conseq-label--business">IDENTIFICATION REVIEW</div>
+        <ul class="sim-report-flags">
+          <li class="sim-report-flag"><span class="sim-report-flag-icon">${mark}</span><span>${idf.reviewLabel || 'Answer'}: <strong>${correctOpt ? correctOpt.label : ''}</strong>${SIM.identified ? ` · you chose ${chosenOpt ? chosenOpt.label : SIM.identified}` : ' · not identified'}</span></li>
+        </ul>
+      </div>`;
+  }
 
   return `
     <div class="sim-report">
@@ -1065,10 +1402,7 @@ function reportSectionHtml() {
         <div class="sim-conseq-label sim-conseq-label--future">CARRY-FORWARD FLAGS</div>
         <ul class="sim-report-flags">${flagItems}</ul>
       </div>
-      <div class="sim-report-section">
-        <div class="sim-conseq-label sim-conseq-label--business">CLASSIFICATION REVIEW — ${correct}/${files.length} correct (${accPct}%)</div>
-        <ul class="sim-report-flags">${rows}</ul>
-      </div>
+      ${reviewHtml}
       <button type="button" class="sim-report-done" data-done="1">RETURN TO OPERATIONS CENTER</button>
     </div>`;
 }
@@ -1099,6 +1433,20 @@ const CAREER_MISSIONS = {
     title: 'Protect Sensitive Information',
     threatClass: 'Data Classification & Information Handling',
     priority: 'P2 — HIGH',
+    promptLabel: 'intern@cybercorp:~/release$',
+    carryFlags: [
+      { key: 'contractorAccessDiscovered', label: 'Contractor access flagged for follow-up' },
+      { key: 'sensitiveDataExposed',       label: 'Sensitive-data exposure on record' },
+      { key: 'legalReviewTriggered',       label: 'Legal review opened' },
+    ],
+    evidenceEmpty: 'No evidence yet. Use the terminal to review the files, then classify what you find.',
+    risks: [
+      { id: 'risk_pii',        label: 'Employee personal data (PII) is in the outbound release', triggeredBy: ['ev_pii_salary'] },
+      { id: 'risk_pci',        label: 'Regulated customer payment records (PCI) are in the release', triggeredBy: ['ev_customer_pii'] },
+      { id: 'risk_confidential',label: 'Confidential business information is bundled in', triggeredBy: ['ev_confidential_pricing', 'ev_confidential_roadmap'] },
+      { id: 'risk_contractor', label: 'A contractor account accessed files outside its remit', triggeredBy: ['ev_contractor_access'] },
+      { id: 'risk_noreview',   label: 'The release was assembled with no internal reviewer', triggeredBy: ['ev_release_context'] },
+    ],
     intro: [
       { t: 'CyberCorp SOC // Career Operating Center — Data Handling Review', c: 'head' },
       { t: 'A shared folder is queued for an external release. Before it goes out, classify', c: 'dim' },
@@ -1446,6 +1794,1131 @@ const CAREER_MISSIONS = {
       },
     },
   },
+
+  /* ================================================================== *
+   * MISSION 2 — Investigate Network Assets (COMMAND-MODEL)
+   * Asset discovery on the corporate subnet: find the one device that is
+   * not in the inventory, work out what it is and who put it there, and
+   * recommend a response. Behavior before terminology — the player runs
+   * real commands and reasons from what they see; terms are introduced as
+   * glossary chips, never quizzed.
+   * ================================================================== */
+  'mission-002': {
+    id: 'mission-002',
+    opId: 'OPS-2026-002',
+    severity: 'MEDIUM',
+    region: 'APAC REGION',
+    title: 'Investigate Network Assets',
+    threatClass: 'Network Fundamentals & Asset Discovery',
+    priority: 'P3 — MEDIUM',
+    promptLabel: 'intern@cybercorp:~/netops$',
+    carryFlags: [
+      { key: 'rogueDeviceActive',     label: 'Unapproved device left active on the network' },
+      { key: 'rogueDeviceContained',  label: 'Unapproved device disconnected / contained' },
+      { key: 'contractorDeviceLinked', label: 'Unapproved device linked to a contractor' },
+    ],
+    evidenceEmpty: 'No evidence yet. Use the terminal to map the network — each command can surface a new finding.',
+    risks: [
+      { id: 'risk_unknown_device',   label: 'An unapproved device is connected to the corporate network', triggeredBy: ['ev_unknown_host', 'ev_not_in_inventory'] },
+      { id: 'risk_services_open',    label: 'The unknown device is running open network services', triggeredBy: ['ev_open_services'] },
+      { id: 'risk_sensitive_segment',label: 'The device sits on the internal finance segment, not guest', triggeredBy: ['ev_segment'] },
+      { id: 'risk_finance_probe',    label: 'The device has been reaching for the finance file share', triggeredBy: ['ev_probe'] },
+      { id: 'risk_contractor_device',label: 'A contractor connected a personal, unmanaged device', triggeredBy: ['ev_contractor_device'] },
+    ],
+    identify: {
+      head: 'YOUR DETERMINATION',
+      prompt: 'Which device is the unapproved one that does not belong on this network?',
+      reviewLabel: 'Unapproved device',
+      note: 'Determination recorded — this is the device your recommendation will act on.',
+      correctId: 'dev_57',
+      options: [
+        { id: 'dev_10', label: '192.168.1.10 — file server (in inventory)' },
+        { id: 'dev_20', label: '192.168.1.20 — finance laptop (in inventory)' },
+        { id: 'dev_34', label: '192.168.1.34 — your workstation' },
+        { id: 'dev_57', label: '192.168.1.57 — unknown host' },
+      ],
+    },
+    intro: [
+      { t: 'CyberCorp SOC // Career Operating Center — Network Asset Review', c: 'head' },
+      { t: 'A monitoring alert says a device on the office network does not match the', c: 'dim' },
+      { t: 'asset inventory. Map the network, find the odd one out, and decide what to do.', c: 'dim' },
+      { t: 'Type  ip addr  to see your own address, then  help  for the full command list.', c: 'dim' },
+    ],
+    brief: {
+      situation:
+        'The APAC office network threw a low-priority alert: the count of active ' +
+        'devices is higher than the approved asset inventory. Probably nothing — a ' +
+        'phone, a test box. But "probably nothing" is still worth ten minutes. Map ' +
+        'what is actually on the network, compare it to what is supposed to be there, ' +
+        'and figure out the device that does not belong.',
+      objectives: [
+        'Discover the devices active on the office subnet',
+        'Compare them against the approved asset inventory',
+        'Identify the device that is not authorized',
+        'Work out what it is and who connected it — then recommend a response',
+      ],
+      managerNote:
+        '"Network housekeeping, mostly. But you remember that contractor from the data ' +
+        'review? Keep your eyes open — unknown hardware on an internal segment is how ' +
+        'small problems get big. Recommend, don'+"'"+'t reconfigure. — Sarah Reyes, SOC Lead"',
+    },
+
+    commands: [
+      {
+        id: 'ip_addr',
+        match: ['ip addr', 'ipaddr', 'ifconfig'],
+        help: 'show your own machine'+"'"+'s network address',
+        core: true,
+        output: [
+          { t: 'eth0:  inet 192.168.1.34/24  brd 192.168.1.255', c: 'file' },
+          'You are host 192.168.1.34 on subnet 192.168.1.0/24 (the office LAN).',
+        ],
+        reveals: ['ev_subnet'],
+        observation: 'You and every office device share the 192.168.1.0/24 subnet — they can all reach each other.',
+        question: 'If a stranger'+"'"+'s device joined this same subnet, what could it reach?',
+        next: 'scan the whole subnet to see who else is online — type  nmap 192.168.1.0/24',
+      },
+      {
+        id: 'nmap_subnet',
+        match: ['nmap 192.168.1.0/24', 'nmap subnet', 'nmap 192.168.1.0'],
+        help: 'scan the subnet to discover active devices',
+        core: true,
+        output: [
+          { t: 'Nmap scan report — 192.168.1.0/24  (5 hosts up)', c: 'head' },
+          '  192.168.1.1    up    gateway/router',
+          '  192.168.1.10   up    fileserver-apac',
+          '  192.168.1.20   up    finance-laptop-apac',
+          '  192.168.1.34   up    your-workstation',
+          '  192.168.1.57   up    (no reverse name)',
+        ],
+        reveals: ['ev_unknown_host'],
+        observation: '192.168.1.57 answers, but unlike the others it has no recognizable name.',
+        question: 'Four hosts you can name, one you cannot — which one deserves a closer look?',
+        next: 'check it against the official list — type  cat asset_inventory.txt',
+      },
+      {
+        id: 'asset_inventory',
+        match: ['cat asset_inventory.txt', 'cat asset_inventory', 'less asset_inventory.txt'],
+        help: 'read the approved device inventory',
+        core: true,
+        output: [
+          { t: 'asset_inventory.txt — APPROVED DEVICES (APAC office)', c: 'head' },
+          '  192.168.1.1    gateway/router        IT',
+          '  192.168.1.10   fileserver-apac       IT',
+          '  192.168.1.20   finance-laptop-apac   Finance',
+          '  192.168.1.34   intern-workstation    SOC (you)',
+          '  # Every approved device is listed here. Nothing else should be online.',
+        ],
+        reveals: ['ev_not_in_inventory'],
+        observation: '192.168.1.57 is NOT in the approved inventory — every other live host is.',
+        question: 'A device on the network that nobody approved — is that a mistake, or something more?',
+        next: 'confirm it is really there and reachable — type  ping 192.168.1.57',
+      },
+      {
+        id: 'ping_57',
+        match: ['ping 192.168.1.57', 'ping 57'],
+        help: 'check whether the unknown host is alive',
+        output: [
+          '64 bytes from 192.168.1.57: icmp_seq=1 ttl=64 time=0.8 ms',
+          '64 bytes from 192.168.1.57: icmp_seq=2 ttl=64 time=0.7 ms',
+          '--- 192.168.1.57 ping statistics: 0% packet loss ---',
+        ],
+        reveals: ['ev_host_live'],
+        observation: 'It responds instantly — this is a real, powered-on device sitting on the LAN right now.',
+        question: 'It is live and active. What is it actually running?',
+        next: 'scan just this host for open services — type  nmap 192.168.1.57',
+      },
+      {
+        id: 'nmap_host',
+        match: ['nmap 192.168.1.57', 'nmap 57'],
+        help: 'scan the unknown host for open services',
+        core: true,
+        output: [
+          { t: 'Nmap scan report — 192.168.1.57', c: 'head' },
+          '  PORT     STATE  SERVICE',
+          '  22/tcp   open   ssh        (remote login)',
+          '  445/tcp  open   smb        (file sharing)',
+          '  8080/tcp open   http-proxy',
+          '  OS guess: generic Linux laptop',
+        ],
+        reveals: ['ev_open_services'],
+        observation: 'The unknown device is exposing remote-login and file-sharing services — not a passive gadget.',
+        question: 'Why would an unmanaged device be offering file sharing on the office network?',
+        next: 'see when and how it joined — type  cat dhcp_leases.txt',
+      },
+      {
+        id: 'dhcp_leases',
+        match: ['cat dhcp_leases.txt', 'cat dhcp_leases', 'less dhcp_leases.txt'],
+        help: 'read recent DHCP address assignments',
+        output: [
+          { t: 'dhcp_leases.txt — recent address handouts', c: 'head' },
+          '  192.168.1.57   mac a4:83:e7:1c:9b:22   host "DEMIR-LAPTOP"   leased 2 days ago',
+          '  mac vendor lookup: a4:83:e7  →  Apple, Inc. (personal-class hardware)',
+        ],
+        reveals: ['ev_lease'],
+        observation: 'The lease names the device "DEMIR-LAPTOP" — a personal laptop that joined just two days ago.',
+        question: 'A personal laptop named after someone — who, and were they allowed to plug in?',
+        next: 'search the network notes for that address — type  grep 192.168.1.57 network_notes.txt',
+      },
+      {
+        id: 'grep_notes',
+        match: ['grep 192.168.1.57 network_notes.txt', 'grep 192.168.1.57', 'grep 57 network_notes.txt'],
+        help: 'search the network notes for the unknown host',
+        output: [
+          'network_notes.txt:  "1.57 showed up this week — someone said it'+"'"+'s a contractor'+"'"+'s own laptop?"',
+          'network_notes.txt:  "not ticketed, not imaged by IT. flagged for follow-up."',
+        ],
+        reveals: ['ev_notes_contractor'],
+        observation: 'An informal note already suspected 1.57 is a contractor'+"'"+'s personal laptop — never ticketed or managed by IT.',
+        question: 'Which contractor, and is this the same one from the data-handling review?',
+        next: 'check the contractor assignments — type  cat contractor_assignments.txt',
+      },
+      {
+        id: 'contractor_assignments',
+        match: ['cat contractor_assignments.txt', 'cat contractor_assignments', 'less contractor_assignments.txt'],
+        help: 'read the active contractor assignments',
+        core: true,
+        output: [
+          { t: 'contractor_assignments.txt — active vendors', c: 'head' },
+          '  ext-contractor-07   J. Demir   Logistics integration   device policy: COMPANY-ISSUED ONLY',
+          '  # Personal devices are NOT permitted on internal segments. Vendors use the guest network.',
+        ],
+        reveals: ['ev_contractor_device'],
+        observation: 'The laptop belongs to J. Demir — the same contractor account flagged in the data-handling case — and personal devices are barred from internal segments.',
+        question: 'The same contractor, now with unmanaged hardware on the internal network — coincidence?',
+        next: 'see where on the network it actually sits — type  cat network_diagram.txt',
+      },
+      {
+        id: 'network_diagram',
+        match: ['cat network_diagram.txt', 'cat network_diagram', 'less network_diagram.txt'],
+        help: 'read the network segment diagram',
+        output: [
+          { t: 'network_diagram.txt — segments', c: 'head' },
+          '  GUEST  192.168.9.0/24   visitors, contractors (isolated, no internal access)',
+          '  CORP   192.168.1.0/24   staff + finance + file server   ← 192.168.1.57 is HERE',
+          '  # Contractor devices belong on GUEST. 1.57 is on CORP, beside the finance laptop.',
+        ],
+        reveals: ['ev_segment'],
+        observation: 'The device is on the CORP segment next to Finance — exactly where a contractor laptop should never be.',
+        question: 'On the guest network it could reach nothing internal. On CORP, what can it reach?',
+        next: 'check policy for unknown devices — type  cat security_baseline.txt',
+      },
+      {
+        id: 'security_baseline',
+        match: ['cat security_baseline.txt', 'cat security_baseline', 'less security_baseline.txt'],
+        help: 'read the device security baseline policy',
+        output: [
+          { t: 'security_baseline.txt — device policy', c: 'head' },
+          '  - Only inventoried, IT-managed devices may join the CORP segment.',
+          '  - Unknown or personal devices must be disconnected and escalated, not left to "monitor".',
+        ],
+        reveals: ['ev_policy'],
+        observation: 'Policy is explicit: an unknown device on CORP is disconnected and escalated — not watched.',
+        question: 'You now have the rule and the violation. What is the correct response?',
+        next: 'check what the device has been doing — type  tail network_events.log',
+      },
+      {
+        id: 'network_events',
+        match: ['tail network_events.log', 'cat network_events.log', 'less network_events.log'],
+        help: 'read the most recent network events',
+        core: true,
+        output: [
+          { t: 'network_events.log — last entries', c: 'head' },
+          '  192.168.1.57 → 192.168.1.10:445  connection attempt (file server)  DENIED',
+          '  192.168.1.57 → 192.168.1.20:445  connection attempt (finance laptop)  DENIED',
+          '  192.168.1.57 → 192.168.1.10:445  retry  DENIED',
+        ],
+        reveals: ['ev_probe'],
+        observation: 'The unknown laptop has been repeatedly reaching for the finance file share — not idle, actively probing.',
+        question: 'A barred personal device probing finance shares — does that wait, or does it move now?',
+        next: 'you have the full picture — type  decide  to choose your response',
+      },
+    ],
+
+    evidence: [
+      {
+        id: 'ev_subnet', label: 'You and every office device share one subnet (192.168.1.0/24).',
+        qualityWeight: 1, source: 'ip addr',
+        layers: {
+          beginner: {
+            summary: 'Your computer and all the office devices are on the same shared network.',
+            why: 'Devices on the same network can usually reach each other directly.',
+            prompt: 'If a stranger'+"'"+'s laptop joined this same network, what might it be able to reach?',
+          },
+          analyst: 'Local host 192.168.1.34/24; all office assets share the 192.168.1.0/24 broadcast domain.',
+          technical: 'eth0 inet 192.168.1.34/24, brd 192.168.1.255 — flat L2 segment, intra-subnet reachability by default.',
+          terms: ['network', 'subnet', 'ipAddress'],
+        },
+      },
+      {
+        id: 'ev_unknown_host', label: 'An extra host (192.168.1.57) is online with no recognizable name.',
+        qualityWeight: 2, source: 'nmap 192.168.1.0/24',
+        layers: {
+          beginner: {
+            summary: 'A scan of the network found one extra device that does not have a normal name.',
+            why: 'Company devices have known names; an unnamed one nobody recognizes stands out.',
+            prompt: 'Four devices you can name and one you cannot — which deserves attention?',
+          },
+          analyst: 'Subnet sweep returns 5 live hosts; 192.168.1.57 has no reverse DNS and no asset mapping.',
+          technical: 'nmap -sn 192.168.1.0/24 — 192.168.1.57 up, no PTR record, unmatched to inventory.',
+          terms: ['network', 'device'],
+        },
+      },
+      {
+        id: 'ev_not_in_inventory', label: '192.168.1.57 is NOT in the approved asset inventory.',
+        qualityWeight: 3, source: 'asset_inventory.txt',
+        layers: {
+          beginner: {
+            summary: 'The official list of allowed devices does not include 192.168.1.57.',
+            why: 'If a device is on the network but not on the approved list, nobody signed off on it being there.',
+            prompt: 'A device nobody approved is connected — mistake, or something worse?',
+          },
+          analyst: 'Asset inventory enumerates .1/.10/.20/.34; 192.168.1.57 is unaccounted for — an unmanaged asset.',
+          technical: 'asset_inventory.txt baseline excludes 192.168.1.57; device is non-inventoried / unauthorized.',
+          terms: ['device', 'ipAddress'],
+        },
+      },
+      {
+        id: 'ev_host_live', label: 'The unknown host is powered on and responding right now.',
+        qualityWeight: 1, source: 'ping 192.168.1.57',
+        layers: {
+          beginner: {
+            summary: 'The unknown device answers immediately — it is switched on and active.',
+            why: 'This is not a stale record; it is a real device on the network at this moment.',
+            prompt: 'It is live. The next question is — what is it running?',
+          },
+          analyst: 'ICMP echo to 192.168.1.57 — 0% loss, sub-ms RTT; host active on-segment.',
+          technical: 'ping 192.168.1.57 — replies ttl=64, 0% packet loss; device live.',
+          terms: ['device'],
+        },
+      },
+      {
+        id: 'ev_open_services', label: 'The unknown device exposes remote-login and file-sharing services.',
+        qualityWeight: 2, source: 'nmap 192.168.1.57',
+        layers: {
+          beginner: {
+            summary: 'The device is offering ways to log in remotely and share files.',
+            why: 'An unmanaged device offering these services is a door an attacker could push on.',
+            prompt: 'Why would a personal laptop be offering file sharing on the office network?',
+          },
+          analyst: 'Host scan: 22/ssh, 445/smb, 8080/http open — interactive + file-share exposure on an unmanaged host.',
+          technical: 'nmap 192.168.1.57 — open 22 (ssh), 445 (smb), 8080 (http-proxy); unmanaged endpoint exposing services.',
+          terms: ['service', 'portScan'],
+        },
+      },
+      {
+        id: 'ev_lease', label: 'The device is a personal laptop ("DEMIR-LAPTOP") that joined 2 days ago.',
+        qualityWeight: 2, source: 'dhcp_leases.txt',
+        layers: {
+          beginner: {
+            summary: 'Records show the device is a personal laptop that connected just two days ago.',
+            why: 'A brand-new personal device on the company network, named after a person, is worth tracing.',
+            prompt: 'Whose laptop is it, and were they allowed to plug it in here?',
+          },
+          analyst: 'DHCP lease: 192.168.1.57 → MAC a4:83:e7:1c:9b:22 (Apple), hostname DEMIR-LAPTOP, age ~48h.',
+          technical: 'dhcp_leases.txt — recent lease, OUI a4:83:e7 = Apple; hostname DEMIR-LAPTOP; personal-class device.',
+          terms: ['device'],
+        },
+      },
+      {
+        id: 'ev_notes_contractor', label: 'Network notes already suspected 1.57 is a contractor'+"'"+'s personal laptop.',
+        qualityWeight: 2, source: 'network_notes.txt',
+        layers: {
+          beginner: {
+            summary: 'Someone had already jotted down that 1.57 looked like a contractor'+"'"+'s own laptop.',
+            why: 'It was noticed but never ticketed or checked by IT — it slipped through.',
+            prompt: 'Which contractor — and is it the same one from the earlier review?',
+          },
+          analyst: 'Informal note ties 192.168.1.57 to a contractor-owned device; never ticketed or IT-imaged.',
+          technical: 'network_notes.txt — unmanaged contractor device suspicion, no change ticket, flagged-for-follow-up only.',
+          terms: [],
+        },
+      },
+      {
+        id: 'ev_contractor_device', label: 'The laptop belongs to contractor J. Demir; personal devices are barred from internal segments.',
+        qualityWeight: 3, source: 'contractor_assignments.txt', setFlag: 'contractorDeviceLinked',
+        layers: {
+          beginner: {
+            summary: 'The laptop belongs to contractor J. Demir — and contractors are not allowed to use personal devices here.',
+            why: 'It is the same contractor from the data-handling case, now with an unapproved device on the internal network.',
+            prompt: 'The same contractor again, this time with unmanaged hardware — coincidence?',
+          },
+          analyst: 'Device owner = J. Demir (ext-contractor-07); policy = company-issued only, vendors on guest segment.',
+          technical: 'contractor_assignments.txt — ext-contractor-07 (J. Demir), device-policy COMPANY-ISSUED-ONLY; personal device on CORP = violation.',
+          terms: ['device'],
+        },
+        reflection: {
+          title: 'REVIEW THE UNAPPROVED DEVICE',
+          prompt: 'What concerns you about this device? (Tick anything that stands out.)',
+          concerns: [
+            'It is not on the approved inventory',
+            'It belongs to an outside contractor, on personal hardware',
+            'It is on the internal finance segment, not the guest network',
+            'It has been reaching for the finance file share',
+            'This looks like a harmless mistake',
+            'I need more information before deciding',
+          ],
+          judgmentPrompt: 'Based on what you found, how would you judge this device?',
+          feedback: 'There is no single right answer — analysts reason from what they see. WHO owns it, WHERE it sits, and WHAT it is reaching for together tell you how much this matters.',
+        },
+      },
+      {
+        id: 'ev_segment', label: 'The device sits on the internal CORP segment beside Finance, not on guest.',
+        qualityWeight: 3, source: 'network_diagram.txt',
+        layers: {
+          beginner: {
+            summary: 'The device is plugged into the internal part of the network, right next to the finance computer.',
+            why: 'Contractor devices are supposed to be on a separate guest network with no internal access.',
+            prompt: 'On guest it could reach nothing internal. On this segment, what can it reach?',
+          },
+          analyst: '192.168.1.57 resides on CORP (192.168.1.0/24) adjacent to Finance, not the isolated GUEST segment.',
+          technical: 'network_diagram.txt — CORP vs GUEST segmentation; 192.168.1.57 misplaced on CORP, bypassing guest isolation.',
+          terms: ['network', 'subnet'],
+        },
+      },
+      {
+        id: 'ev_policy', label: 'Policy: unknown devices on CORP must be disconnected and escalated, not monitored.',
+        qualityWeight: 1, source: 'security_baseline.txt',
+        layers: {
+          beginner: {
+            summary: 'The rules say an unknown device on the internal network must be removed and reported.',
+            why: 'Knowing the policy turns a hunch into a clear, defensible action.',
+            prompt: 'You have the rule and the violation — what is the correct response?',
+          },
+          analyst: 'Baseline mandates disconnect + escalate for non-inventoried CORP devices; "monitor" is non-compliant.',
+          technical: 'security_baseline.txt — unmanaged CORP endpoints: quarantine/disconnect + escalate per policy.',
+          terms: [],
+        },
+      },
+      {
+        id: 'ev_probe', label: 'The device has repeatedly tried to reach the finance file share.',
+        qualityWeight: 3, source: 'network_events.log',
+        layers: {
+          beginner: {
+            summary: 'The unknown laptop keeps trying to connect to the finance file-sharing service.',
+            why: 'A device that should not be here, repeatedly reaching for finance data, is actively probing — not idle.',
+            prompt: 'A barred device probing finance shares — does that wait, or does it get handled now?',
+          },
+          analyst: 'Repeated 192.168.1.57 → :445 attempts against fileserver + finance laptop, all denied — active enumeration.',
+          technical: 'network_events.log — 192.168.1.57 SMB (445) connection attempts to .10/.20, DENIED, retried; lateral-probe behavior.',
+          terms: ['service'],
+        },
+      },
+    ],
+
+    actions: [
+      {
+        id: 'recommend_disconnect',
+        type: 'recommendation',
+        label: 'Recommend Disconnect',
+        summary: 'Recommend the unapproved device be disconnected and quarantined from the network.',
+        outcomeSub: 'You recommended disconnecting the unapproved device.',
+        deltas: { securityPosture: 18, complianceExposure: -12, businessContinuity: -4, executiveTrust: 8, careerReputation: 10 },
+        setFlags: ['rogueDeviceContained'],
+        deniedNote: 'Leadership held off on disconnecting — they want firmer evidence the device is unauthorized first.',
+        consequence: {
+          immediate: ['Network team quarantines 192.168.1.57; its probing of the finance share stops.'],
+          business: ['The contractor loses informal network access until properly provisioned on guest. Minor friction, no exposure.'],
+          future: ['A clean containment record strengthens your later recommendations.'],
+        },
+      },
+      {
+        id: 'monitor',
+        type: 'direct',
+        label: 'Monitor',
+        summary: 'Leave the device online and keep watching its traffic for now.',
+        outcomeSub: 'You chose to monitor the device rather than remove it.',
+        deltas: { securityPosture: -6, complianceExposure: 8, businessContinuity: 2, careerReputation: -4, executiveTrust: -2 },
+        setFlags: ['rogueDeviceActive'],
+        consequence: {
+          immediate: ['The unapproved device stays on the internal segment, still reaching for finance shares.'],
+          business: ['Policy says unknown CORP devices are disconnected, not watched — this leaves exposure open.'],
+          future: ['An uncontained device on record raises scrutiny on later missions.'],
+        },
+      },
+      {
+        id: 'escalate',
+        type: 'recommendation',
+        label: 'Escalate',
+        summary: 'Escalate the unknown device to your SOC Lead with your findings.',
+        outcomeSub: 'You escalated the unknown device to leadership.',
+        deltas: { executiveTrust: 10, careerReputation: 8, securityPosture: 4, complianceExposure: -6, businessContinuity: -2 },
+        setFlags: [],
+        deniedNote: 'Leadership sent it back — they want a clear recommendation, not just a hand-off.',
+        consequence: {
+          immediate: ['Escalated to SOC Lead with the asset-discovery findings and the contractor link.'],
+          business: ['Senior review engaged; the containment decision sits with the right authority.'],
+          future: ['Escalating with solid evidence builds trust for bigger calls later.'],
+        },
+      },
+      {
+        id: 'continue_investigation',
+        type: 'direct',
+        label: 'Continue Investigation',
+        summary: 'Hold off on a response and keep gathering information.',
+        outcomeSub: 'You chose to continue investigating before acting.',
+        deltas: { securityPosture: -2, businessContinuity: 1, careerReputation: -2, complianceExposure: 3 },
+        setFlags: ['rogueDeviceActive'],
+        consequence: {
+          immediate: ['No action taken yet; the device remains online while you gather more.'],
+          business: ['Caution is fine early, but the evidence already supports acting — delay leaves exposure open.'],
+          future: ['Slow-walking a clear finding is noted as indecision.'],
+        },
+      },
+      {
+        id: 'ignore',
+        type: 'direct',
+        label: 'Ignore',
+        summary: 'Treat it as a false alarm and close the alert.',
+        outcomeSub: 'You dismissed the alert.',
+        deltas: { securityPosture: -20, complianceExposure: 25, businessContinuity: 3, careerReputation: -15, executiveTrust: -15 },
+        setFlags: ['rogueDeviceActive'],
+        consequence: {
+          immediate: ['The unapproved contractor device stays on the finance segment, unmonitored.'],
+          business: ['An unmanaged device with file-share access to finance is left in place — a standing breach risk.'],
+          future: ['Dismissing a real finding badly damages trust in your judgment.'],
+        },
+      },
+    ],
+
+    lockedActions: [
+      {
+        id: 'reconfigure_firewall',
+        label: 'Reconfigure Firewall / Network ACLs',
+        reason: 'Cybersecurity Interns cannot push firewall or network access-control changes. That is a Network Administrator action.',
+        alternativeRecommendationId: 'rec_network_isolation',
+      },
+      {
+        id: 'seize_device',
+        label: 'Physically Seize the Device',
+        reason: 'Interns cannot seize hardware. Physical confiscation requires IT and HR involvement.',
+        alternativeRecommendationId: 'rec_device_review',
+      },
+    ],
+
+    recommendations: {
+      rec_network_isolation: {
+        label: 'Network Isolation Request',
+        deltas: { securityPosture: 12, complianceExposure: -8, careerReputation: 6, businessContinuity: -2 },
+        setFlags: ['rogueDeviceContained'],
+        deniedNote: 'Networking declined to isolate the segment without a formal change request.',
+        consequence: {
+          immediate: ['Requested the network team isolate 192.168.1.57 from the internal segment.'],
+          business: ['Contractor device cut off from finance resources pending proper provisioning.'],
+          future: ['Tighter segmentation reduces exposure on later missions.'],
+        },
+      },
+      rec_device_review: {
+        label: 'Device Security Review',
+        deltas: { securityPosture: 8, executiveTrust: 5, careerReputation: 6, complianceExposure: -5 },
+        setFlags: [],
+        deniedNote: 'Leadership deferred the device review for now.',
+        consequence: {
+          immediate: ['Requested IT and HR review the contractor'+"'"+'s device and access.'],
+          business: ['Contractor device policy gaps flagged to the right owners.'],
+          future: ['A documented review keeps the contractor on the radar for later missions.'],
+        },
+      },
+    },
+  },
+
+  /* ================================================================== *
+   * MISSION 3 — Investigate Suspicious Authentication Activity (COMMAND-MODEL)
+   * Read simplified auth logs, recognize the brute-force → success → MFA-off
+   * compromise pattern, identify WHICH account was taken over, and recommend
+   * a response. Ties back to Mission 1 (A. Okafor, Finance) and the recurring
+   * contractor. Behavior before terminology throughout.
+   * ================================================================== */
+  'mission-003': {
+    id: 'mission-003',
+    opId: 'OPS-2026-003',
+    severity: 'HIGH',
+    region: 'NA-EAST REGION',
+    title: 'Investigate Suspicious Authentication Activity',
+    threatClass: 'Authentication Security & Account Compromise',
+    priority: 'P2 — HIGH',
+    promptLabel: 'intern@cybercorp:~/authlogs$',
+    carryFlags: [
+      { key: 'credentialRiskHigh',           label: 'Confirmed credential-compromise incident on record' },
+      { key: 'contractorAccountCompromised', label: 'Compromise tied to the recurring contractor' },
+      { key: 'mfaRecommended',               label: 'MFA enforcement recommended' },
+    ],
+    evidenceEmpty: 'No evidence yet. Use the terminal to read the authentication logs — each command can surface a new finding.',
+    risks: [
+      { id: 'risk_bruteforce',     label: 'Repeated failed logins indicate password guessing', triggeredBy: ['ev_failures'] },
+      { id: 'risk_success_after',  label: 'A login succeeded immediately after the failures', triggeredBy: ['ev_success'] },
+      { id: 'risk_foreign_login',  label: 'A successful login came from an unrecognized location', triggeredBy: ['ev_location'] },
+      { id: 'risk_mfa_tamper',     label: 'Multi-factor authentication was turned off after the login', triggeredBy: ['ev_mfa_off', 'ev_changes'] },
+      { id: 'risk_sensitive_access',label: 'The account accessed sensitive finance data after the login', triggeredBy: ['ev_access'] },
+      { id: 'risk_contractor_tie', label: 'The activity ties back to the previously flagged contractor', triggeredBy: ['ev_contractor_tie'] },
+    ],
+    identify: {
+      head: 'YOUR DETERMINATION',
+      prompt: 'Which account has been compromised?',
+      reviewLabel: 'Compromised account',
+      note: 'Determination recorded — this is the account your recommendation will protect.',
+      correctId: 'acct_okafor',
+      options: [
+        { id: 'acct_okafor',  label: 'a.okafor — Finance Controller' },
+        { id: 'acct_reyes',   label: 's.reyes — SOC Lead' },
+        { id: 'acct_brandt',  label: 'l.brandt — Staff Engineer' },
+        { id: 'acct_demir',   label: 'contractor01 — J. Demir (contractor)' },
+      ],
+    },
+    intro: [
+      { t: 'CyberCorp SOC // Career Operating Center — Authentication Review', c: 'head' },
+      { t: 'The login system flagged a burst of failed sign-ins followed by a success.', c: 'dim' },
+      { t: 'Read the logs, work out what happened, and find the account that was taken over.', c: 'dim' },
+      { t: 'Type  cat auth.log  to start, then  help  for the full command list.', c: 'dim' },
+    ],
+    brief: {
+      situation:
+        'Overnight, the authentication system flagged an unusual pattern on a Finance ' +
+        'account: a wave of failed logins, then a success — from a place the user has ' +
+        'never signed in from. Read the authentication logs, reconstruct what happened ' +
+        'in order, decide whether this is a real account takeover, and identify exactly ' +
+        'which account is compromised.',
+      objectives: [
+        'Reconstruct the login pattern from the authentication logs',
+        'Check where the successful login came from',
+        'Look for changes made to the account after the login',
+        'Identify the compromised account — then recommend a response',
+      ],
+      managerNote:
+        '"Same Finance name from your first case — A. Okafor. Could be nothing, could be ' +
+        'someone reusing what they learned. Read the logs in order: failures, success, ' +
+        'then what they did next. Recommend the response; you don'+"'"+'t reset credentials ' +
+        'org-wide yourself. — Sarah Reyes, SOC Lead"',
+    },
+
+    commands: [
+      {
+        id: 'cat_authlog',
+        match: ['cat auth.log', 'cat authlog', 'less auth.log'],
+        help: 'read the authentication log',
+        core: true,
+        output: [
+          { t: 'auth.log — last 24h (summary)', c: 'head' },
+          '  03:11  a.okafor   LOGIN FAILED   src 203.0.113.44',
+          '  03:11  a.okafor   LOGIN FAILED   src 203.0.113.44',
+          '  03:12  a.okafor   LOGIN FAILED   src 203.0.113.44',
+          '  ... (many more failures) ...',
+          '  03:19  a.okafor   LOGIN SUCCESS  src 203.0.113.44',
+        ],
+        reveals: ['ev_overview'],
+        observation: 'One account — a.okafor — shows a stack of failed logins and then a success, all from the same outside address.',
+        question: 'Many failures, then a success, all from one source — what does that pattern usually mean?',
+        next: 'count the failures on their own — type  grep failed auth.log',
+      },
+      {
+        id: 'grep_failed',
+        match: ['grep failed auth.log', 'grep failed', 'grep failed auth'],
+        help: 'show only the failed login attempts',
+        core: true,
+        output: [
+          { t: 'grep failed auth.log — a.okafor', c: 'head' },
+          '  47 LOGIN FAILED entries for a.okafor between 03:11 and 03:18',
+          '  all from src 203.0.113.44 (single external address)',
+        ],
+        reveals: ['ev_failures'],
+        observation: '47 failed attempts in seven minutes from one address — far too fast and too many for a human typo.',
+        question: 'Does a person fail to log in 47 times in seven minutes? Or is something automated?',
+        next: 'find the one that worked — type  grep successful auth.log',
+      },
+      {
+        id: 'grep_successful',
+        match: ['grep successful auth.log', 'grep success auth.log', 'grep successful'],
+        help: 'show the successful logins',
+        core: true,
+        output: [
+          { t: 'grep successful auth.log — a.okafor', c: 'head' },
+          '  03:19  a.okafor   LOGIN SUCCESS  src 203.0.113.44',
+          '  # the success comes immediately after the 47 failures, same source',
+        ],
+        reveals: ['ev_success'],
+        observation: 'The successful login lands seconds after the failed burst, from the very same address — the guessing worked.',
+        question: 'If the failures were an attacker guessing, who just got in?',
+        next: 'see where that login came from — type  cat login_locations.log',
+      },
+      {
+        id: 'cat_locations',
+        match: ['cat login_locations.log', 'cat login_locations', 'less login_locations.log'],
+        help: 'read the login-location history',
+        core: true,
+        output: [
+          { t: 'login_locations.log — a.okafor', c: 'head' },
+          '  usual:   London, UK (office) — every prior login',
+          '  03:19:   Lagos, NG — NEW location, never seen before',
+          '  # 03:05 a.okafor also had a normal London session open at the same time',
+        ],
+        reveals: ['ev_location'],
+        observation: 'The successful login came from a country a.okafor has never signed in from — while a normal London session was already active.',
+        question: 'One person cannot be in two countries at once — so who is the second login?',
+        next: 'focus the location log on the odd one — type  grep unknown login_locations.log',
+      },
+      {
+        id: 'grep_unknown',
+        match: ['grep unknown login_locations.log', 'grep unknown', 'grep unknown login_locations'],
+        help: 'highlight the unrecognized location',
+        output: [
+          'login_locations.log:  03:19  a.okafor  Lagos, NG  device: unknown  status: UNRECOGNIZED',
+          'login_locations.log:  note: ~5,000 km from the active London session 14 minutes earlier',
+        ],
+        reveals: ['ev_impossible'],
+        observation: 'The two sessions are thousands of kilometres apart, minutes apart — physically impossible for one person.',
+        question: 'What does it tell you when one account is logged in from two impossible places at once?',
+        next: 'see what changed on the account after they got in — type  cat account_changes.log',
+      },
+      {
+        id: 'cat_changes',
+        match: ['cat account_changes.log', 'cat account_changes', 'less account_changes.log'],
+        help: 'read changes made to the account',
+        core: true,
+        output: [
+          { t: 'account_changes.log — a.okafor (after 03:19)', c: 'head' },
+          '  03:21  MFA DISABLED            by a.okafor (src 203.0.113.44)',
+          '  03:22  mail forwarding ADDED   → external address',
+          '  03:24  password CHANGED        (src 203.0.113.44)',
+        ],
+        reveals: ['ev_changes'],
+        observation: 'Right after logging in, "a.okafor" turned off MFA, added mail forwarding, and changed the password — classic takeover housekeeping.',
+        question: 'Why would the real owner disable their own MFA and forward their mail at 3am?',
+        next: 'confirm MFA is now off — type  cat mfa_status.txt',
+      },
+      {
+        id: 'cat_mfa',
+        match: ['cat mfa_status.txt', 'cat mfa_status', 'less mfa_status.txt'],
+        help: 'check the current MFA status',
+        output: [
+          { t: 'mfa_status.txt — a.okafor', c: 'head' },
+          '  MFA: DISABLED  (was ENABLED until 03:21 today)',
+          '  # with MFA off, only the now-changed password protects the account',
+        ],
+        reveals: ['ev_mfa_off'],
+        observation: 'MFA is currently OFF — the one control that would have blocked a stolen password has been removed.',
+        question: 'With MFA off and the password changed, who actually controls this account now?',
+        next: 'see what the account touched after takeover — type  cat user_access.log',
+      },
+      {
+        id: 'cat_access',
+        match: ['cat user_access.log', 'cat user_access', 'less user_access.log'],
+        help: 'read what the account accessed',
+        core: true,
+        output: [
+          { t: 'user_access.log — a.okafor (after 03:19)', c: 'head' },
+          '  03:26  opened  finance_share/payroll/',
+          '  03:28  opened  finance_share/customer_payments/',
+          '  03:31  downloaded  q3_compensation.csv',
+        ],
+        reveals: ['ev_access'],
+        observation: 'The compromised account went straight for payroll and customer-payment data — the same sensitive finance files from your first case.',
+        question: 'The attacker is now inside Finance with a trusted account — what is at stake?',
+        next: 'check who reset the password — type  grep password_reset user_access.log',
+      },
+      {
+        id: 'grep_reset',
+        match: ['grep password_reset user_access.log', 'grep password_reset', 'grep password_reset user_access'],
+        help: 'search for the password reset event',
+        output: [
+          'user_access.log:  03:24  password_reset  performed from src 203.0.113.44 (Lagos, NG)',
+          'user_access.log:  # the attacker, not the user, now holds the working password',
+        ],
+        reveals: ['ev_reset'],
+        observation: 'The password was reset from the attacker'+"'"+'s address — the real owner is now locked out of their own account.',
+        question: 'If the attacker reset the password, will the real user even notice they are locked out?',
+        next: 'trace the source address — type  cat contractor_activity.log',
+      },
+      {
+        id: 'cat_contractor',
+        match: ['cat contractor_activity.log', 'cat contractor_activity', 'less contractor_activity.log'],
+        help: 'read the contractor activity log',
+        core: true,
+        output: [
+          { t: 'contractor_activity.log', c: 'head' },
+          '  src 203.0.113.44 previously seen: ext-contractor-07 (J. Demir) remote sessions',
+          '  contractor01 (J. Demir) account: DISABLED after the data-handling review',
+          '  # same source address as the earlier contractor incidents',
+        ],
+        reveals: ['ev_contractor_tie'],
+        observation: 'The attacking address traces back to the same contractor flagged in your earlier cases — whose own account was already disabled, so they pivoted to a.okafor.',
+        question: 'A blocked contractor reappears by stealing a Finance login — is this opportunism, or a campaign?',
+        next: 'check the policy for this pattern — type  cat authentication_policy.txt',
+      },
+      {
+        id: 'cat_policy',
+        match: ['cat authentication_policy.txt', 'cat authentication_policy', 'less authentication_policy.txt'],
+        help: 'read the authentication policy',
+        output: [
+          { t: 'authentication_policy.txt', c: 'head' },
+          '  Repeated failures + login from a new location + MFA change = treat as COMPROMISE.',
+          '  Response: reset credentials, re-enable MFA, lock if needed, and escalate to IR.',
+        ],
+        reveals: ['ev_policy'],
+        observation: 'Policy says this exact pattern is treated as a confirmed compromise — with a defined response.',
+        question: 'You have the pattern and the policy — what is the right response to protect the account?',
+        next: 'see the correlated alert — type  tail security_events.log',
+      },
+      {
+        id: 'tail_security',
+        match: ['tail security_events.log', 'cat security_events.log', 'less security_events.log'],
+        help: 'read the correlated security alert',
+        core: true,
+        output: [
+          { t: 'security_events.log — correlated', c: 'head' },
+          '  ALERT: credential brute-force → success → MFA tamper on a.okafor',
+          '  confidence: HIGH   recommended: contain account, reset, escalate to IR',
+        ],
+        reveals: ['ev_correlated'],
+        observation: 'The system has already correlated the whole chain into a single high-confidence account-compromise alert.',
+        question: 'The evidence all points one way — are you ready to name the account and act?',
+        next: 'confirm the user could not have done this — type  cat manager_notes.txt',
+      },
+      {
+        id: 'cat_manager',
+        match: ['cat manager_notes.txt', 'cat manager_notes', 'less manager_notes.txt'],
+        help: 'read the manager'+"'"+'s notes',
+        output: [
+          { t: 'manager_notes.txt', c: 'head' },
+          '  "A. Okafor is on leave this week and is in London — definitely did not log in from Lagos."',
+          '  "She never disables her MFA. Please treat this as not her."',
+        ],
+        reveals: ['ev_manager'],
+        observation: 'The manager confirms the real owner was elsewhere and would never disable MFA — ruling out a legitimate explanation.',
+        question: 'With the owner ruled out, the only explanation left is takeover — what do you recommend?',
+        next: 'you have the full picture — type  decide  to choose your response',
+      },
+    ],
+
+    evidence: [
+      {
+        id: 'ev_overview', label: 'One account shows failed logins then a success, all from one outside address.',
+        qualityWeight: 1, source: 'auth.log',
+        layers: {
+          beginner: {
+            summary: 'The log shows one account failing to log in many times, then succeeding — all from the same outside address.',
+            why: 'A burst of failures followed by a success is a common sign someone is guessing a password.',
+            prompt: 'Many failures then a success from one source — what does that usually mean?',
+          },
+          analyst: 'auth.log: a.okafor — clustered LOGIN FAILED then LOGIN SUCCESS, single external src 203.0.113.44.',
+          technical: 'auth.log — a.okafor failed-auth cluster culminating in success, src 203.0.113.44 throughout.',
+          terms: ['authentication'],
+        },
+      },
+      {
+        id: 'ev_failures', label: '47 failed logins in 7 minutes from one external address.',
+        qualityWeight: 3, source: 'grep failed auth.log',
+        layers: {
+          beginner: {
+            summary: 'The account failed to log in 47 times in just seven minutes, all from one outside address.',
+            why: 'No person types their password wrong 47 times that fast — this is automated guessing.',
+            prompt: 'Does a real person fail 47 times in seven minutes, or is this a machine?',
+          },
+          analyst: '47 failed auths for a.okafor in ~7 min from 203.0.113.44 — high-rate credential brute-force.',
+          technical: 'grep failed auth.log — 47 failures 03:11–03:18, single src 203.0.113.44; automated brute-force signature.',
+          terms: ['bruteForce', 'authentication'],
+        },
+      },
+      {
+        id: 'ev_success', label: 'A login succeeded immediately after the failed burst, same source.',
+        qualityWeight: 2, source: 'grep successful auth.log',
+        layers: {
+          beginner: {
+            summary: 'Right after all those failures, one login finally worked — from the same outside address.',
+            why: 'A success at the end of a guessing burst means the attacker found the password.',
+            prompt: 'If the failures were guessing, who just successfully got in?',
+          },
+          analyst: 'Successful auth at 03:19 immediately follows the failure cluster, same src — brute-force succeeded.',
+          technical: 'grep successful auth.log — 03:19 SUCCESS, src 203.0.113.44; terminal success of the brute-force run.',
+          terms: ['bruteForce'],
+        },
+      },
+      {
+        id: 'ev_location', label: 'The successful login came from a location the user has never used.',
+        qualityWeight: 3, source: 'login_locations.log',
+        layers: {
+          beginner: {
+            summary: 'The login that worked came from a country the user has never signed in from before.',
+            why: 'A first-ever login location, at the exact moment of a break-in, points to someone else.',
+            prompt: 'One person cannot be in two countries at once — so who is the second login?',
+          },
+          analyst: 'a.okafor habitual geo = London; 03:19 success geolocates to Lagos, NG — novel location during an active London session.',
+          technical: 'login_locations.log — anomalous geo (Lagos, NG) vs baseline (London); concurrent London session present.',
+          terms: ['authentication'],
+        },
+        reflection: {
+          title: 'REVIEW THE SUSPICIOUS LOGIN',
+          prompt: 'What concerns you about this activity? (Tick anything that stands out.)',
+          concerns: [
+            'Dozens of failed logins in a few minutes',
+            'A success right after the failures, from the same address',
+            'The login came from a location the user has never used',
+            'The account is logged in from two places at once',
+            'This looks like the user just travelling',
+            'I need more information before deciding',
+          ],
+          judgmentPrompt: 'Based on what you found, how would you judge this activity?',
+          feedback: 'There is no single right answer — analysts reason from what they observe. The PATTERN (failures → success), the PLACE (a new country), and the TIMING (two places at once) together make the case.',
+        },
+      },
+      {
+        id: 'ev_impossible', label: 'Two sessions thousands of km apart, minutes apart — physically impossible.',
+        qualityWeight: 2, source: 'grep unknown login_locations.log',
+        layers: {
+          beginner: {
+            summary: 'The account was logged in from two places thousands of kilometres apart, only minutes apart.',
+            why: 'No one can travel that far that fast — so the two logins are two different people.',
+            prompt: 'What does it mean when one account is in two impossible places at once?',
+          },
+          analyst: 'Impossible-travel: ~5,000 km between concurrent London and Lagos sessions, ~14 min apart.',
+          technical: 'login_locations.log — geo-velocity violation (London↔Lagos, ~14 min); concurrent-session anomaly.',
+          terms: ['impossibleTravel'],
+        },
+      },
+      {
+        id: 'ev_changes', label: 'After login, MFA was disabled, mail forwarding added, and the password changed.',
+        qualityWeight: 3, source: 'account_changes.log',
+        layers: {
+          beginner: {
+            summary: 'Right after logging in, the account turned off its security check, set up mail forwarding, and changed its password.',
+            why: 'These are the moves an attacker makes to keep control and hide — not what an owner does at 3am.',
+            prompt: 'Why would the real owner disable their own MFA and forward their mail in the middle of the night?',
+          },
+          analyst: 'Post-auth: MFA disabled, external mail-forward rule added, password rotated — attacker persistence + exfil setup.',
+          technical: 'account_changes.log — 03:21 MFA off, 03:22 forward→external, 03:24 password change, all src 203.0.113.44.',
+          terms: ['mfa', 'credentialCompromise'],
+        },
+      },
+      {
+        id: 'ev_mfa_off', label: 'MFA is now OFF — it was enabled until the attack.',
+        qualityWeight: 2, source: 'mfa_status.txt',
+        layers: {
+          beginner: {
+            summary: 'The account'+"'"+'s extra security check is now switched off; it was on until this happened.',
+            why: 'With MFA off, only the password protects the account — and the attacker just changed that too.',
+            prompt: 'With MFA off and the password changed, who actually controls this account now?',
+          },
+          analyst: 'a.okafor MFA state flipped ENABLED→DISABLED at 03:21; sole remaining factor (password) attacker-controlled.',
+          technical: 'mfa_status.txt — MFA DISABLED (since 03:21); single-factor exposure post-takeover.',
+          terms: ['mfa'],
+        },
+      },
+      {
+        id: 'ev_access', label: 'The account then opened payroll and customer-payment data and downloaded a file.',
+        qualityWeight: 3, source: 'user_access.log',
+        layers: {
+          beginner: {
+            summary: 'After the break-in, the account opened payroll and customer-payment files and downloaded one.',
+            why: 'These are the same sensitive finance files from your first case — now in an attacker'+"'"+'s hands.',
+            prompt: 'The attacker is inside Finance with a trusted account — what is at stake?',
+          },
+          analyst: 'Post-compromise access to finance_share payroll + customer_payments; exfil of q3_compensation.csv.',
+          technical: 'user_access.log — 03:26–03:31 sensitive finance reads + download (q3_compensation.csv) under compromised account.',
+          terms: ['credentialCompromise'],
+        },
+      },
+      {
+        id: 'ev_reset', label: 'The password was reset from the attacker'+"'"+'s address — owner locked out.',
+        qualityWeight: 2, source: 'grep password_reset user_access.log',
+        layers: {
+          beginner: {
+            summary: 'The password was reset from the attacker'+"'"+'s location, so the real owner is now locked out.',
+            why: 'Changing the password is how the attacker keeps control and stops the owner getting back in.',
+            prompt: 'If the attacker reset the password, will the real user even notice they are locked out?',
+          },
+          analyst: 'password_reset executed from 203.0.113.44 (Lagos) — attacker secures persistence, denies legitimate access.',
+          technical: 'grep password_reset user_access.log — reset from attacker src; owner lockout, attacker persistence.',
+          terms: ['credentialCompromise'],
+        },
+      },
+      {
+        id: 'ev_contractor_tie', label: 'The attacking address traces back to the recurring contractor (J. Demir).',
+        qualityWeight: 3, source: 'contractor_activity.log', setFlag: 'contractorAccountCompromised',
+        layers: {
+          beginner: {
+            summary: 'The attacker'+"'"+'s address is the same one tied to the contractor from your earlier cases — whose own account was already disabled.',
+            why: 'A blocked contractor stealing a Finance login suggests this is the same person escalating, not a random attacker.',
+            prompt: 'A blocked contractor reappears through a stolen login — opportunism, or a campaign?',
+          },
+          analyst: 'src 203.0.113.44 historically maps to ext-contractor-07 (J. Demir); contractor01 disabled — pivot to a.okafor.',
+          technical: 'contractor_activity.log — 203.0.113.44 ↔ ext-contractor-07 prior sessions; disabled contractor account → credential pivot.',
+          terms: ['credentialCompromise'],
+        },
+      },
+      {
+        id: 'ev_policy', label: 'Policy treats failures + new location + MFA change as a confirmed compromise.',
+        qualityWeight: 1, source: 'authentication_policy.txt',
+        layers: {
+          beginner: {
+            summary: 'The rules say this exact combination of signs is treated as a real account takeover.',
+            why: 'Knowing the policy turns the pattern you found into a clear, required response.',
+            prompt: 'You have the pattern and the policy — what response protects the account?',
+          },
+          analyst: 'Auth policy: brute-force + new-geo + MFA change = compromise; mandates reset, MFA re-enable, lock, IR escalation.',
+          technical: 'authentication_policy.txt — defined compromise criteria + response (credential reset, MFA enforce, lock, escalate).',
+          terms: ['authentication', 'mfa'],
+        },
+      },
+      {
+        id: 'ev_correlated', label: 'The SIEM correlated the whole chain into one high-confidence compromise alert.',
+        qualityWeight: 2, source: 'security_events.log', setFlag: 'credentialRiskHigh',
+        layers: {
+          beginner: {
+            summary: 'The security system has already linked all the steps into a single high-confidence takeover alert.',
+            why: 'Independent confirmation that the separate clues add up to one account-compromise incident.',
+            prompt: 'The evidence all points one way — are you ready to name the account and act?',
+          },
+          analyst: 'Correlated alert: brute-force → success → MFA tamper on a.okafor, HIGH confidence; recommends contain + reset + IR.',
+          technical: 'security_events.log — multi-signal correlation (auth + geo + MFA) → HIGH-confidence account-compromise.',
+          terms: ['credentialCompromise'],
+        },
+      },
+      {
+        id: 'ev_manager', label: 'The manager confirms the owner was elsewhere and never disables MFA.',
+        qualityWeight: 1, source: 'manager_notes.txt',
+        layers: {
+          beginner: {
+            summary: 'The manager confirms the real owner was on leave in London and would never turn off her MFA.',
+            why: 'This rules out an innocent explanation — the activity cannot be the legitimate user.',
+            prompt: 'With the owner ruled out, the only explanation left is takeover — what do you recommend?',
+          },
+          analyst: 'Manager attestation: owner in London/on leave, no self-initiated MFA disable — legitimate-use hypothesis excluded.',
+          technical: 'manager_notes.txt — owner alibi + behavioral baseline contradict the session; confirms unauthorized actor.',
+          terms: [],
+        },
+      },
+    ],
+
+    actions: [
+      {
+        id: 'lock_account',
+        type: 'recommendation',
+        label: 'Recommend Account Lock',
+        summary: 'Recommend immediately locking the compromised account to cut off the attacker.',
+        outcomeSub: 'You recommended locking the compromised account.',
+        deltas: { securityPosture: 18, complianceExposure: -12, businessContinuity: -6, executiveTrust: 8, careerReputation: 10 },
+        setFlags: ['credentialRiskHigh'],
+        deniedNote: 'Leadership held off on locking the account pending firmer confirmation it is compromised.',
+        consequence: {
+          immediate: ['The account is locked; the attacker'+"'"+'s session is cut off and further finance access stops.'],
+          business: ['The real owner is briefly locked out until identity is re-verified — minor friction, major exposure avoided.'],
+          future: ['Fast containment of a live compromise strengthens your standing on later incidents.'],
+        },
+      },
+      {
+        id: 'recommend_reset',
+        type: 'recommendation',
+        label: 'Recommend Password Reset',
+        summary: 'Recommend forcing a password reset on the compromised account.',
+        outcomeSub: 'You recommended a forced password reset.',
+        deltas: { securityPosture: 12, complianceExposure: -8, careerReputation: 6, executiveTrust: 5, businessContinuity: -3 },
+        setFlags: ['credentialRiskHigh'],
+        deniedNote: 'Leadership wanted the account contained first before a reset is issued.',
+        consequence: {
+          immediate: ['A forced reset invalidates the attacker'+"'"+'s changed password and starts recovery.'],
+          business: ['Owner regains access through a verified reset; a reset alone, without a lock, may leave a window open.'],
+          future: ['Correct first move, recorded for the incident timeline.'],
+        },
+      },
+      {
+        id: 'enforce_mfa',
+        type: 'recommendation',
+        label: 'Recommend MFA',
+        summary: 'Recommend re-enabling and enforcing MFA on the account.',
+        outcomeSub: 'You recommended re-enabling and enforcing MFA.',
+        deltas: { securityPosture: 14, complianceExposure: -10, careerReputation: 8, executiveTrust: 6, businessContinuity: -2 },
+        setFlags: ['mfaRecommended'],
+        deniedNote: 'Leadership noted MFA enforcement but wanted the account contained first.',
+        consequence: {
+          immediate: ['MFA is re-enabled, restoring the second factor the attacker had stripped off.'],
+          business: ['Re-enforcing MFA blocks repeat takeover even if the password leaks again.'],
+          future: ['MFA enforcement on record — a durable fix carried into later missions.'],
+        },
+      },
+      {
+        id: 'escalate',
+        type: 'recommendation',
+        label: 'Escalate Incident',
+        summary: 'Escalate the confirmed compromise to the incident-response team.',
+        outcomeSub: 'You escalated the incident to IR.',
+        deltas: { executiveTrust: 10, careerReputation: 8, securityPosture: 4, complianceExposure: -6, businessContinuity: -2 },
+        setFlags: ['credentialRiskHigh'],
+        deniedNote: 'Leadership sent it back — they want a clear containment recommendation alongside the escalation.',
+        consequence: {
+          immediate: ['Incident handed to the IR team with the full authentication timeline and contractor link.'],
+          business: ['Senior responders own the broader investigation into the contractor campaign.'],
+          future: ['Escalating a real compromise with solid evidence builds serious trust.'],
+        },
+      },
+      {
+        id: 'continue_investigation',
+        type: 'direct',
+        label: 'Continue Investigation',
+        summary: 'Hold off on a response and keep gathering information.',
+        outcomeSub: 'You chose to continue investigating before acting.',
+        deltas: { securityPosture: -8, complianceExposure: 8, businessContinuity: 1, careerReputation: -4 },
+        setFlags: ['credentialRiskHigh'],
+        consequence: {
+          immediate: ['No containment yet; the attacker keeps access to the Finance account while you gather more.'],
+          business: ['The evidence already confirms compromise — delay lets the attacker dig deeper into finance data.'],
+          future: ['Hesitating on a live, confirmed takeover is noted as a costly delay.'],
+        },
+      },
+      {
+        id: 'ignore',
+        type: 'direct',
+        label: 'Ignore Alert',
+        summary: 'Treat it as a false alarm and close the alert.',
+        outcomeSub: 'You dismissed the alert.',
+        deltas: { securityPosture: -22, complianceExposure: 28, businessContinuity: 2, careerReputation: -18, executiveTrust: -18 },
+        setFlags: ['credentialRiskHigh'],
+        consequence: {
+          immediate: ['The attacker keeps full control of a Finance account with MFA off and finance data exposed.'],
+          business: ['An active, confirmed account compromise is left running — a serious, escalating breach.'],
+          future: ['Dismissing a live compromise is a severe blow to trust in your judgment.'],
+        },
+      },
+    ],
+
+    lockedActions: [
+      {
+        id: 'orgwide_reset',
+        label: 'Force Org-Wide Credential Reset',
+        reason: 'Cybersecurity Interns cannot trigger a company-wide password reset. That is an IAM Administrator decision.',
+        alternativeRecommendationId: 'rec_orgwide_reset',
+      },
+      {
+        id: 'revoke_contractor',
+        label: 'Revoke Contractor Access Domain-Wide',
+        reason: 'Interns cannot revoke a contractor'+"'"+'s access across the domain. Route this through your SOC Lead and IAM.',
+        alternativeRecommendationId: 'rec_contractor_revoke',
+      },
+    ],
+
+    recommendations: {
+      rec_orgwide_reset: {
+        label: 'Org-Wide Credential Reset',
+        deltas: { securityPosture: 12, complianceExposure: -8, careerReputation: 6, businessContinuity: -5 },
+        setFlags: ['credentialRiskHigh'],
+        deniedNote: 'Leadership declined an org-wide reset without evidence the compromise spread further.',
+        consequence: {
+          immediate: ['Requested a broader credential reset in case other accounts were guessed.'],
+          business: ['Wider reset causes some disruption but closes any shared-password exposure.'],
+          future: ['A documented containment decision carried into later missions.'],
+        },
+      },
+      rec_contractor_revoke: {
+        label: 'Contractor Access Revocation',
+        deltas: { securityPosture: 10, executiveTrust: 6, careerReputation: 8, complianceExposure: -6 },
+        setFlags: ['contractorAccountCompromised'],
+        deniedNote: 'Leadership deferred a domain-wide contractor revocation pending IR review.',
+        consequence: {
+          immediate: ['Requested full revocation of the contractor'+"'"+'s remaining access across the domain.'],
+          business: ['Cuts off the recurring contractor as a source of further incidents.'],
+          future: ['Closing out the contractor thread reduces risk in later missions.'],
+        },
+      },
+    },
+  },
 };
 
 window.CAREER_MISSION_IDS = Object.keys(CAREER_MISSIONS);
@@ -1496,6 +2969,8 @@ function simInit() {
       if (concern) { toggleConcern(Number(concern.dataset.concern)); return; }
       const judg = e.target.closest('[data-judgment]');
       if (judg) { setJudgment(judg.dataset.judgment); return; }
+      const ident = e.target.closest('[data-identify]');
+      if (ident) { setIdentification(ident.dataset.identify); return; }
 
       const cls = e.target.closest('[data-classify-file]');
       if (cls) { setClassification(cls.dataset.classifyFile, cls.dataset.classifyVal); return; }

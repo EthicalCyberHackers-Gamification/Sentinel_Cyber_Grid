@@ -289,6 +289,10 @@
 .sim-term-line--warn { color: var(--yellow); }
 .sim-term-line--file { color: var(--text-bright); }
 .sim-term-line--evidence { color: var(--yellow); }
+.sim-term-line--observe { color: var(--cyan); padding-left: 2px; }
+.sim-term-line--question { color: var(--purple); font-style: italic; }
+.sim-term-line--confidence { color: var(--green-dim); }
+.sim-term-line--next { color: var(--text-dim); }
 .sim-term-line--spacer { height: 8px; }
 .sim-term-form {
   flex: 0 0 auto;
@@ -762,6 +766,108 @@
   margin-top: 8px;
 }
 .sim-report-done:hover { background: var(--green-dim); }
+
+/* ---------- Analyst Notebook: confidence meter, risks, identify ---------- */
+.sim-confidence {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  padding: 9px 11px 10px;
+  margin-bottom: 12px;
+}
+.sim-confidence-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.sim-confidence-pct { font-size: 13px; font-weight: 700; }
+.sim-confidence--low  .sim-confidence-pct { color: var(--red); }
+.sim-confidence--warn .sim-confidence-pct { color: var(--yellow); }
+.sim-confidence--good .sim-confidence-pct { color: var(--green); }
+.sim-confidence-meter {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.sim-confidence-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 480ms cubic-bezier(0.22, 1, 0.36, 1), background 360ms ease;
+}
+.sim-confidence--low  .sim-confidence-fill { background: var(--red); }
+.sim-confidence--warn .sim-confidence-fill { background: var(--yellow); }
+.sim-confidence--good .sim-confidence-fill { background: var(--green); }
+.sim-confidence-note { font-size: 10px; color: var(--text-muted); margin-top: 6px; line-height: 1.45; }
+
+.sim-notebook-section { margin-bottom: 14px; }
+.sim-notebook-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 1.3px;
+  color: var(--cyan-dim);
+  margin-bottom: 8px;
+}
+.sim-notebook-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0 7px;
+}
+
+.sim-risks { list-style: none; margin: 0; padding: 0; }
+.sim-risk {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  padding: 3px 0;
+  transition: color var(--transition);
+}
+.sim-risk-box { color: var(--text-muted); flex: 0 0 auto; }
+.sim-risk--on { color: var(--text); }
+.sim-risk--on .sim-risk-box { color: var(--green); }
+
+/* Identify (determination) step */
+.sim-identify-prompt { font-size: 11.5px; line-height: 1.55; color: var(--text); margin-bottom: 9px; }
+.sim-identify-opts { display: flex; flex-direction: column; gap: 6px; }
+.sim-identify-btn {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-identify-btn:hover { border-color: var(--border-glow); color: var(--text-bright); }
+.sim-identify-btn--on { border-color: var(--cyan); background: rgba(0, 229, 255, 0.08); color: var(--cyan); }
+.sim-identify-note {
+  margin-top: 9px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
 
 /* ---------- Responsive: stack panels on narrow widths ---------- */
 @media (max-width: 1100px) {

@@ -12,7 +12,7 @@ why, prompt}, analyst, technical, terms:[] }`. `evLayers(e)` normalizes this and
 (and other missions) still render. The terminal log and all scoring keep using
 `e.label` / `qualityWeight` — never the layers.
 
-**Why:** the brief (Task #91) was to change ONLY how evidence is *presented* —
+**Why:** the brief was to change ONLY how evidence is *presented* —
 no quiz/lesson, no +/- scoring, no change to recommendation/classification
 scoring or mission flow. Keeping `label`/`qualityWeight` as the engine's only
 inputs guarantees the refactor can't shift any outcome.
