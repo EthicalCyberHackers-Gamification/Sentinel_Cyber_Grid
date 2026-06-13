@@ -276,6 +276,53 @@
 .sim-brief-obj--done .sim-brief-obj-icon { color: var(--green); }
 .sim-brief-obj--done span:last-child { color: var(--text-muted); text-decoration: line-through; }
 
+/* ---------- CASE CONTINUITY (dynamic conditions from carry-flags) ----------
+   Brief panel: which earlier decision is shaping THIS case (continuityLines).
+   Debrief: how each carried decision changed the outcome (outcomeNotes).
+   Tone vocabulary is good / bad / neutral (see career-dynamic.js). */
+.sim-cont-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sim-cont-item {
+  border-left: 2px solid var(--border);
+  padding: 7px 0 7px 10px;
+  background: rgba(255, 255, 255, 0.015);
+  border-radius: 0 4px 4px 0;
+  animation: simEvIn 280ms ease;
+}
+.sim-cont-item--good    { border-left-color: var(--green); }
+.sim-cont-item--bad     { border-left-color: var(--red); }
+.sim-cont-item--neutral { border-left-color: var(--cyan-dim); }
+.sim-cont-from {
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+.sim-cont-decision { font-size: 12px; line-height: 1.5; color: var(--text); }
+.sim-cont-consequence { font-size: 11.5px; line-height: 1.55; color: var(--text-dim); margin-top: 2px; }
+.sim-cont-item--good    .sim-cont-consequence { color: var(--green-dim); }
+.sim-cont-item--bad     .sim-cont-consequence { color: var(--red); }
+
+.sim-cont-impact { margin-bottom: 12px; }
+.sim-cont-impact-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sim-cont-impact-item {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+  padding-left: 14px;
+  position: relative;
+}
+.sim-cont-impact-item::before {
+  content: "›";
+  position: absolute;
+  left: 0;
+  color: var(--text-muted);
+}
+.sim-cont-impact-item--good::before    { content: "▲"; color: var(--green); font-size: 9px; top: 2px; }
+.sim-cont-impact-item--bad::before     { content: "▼"; color: var(--red);   font-size: 9px; top: 2px; }
+.sim-cont-impact-item--neutral::before { content: "•"; color: var(--cyan-dim); }
+
 /* ---------- Panel 3: Terminal + Actions ---------- */
 .sim-term-out {
   flex: 1 1 auto;

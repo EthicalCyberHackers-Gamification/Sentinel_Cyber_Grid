@@ -355,7 +355,7 @@ const MISSION_PLAY_ORDER = [
   "mission-001", // Assignment 001 — Protect Sensitive Information (EMEA)
   "mission-002", // Assignment 002 — Investigate Network Assets (APAC)
   "mission-003", // Assignment 003 — Investigate Suspicious Authentication Activity (NA-EAST)
-  "mission-004", // Assignment 004 — Reconnaissance Sweep (LATAM)
+  "mission-004", // Assignment 004 — Data Exfiltration Investigation (LATAM)
   "mission-005", // Assignment 005 — Account Takeover Investigation (MENA)
   "mission-006", // Assignment 006 — Anomalous Scan Triage (SE ASIA)
 ];
@@ -7445,12 +7445,12 @@ const OCV2_NODE_META = {
   // `threat` supplies the card's THREAT TYPE (GENERIC_MISSIONS has no such
   // field); region/severity/comms mirror the prototype's incident set.
   "mission-004": {
-    severity:    "MEDIUM",
+    severity:    "CRITICAL",
     region:      "LATAM REGION",
-    threat:      "Reconnaissance / Scanning",
-    commsAuthor: "junior",
-    commsName:   "Alex Torres",
-    commsRole:   "Junior Analyst",
+    threat:      "Data Exfiltration / Insider",
+    commsAuthor: "lead",
+    commsName:   "Sarah Reyes",
+    commsRole:   "SOC Lead",
   },
   "mission-005": {
     severity:    "MEDIUM",
@@ -7545,8 +7545,8 @@ const WORLD_CONTINUITY = {
                    resolved: "Unapproved contractor device 192.168.1.57 removed from the finance segment; asset inventory reconciled." },
   "mission-003": { dept: "finance",     actor: "contractor",   connects: "mission-002",
                    resolved: "Compromised Finance account a.okafor secured; MFA enforced; tied back to the flagged contractor." },
-  "mission-004": { dept: "itinfra",     actor: "redbeacon",
-                   resolved: "Recon range 203.0.113.0/24 added to the perimeter blocklist." },
+  "mission-004": { dept: "finance",     actor: "contractor",   connects: "mission-003",
+                   resolved: "Customer-data exfiltration channel cut and the staged archive purged; breach notification scoped with Legal; tied back to the flagged contractor." },
   "mission-005": { dept: "exec",        employee: "whitfield", actor: "fin12",
                    resolved: "Privileged-account MFA hardened after the 47-failure burst." },
   "mission-006": { dept: "secops",      actor: "redbeacon",    connects: "mission-004",
@@ -7566,6 +7566,7 @@ const SECURITY_BULLETINS = [
   { tag: "RESOLVED", text: "Contractor's out-of-scope access to the Finance release folder revoked; the release is held pending classification.", after: "mission-001" },
   { tag: "RESOLVED", text: "Unapproved contractor device removed from the APAC finance segment; asset inventory reconciled.", after: "mission-002" },
   { tag: "RESOLVED", text: "Compromised Finance account secured and MFA enforced on NA-East; tied back to the flagged contractor.", after: "mission-003" },
+  { tag: "RESOLVED", text: "LATAM data-exfiltration channel cut and the staged customer-data archive purged; breach notification scoped with Legal.", after: "mission-004" },
 ];
 
 // Dev guard: a `connects` edge must reference a PRIOR mission, otherwise the
@@ -7648,7 +7649,7 @@ const OCV2_COMPLETION_COMMS = {
   // Task 29 — generic missions resolve to the neutral `excellent` line (the
   // tier detector in ocv2PostCompletionComms only refines 001/002/003).
   "mission-004": {
-    excellent: "LATAM perimeter sweep classified and logged — clean attribution of the recon stage. Solid work, analyst.",
+    excellent: "LATAM data-exfiltration incident closed — exfil channel cut, scope contained, breach notification scoped. Capstone-level work, analyst. The LATAM node is dark.",
   },
   "mission-005": {
     excellent: "MENA account-takeover investigation closed — compromise scoped and contained. Sharp triage, analyst.",
@@ -7674,7 +7675,7 @@ function ocv2BuildInitialComms() {
     { author: "cmd",    name: "Cmdr. Brooks", role: "Incident Cmd",  time: "06:12",
       text: "OPS-003 in NA-East is a possible Finance account takeover. If those credentials are confirmed compromised, we move to containment fast." },
     { author: "junior", name: "Alex Torres",  role: "Junior Analyst", time: "06:13",
-      text: "LATAM recon scope confirmed — 600 ports scanned across 12 hosts. No exploitation attempts yet. Firewall rules updated." },
+      text: "DLP just lit up on LATAM — a service account pushed a large archive to an external host overnight. This looks like real data exfiltration, not noise. Escalating." },
   ];
 }
 
@@ -7877,10 +7878,10 @@ function ocv2PromptOnboarding() {
 // queue. Interiors (Progressive Lab / GENERIC_MISSIONS) never read this.
 const OCV2_GENERIC_DISPLAY = {
   "mission-004": {
-    title:        "Reconnaissance Activity",
-    briefing:     "Systematic port scanning observed against the LATAM external perimeter from an unknown IP range. Pattern consistent with pre-attack recon.",
-    threat:       "Reconnaissance / Scanning",
-    transmission: "On it — scanning pattern matches the Shodan fingerprinting playbook. Pulling the IP reputation report now.",
+    title:        "Data Exfiltration Investigation",
+    briefing:     "A LATAM service account logged in off-hours, accessed the customer database, staged a large archive, and transferred it to an external host. DLP flagged the egress. Reconstruct the timeline and confirm the breach.",
+    threat:       "Data Exfiltration / Insider",
+    transmission: "This is the capstone, analyst. Walk the timeline login-to-egress, find the root cause, and tell me whether we notify. I need your full report.",
   },
   "mission-005": {
     title:        "Suspicious Login Activity",
@@ -8206,7 +8207,7 @@ function renderOcPanelV2() {
       "mission-001": "Sensitive Data Release — Contractor Access",
       "mission-002": "Unapproved Device on Internal Network",
       "mission-003": "Account Takeover — Finance Login Anomaly",
-      "mission-004": "Reconnaissance Sweep Active",
+      "mission-004": "Data Exfiltration — Customer Database",
       "mission-005": "Suspicious Login — MFA Failure",
       "mission-006": "Anomalous Port Scan Logged",
     };
