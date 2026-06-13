@@ -593,7 +593,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
    COURSE PATH — left-column learning-path view (primary)
    ============================================= */
 .course-path {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
   padding: 8px 8px 4px;
@@ -725,6 +725,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 /* PATH INSPECTOR — compact detail panel under the course path */
 .path-inspector {
   flex-shrink: 0;
+  margin-top: 10px;
   max-height: 230px;
   overflow-y: auto;
   padding: 10px 12px;
