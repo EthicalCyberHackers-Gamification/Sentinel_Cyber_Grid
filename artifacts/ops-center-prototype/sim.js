@@ -1529,6 +1529,136 @@ const CAREER_MISSIONS = {
       { id: 'risk_contractor', label: 'A contractor account accessed files outside its remit', triggeredBy: ['ev_contractor_access'] },
       { id: 'risk_noreview',   label: 'The release was assembled with no internal reviewer', triggeredBy: ['ev_release_context'] },
     ],
+
+    // Reactive data-access map (Task #97) — review-only, same engine as
+    // mission-002. Mission 1 has no real network, so the graph is a data-access
+    // diagram: contractor account -> release package -> files. Only the two
+    // genuinely pre-known anchors from the brief (the contractor who requested
+    // the release and the release package itself) are seeded; each file appears
+    // and flags ONLY once the player has read it, and the out-of-remit access
+    // links appear ONLY once the access log is read. Nothing is persisted/scored.
+    map: {
+      cap: 'RELEASE REVIEW · OUTBOUND DATA FLOW — EMEA REGION',
+      hint: 'Red marks sensitive files that should not leave and the contractor\u2019s out-of-remit access. Select any node or connection for analyst intel.',
+      nodes: {
+        contractor: {
+          x: 13, y: 56, glyph: '👷', label: 'ext-contractor-07', sub: 'J. Demir · vendor', seed: true,
+          statusBy: { ev_contractor_access: 'suspicious' },
+          intel: {
+            what: 'The external vendor account that requested this outbound release.',
+            technique: 'Its role is stated in the assignment brief and the release cover note (cat release_notes.txt).',
+            why: 'An outside vendor account assembling a release of company files is the kind of access worth reviewing.' },
+        },
+        release: {
+          x: 50, y: 33, glyph: '📦', label: 'release pkg', sub: 'queued external', seed: true,
+          intel: {
+            what: 'The shared folder queued to leave the company for an external partner.',
+            technique: 'List and read the queued files (ls, then cat <file>) to see what is bundled inside.',
+            why: 'Everything in this package is about to leave the building, so each file must be classified first.' },
+        },
+        partner: {
+          x: 50, y: 10, glyph: '🌐', label: 'Meridian Logistics', sub: 'external partner',
+          revealBy: 'ev_release_context',
+          intel: {
+            what: 'The external logistics partner the release is addressed to.',
+            technique: 'Named in the release cover note (cat release_notes.txt).',
+            why: 'It is outside the company, so anything bundled into the package would land in third-party hands.' },
+        },
+        f_datasheet: {
+          x: 24, y: 88, glyph: '📄', label: 'product_datasheet', sub: 'public · safe',
+          revealBy: 'ev_public_safe', statusBy: { ev_public_safe: 'identified' },
+          intel: {
+            what: 'A marketing datasheet already cleared for public distribution.',
+            technique: 'cat product_datasheet.txt — marked cleared for public distribution by Marketing.',
+            why: 'Already-public material is safe to share — the baseline of what a clean release looks like.' },
+        },
+        f_pricing: {
+          x: 41, y: 91, glyph: '📄', label: 'partner_pricing', sub: 'confidential',
+          revealBy: 'ev_confidential_pricing', statusBy: { ev_confidential_pricing: 'suspicious' },
+          intel: {
+            what: 'Negotiated per-partner pricing and renewal dates — internal commercial terms.',
+            technique: 'cat partner_pricing_2026.csv — rates marked not for external eyes.',
+            why: 'One partner seeing another\u2019s private rates is a confidentiality breach; it must not ship.' },
+        },
+        f_roadmap: {
+          x: 58, y: 92, glyph: '📄', label: 'acquisition_roadmap', sub: 'confidential',
+          revealBy: 'ev_confidential_roadmap', statusBy: { ev_confidential_roadmap: 'suspicious' },
+          intel: {
+            what: 'A draft, unannounced acquisition roadmap — material non-public information.',
+            technique: 'cat acquisition_roadmap.txt — marked material non-public information, confidential.',
+            why: 'Unannounced deal plans are market-sensitive; releasing them early is a leak and a legal risk.' },
+        },
+        f_salary: {
+          x: 75, y: 90, glyph: '📄', label: 'employee_salaries', sub: 'restricted · PII',
+          revealBy: 'ev_pii_salary', statusBy: { ev_pii_salary: 'suspicious' },
+          intel: {
+            what: 'Employee names, titles and salaries — HR-restricted personal data (PII).',
+            technique: 'cat employee_salaries.csv — marked HR-Restricted, PII and compensation.',
+            why: 'Personal pay data must never leave the company; in an external release it is a serious exposure.' },
+        },
+        f_payments: {
+          x: 90, y: 82, glyph: '📄', label: 'customer_payments', sub: 'restricted · PCI',
+          revealBy: 'ev_customer_pii', statusBy: { ev_customer_pii: 'suspicious' },
+          intel: {
+            what: 'Customer card last-4, amounts and processor references — regulated payment data (PCI).',
+            technique: 'cat customer_payment_records.csv — marked regulated cardholder data (PCI scope).',
+            why: 'Cardholder data is legally protected; sending it to a partner would be a regulated-data breach.' },
+        },
+      },
+      links: [
+        { a: 'contractor', b: 'release', revealBy: 'ev_release_context',
+          intel: {
+            what: 'The release package was assembled by the contractor account itself, with no internal reviewer.',
+            technique: 'The cover note (cat release_notes.txt) shows it was prepared by the vendor account.',
+            why: 'Normally an internal data owner signs off on what leaves; an outsider self-approving it is a gap.' } },
+        { a: 'release', b: 'partner', revealBy: 'ev_release_context',
+          intel: {
+            what: 'The whole package is queued to be sent to the external partner.',
+            technique: 'cat release_notes.txt — addressed to Meridian Logistics.',
+            why: 'This is the door out of the company; whatever is in the package goes through it.' } },
+        { a: 'release', b: 'f_datasheet', revealBy: 'ev_public_safe',
+          intel: {
+            what: 'The public datasheet is part of the outbound package.',
+            technique: 'Listed by ls and read with cat product_datasheet.txt.',
+            why: 'Public collateral is exactly what should be in a partner release — no concern.' } },
+        { a: 'release', b: 'f_pricing', revealBy: 'ev_confidential_pricing', danger: true,
+          intel: {
+            what: 'Confidential partner pricing is bundled into the outbound package.',
+            technique: 'cat partner_pricing_2026.csv reveals it sitting in the release.',
+            why: 'Internal commercial terms heading to an external partner is a confidentiality breach.' } },
+        { a: 'release', b: 'f_roadmap', revealBy: 'ev_confidential_roadmap', danger: true,
+          intel: {
+            what: 'The unannounced acquisition roadmap is bundled into the outbound package.',
+            technique: 'cat acquisition_roadmap.txt reveals it sitting in the release.',
+            why: 'Material non-public information leaving early is a leak with legal consequences.' } },
+        { a: 'release', b: 'f_salary', revealBy: 'ev_pii_salary', danger: true,
+          intel: {
+            what: 'Restricted employee PII is bundled into the outbound package.',
+            technique: 'cat employee_salaries.csv reveals it sitting in the release.',
+            why: 'Personal salary data must never leave the company, least of all to a third party.' } },
+        { a: 'release', b: 'f_payments', revealBy: 'ev_customer_pii', danger: true,
+          intel: {
+            what: 'Regulated customer payment data is bundled into the outbound package.',
+            technique: 'cat customer_payment_records.csv reveals it sitting in the release.',
+            why: 'Sending PCI cardholder data to a partner would be a regulated-data breach.' } },
+        { a: 'contractor', b: 'f_salary', revealBy: 'ev_contractor_access', danger: true,
+          intel: {
+            what: 'The contractor account opened employee salary data at 02:00 — outside its remit.',
+            technique: 'cat access_log.txt shows ext-contractor-07 reading employee_salaries.csv.',
+            why: 'A vendor account reading HR files it has no role in is exactly the access that should be flagged.' } },
+        { a: 'contractor', b: 'f_payments', revealBy: 'ev_contractor_access', danger: true,
+          intel: {
+            what: 'The contractor account opened customer payment records at 02:00 — outside its remit.',
+            technique: 'cat access_log.txt shows ext-contractor-07 reading customer_payment_records.csv.',
+            why: 'Regulated payment data accessed by an out-of-scope vendor account is a serious red flag.' } },
+        { a: 'contractor', b: 'f_roadmap', revealBy: 'ev_contractor_access', danger: true,
+          intel: {
+            what: 'The contractor account opened the acquisition roadmap at 02:00 — outside its remit.',
+            technique: 'cat access_log.txt shows ext-contractor-07 reading acquisition_roadmap.txt.',
+            why: 'Material non-public deal information read by a vendor account is well beyond any legitimate need.' } },
+      ],
+    },
+
     intro: [
       { t: 'CyberCorp SOC // Career Operating Center — Data Handling Review', c: 'head' },
       { t: 'A shared folder is queued for an external release. Before it goes out, classify', c: 'dim' },
@@ -2529,6 +2659,95 @@ const CAREER_MISSIONS = {
         { id: 'acct_demir',   label: 'contractor01 — J. Demir (contractor)' },
       ],
     },
+
+    // Reactive identity/auth map (Task #97) — review-only, same engine as
+    // mission-002. Nodes/links stay hidden until the terminal surfaces the
+    // matching evidence; nothing is persisted or scored. Only the corporate
+    // sign-in service is seeded (genuinely pre-known infrastructure). The
+    // targeted account, the external attacker, the impossible-travel session,
+    // the sensitive-data access and the contractor tie each appear ONLY once
+    // their proving evidence is found — the map never names the culprit early.
+    map: {
+      cap: 'IDENTITY & AUTH · SIGN-IN REVIEW — NA-EAST REGION',
+      hint: 'Red marks the external source driving the takeover and the assets it reached. Select any node or connection for analyst intel.',
+      nodes: {
+        authsys: {
+          x: 50, y: 12, glyph: '🔐', label: 'auth.cybercorp', sub: 'sign-in service', seed: true, status: 'identified',
+          intel: {
+            what: 'The corporate sign-in service every account authenticates through, and where login events are recorded.',
+            technique: 'It is the system under review — the authentication log (cat auth.log) is read from here.',
+            why: 'It is the central record of every login attempt, so all account activity is reviewed against it.' },
+        },
+        account: {
+          x: 50, y: 48, glyph: '👤', label: 'a.okafor', sub: 'Finance Controller',
+          revealBy: 'ev_overview', statusBy: { ev_overview: 'target' },
+          intel: {
+            what: 'The Finance Controller account named in the brief — the one the authentication alert fired on.',
+            technique: 'Read the authentication log (cat auth.log) to see this account\u2019s failed-then-successful pattern.',
+            why: 'It is the account under review; confirming whether it was taken over is the whole point of the case.' },
+        },
+        attacker: {
+          x: 84, y: 22, glyph: '🌐', label: '203.0.113.44', sub: 'external source',
+          revealBy: 'ev_overview', status: 'unknown', statusBy: { ev_success: 'suspicious', ev_contractor_tie: 'suspicious' },
+          intel: {
+            what: 'The external source address behind the login attempts — later traced to the recurring contractor.',
+            technique: 'It is the src on every failed and successful login in auth.log; contractor_activity.log attributes it.',
+            why: 'One outside address driving dozens of failures then a success is the signature of a credential attack.' },
+        },
+        homebase: {
+          x: 16, y: 28, glyph: '🏢', label: 'London, UK', sub: 'usual session',
+          revealBy: 'ev_location', status: 'identified',
+          intel: {
+            what: 'The account\u2019s usual London location, with a normal session open at the same time as the attack.',
+            technique: 'cat login_locations.log — every prior login is London, and a concurrent London session is noted.',
+            why: 'A real London session at the moment of a Lagos login proves the two cannot be the same person.' },
+        },
+        finance_data: {
+          x: 50, y: 88, glyph: '💰', label: 'finance_share', sub: 'payroll · payments',
+          revealBy: 'ev_access', statusBy: { ev_access: 'target' },
+          intel: {
+            what: 'The Finance share holding payroll and customer-payment data the compromised account opened.',
+            technique: 'cat user_access.log — payroll and customer_payments opened, q3_compensation.csv downloaded.',
+            why: 'It is the sensitive data now exposed through the takeover — the real impact of the incident.' },
+        },
+        contractor: {
+          x: 86, y: 64, glyph: '👷', label: 'ext-contractor-07', sub: 'J. Demir (disabled)',
+          revealBy: 'ev_contractor_tie', statusBy: { ev_contractor_tie: 'suspicious' },
+          intel: {
+            what: 'The recurring vendor (J. Demir / ext-contractor-07) whose own account was already disabled.',
+            technique: 'cat contractor_activity.log — the attacking address maps to this contractor\u2019s prior sessions.',
+            why: 'A blocked contractor pivoting to a stolen Finance login turns a one-off into a continuing campaign.' },
+        },
+      },
+      links: [
+        { a: 'account', b: 'authsys', revealBy: 'ev_overview',
+          intel: {
+            what: 'This account authenticates through the corporate sign-in service, where its login events are logged.',
+            technique: 'cat auth.log — the account\u2019s login attempts are recorded here.',
+            why: 'It is the normal login path; the attack shows up as abnormal events along this same path.' } },
+        { a: 'attacker', b: 'account', revealBy: 'ev_overview', danger: true,
+          intel: {
+            what: '47 failed logins in seven minutes then a success against this account, all from one external address.',
+            technique: 'cat auth.log, then grep failed auth.log and grep successful auth.log.',
+            why: 'A failure burst ending in a success is a brute-force that worked — the moment of takeover.' } },
+        { a: 'homebase', b: 'account', revealBy: 'ev_location',
+          intel: {
+            what: 'A legitimate London session for the same account, open at the time of the foreign login.',
+            technique: 'cat login_locations.log — usual London logins plus a concurrent London session.',
+            why: 'Two sessions thousands of km apart minutes apart is impossible travel — the Lagos login is an intruder.' } },
+        { a: 'account', b: 'finance_data', revealBy: 'ev_access', danger: true,
+          intel: {
+            what: 'After the takeover the account opened payroll and customer-payment data and downloaded a compensation file.',
+            technique: 'cat user_access.log — sensitive Finance reads plus a q3_compensation.csv download.',
+            why: 'It shows the attacker using the trusted account to reach exactly the sensitive data that matters.' } },
+        { a: 'attacker', b: 'contractor', revealBy: 'ev_contractor_tie', danger: true,
+          intel: {
+            what: 'The attacking address traces back to the recurring contractor whose own account was disabled.',
+            technique: 'cat contractor_activity.log — src 203.0.113.44 maps to ext-contractor-07 (J. Demir).',
+            why: 'It ties this takeover to the earlier cases — the same actor escalating rather than a stranger.' } },
+      ],
+    },
+
     intro: [
       { t: 'CyberCorp SOC // Career Operating Center — Authentication Review', c: 'head' },
       { t: 'The login system flagged a burst of failed sign-ins followed by a success.', c: 'dim' },

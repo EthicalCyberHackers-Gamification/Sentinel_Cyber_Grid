@@ -15,10 +15,21 @@ nothing else.
   no score/resource/outcome. The only new SIM field is the transient `mapOpen`
   flag, reset on every `openCareerMission`.
 - **Per-mission gate.** Everything keys on `missionHasMap()` (`def.map.nodes`
-  exists). Missions without a `map` block (M1/M3 today) take a pure no-op branch —
-  the `surfaceEvidence` hook is wrapped in `missionHasMap()`, and `updateMapButton`
+  exists). Missions without a `map` block take a pure no-op branch — the
+  `surfaceEvidence` hook is wrapped in `missionHasMap()`, and `updateMapButton`
   re-hides the button on every mission open. Add a map by adding a `def.map`
-  block, never by branching shared fns on a mission id.
+  block, never by branching shared fns on a mission id. All three core missions
+  (M1 data-access, M2 network-exposure, M3 identity/auth) now ship a map block;
+  the static `#simMapBtn` (index.html) auto-shows via `updateMapButton`, no wiring.
+- **No-spoiler invariant (HARD requirement).** The map must NEVER be a new
+  discovery. Every node/link/red-flag must be gated behind an already-surfaced
+  evidence id (`revealBy`/`statusBy`); only genuinely brief-known neutral anchors
+  may be `seed`. Watch the two surfaces that render BEFORE any evidence: (1) a
+  `seed` node's `intel` text and (2) `map.cap` (the always-visible caption). Both
+  must stay neutral/brief-known — describing a finding there leaks it (e.g. don't
+  name the culprit account in the caption, don't say a seed vendor "read files
+  out of remit"). Findings belong in `revealBy`/`statusBy`-gated nodes/links, and
+  in `map.hint` (hint only renders once shown===total, i.e. fully solved).
 
 ## Reveal model ("behavior before terminology")
 - A node shows when `seed` OR its `revealBy` evidence id is in `SIM.evidence`.
@@ -44,7 +55,15 @@ nothing else.
   falling through to exit the mission.
 
 ## Verifying the populated overlay
-Screenshots can't drive the terminal. To see the flagged map, temporarily surface
-the relevant evidence ids in the deep-link block and `openSimMap()`, screenshot,
-then remove the hook (mission-002 ids: `ev_subnet`, `ev_unknown_host`,
-`ev_not_in_inventory`, `ev_probe`).
+Screenshots can't drive the terminal. To see the flagged map, temporarily add a
+`?demomap=ev_a,ev_b,...` branch to the `?career=` deep-link block that calls
+`surfaceEvidence(id)` then `openSimMap()`, screenshot, then REMOVE the hook (and
+re-run `node --check` + `rg demomap`). Per-mission full-map ids:
+- M1: `ev_release_context`, `ev_contractor_access`, `ev_pii_salary`,
+  `ev_customer_pii`, `ev_confidential_pricing`, `ev_confidential_roadmap`,
+  `ev_public_safe`.
+- M2: `ev_subnet`, `ev_unknown_host`, `ev_not_in_inventory`, `ev_probe`.
+- M3: `ev_overview`, `ev_success`, `ev_access`, `ev_location`, `ev_contractor_tie`.
+Empty-map (no ids) must show ONLY seeds with a neutral caption — that screenshot
+is the no-spoiler proof (M1 seeds: contractor+release pkg → "2 of 8"; M3 seed:
+auth.cybercorp → "1 of 6").
