@@ -1,0 +1,200 @@
+Refine the Operations Center left column into a clean Course Role → Mission Progression structure with minimal visible information.
+
+Goal:
+Reduce clutter while making the learning path clearer.
+
+The left column should show:
+1. course roles
+2. missions under each role
+3. simple status indicators
+
+More details should appear only on hover or click.
+
+Apply this to the Operations Center only.
+Do not modify mission gameplay.
+
+-----------------------------------
+CORE DESIGN PRINCIPLE
+-----------------------------------
+
+The column should communicate progression at a glance.
+
+Visible information should be minimal.
+
+Do not overload the column with:
+- long descriptions
+- full objectives
+- multiple metadata rows
+- excessive tags
+- large intel text blocks
+
+Details should move into hover/click panels.
+
+-----------------------------------
+VISIBLE STRUCTURE
+-----------------------------------
+
+Use collapsible role sections.
+
+Example:
+
+COURSE PATH
+
+▾ Cybersecurity Intern
+   READY  Analyst Orientation
+   ACTIVE Reconnaissance Detection
+   LOCKED Anomalous Scan Triage
+
+▸ Junior SOC Analyst
+   LOCKED Credential Phishing
+   LOCKED Account Takeover
+
+▸ SOC Analyst
+   LOCKED Reconnaissance Sweep
+   LOCKED Network Exposure Review
+
+▸ Advanced SOC Analyst
+   LOCKED Data Exfiltration
+   LOCKED Sensitive Data Release
+
+-----------------------------------
+VISIBLE ROLE INFORMATION
+-----------------------------------
+
+Each role header should show only:
+- role name
+- role status
+- progress count
+
+Example:
+Cybersecurity Intern
+2 / 4
+
+Junior SOC Analyst
+Locked
+
+SOC Analyst
+Locked
+
+Advanced SOC Analyst
+Locked
+
+Do not show long role descriptions in the main column.
+
+-----------------------------------
+VISIBLE MISSION INFORMATION
+-----------------------------------
+
+Each mission row should show only:
+- status chip
+- mission title
+
+Optional:
+- small severity color marker
+
+Do not show region, time, objective, or full description in the visible row unless absolutely necessary.
+
+Examples:
+
+READY  Analyst Orientation
+ACTIVE Reconnaissance Detection
+LOCKED Anomalous Scan Triage
+LOCKED Credential Phishing
+
+-----------------------------------
+HOVER / CLICK DETAILS
+
+When hovering or clicking a role, show a compact detail panel.
+
+Role hover details:
+- role title
+- role purpose
+- missions included
+- unlock requirement
+- skills developed
+
+Example:
+Cybersecurity Intern
+Purpose: Learn basic SOC workflow, networking concepts, and investigation structure.
+Missions: 000–002
+Unlocks: Junior SOC Analyst after completing required missions.
+Skills: triage, baseline comparison, traffic investigation.
+
+When hovering or clicking a mission, show:
+- mission title
+- status
+- difficulty
+- severity
+- region
+- estimated duration
+- one-line objective
+- key skills
+- unlock requirement if locked
+
+Example:
+Reconnaissance Detection
+Status: Active
+Difficulty: Beginner
+Severity: High
+Objective: Identify repeated probing activity targeting a workstation.
+Skills: traffic validation, port analysis, suspicious infrastructure.
+Unlock: Available now.
+
+-----------------------------------
+DETAIL PANEL PLACEMENT
+-----------------------------------
+
+Details should not clutter the left column.
+
+Preferred behavior:
+- show details in a small fixed inspector panel
+- or show a compact tooltip that does not cover the mission list
+- avoid large hover boxes that block nearby items
+
+Best option:
+Create a “Path Inspector” panel below the course path or beside the map.
+
+When the user hovers over a role or mission, the inspector updates.
+
+-----------------------------------
+STATUS DEFINITIONS
+-----------------------------------
+
+Use simple status labels:
+
+READY = available to launch
+ACTIVE = currently selected or in progress
+COMPLETED = finished
+LOCKED = unavailable until prerequisites are complete
+
+Use consistent visual treatment:
+- Ready: clear and selectable
+- Active: highlighted
+- Completed: subdued with checkmark
+- Locked: dimmed
+
+-----------------------------------
+INTEL UPDATES
+
+The current Intel Updates section should not compete with course progression.
+
+Options:
+1. move Intel Updates lower as a compact ticker
+2. collapse it by default
+3. show only the latest 1–2 intel items
+4. move detailed intel to hover/click view
+
+Course progression should be the primary purpose of the left column.
+
+-----------------------------------
+SUCCESS CRITERIA
+-----------------------------------
+
+This succeeds if:
+- the left column looks cleaner
+- students immediately understand their role progression
+- missions are grouped under course roles
+- status is obvious
+- hover/click provides more details without clutter
+- Intel Updates no longer dominate the column
+- the Operations Center feels like a career progression hub
