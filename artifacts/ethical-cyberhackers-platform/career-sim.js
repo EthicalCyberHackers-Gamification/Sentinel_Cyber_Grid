@@ -51,6 +51,7 @@ import {
   supervisorMemoryLines,
   upsertCompanyHistory,
   companyTimeline,
+  performanceReview,
 } from './career-dynamic.js';
 
 const CAREER_ROLES = [
@@ -598,15 +599,36 @@ function risksNotebookHtml() {
     </div>`;
 }
 
-/* WORKING HYPOTHESES + OPEN QUESTIONS — additive analyst-notebook sections that
- * react to surfaced evidence the same way risks do. Data-gated on def.notebook:
- *   hypotheses:[{label, triggeredBy:[evId]}]  → "SUPPORTED" once any evidence hits
- *   unknowns:[{label, resolvedBy:[evId]}]     → checked off as evidence resolves them
- * Presentation-only (reads SIM.evidence); absent def.notebook → renders nothing. */
+/* ANALYST NOTEBOOK — the four-part structure (FACTS / HYPOTHESES / UNKNOWNS /
+ * RECOMMENDATIONS), all additive and data-gated on def.notebook. Each section
+ * reacts to surfaced evidence the same way risks do:
+ *   facts:[{label, confirmedBy:[evId]}]        → ✓ once any proving evidence hits
+ *   hypotheses:[{label, triggeredBy:[evId]}]   → "SUPPORTED" once any evidence hits
+ *   unknowns:[{label, resolvedBy:[evId]}]      → checked off as evidence resolves them
+ *   recommendations:[{label, doneBy:[flag|evId]}] → checked as the action is recorded
+ * Presentation-only (reads SIM.evidence + CAREER.missionFlags, mutates nothing);
+ * absent def.notebook → renders nothing, and each section is optional. */
 function notebookExtrasHtml() {
   const nb = (SIM.def && SIM.def.notebook) || null;
   if (!nb) return '';
   let html = '';
+
+  // FACTS — verified findings, listed first so the player reads from what is known.
+  const facts = Array.isArray(nb.facts) ? nb.facts : [];
+  if (facts.length) {
+    const confirmed = f => (f.confirmedBy || []).some(id => SIM.evidence.has(id));
+    const count = facts.filter(confirmed).length;
+    const items = facts.map(f => {
+      const on = confirmed(f);
+      return `<li class="sim-fact${on ? ' sim-fact--on' : ''}"><span class="sim-risk-box" aria-hidden="true">${on ? '✓' : '☐'}</span><span>${f.label}</span></li>`;
+    }).join('');
+    html += `
+    <div class="sim-notebook-section">
+      <div class="sim-notebook-head">FACTS <span class="sim-notebook-count">${count}/${facts.length} verified</span></div>
+      <ul class="sim-facts">${items}</ul>
+    </div>`;
+  }
+
   const hyp = Array.isArray(nb.hypotheses) ? nb.hypotheses : [];
   if (hyp.length) {
     const supported = h => (h.triggeredBy || []).some(id => SIM.evidence.has(id));
@@ -633,6 +655,24 @@ function notebookExtrasHtml() {
     <div class="sim-notebook-section">
       <div class="sim-notebook-head">OPEN QUESTIONS <span class="sim-notebook-count">${open} open</span></div>
       <ul class="sim-unknowns">${items}</ul>
+    </div>`;
+  }
+
+  // RECOMMENDATIONS — actions worth taking, checked off as the matching decision
+  // is recorded (a carry-flag is set) or its supporting evidence surfaces.
+  const recs = Array.isArray(nb.recommendations) ? nb.recommendations : [];
+  if (recs.length) {
+    const flags = CAREER.missionFlags || {};
+    const done = r => (r.doneBy || []).some(k => flags[k] || SIM.evidence.has(k));
+    const onCount = recs.filter(done).length;
+    const items = recs.map(r => {
+      const on = done(r);
+      return `<li class="sim-action${on ? ' sim-action--on' : ''}"><span class="sim-risk-box" aria-hidden="true">${on ? '☑' : '☐'}</span><span>${r.label}</span></li>`;
+    }).join('');
+    html += `
+    <div class="sim-notebook-section">
+      <div class="sim-notebook-head">RECOMMENDATIONS <span class="sim-notebook-count">${onCount}/${recs.length}</span></div>
+      <ul class="sim-actions">${items}</ul>
     </div>`;
   }
   return html;
@@ -1605,8 +1645,9 @@ function conseqBlock(kind, label, lines) {
   return `<div class="sim-conseq-block"><div class="sim-conseq-label sim-conseq-label--${kind}">${label}</div>${body}</div>`;
 }
 
-/* CAMPAIGN RECONSTRUCTION (Mission 4 capstone) — render the kill chain
- * Recon → Foothold → Credential Access → Exfiltration as one adversary campaign.
+/* CAMPAIGN RECONSTRUCTION (Mission 4 capstone) — replay the four cases as one
+ * adversary campaign in PLAIN LANGUAGE (the contractor → the device → the account
+ * → the data transfer). Never expose attacker-lifecycle jargon to the student.
  * Data-gated on def.campaignReveal; presentation-only (reads nothing mutable). */
 function campaignRevealHtml(r) {
   const chain = (Array.isArray(r.chain) ? r.chain : []).map((s, i) => `
@@ -1635,22 +1676,98 @@ function reviewResourceTone(d, v) {
   return v <= 15 ? 'good' : v <= 40 ? 'warn' : 'low';
 }
 
-/* QUARTERLY PERFORMANCE REVIEW (Mission 4 capstone) — PREVIEW-ONLY. Reports the
- * organization's health + this analyst's investigation quality, and PREVIEWS the
- * next role from the ladder WITHOUT unlocking it (promotion stays deferred; role
- * is unchanged). Reads state; mutates nothing. */
+/* Gather the normalized 0..1 investigation signals the performance review grades.
+ * PREVIEW-ONLY: reads game state through existing helpers, mutates nothing. */
+function performanceSignals() {
+  const eq = evidenceQuality();
+  const evDefs = simEvidenceDefs().length;
+  const observation = evDefs ? Math.min(1, SIM.evidence.size / evDefs) : eq;
+
+  // Recommendation accuracy: file-model missions grade classification, command-
+  // model missions grade the single identification, otherwise fall back to eq.
+  let recommendation;
+  if (simFiles().length) recommendation = classificationQuality();
+  else if (SIM.def && SIM.def.identify) recommendation = SIM.identified === SIM.def.identify.correctId ? 1 : (SIM.identified ? 0.25 : 0);
+  else recommendation = eq;
+
+  const risks = (SIM.def && SIM.def.risks) || [];
+  const risk = risks.length ? risks.filter(riskConfirmed).length / risks.length : eq;
+
+  // Documentation = how far the notebook (hypotheses + open questions) moved.
+  const nb = (SIM.def && SIM.def.notebook) || {};
+  const hyp = Array.isArray(nb.hypotheses) ? nb.hypotheses : [];
+  const unk = Array.isArray(nb.unknowns) ? nb.unknowns : [];
+  let documentation = eq;
+  if (hyp.length || unk.length) {
+    const hypOn = hyp.filter(h => (h.triggeredBy || []).some(id => SIM.evidence.has(id))).length;
+    const unkOn = unk.filter(u => (u.resolvedBy || []).some(id => SIM.evidence.has(id))).length;
+    documentation = (hypOn + unkOn) / (hyp.length + unk.length);
+  }
+
+  return {
+    observation,
+    evidence: eq,
+    investigation: investigationConfidence() / 100,
+    documentation,
+    escalation: escalationSignal(),
+    recommendation,
+    risk,
+    business: businessSignal(),
+  };
+}
+
+/* Escalation quality from the carry-flags raised across the arc: containment /
+ * escalation / legal flags read as sound judgement; ignored-thread / left-active
+ * flags read as missed escalations. Baseline 0.5 so a quiet case is "developing". */
+function escalationSignal() {
+  const flags = CAREER.missionFlags || {};
+  const good = ['legalReviewTriggered', 'incidentResponseEscalated', 'mfaRecommended',
+    'rogueDeviceContained', 'exfilContained', 'customerNotificationRecommended'];
+  const bad = ['contractorAccessIgnored', 'rogueDeviceActive', 'sensitiveDataExposed'];
+  let score = 0.5;
+  good.forEach(k => { if (flags[k]) score += 0.12; });
+  bad.forEach(k => { if (flags[k]) score -= 0.18; });
+  return Math.max(0, Math.min(1, score));
+}
+
+/* Business awareness from the organization's resource health — the same tones the
+ * review prints: each healthy resource lifts the score, each strained one lowers it. */
+function businessSignal() {
+  const tones = RESOURCE_DEFS.map(d => reviewResourceTone(d, CAREER[d.key]));
+  if (!tones.length) return 0.5;
+  const pts = tones.reduce((s, t) => s + (t === 'good' ? 1 : t === 'warn' ? 0.5 : 0), 0);
+  return pts / tones.length;
+}
+
+/* QUARTERLY PERFORMANCE REVIEW (Mission 4 capstone) — PREVIEW-ONLY. Grades this
+ * analyst across the role spec's eight quality dimensions, awards an overall
+ * standing tier (Needs Additional Training → Junior SOC Analyst Candidate),
+ * reports the organization's health, and PREVIEWS the next role WITHOUT unlocking
+ * it (promotion stays deferred; role is unchanged). Reads state; mutates nothing. */
 function performanceReviewHtml() {
   const cur = activeRole();
   const next = CAREER_ROLES.find(r => r.authorityLevel === cur.authorityLevel + 1);
+  const review = performanceReview(performanceSignals());
+
+  const qLines = review.dimensions.map(d =>
+    `<li class="sim-review-quality sim-review-quality--${d.tone}"><span class="sim-review-quality-name">${d.label}</span><span class="sim-review-quality-rating">${d.rating}</span></li>`
+  ).join('');
+
+  const st = review.standing;
+  const standing = `
+    <div class="sim-review-standing sim-review-standing--${st.tone}">
+      <div class="sim-review-standing-label">QUARTER RESULT</div>
+      <div class="sim-review-standing-tier">${st.label}</div>
+      <div class="sim-review-standing-note">${st.note}</div>
+    </div>`;
+
   const resLines = RESOURCE_DEFS.map(d => {
     const v = CAREER[d.key];
     const tone = reviewResourceTone(d, v);
     const disp = d.kind === 'money' ? '$' + Number(v).toLocaleString('en-US') : v + '%';
     return `<li class="sim-review-metric sim-review-metric--${tone}"><span class="sim-review-metric-name">${d.label}</span><span class="sim-review-metric-val">${disp}</span></li>`;
   }).join('');
-  const qLines = `
-    <li class="sim-review-metric"><span class="sim-review-metric-name">Investigation Confidence</span><span class="sim-review-metric-val">${investigationConfidence()}%</span></li>
-    <li class="sim-review-metric"><span class="sim-review-metric-name">Evidence Gathered</span><span class="sim-review-metric-val">${SIM.evidence.size} items</span></li>`;
+
   const completed = Array.isArray(CAREER.completedMissions) ? CAREER.completedMissions.length : 0;
   const preview = next
     ? `<div class="sim-review-next">
@@ -1664,10 +1781,11 @@ function performanceReviewHtml() {
     <div class="sim-review">
       <div class="sim-review-head">QUARTERLY PERFORMANCE REVIEW</div>
       <div class="sim-review-role">Current role: <strong>${cur.title}</strong> · Cases closed: ${completed}</div>
+      ${standing}
+      <div class="sim-review-section-label">ANALYST QUALITY</div>
+      <ul class="sim-review-qualities">${qLines}</ul>
       <div class="sim-review-section-label">ORGANIZATIONAL HEALTH</div>
       <ul class="sim-review-metrics">${resLines}</ul>
-      <div class="sim-review-section-label">ANALYST PERFORMANCE</div>
-      <ul class="sim-review-metrics">${qLines}</ul>
       ${preview}
     </div>`;
 }
@@ -2400,6 +2518,12 @@ const CAREER_MISSIONS = {
         text: "Clean handling on the release review last case. Keep that standard here." },
     ],
     notebook: {
+      facts: [
+        { label: 'An unknown host is live on the corporate network.', confirmedBy: ['ev_unknown_host', 'ev_host_live'] },
+        { label: 'The device is not listed in the asset inventory.', confirmedBy: ['ev_not_in_inventory'] },
+        { label: 'The device sits on the internal Finance segment, not guest.', confirmedBy: ['ev_segment'] },
+        { label: 'The device has been reaching for Finance data.', confirmedBy: ['ev_probe', 'ev_open_services'] },
+      ],
       hypotheses: [
         { label: 'The unknown host on the CORP segment is an unauthorized device, not a sanctioned asset.', triggeredBy: ['ev_unknown_host', 'ev_not_in_inventory'] },
         { label: 'The device belongs to the contractor already flagged in the release case.', triggeredBy: ['ev_notes_contractor', 'ev_contractor_device'] },
@@ -2409,6 +2533,10 @@ const CAREER_MISSIONS = {
         { label: 'Is the unknown host actually live on the network right now?', resolvedBy: ['ev_host_live'] },
         { label: 'Who owns the device, and are they authorized to be here?', resolvedBy: ['ev_contractor_device', 'ev_lease'] },
         { label: 'Is it on the internal CORP segment or isolated on guest?', resolvedBy: ['ev_segment'] },
+      ],
+      recommendations: [
+        { label: 'Disconnect and contain the unapproved device.', doneBy: ['rogueDeviceContained'] },
+        { label: 'Link the device to its contractor owner.', doneBy: ['contractorDeviceLinked'] },
       ],
     },
     evidenceEmpty: 'No evidence yet. Use the terminal to map the network — each command can surface a new finding.',
@@ -2505,7 +2633,7 @@ const CAREER_MISSIONS = {
           intel: {
             what: 'Repeated connection attempts from .57 to the file server\u2019s file-sharing port (445), all denied.',
             technique: 'Read the network event log (tail network_events.log).',
-            why: 'An unapproved device actively probing a sensitive share is reconnaissance, not idle presence.' } },
+            why: 'An unapproved device actively probing a sensitive share is scouting for a way in, not idle presence.' } },
         { a: 'unknown', b: 'finance', revealBy: 'ev_probe', danger: true,
           intel: {
             what: 'Repeated connection attempts from .57 to the finance laptop\u2019s file-sharing port (445), all denied.',
@@ -3021,7 +3149,7 @@ const CAREER_MISSIONS = {
     ],
     supervisorMemory: [
       { when: { allOf: ['rogueDeviceActive'] }, tone: 'bad',
-        text: "That rogue device you left on the network last case is still live — exactly the kind of quiet foothold that leads to a takeover like this. Stay sharp." },
+        text: "That rogue device you left on the network last case is still live — exactly the kind of quiet way in that leads to a takeover like this. Stay sharp." },
       { when: { allOf: ['rogueDeviceContained'] }, tone: 'good',
         text: "Good thing you pulled that rogue device off the network last case. One less open door for whoever's behind this." },
       { when: { allOf: ['contractorDeviceLinked'] }, tone: 'neutral',
@@ -3030,6 +3158,12 @@ const CAREER_MISSIONS = {
         text: "Leadership hasn't forgotten the data that left on your first case. A clean, well-evidenced call here rebuilds trust." },
     ],
     notebook: {
+      facts: [
+        { label: 'A burst of failed logins was immediately followed by a successful one.', confirmedBy: ['ev_failures', 'ev_success'] },
+        { label: 'The successful login came from a location the owner never uses.', confirmedBy: ['ev_location', 'ev_impossible'] },
+        { label: 'Multi-factor authentication was switched off right after the login.', confirmedBy: ['ev_mfa_off', 'ev_changes'] },
+        { label: 'The activity ties back to the recurring contractor.', confirmedBy: ['ev_contractor_tie'] },
+      ],
       hypotheses: [
         { label: 'This is a brute-force / credential-stuffing takeover, not a user mistake.', triggeredBy: ['ev_failures', 'ev_overview'] },
         { label: 'The attacker is operating from a location the real owner never uses.', triggeredBy: ['ev_location', 'ev_impossible'] },
@@ -3040,6 +3174,11 @@ const CAREER_MISSIONS = {
         { label: 'Did a login actually succeed, or were they all blocked?', resolvedBy: ['ev_success'] },
         { label: 'Did the attacker reach sensitive data once inside?', resolvedBy: ['ev_access'] },
         { label: 'Is the legitimate owner now locked out of their own account?', resolvedBy: ['ev_reset'] },
+      ],
+      recommendations: [
+        { label: 'Flag the credential-compromise incident for response.', doneBy: ['credentialRiskHigh'] },
+        { label: 'Enforce multi-factor authentication on the account.', doneBy: ['mfaRecommended'] },
+        { label: 'Tie the compromise back to the recurring contractor.', doneBy: ['contractorAccountCompromised'] },
       ],
     },
     evidenceEmpty: 'No evidence yet. Use the terminal to read the authentication logs — each command can surface a new finding.',
@@ -3769,13 +3908,19 @@ const CAREER_MISSIONS = {
       { when: { allOf: ['mfaRecommended'] }, tone: 'good',
         text: "Your MFA recommendation is a big reason we caught this in time. Good instinct — now finish what you started." },
       { when: { allOf: ['rogueDeviceActive'] }, tone: 'bad',
-        text: "That device you left active two cases ago may be how they held their foothold long enough to pull this off." },
+        text: "That device you left active two cases ago may be how they kept their quiet way in long enough to pull this off." },
       { when: { allOf: ['legalReviewTriggered'] }, tone: 'good',
         text: "Legal has been tracking this contractor since your very first case, thanks to you. That trail matters now." },
       { when: { allOf: ['contractorAccessIgnored'], noneOf: ['legalReviewTriggered'] }, tone: 'warn',
         text: "We never fully reviewed that contractor's access back on case one. We're paying for it now — get this one exactly right." },
     ],
     notebook: {
+      facts: [
+        { label: 'A Finance account signed in outside normal working hours.', confirmedBy: ['ev_login'] },
+        { label: 'The session traces back to the previously flagged contractor.', confirmedBy: ['ev_contractor_src'] },
+        { label: 'The full customer database was read and bundled into a single archive.', confirmedBy: ['ev_archive', 'ev_customer_db'] },
+        { label: 'The archive was transferred to an external destination.', confirmedBy: ['ev_external_dest', 'ev_transfer'] },
+      ],
       hypotheses: [
         { label: 'This is deliberate data exfiltration, not a routine bulk export.', triggeredBy: ['ev_history', 'ev_dlp'] },
         { label: 'The exfil used the compromised account from the takeover case.', triggeredBy: ['ev_contractor_src', 'ev_login'] },
@@ -3787,15 +3932,21 @@ const CAREER_MISSIONS = {
         { label: 'Which endpoint built and uploaded the archive?', resolvedBy: ['ev_endpoint'] },
         { label: 'Does the loss cross the regulatory breach-notification threshold?', resolvedBy: ['ev_legal'] },
       ],
+      recommendations: [
+        { label: 'Escalate to the incident response team.', doneBy: ['incidentResponseEscalated'] },
+        { label: 'Contain the external data-transfer channel.', doneBy: ['exfilContained'] },
+        { label: 'Recommend customer breach notification.', doneBy: ['customerNotificationRecommended'] },
+        { label: 'Confirm the data exfiltration on the record.', doneBy: ['dataExfiltrationConfirmed'] },
+      ],
     },
     campaignReveal: {
       title: 'CAMPAIGN RECONSTRUCTION',
       intro: 'Four cases. One adversary. Reviewed in order, the pattern is unmistakable — this was a single, patient campaign against CyberCorp, and you worked every stage of it:',
       chain: [
-        { op: 'OPS-2026-001', stage: 'RECON / STAGING', line: 'A contractor account quietly staged sensitive files inside a release package.' },
-        { op: 'OPS-2026-002', stage: 'FOOTHOLD', line: 'An unauthorized device appeared on the internal network — a quiet way in.' },
-        { op: 'OPS-2026-003', stage: 'CREDENTIAL ACCESS', line: 'A Finance account was taken over, handing the adversary trusted access.' },
-        { op: 'OPS-2026-004', stage: 'EXFILTRATION', line: 'That trusted access bundled the customer database and shipped it out.' },
+        { op: 'OPS-2026-001', stage: 'THE CONTRACTOR', line: 'A contractor account quietly staged sensitive files inside a release package.' },
+        { op: 'OPS-2026-002', stage: 'THE DEVICE', line: 'An unauthorized device appeared on the internal network — a quiet way in.' },
+        { op: 'OPS-2026-003', stage: 'THE ACCOUNT', line: 'A Finance account was taken over, handing the adversary trusted access.' },
+        { op: 'OPS-2026-004', stage: 'THE DATA TRANSFER', line: 'That trusted access bundled the customer database and shipped it out.' },
       ],
       closer: 'Every case you closed was a stage of the same operation. The company remembered each one — and so did you.',
     },
@@ -4530,7 +4681,7 @@ const CAREER_MISSIONS = {
         outcomeSub: 'You chose to keep investigating before recommending anything.',
         deltas: { securityPosture: -8, complianceExposure: 12, businessContinuity: 1, careerReputation: -5 },
         consequence: {
-          immediate: ['No containment yet; the attacker keeps their foothold and the notification clock keeps running.'],
+          immediate: ['No containment yet; the attacker keeps their way in and the notification clock keeps running.'],
           business: ['The evidence already confirms a breach — delay only adds regulatory and reputational risk.'],
           future: ['Hesitating on a confirmed, time-sensitive breach is noted as a costly delay.'],
         },

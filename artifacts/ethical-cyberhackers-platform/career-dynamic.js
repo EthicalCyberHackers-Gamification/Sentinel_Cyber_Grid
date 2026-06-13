@@ -137,3 +137,64 @@ export function companyTimeline(history, currentMissionId, order) {
     .filter(id => h[id] && id !== currentMissionId)
     .map(id => h[id]);
 }
+
+/* ================================================================== *
+ * QUARTERLY PERFORMANCE REVIEW — PURE scoring (Mission 4 capstone)
+ * ------------------------------------------------------------------ *
+ * Maps normalized investigation signals (each 0..1) onto the quality
+ * dimensions from the intern role spec, plus an overall standing tier.
+ * PREVIEW-ONLY: reads nothing mutable and never unlocks a promotion —
+ * callers gather the signals from game state and render the result.
+ * ================================================================== */
+export const PERFORMANCE_DIMENSIONS = [
+  { key: 'observation',    label: 'Observation Quality' },
+  { key: 'evidence',       label: 'Evidence Quality' },
+  { key: 'investigation',  label: 'Investigation Quality' },
+  { key: 'documentation',  label: 'Documentation Quality' },
+  { key: 'escalation',     label: 'Escalation Quality' },
+  { key: 'recommendation', label: 'Recommendation Quality' },
+  { key: 'risk',           label: 'Risk Recognition' },
+  { key: 'business',       label: 'Business Awareness' },
+];
+
+const PERFORMANCE_RATINGS = [
+  { min: 0.8, label: 'Strong',     tone: 'good' },
+  { min: 0.5, label: 'Developing', tone: 'warn' },
+  { min: 0,   label: 'Needs Work', tone: 'low'  },
+];
+
+/* Bucket a 0..1 score into a plain-language rating. */
+export function performanceRating(score) {
+  const s = Math.max(0, Math.min(1, Number(score) || 0));
+  return PERFORMANCE_RATINGS.find(t => s >= t.min) || PERFORMANCE_RATINGS[PERFORMANCE_RATINGS.length - 1];
+}
+
+const PERFORMANCE_STANDINGS = [
+  { min: 0.82, label: 'Junior SOC Analyst Candidate', tone: 'good',
+    note: 'Outstanding quarter. You are investigating at the level we look for in a junior analyst.' },
+  { min: 0.62, label: 'Senior Cybersecurity Intern', tone: 'good',
+    note: 'Strong, dependable work. You are ready for harder, higher-stakes cases.' },
+  { min: 0.4,  label: 'Cybersecurity Intern II', tone: 'warn',
+    note: 'Solid progress. Keep widening your evidence and sharpening your final calls.' },
+  { min: 0,    label: 'Needs Additional Training', tone: 'low',
+    note: 'Let us rebuild the fundamentals — gather more evidence before you decide.' },
+];
+
+/* Map an average 0..1 score onto the spec's four result tiers. */
+export function performanceStanding(avg) {
+  const a = Math.max(0, Math.min(1, Number(avg) || 0));
+  return PERFORMANCE_STANDINGS.find(t => a >= t.min) || PERFORMANCE_STANDINGS[PERFORMANCE_STANDINGS.length - 1];
+}
+
+/* Build the preview-only review from a signals object whose keys match
+ * PERFORMANCE_DIMENSIONS (each 0..1; missing keys are treated as 0). */
+export function performanceReview(signals) {
+  const s = (signals && typeof signals === 'object') ? signals : {};
+  const dimensions = PERFORMANCE_DIMENSIONS.map(d => {
+    const score = Math.max(0, Math.min(1, Number(s[d.key]) || 0));
+    const r = performanceRating(score);
+    return { key: d.key, label: d.label, score, rating: r.label, tone: r.tone };
+  });
+  const average = dimensions.reduce((sum, d) => sum + d.score, 0) / (dimensions.length || 1);
+  return { dimensions, average, standing: performanceStanding(average) };
+}

@@ -1300,6 +1300,16 @@
 .sim-unknown--on { color: var(--text); }
 .sim-unknown--on .sim-risk-box { color: var(--green); }
 
+/* FACTS + RECOMMENDATIONS (notebook) — same reactive visual language as risks. */
+.sim-facts, .sim-actions { list-style: none; margin: 0; padding: 0; }
+.sim-fact, .sim-action {
+  display: flex; gap: 8px; align-items: flex-start;
+  font-size: 11.5px; line-height: 1.5; color: var(--text-muted);
+  padding: 3px 0; transition: color var(--transition);
+}
+.sim-fact--on, .sim-action--on { color: var(--text); }
+.sim-fact--on .sim-risk-box, .sim-action--on .sim-risk-box { color: var(--green); }
+
 /* CAMPAIGN RECONSTRUCTION (Mission 4 debrief) */
 .sim-campaign {
   margin: 14px 0;
@@ -1359,3 +1369,30 @@
 .sim-review-next-role { font-size: 14px; color: var(--cyan); font-weight: 600; }
 .sim-review-next-dept { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
 .sim-review-next-note { font-size: 11px; line-height: 1.5; color: var(--text-dim); font-style: italic; }
+
+/* ANALYST QUALITY dimensions (performance review) */
+.sim-review-qualities { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.sim-review-quality {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-size: 12px; padding: 3px 0; border-bottom: 1px solid var(--border);
+}
+.sim-review-quality-name { color: var(--text-dim); }
+.sim-review-quality-rating { flex: 0 0 auto; font-family: var(--font-hud); font-size: 9.5px; letter-spacing: 0.7px; color: var(--text-muted); }
+.sim-review-quality--good .sim-review-quality-rating { color: var(--green); }
+.sim-review-quality--warn .sim-review-quality-rating { color: var(--yellow); }
+.sim-review-quality--low .sim-review-quality-rating { color: var(--red); }
+
+/* QUARTER RESULT — overall standing tier (performance review) */
+.sim-review-standing {
+  margin: 4px 0 9px; padding: 11px; border-radius: 6px;
+  border: 1px solid var(--border); background: rgba(255, 255, 255, 0.015);
+}
+.sim-review-standing-label { font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1.3px; color: var(--cyan-dim); margin-bottom: 4px; }
+.sim-review-standing-tier { font-size: 15px; font-weight: 600; color: var(--text); }
+.sim-review-standing-note { font-size: 11px; line-height: 1.5; color: var(--text-dim); margin-top: 4px; }
+.sim-review-standing--good { border-color: var(--green-dim); }
+.sim-review-standing--good .sim-review-standing-tier { color: var(--green); }
+.sim-review-standing--warn { border-color: var(--yellow); }
+.sim-review-standing--warn .sim-review-standing-tier { color: var(--yellow); }
+.sim-review-standing--low { border-color: var(--red); }
+.sim-review-standing--low .sim-review-standing-tier { color: var(--red); }
