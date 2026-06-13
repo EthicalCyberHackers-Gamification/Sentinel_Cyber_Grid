@@ -729,7 +729,10 @@
 
       <!-- Panel 3 — Investigation terminal + decision actions -->
       <section class="sim-panel sim-panel--work" aria-label="Investigation terminal and actions">
-        <div class="sim-panel-head">INVESTIGATION TERMINAL</div>
+        <div class="sim-panel-head">
+          <span>INVESTIGATION TERMINAL</span>
+          <button type="button" class="sim-map-btn" id="simMapBtn" data-map-open hidden>◈ NETWORK MAP</button>
+        </div>
         <div class="sim-term-out" id="simTerminal" aria-live="polite"></div>
         <form class="sim-term-form" id="simTermForm">
           <span class="sim-term-prompt" id="simTermPrompt" aria-hidden="true">intern@cybercorp:~/release$</span>

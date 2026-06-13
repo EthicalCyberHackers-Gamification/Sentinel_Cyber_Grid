@@ -283,6 +283,7 @@ const SIM = {
   evReveal: {},             // evidenceId -> 'analyst' | 'technical' (per-item disclosure)
   reflection: { concerns: new Set(), judgment: null }, // suspicious-activity reasoning (ungraded)
   runToken: 0,              // invalidates stray timers across opens
+  mapOpen: false,           // network-map overlay visibility (transient, presentation-only)
 };
 
 function careerMission() { return SIM.def; }
@@ -305,6 +306,12 @@ function openCareerMission(missionId) {
   SIM.recommendations = [];
   SIM.evReveal = {};
   SIM.reflection = { concerns: new Set(), judgment: null };
+
+  // Network-map overlay is review-only + transient: never carries across missions.
+  SIM.mapOpen = false;
+  if (simMapEl) simMapEl.hidden = true;
+  simMapIntelHide();
+  updateMapButton();
 
   document.getElementById('opsCenter').style.display = 'none';
   document.getElementById('careerOps').style.display = 'flex';
@@ -1079,6 +1086,12 @@ function surfaceEvidence(evId) {
   SIM.evidence.add(evId);
   simPrint('● EVIDENCE: ' + e.label, 'evidence');
   if (e.setFlag) setMissionFlag(e.setFlag, true);
+  // Reactive map: refresh the button count, and live-update the overlay if open.
+  // Presentation-only — reads SIM.evidence, writes nothing.
+  if (missionHasMap()) {
+    updateMapButton();
+    if (SIM.mapOpen) renderSimMap();
+  }
 }
 
 function setClassification(fileName, value) {
@@ -1838,6 +1851,88 @@ const CAREER_MISSIONS = {
         { id: 'dev_57', label: '192.168.1.57 — unknown host' },
       ],
     },
+
+    // Reactive device map (Task #94) — review-only. Nodes/links start hidden or
+    // neutral and reveal/flag as the terminal surfaces evidence. Nothing here is
+    // persisted or scored; `dev_57` only turns "suspicious" once the player has
+    // actually surfaced the evidence that proves it (behaviour before terminology).
+    map: {
+      cap: 'CORP SEGMENT · 192.168.1.0/24 — APAC OFFICE',
+      hint: 'Every device is mapped. Red marks the unapproved host and what it has been reaching for. Select any node or connection for analyst intel.',
+      nodes: {
+        gateway: {
+          x: 50, y: 14, glyph: '🔀', label: '192.168.1.1', sub: 'gateway / router', seed: true,
+          intel: {
+            what: 'The office router that ties every device on the 192.168.1.0/24 subnet together.',
+            technique: 'Read your own interface config (ip addr) to learn the subnet and its gateway.',
+            why: 'Everything on this subnet routes through here — it defines who can reach whom.' },
+        },
+        you: {
+          x: 16, y: 46, glyph: '💻', label: '192.168.1.34', sub: 'your workstation', seed: true, status: 'self',
+          intel: {
+            what: 'Your own SOC analyst workstation — an approved, inventoried device.',
+            technique: 'ip addr shows your address and confirms which subnet you are investigating from.',
+            why: 'Knowing your own position is the anchor point for mapping everything else.' },
+        },
+        fileserver: {
+          x: 36, y: 84, glyph: '🗄️', label: '192.168.1.10', sub: 'file server',
+          revealBy: 'ev_unknown_host', statusBy: { ev_probe: 'target' },
+          intel: {
+            what: 'The APAC file server — an approved, inventoried device holding shared files.',
+            technique: 'A subnet scan (nmap 192.168.1.0/24) lists it; the asset inventory confirms it is approved.',
+            why: 'It is a sensitive asset. If an unapproved device is reaching for it, that matters.' },
+        },
+        finance: {
+          x: 64, y: 84, glyph: '💰', label: '192.168.1.20', sub: 'finance laptop',
+          revealBy: 'ev_unknown_host', statusBy: { ev_probe: 'target' },
+          intel: {
+            what: 'The finance laptop — an approved device that handles sensitive financial data.',
+            technique: 'Discovered by the subnet scan and confirmed against the approved asset inventory.',
+            why: 'Finance data is a prime target. Watch what tries to connect to it.' },
+        },
+        unknown: {
+          x: 86, y: 48, glyph: '❓', label: '192.168.1.57', sub: 'unidentified host',
+          revealBy: 'ev_unknown_host', status: 'unknown', statusBy: { ev_not_in_inventory: 'suspicious' },
+          intel: {
+            what: 'An extra host with no reverse name that is not on the approved inventory — later traced to contractor J. Demir\u2019s personal laptop.',
+            technique: 'Cross-reference the scan against the inventory, then pivot through DHCP leases and contractor records to attribute it.',
+            why: 'An unapproved, unmanaged device on the internal segment — reaching for finance shares — is the core of this incident.' },
+        },
+      },
+      links: [
+        { a: 'you', b: 'gateway', revealBy: 'ev_subnet',
+          intel: {
+            what: 'Your workstation sits on the 192.168.1.0/24 subnet through this gateway.',
+            technique: 'ip addr reveals your address and subnet mask.',
+            why: 'It establishes the shared network every other device also lives on.' } },
+        { a: 'fileserver', b: 'gateway', revealBy: 'ev_unknown_host',
+          intel: {
+            what: 'The file server is live on the same subnet.',
+            technique: 'Subnet sweep (nmap 192.168.1.0/24).',
+            why: 'Confirms a sensitive asset shares the segment with every other host.' } },
+        { a: 'finance', b: 'gateway', revealBy: 'ev_unknown_host',
+          intel: {
+            what: 'The finance laptop is live on the same subnet.',
+            technique: 'Subnet sweep (nmap 192.168.1.0/24).',
+            why: 'Another sensitive asset on the shared segment.' } },
+        { a: 'unknown', b: 'gateway', revealBy: 'ev_unknown_host',
+          intel: {
+            what: 'The unidentified host is on the same internal subnet as everything else.',
+            technique: 'Subnet sweep (nmap 192.168.1.0/24).',
+            why: 'Same-subnet reachability means it can attempt to reach the file server and finance laptop directly.' } },
+        { a: 'unknown', b: 'fileserver', revealBy: 'ev_probe', danger: true,
+          intel: {
+            what: 'Repeated connection attempts from .57 to the file server\u2019s file-sharing port (445), all denied.',
+            technique: 'Read the network event log (tail network_events.log).',
+            why: 'An unapproved device actively probing a sensitive share is reconnaissance, not idle presence.' } },
+        { a: 'unknown', b: 'finance', revealBy: 'ev_probe', danger: true,
+          intel: {
+            what: 'Repeated connection attempts from .57 to the finance laptop\u2019s file-sharing port (445), all denied.',
+            technique: 'Read the network event log (tail network_events.log).',
+            why: 'Reaching specifically for finance assets sharpens the device from "unapproved" to "concerning".' } },
+      ],
+    },
+
     intro: [
       { t: 'CyberCorp SOC // Career Operating Center — Network Asset Review', c: 'head' },
       { t: 'A monitoring alert says a device on the office network does not match the', c: 'dim' },
@@ -2926,6 +3021,270 @@ window.CAREER_MISSION_IDS = Object.keys(CAREER_MISSIONS);
 /* ================================================================== *
  * INIT
  * ================================================================== */
+/* ==================================================================
+ * NETWORK / DEVICE MAP — reactive, review-only popup (Task #94).
+ * Presentation only: it reads SIM.evidence to decide which nodes and
+ * links are visible and how they are flagged. It writes NOTHING — no
+ * localStorage, no score, no resource, no outcome. Missions without a
+ * `map` block show no button and never build the overlay, so the M1
+ * numeric path and every other mission are untouched.
+ * ================================================================== */
+
+function missionHasMap() {
+  return !!(SIM.def && SIM.def.map && SIM.def.map.nodes);
+}
+
+// Status priority — higher wins when several statuses apply to one node.
+const MAP_STATUS_RANK = { self: 5, suspicious: 4, target: 3, unknown: 2, identified: 1 };
+const MAP_STATUS_TAG = {
+  self: 'YOU', suspicious: 'UNAPPROVED', target: 'TARGETED', unknown: 'UNVERIFIED', identified: 'APPROVED',
+};
+
+function mapEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// A node appears once it is seeded or its revealing evidence is surfaced.
+function mapNodeVisible(node) {
+  if (!node) return false;
+  if (node.seed) return true;
+  return !!(node.revealBy && SIM.evidence.has(node.revealBy));
+}
+
+// Resolve a node's status from surfaced evidence (order-independent).
+function mapNodeStatus(node) {
+  let status = node.status || '';
+  let rank = MAP_STATUS_RANK[status] || 0;
+  const by = node.statusBy || {};
+  Object.keys(by).forEach(evId => {
+    if (!SIM.evidence.has(evId)) return;
+    const r = MAP_STATUS_RANK[by[evId]] || 0;
+    if (r > rank) { rank = r; status = by[evId]; }
+  });
+  return status;
+}
+
+// A link shows once both endpoints are visible and its evidence (if any) is up.
+function mapLinkVisible(link, nodes) {
+  if (!mapNodeVisible(nodes[link.a]) || !mapNodeVisible(nodes[link.b])) return false;
+  if (link.revealBy && !SIM.evidence.has(link.revealBy)) return false;
+  return true;
+}
+
+function mapVisibleNodeCount() {
+  const nodes = (SIM.def && SIM.def.map && SIM.def.map.nodes) || {};
+  let shown = 0, total = 0;
+  Object.keys(nodes).forEach(id => { total++; if (mapNodeVisible(nodes[id])) shown++; });
+  return { shown, total };
+}
+
+/* --- Floating intel card (compact port of the lab pattern) --- */
+let simMapIntelEl = null, simMapIntelTimer = null;
+function simMapIntelEnsure() {
+  if (simMapIntelEl) return simMapIntelEl;
+  const el = document.createElement('div');
+  el.className = 'sim-map-intel';
+  el.setAttribute('role', 'tooltip');
+  el.hidden = true;
+  el.addEventListener('mouseenter', () => {
+    if (simMapIntelTimer) { clearTimeout(simMapIntelTimer); simMapIntelTimer = null; }
+  });
+  el.addEventListener('mouseleave', simMapIntelScheduleHide);
+  document.body.appendChild(el);
+  simMapIntelEl = el;
+  return el;
+}
+function simMapIntelRow(k, v) {
+  return v ? `<div class="sim-map-intel-row"><span class="sim-map-intel-k">${mapEsc(k)}</span><span class="sim-map-intel-v">${mapEsc(v)}</span></div>` : '';
+}
+function simMapIntelShow(intel, title, kind, anchorEl) {
+  if (!intel || !anchorEl) return;
+  if (simMapIntelTimer) { clearTimeout(simMapIntelTimer); simMapIntelTimer = null; }
+  const el = simMapIntelEnsure();
+  el.innerHTML = `
+    <div class="sim-map-intel-head">
+      ${kind ? `<span class="sim-map-intel-kind">${mapEsc(kind)}</span>` : ''}
+      <span class="sim-map-intel-title">${mapEsc(title)}</span>
+    </div>
+    ${simMapIntelRow('What it is', intel.what)}
+    ${simMapIntelRow('How an analyst surfaces it', intel.technique)}
+    ${simMapIntelRow('Why it matters', intel.why)}`;
+  el.hidden = false;
+  // Measure after layout, then clamp fully inside the viewport.
+  const a = anchorEl.getBoundingClientRect();
+  const cw = el.offsetWidth, ch = el.offsetHeight, m = 10;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let top = a.top - ch - m; if (top < m) top = a.bottom + m;
+  let left = a.left + a.width / 2 - cw / 2;
+  left = Math.max(m, Math.min(left, vw - cw - m));
+  top = Math.max(m, Math.min(top, vh - ch - m));
+  el.style.left = left + 'px';
+  el.style.top = top + 'px';
+}
+function simMapIntelScheduleHide() {
+  if (simMapIntelTimer) clearTimeout(simMapIntelTimer);
+  simMapIntelTimer = setTimeout(simMapIntelHide, 140);
+}
+function simMapIntelHide() {
+  if (simMapIntelTimer) { clearTimeout(simMapIntelTimer); simMapIntelTimer = null; }
+  if (simMapIntelEl) simMapIntelEl.hidden = true;
+}
+function simMapIntelBind(el, intel, title, kind) {
+  if (!intel || !el) return;
+  el.addEventListener('mouseenter', () => simMapIntelShow(intel, title, kind, el));
+  el.addEventListener('mouseleave', simMapIntelScheduleHide);
+  el.addEventListener('focus', () => simMapIntelShow(intel, title, kind, el));
+  el.addEventListener('blur', simMapIntelHide);
+  el.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (simMapIntelEl && !simMapIntelEl.hidden) simMapIntelHide();
+    else simMapIntelShow(intel, title, kind, el);
+  });
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); simMapIntelShow(intel, title, kind, el); }
+  });
+}
+
+/* --- Overlay shell (built once, on first open) --- */
+let simMapEl = null;
+function simMapEnsure() {
+  if (simMapEl) return simMapEl;
+  const ov = document.createElement('div');
+  ov.className = 'sim-map-overlay';
+  ov.id = 'simMapOverlay';
+  ov.hidden = true;
+  ov.innerHTML = `
+    <div class="sim-map-modal" role="dialog" aria-modal="true" aria-label="Network and device map">
+      <div class="sim-map-head">
+        <span class="sim-map-title">◈ NETWORK MAP</span>
+        <span class="sim-map-cap" id="simMapCap"></span>
+        <button type="button" class="sim-map-close" data-map-close aria-label="Close network map">✕</button>
+      </div>
+      <div class="sim-map-stage" id="simMapStage">
+        <svg class="sim-map-svg" id="simMapSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <div class="sim-map-nodes" id="simMapNodes"></div>
+      </div>
+      <div class="sim-map-foot">
+        <div class="sim-map-legend">
+          <span class="sim-map-leg"><i class="sim-map-swatch is-self"></i>You</span>
+          <span class="sim-map-leg"><i class="sim-map-swatch is-known"></i>Known / approved</span>
+          <span class="sim-map-leg"><i class="sim-map-swatch is-unknown"></i>Unverified</span>
+          <span class="sim-map-leg"><i class="sim-map-swatch is-target"></i>Targeted</span>
+          <span class="sim-map-leg"><i class="sim-map-swatch is-suspicious"></i>Unapproved</span>
+        </div>
+        <p class="sim-map-hint" id="simMapHint"></p>
+      </div>
+    </div>`;
+  // Overlay lives outside #careerOps, so it handles its own backdrop/close clicks.
+  ov.addEventListener('click', e => {
+    if (e.target === ov || e.target.closest('[data-map-close]')) closeSimMap();
+  });
+  document.body.appendChild(ov);
+  simMapEl = ov;
+  return ov;
+}
+
+function openSimMap() {
+  if (!missionHasMap()) return;
+  SIM.mapOpen = true;
+  simMapEnsure().hidden = false;
+  renderSimMap();
+  const closeBtn = simMapEl.querySelector('[data-map-close]');
+  if (closeBtn) closeBtn.focus();
+}
+
+function closeSimMap() {
+  const wasOpen = SIM.mapOpen;
+  SIM.mapOpen = false;
+  simMapIntelHide();
+  if (simMapEl) simMapEl.hidden = true;
+  if (wasOpen) {
+    const btn = document.getElementById('simMapBtn');
+    if (btn && !btn.hidden) btn.focus();
+  }
+}
+
+function renderSimMap() {
+  if (!simMapEl || !missionHasMap()) return;
+  const map = SIM.def.map;
+  const nodes = map.nodes;
+  const svg = simMapEl.querySelector('#simMapSvg');
+  const host = simMapEl.querySelector('#simMapNodes');
+  const cap = simMapEl.querySelector('#simMapCap');
+  const hint = simMapEl.querySelector('#simMapHint');
+  if (!svg || !host) return;
+  if (cap) cap.textContent = map.cap || '';
+  svg.innerHTML = '';
+  host.innerHTML = '';
+  const SVGNS = 'http://www.w3.org/2000/svg';
+
+  // Links first (only where visible), with a focusable midpoint intel marker.
+  (map.links || []).forEach(lk => {
+    if (!mapLinkVisible(lk, nodes)) return;
+    const na = nodes[lk.a], nb = nodes[lk.b];
+    const line = document.createElementNS(SVGNS, 'line');
+    line.setAttribute('x1', na.x); line.setAttribute('y1', na.y);
+    line.setAttribute('x2', nb.x); line.setAttribute('y2', nb.y);
+    line.setAttribute('class', 'sim-map-link' + (lk.danger ? ' is-danger' : ''));  // SVG class is read-only
+    svg.appendChild(line);
+    if (!lk.intel) return;
+    const mx = (na.x + nb.x) / 2, my = (na.y + nb.y) / 2;
+    const mk = document.createElement('button');
+    mk.type = 'button';
+    mk.className = 'sim-map-linkmid' + (lk.danger ? ' is-danger' : '');
+    mk.style.left = mx + '%';
+    mk.style.top = my + '%';
+    mk.textContent = 'i';
+    mk.setAttribute('aria-label', `Connection ${na.label} to ${nb.label} — analyst intel`);
+    host.appendChild(mk);
+    simMapIntelBind(mk, lk.intel, `${na.label} → ${nb.label}`, 'CONNECTION');
+  });
+
+  // Node chips.
+  Object.keys(nodes).forEach(id => {
+    const n = nodes[id];
+    if (!mapNodeVisible(n)) return;
+    const status = mapNodeStatus(n);
+    const div = document.createElement('div');
+    div.className = 'sim-map-node' + (status ? ' is-' + status : '');
+    div.style.left = n.x + '%';
+    div.style.top = n.y + '%';
+    const tag = status && MAP_STATUS_TAG[status]
+      ? `<span class="sim-map-node-tag">${mapEsc(MAP_STATUS_TAG[status])}</span>` : '';
+    div.innerHTML = `
+      <span class="sim-map-node-dot" aria-hidden="true">${mapEsc(n.glyph || '•')}</span>
+      <span class="sim-map-node-label">${mapEsc(n.label || '')}</span>
+      <span class="sim-map-node-sub">${mapEsc(n.sub || '')}</span>
+      ${tag}`;
+    if (n.intel) {
+      div.tabIndex = 0;
+      div.setAttribute('role', 'button');
+      div.setAttribute('aria-label', `${n.label}${n.sub ? ', ' + n.sub : ''} — analyst intel`);
+      simMapIntelBind(div, n.intel, n.label, n.sub ? n.sub.toUpperCase() : '');
+    }
+    host.appendChild(div);
+  });
+
+  const { shown, total } = mapVisibleNodeCount();
+  if (hint) {
+    hint.textContent = shown < total
+      ? `${shown} of ${total} devices mapped — keep investigating in the terminal to reveal the rest.`
+      : (map.hint || 'All devices mapped. Select any node or connection for analyst intel.');
+  }
+}
+
+// Toggle + label the terminal-panel button to match map availability and progress.
+function updateMapButton() {
+  const btn = document.getElementById('simMapBtn');
+  if (!btn) return;
+  if (!missionHasMap()) { btn.hidden = true; return; }
+  btn.hidden = false;
+  const { shown, total } = mapVisibleNodeCount();
+  btn.textContent = `◈ NETWORK MAP · ${shown}/${total}`;
+}
+
 function simInit() {
   renderResourceBar();
 
@@ -2958,6 +3317,9 @@ function simInit() {
   const careerOps = document.getElementById('careerOps');
   if (careerOps) {
     careerOps.addEventListener('click', e => {
+      // Network map (Task #94) — review-only overlay, opens on demand.
+      const mapOpen = e.target.closest('[data-map-open]');
+      if (mapOpen) { openSimMap(); return; }
       // Evidence presentation (Task #91) — all presentation-only, no scoring.
       const view = e.target.closest('[data-ev-view]');
       if (view) { setEvidenceView(view.dataset.evView); return; }
@@ -2989,6 +3351,9 @@ function simInit() {
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (document.getElementById('careerOps').style.display !== 'none') {
+      // The network-map overlay takes Escape first, so it closes without
+      // also exiting the mission underneath it.
+      if (SIM.mapOpen) { closeSimMap(); return; }
       returnFromCareerMission();
     }
   });
