@@ -130,26 +130,23 @@ const COURSE_GROUPS = [
   {
     key: "intern",
     name: "Cybersecurity Intern",
-    span: 2,
-    purpose: "Learn the fundamentals — work one guided incident at a time under supervision.",
+    span: 4,
+    purpose: "Your foundational CyberCorp campaign — work the opening incidents one guided case at a time, under supervision.",
     unlock: "Open from day one.",
-    skills: ["Data classification", "Information handling", "Network asset discovery"],
   },
   {
     key: "junior",
     name: "Junior SOC Analyst",
-    span: 2,
+    span: 1,
     purpose: "Validate alerts and reconstruct what happened across hosts and logs.",
     unlock: "Finish the Cybersecurity Intern track.",
-    skills: ["Authentication analysis", "Timeline reconstruction", "Reconnaissance detection"],
   },
   {
     key: "analyst",
     name: "SOC Analyst",
-    span: 2,
+    span: 1,
     purpose: "Correlate signals across systems and recommend containment on your own.",
     unlock: "Finish the Junior SOC Analyst track.",
-    skills: ["Account-takeover triage", "Perimeter monitoring", "Threat attribution"],
   },
 ];
 
@@ -161,7 +158,11 @@ const COURSE_PATH = (() => {
       ? NODE_CHAIN.slice(cursor)
       : NODE_CHAIN.slice(cursor, cursor + g.span);
     cursor += missions.length;
-    return { key: g.key, name: g.name, purpose: g.purpose, unlock: g.unlock, skills: g.skills, missions };
+    // Role skills are the deduped union of the grouped missions' own skills, so
+    // the role's skill list always reflects exactly the missions under it and
+    // never drifts when the grouping changes.
+    const skills = [...new Set(missions.flatMap(id => (MISSION_META[id] || {}).skills || []))];
+    return { key: g.key, name: g.name, purpose: g.purpose, unlock: g.unlock, skills, missions };
   });
 })();
 
