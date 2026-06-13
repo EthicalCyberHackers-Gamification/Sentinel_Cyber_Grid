@@ -98,3 +98,42 @@ export function outcomeNotes(active) {
     .filter(c => c && c.outcomeNote)
     .map(c => ({ tone: c.tone || 'neutral', text: c.outcomeNote }));
 }
+
+/* ------------------------------------------------------------------ *
+ * CAMPAIGN CONTINUITY — "the company remembers" (M1–M4 arc)
+ * ------------------------------------------------------------------ *
+ * The pieces below let earlier missions visibly shape later ones at the
+ * NARRATIVE level (supervisor memory, a growing company timeline), parallel
+ * to the mechanical dynamicConditions above. All pure / DOM-free; career-sim.js
+ * owns the carry-flags, the persisted history, and the rendering.
+ * ------------------------------------------------------------------ */
+
+/* Adaptive Supervisor (Sarah Reyes) lines, keyed on carry-flags. A mission opts
+ * in by defining `supervisorMemory:[{when,tone,text}]`; absent that, nothing is
+ * emitted (so Mission 1, which has no prior context, is untouched). `when` reuses
+ * the evalFlagExpr shape ({allOf,anyOf,noneOf}); order is preserved. */
+export function supervisorMemoryLines(rules, flags) {
+  return (Array.isArray(rules) ? rules : [])
+    .filter(r => r && r.text && evalFlagExpr(r.when, flags))
+    .map(r => ({ tone: r.tone || 'neutral', text: r.text }));
+}
+
+/* Idempotent upsert of one mission-outcome record into the company history,
+ * keyed by missionId. Returns a NEW history object; re-completing a mission
+ * REPLACES its entry (never appends a duplicate). `history` may be absent. */
+export function upsertCompanyHistory(history, entry) {
+  const h = (history && typeof history === 'object') ? Object.assign({}, history) : {};
+  if (entry && entry.missionId) h[entry.missionId] = entry;
+  return h;
+}
+
+/* The company timeline to show on a mission brief: every prior-mission record
+ * EXCEPT the one being played, in canonical mission order. `order` is the list
+ * of mission ids in play order; when absent, falls back to sorted keys. */
+export function companyTimeline(history, currentMissionId, order) {
+  const h = (history && typeof history === 'object') ? history : {};
+  const ids = (Array.isArray(order) && order.length) ? order : Object.keys(h).sort();
+  return ids
+    .filter(id => h[id] && id !== currentMissionId)
+    .map(id => h[id]);
+}

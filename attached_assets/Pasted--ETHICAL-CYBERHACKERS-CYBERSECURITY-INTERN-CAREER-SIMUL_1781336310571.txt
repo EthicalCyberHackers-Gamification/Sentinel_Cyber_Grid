@@ -1,0 +1,785 @@
+# ETHICAL CYBERHACKERS
+# CYBERSECURITY INTERN CAREER SIMULATION REFACTOR
+# PHASE 1 STORY ARC IMPLEMENTATION
+# MASTER REPLIT PROMPT
+
+IMPORTANT:
+
+Do NOT redesign the existing UI.
+
+Do NOT replace the operating center.
+
+Do NOT remove the terminal.
+
+Do NOT remove the analyst notebook.
+
+Do NOT remove confidence.
+
+Do NOT remove the resource bar.
+
+Do NOT rebuild the mission framework.
+
+The current architecture is strong.
+
+The problem is that the missions still feel like separate assignments instead of a continuous cybersecurity career experience.
+
+The goal of this refactor is to transform Missions 1-4 into a persistent attack campaign occurring inside a living organization.
+
+The student should feel:
+
+"I work at CyberCorp."
+
+NOT:
+
+"I completed another cybersecurity lesson."
+
+------------------------------------------------------------------
+
+# DESIGN OBJECTIVE
+
+Convert the current mission system from:
+
+Mission
+→
+Investigation
+→
+Completion
+
+into:
+
+Persistent Company
+→
+Persistent Threat Actor
+→
+Persistent Consequences
+→
+Persistent Career Progression
+
+Every mission should feel connected.
+
+Every decision should be remembered.
+
+Every consequence should reappear later.
+
+------------------------------------------------------------------
+
+# COMPANY CONTEXT
+
+Company Name:
+
+CyberCorp
+
+Department:
+
+Security Operations Center
+
+Student Role:
+
+Cybersecurity Intern
+
+Supervisor:
+
+Sarah Reyes
+SOC Lead
+
+All missions occur inside this same company.
+
+Never treat missions as isolated scenarios.
+
+The company must feel alive.
+
+------------------------------------------------------------------
+
+# ATTACK CAMPAIGN ARCHITECTURE
+
+The first four missions are not separate incidents.
+
+They are four stages of a single adversary campaign.
+
+Mission 1:
+Reconnaissance
+
+Mission 2:
+Foothold
+
+Mission 3:
+Credential Compromise
+
+Mission 4:
+Data Exfiltration
+
+Students should not initially know they are connected.
+
+The realization should occur gradually.
+
+Mission 4 should reveal the full timeline.
+
+------------------------------------------------------------------
+
+# PERSISTENT ADVERSARY
+
+Create a persistent adversary identity.
+
+Not necessarily named initially.
+
+Artifacts should reappear across missions.
+
+Examples:
+
+Mission 1:
+Contractor activity
+
+Mission 2:
+Contractor-linked device
+
+Mission 3:
+Contractor account
+
+Mission 4:
+Contractor credentials used during exfiltration
+
+Students should slowly recognize recurring indicators.
+
+------------------------------------------------------------------
+
+# CASE HISTORY SYSTEM
+
+Add a new section to every mission briefing.
+
+Title:
+
+CASE HISTORY
+
+Purpose:
+
+Show students how current investigations connect to prior events.
+
+Mission 1:
+
+No history.
+
+Mission 2:
+
+Case History:
+
+Mission 1:
+Contractor accessed files outside normal responsibilities.
+
+Mission 3:
+
+Case History:
+
+Mission 1:
+Suspicious contractor access identified.
+
+Mission 2:
+Unknown contractor-linked device discovered.
+
+Mission 4:
+
+Case History:
+
+Mission 1:
+Contractor accessed restricted information.
+
+Mission 2:
+Unauthorized device discovered.
+
+Mission 3:
+Compromised contractor account identified.
+
+Current Incident:
+Large outbound transfer detected.
+
+Students should immediately recognize continuity.
+
+------------------------------------------------------------------
+
+# ORGANIZATIONAL MEMORY SYSTEM
+
+The company remembers.
+
+Create:
+
+companyHistory
+
+Store:
+
+Mission
+
+Decision
+
+Impact
+
+Outcome
+
+Timestamp
+
+Mission Report Reference
+
+Example:
+
+{
+ missionId: "mission-001",
+ decision: "restrict-access",
+ impact: "Compliance risk reduced",
+ trustDelta: +3,
+ securityDelta: +5
+}
+
+This history becomes visible later.
+
+------------------------------------------------------------------
+
+# SUPERVISOR MEMORY SYSTEM
+
+Sarah Reyes must reference student performance.
+
+Create:
+
+supervisorMemory
+
+Examples:
+
+If student correctly identified contractor risk:
+
+"Good catch on the contractor access issue earlier this quarter."
+
+If student missed it:
+
+"The contractor account appeared in an earlier review. Pay close attention this time."
+
+If student escalated effectively:
+
+"Your previous escalation helped us avoid a larger issue."
+
+If student over-escalated:
+
+"Let's make sure the evidence supports escalation this time."
+
+Supervisor comments should dynamically adapt.
+
+------------------------------------------------------------------
+
+# COMPANY TIMELINE PANEL
+
+Add a new notebook section:
+
+COMPANY TIMELINE
+
+Purpose:
+
+Show major organizational events.
+
+Example:
+
+Mission 1
+Sensitive Information Review
+
+Outcome:
+Restricted contractor access.
+
+Impact:
+Compliance risk reduced.
+
+--------------------------------
+
+Mission 2
+Network Asset Investigation
+
+Outcome:
+Rogue device escalated.
+
+Impact:
+Security posture improved.
+
+--------------------------------
+
+Mission 3
+Authentication Investigation
+
+Outcome:
+MFA recommendation approved.
+
+Impact:
+Credential security strengthened.
+
+Timeline grows throughout the campaign.
+
+------------------------------------------------------------------
+
+# RESOURCE STORYTELLING SYSTEM
+
+Current resources:
+
+Security Posture
+Organization Budget
+Executive Trust
+Compliance Exposure
+Career Reputation
+Business Continuity
+
+These must stop feeling like game stats.
+
+Every change requires a narrative explanation.
+
+Example:
+
+BAD
+
+Budget
+-$8,000
+
+GOOD
+
+Legal review required.
+
+External legal consultation cost:
+$8,000
+
+--------------------------------
+
+BAD
+
+Trust
+-10
+
+GOOD
+
+Leadership confidence decreased after escalation proved unnecessary.
+
+--------------------------------
+
+BAD
+
+Security
++5
+
+GOOD
+
+Unauthorized access risk reduced through containment actions.
+
+Students should understand why values changed.
+
+------------------------------------------------------------------
+
+# ANALYST NOTEBOOK REFACTOR
+
+Current notebook reveals too much.
+
+Replace with investigation-driven discovery.
+
+Sections:
+
+FACTS
+
+HYPOTHESES
+
+UNKNOWNS
+
+RECOMMENDATIONS
+
+------------------------------------------------------------------
+
+# FACTS
+
+Only verified information.
+
+Examples:
+
+✓ Contractor account accessed restricted files
+
+✓ Unknown device discovered
+
+✓ Login succeeded after repeated failures
+
+Facts are earned.
+
+Not pre-populated.
+
+------------------------------------------------------------------
+
+# HYPOTHESES
+
+Potential explanations.
+
+Examples:
+
+□ Password guessing attack
+
+□ Contractor account compromise
+
+□ Unauthorized access
+
+Hypotheses change as evidence accumulates.
+
+------------------------------------------------------------------
+
+# UNKNOWNS
+
+Outstanding investigation questions.
+
+Examples:
+
+□ How was access obtained?
+
+□ Is the device authorized?
+
+□ Was data transferred externally?
+
+Investigation should reduce unknowns.
+
+------------------------------------------------------------------
+
+# RECOMMENDATIONS
+
+Student-generated recommendations.
+
+Examples:
+
+□ Restrict access
+
+□ Escalate
+
+□ Recommend MFA
+
+□ Legal review
+
+□ Forensic investigation
+
+------------------------------------------------------------------
+
+# INVESTIGATION CONFIDENCE EXPANSION
+
+Current confidence system is good.
+
+Expand it.
+
+Mission Start:
+
+10%
+
+Evidence discovered:
++10%
+
+Correlation established:
++15%
+
+Root cause identified:
++20%
+
+Attack path identified:
++20%
+
+Recommendation submitted:
++10%
+
+Students should understand:
+
+Confidence reflects investigative certainty.
+
+Not progress percentage.
+
+------------------------------------------------------------------
+
+# COMMAND DESIGN RULE
+
+Commands should feel professional.
+
+Commands should not teach memorization.
+
+Each command must answer:
+
+What happened?
+
+Who did it?
+
+How serious is it?
+
+What should happen next?
+
+If it does not contribute to one of these questions, remove it.
+
+------------------------------------------------------------------
+
+# COMMAND OUTPUT STRUCTURE
+
+Every command output must follow:
+
+RAW EVIDENCE
+
+OBSERVATION
+
+GUIDED QUESTION
+
+INTERPRETATION
+
+FEEDBACK
+
+ANALYST NOTE
+
+TECHNICAL DETAIL
+
+NOTEBOOK UPDATE
+
+CONFIDENCE UPDATE
+
+NEXT SUGGESTED STEP
+
+This becomes the standard command framework.
+
+------------------------------------------------------------------
+
+# MISSION 1 REFACTOR
+
+Student Believes:
+
+Document Classification Assignment
+
+Reality:
+
+Adversary Reconnaissance
+
+Hidden Narrative:
+
+Contractor gathering information.
+
+Carry Flags:
+
+contractorAccessDiscovered
+
+contractorAccessIgnored
+
+sensitiveDataExposed
+
+legalReviewTriggered
+
+------------------------------------------------------------------
+
+# MISSION 2 REFACTOR
+
+Student Believes:
+
+Unknown Device Investigation
+
+Reality:
+
+Adversary Foothold
+
+Hidden Narrative:
+
+Contractor-linked device appears.
+
+Carry Flags:
+
+rogueDeviceActive
+
+rogueDeviceContained
+
+contractorDeviceLinked
+
+------------------------------------------------------------------
+
+# MISSION 3 REFACTOR
+
+Student Believes:
+
+Authentication Investigation
+
+Reality:
+
+Credential Compromise
+
+Hidden Narrative:
+
+Compromised contractor credentials.
+
+Carry Flags:
+
+credentialRiskHigh
+
+contractorAccountCompromised
+
+mfaRecommended
+
+mfaApproved
+
+------------------------------------------------------------------
+
+# MISSION 4 REFACTOR
+
+Student Believes:
+
+Data Exfiltration Investigation
+
+Reality:
+
+Campaign Reconstruction
+
+Student discovers:
+
+Reconnaissance
+→
+Foothold
+→
+Credential Compromise
+→
+Data Exfiltration
+
+Mission 4 becomes the reveal.
+
+Students connect all previous investigations.
+
+------------------------------------------------------------------
+
+# DYNAMIC BRIEFINGS
+
+Mission briefings should change based on carry flags.
+
+Example:
+
+If contractorAccessDiscovered:
+
+"Previous contractor activity may be relevant to this investigation."
+
+If contractorAccessIgnored:
+
+"Earlier contractor activity was never fully investigated."
+
+If mfaApproved:
+
+"Additional authentication controls may affect this incident."
+
+If executiveTrust low:
+
+"Leadership expects stronger evidence before escalation."
+
+Create dynamic briefing framework.
+
+------------------------------------------------------------------
+
+# MISSION REPORT SYSTEM
+
+After every mission generate:
+
+INVESTIGATION SUMMARY
+
+KEY FINDINGS
+
+EVIDENCE COLLECTED
+
+RECOMMENDATIONS
+
+RESOURCE IMPACT
+
+COMPANY RECORD UPDATE
+
+CARRY FORWARD EFFECTS
+
+This report becomes permanent company history.
+
+------------------------------------------------------------------
+
+# QUARTERLY PERFORMANCE REVIEW
+
+After Mission 4:
+
+Generate:
+
+Cybersecurity Intern Performance Review
+
+Evaluate:
+
+Security Posture
+
+Budget Impact
+
+Trust Impact
+
+Compliance Impact
+
+Reputation
+
+Investigation Quality
+
+Evidence Quality
+
+Recommendation Quality
+
+Escalation Quality
+
+Generate outcome:
+
+Needs Improvement
+
+Cybersecurity Intern II
+
+Senior Cybersecurity Intern
+
+Junior SOC Analyst Candidate
+
+Do not unlock next role yet.
+
+Only preview progression.
+
+------------------------------------------------------------------
+
+# IMPLEMENTATION REQUIREMENTS
+
+Create reusable systems:
+
+CaseHistoryEngine
+
+CompanyTimelineEngine
+
+SupervisorMemoryEngine
+
+MissionReportEngine
+
+DynamicBriefingEngine
+
+CampaignContinuityEngine
+
+ResourceNarrativeEngine
+
+All future roles and missions must use these systems.
+
+Do not hardcode mission-specific continuity.
+
+Build reusable frameworks.
+
+------------------------------------------------------------------
+
+# SUCCESS CRITERIA
+
+The student should remember:
+
+The contractor.
+
+The device.
+
+The account.
+
+The stolen data.
+
+The supervisor.
+
+The consequences.
+
+The company.
+
+The attack timeline.
+
+The final realization that all four missions were stages of one campaign.
+
+If students finish Mission 4 feeling:
+
+"I stopped an attack campaign inside my company."
+
+The implementation is successful.
+
+If students finish Mission 4 feeling:
+
+"I completed four unrelated cybersecurity lessons."
+
+The implementation has failed.

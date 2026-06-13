@@ -1234,3 +1234,128 @@
   margin-bottom: 2px;
 }
 .sim-map-intel-v { display: block; font-size: 11.5px; color: var(--text); line-height: 1.5; }
+
+/* ================================================================== *
+ * CAMPAIGN CONTINUITY — "the company remembers" (M1–M4 arc)
+ * ------------------------------------------------------------------ *
+ * Additive, presentation-only surfaces: adaptive supervisor memory +
+ * company timeline (brief), working hypotheses / open questions
+ * (notebook), and the Mission-4 campaign reveal + performance review
+ * (debrief). Tone vocab: good / bad / warn / neutral.
+ * ================================================================== */
+
+/* SUPERVISOR — CASE MEMORY (brief, under the static supervisor note) */
+.sim-supmem-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sim-supmem-item {
+  display: flex; gap: 8px; align-items: flex-start;
+  font-size: 12px; line-height: 1.55; color: var(--text-dim);
+  border-left: 2px solid var(--border);
+  padding: 6px 0 6px 10px;
+  background: rgba(255, 255, 255, 0.015);
+  border-radius: 0 4px 4px 0;
+  animation: simEvIn 280ms ease;
+}
+.sim-supmem-mark { flex: 0 0 auto; width: 6px; height: 6px; margin-top: 6px; border-radius: 50%; background: var(--cyan-dim); }
+.sim-supmem-item--good { border-left-color: var(--green); color: var(--text); }
+.sim-supmem-item--good .sim-supmem-mark { background: var(--green); }
+.sim-supmem-item--bad { border-left-color: var(--red); color: var(--text); }
+.sim-supmem-item--bad .sim-supmem-mark { background: var(--red); }
+.sim-supmem-item--warn { border-left-color: var(--yellow); }
+.sim-supmem-item--warn .sim-supmem-mark { background: var(--yellow); }
+.sim-supmem-item--neutral { border-left-color: var(--cyan-dim); }
+
+/* COMPANY TIMELINE (brief) — prior cases the company remembers */
+.sim-timeline-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sim-timeline-item {
+  border-left: 2px solid var(--cyan-dim);
+  padding: 7px 0 7px 10px;
+  background: rgba(255, 255, 255, 0.015);
+  border-radius: 0 4px 4px 0;
+}
+.sim-timeline-op {
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px;
+}
+.sim-timeline-decision { font-size: 12px; line-height: 1.5; color: var(--text); }
+.sim-timeline-impact { display: inline-block; margin-top: 4px; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-dim); }
+.sim-timeline-impact--up { color: var(--green-dim); }
+.sim-timeline-impact--down { color: var(--red); }
+
+/* WORKING HYPOTHESES + OPEN QUESTIONS (notebook) */
+.sim-hyps, .sim-unknowns { list-style: none; margin: 0; padding: 0; }
+.sim-hyp, .sim-unknown {
+  display: flex; gap: 8px; align-items: flex-start;
+  font-size: 11.5px; line-height: 1.5; color: var(--text-muted);
+  padding: 3px 0; transition: color var(--transition);
+}
+.sim-hyp-tag {
+  flex: 0 0 auto;
+  font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 0.8px;
+  color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 3px;
+  padding: 1px 5px; margin-top: 1px;
+}
+.sim-hyp--on { color: var(--text); }
+.sim-hyp--on .sim-hyp-tag { color: var(--green); border-color: var(--green-dim); }
+.sim-unknown--on { color: var(--text); }
+.sim-unknown--on .sim-risk-box { color: var(--green); }
+
+/* CAMPAIGN RECONSTRUCTION (Mission 4 debrief) */
+.sim-campaign {
+  margin: 14px 0;
+  border: 1px solid var(--cyan-dim);
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(0, 229, 255, 0.05), rgba(255, 255, 255, 0.01));
+  padding: 13px;
+}
+.sim-campaign-head { font-family: var(--font-hud); font-size: 11px; letter-spacing: 1.6px; color: var(--cyan); margin-bottom: 8px; }
+.sim-campaign-intro { font-size: 12px; line-height: 1.6; color: var(--text); margin-bottom: 11px; }
+.sim-campaign-chain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.sim-campaign-stage { display: flex; gap: 10px; align-items: flex-start; }
+.sim-campaign-step {
+  flex: 0 0 auto; width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 11px; color: var(--bg-panel);
+  background: var(--cyan); border-radius: 50%;
+}
+.sim-campaign-stage-body { flex: 1 1 auto; }
+.sim-campaign-stage-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 2px; }
+.sim-campaign-op { font-family: var(--font-mono); font-size: 11px; color: var(--cyan-dim); }
+.sim-campaign-tag {
+  font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  color: var(--text-muted); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px;
+}
+.sim-campaign-line { font-size: 12px; line-height: 1.55; color: var(--text-dim); }
+.sim-campaign-closer { font-size: 12px; line-height: 1.6; color: var(--text); font-style: italic; margin-top: 11px; }
+
+/* QUARTERLY PERFORMANCE REVIEW (Mission 4 debrief, preview-only) */
+.sim-review {
+  margin: 14px 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel-alt);
+  padding: 13px;
+}
+.sim-review-head { font-family: var(--font-hud); font-size: 11px; letter-spacing: 1.6px; color: var(--green-dim); margin-bottom: 6px; }
+.sim-review-role { font-size: 12px; color: var(--text-dim); margin-bottom: 11px; }
+.sim-review-section-label { font-family: var(--font-hud); font-size: 9px; letter-spacing: 1.3px; color: var(--cyan-dim); margin: 9px 0 6px; }
+.sim-review-metrics { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sim-review-metric {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 12px; color: var(--text); padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+.sim-review-metric-name { color: var(--text-dim); }
+.sim-review-metric-val { font-family: var(--font-mono); font-size: 12px; color: var(--text); }
+.sim-review-metric--good .sim-review-metric-val { color: var(--green); }
+.sim-review-metric--warn .sim-review-metric-val { color: var(--yellow); }
+.sim-review-metric--low .sim-review-metric-val { color: var(--red); }
+.sim-review-next {
+  margin-top: 12px; padding: 11px;
+  border: 1px dashed var(--cyan-dim); border-radius: 5px;
+  background: rgba(0, 229, 255, 0.04);
+}
+.sim-review-next-label { font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1.3px; color: var(--cyan-dim); margin-bottom: 4px; }
+.sim-review-next-role { font-size: 14px; color: var(--cyan); font-weight: 600; }
+.sim-review-next-dept { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+.sim-review-next-note { font-size: 11px; line-height: 1.5; color: var(--text-dim); font-style: italic; }
