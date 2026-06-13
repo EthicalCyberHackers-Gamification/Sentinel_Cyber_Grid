@@ -122,33 +122,57 @@ const MISSION_META = {
 
 // The curriculum: role tiers each grouping CONSECUTIVE nodes from NODE_CHAIN, so
 // the linear unlock order is preserved within and across roles. Role names are
-// drawn from ROLE_LADDER; the grouping is the learning-path framing only.
-const COURSE_PATH = [
+// drawn from ROLE_LADDER; the grouping is the learning-path framing only. Each
+// group declares how many nodes it spans — the actual mission ids are SLICED
+// FROM NODE_CHAIN (never hand-listed), so the course path cannot drift from the
+// real mission list, and the final group always absorbs any remaining nodes.
+const COURSE_GROUPS = [
   {
     key: "intern",
     name: "Cybersecurity Intern",
+    span: 2,
     purpose: "Learn the fundamentals — work one guided incident at a time under supervision.",
     unlock: "Open from day one.",
     skills: ["Data classification", "Information handling", "Network asset discovery"],
-    missions: ["emea", "apac"],
   },
   {
     key: "junior",
     name: "Junior SOC Analyst",
+    span: 2,
     purpose: "Validate alerts and reconstruct what happened across hosts and logs.",
     unlock: "Finish the Cybersecurity Intern track.",
     skills: ["Authentication analysis", "Timeline reconstruction", "Reconnaissance detection"],
-    missions: ["na-east", "latam"],
   },
   {
     key: "analyst",
     name: "SOC Analyst",
+    span: 2,
     purpose: "Correlate signals across systems and recommend containment on your own.",
     unlock: "Finish the Junior SOC Analyst track.",
     skills: ["Account-takeover triage", "Perimeter monitoring", "Threat attribution"],
-    missions: ["mena", "sea"],
   },
 ];
+
+const COURSE_PATH = (() => {
+  let cursor = 0;
+  return COURSE_GROUPS.map((g, idx) => {
+    const isLast = idx === COURSE_GROUPS.length - 1;
+    const missions = isLast
+      ? NODE_CHAIN.slice(cursor)
+      : NODE_CHAIN.slice(cursor, cursor + g.span);
+    cursor += missions.length;
+    return { key: g.key, name: g.name, purpose: g.purpose, unlock: g.unlock, skills: g.skills, missions };
+  });
+})();
+
+// Dev guard: the derived course path must cover every NODE_CHAIN node exactly
+// once, in order — surfaces drift loudly if a node or group span is mismatched.
+{
+  const grouped = COURSE_PATH.flatMap(r => r.missions);
+  if (grouped.length !== NODE_CHAIN.length || grouped.some((id, i) => id !== NODE_CHAIN[i])) {
+    console.warn("[course-path] COURSE_PATH does not cover NODE_CHAIN exactly:", grouped, NODE_CHAIN);
+  }
+}
 
 const COURSE_STATUS_LABEL = { ready: "READY", active: "ACTIVE", completed: "COMPLETED", locked: "LOCKED" };
 
