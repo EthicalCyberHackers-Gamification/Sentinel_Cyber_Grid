@@ -29,12 +29,12 @@ const CYBERCORP_IDENTITY = {
 // Per-incident organizational context, keyed by operation ID. Additive and
 // presentation-only — establishes department ownership, the support ticket, and
 // the recurring employee tied to the incident (continuity across missions).
-// J. Okafor (Finance) recurs: reports the OPS-001 phishing wave, then becomes the
-// most-targeted account in the OPS-005 takeover attempt.
+// J. Okafor (Finance) recurs: surfaces in the OPS-001 contractor data-handling
+// case, then is the compromised Finance account in the OPS-003 takeover.
 const OP_CONTEXT = {
   "OPS-2026-001": { dept: "Finance Operations",  ticket: "INC-4471", reportedBy: "J. Okafor · Finance Mgr" },
   "OPS-2026-002": { dept: "APAC Infrastructure", ticket: "INC-4460", reportedBy: "Network Operations" },
-  "OPS-2026-003": { dept: "NA-East Endpoints",   ticket: "INC-4452", reportedBy: "EDR Auto-Alert" },
+  "OPS-2026-003": { dept: "Identity & Access",   ticket: "INC-4452", reportedBy: "Auth Anomaly Alert" },
   "OPS-2026-004": { dept: "Perimeter Security",  ticket: "INC-4438", reportedBy: "IDS Auto-Alert" },
   "OPS-2026-005": { dept: "Identity & Access",   ticket: "INC-4429", reportedBy: "J. Okafor · Finance Mgr" },
   "OPS-2026-006": { dept: "DMZ Monitoring",      ticket: "INC-4410", reportedBy: "WAF Auto-Alert" },
@@ -128,56 +128,56 @@ const INCIDENTS = {
   },
   "apac": {
     id: "apac",
-    severity: "HIGH",
+    severity: "MEDIUM",
     region: "APAC REGION",
-    title: "Lateral Movement Detected",
-    desc: "Unauthorized east-west traffic identified across three internal APAC segments. Possible credential reuse following prior breach.",
+    title: "Investigate Network Assets",
+    desc: "A low-priority alert on the APAC office network: the count of active devices is higher than the approved asset inventory. Map what is actually on the subnet, compare it to what should be there, and find the device that does not belong.",
     detected: "Today 04:38 UTC",
-    systems: "Internal Segmentation · AD · File Shares",
-    assigned: "Marcus Chen",
+    systems: "Network Inventory · CMDB · Internal Segmentation",
+    assigned: "Unassigned — Priority Queue",
     opId: "OPS-2026-002",
-    threatClass: "Lateral Movement",
-    priority: "P2 — HIGH",
+    threatClass: "Network Fundamentals & Asset Discovery",
+    priority: "P3 — MEDIUM",
     objectives: [
-      "Map compromised host chain",
-      "Identify credential source",
-      "Isolate affected segments",
-      "Escalate to Incident Commander"
+      "Discover the devices active on the office subnet",
+      "Compare them against the approved asset inventory",
+      "Identify the device that is not authorized",
+      "Work out what it is and who connected it — then recommend a response"
     ],
-    managerNote: '"Chen is lead on APAC. Back him up if needed. — Reyes"',
-    terminalBrief: "ALERT OPS-2026-002: Lateral movement via pass-the-hash across APAC-SEG-3 → APAC-SEG-7. Source host: 10.44.2.19.",
+    managerNote: '"Network housekeeping, mostly. But you remember that contractor from the data review? Unknown hardware on an internal segment is how small problems get big. Recommend, don\'t reconfigure. — Reyes"',
+    terminalBrief: "ALERT OPS-2026-002: Active host count on APAC-OFFICE 192.168.1.0/24 exceeds the approved asset inventory. Map the subnet and identify the unapproved device.",
     commsOnSelect: {
-      author: "intel",
-      name: "Marcus Chen",
-      role: "Threat Intel",
-      text: "APAC lateral is pass-the-hash. We've pinned the source to APAC-SEG-3. Working containment now."
+      author: "lead",
+      name: "Sarah Reyes",
+      role: "SOC Lead",
+      text: "Analyst — OPS-002 is an asset-discovery review. Map the APAC office subnet and tell me which device isn't supposed to be there."
     }
   },
   "na-east": {
     id: "na-east",
     severity: "HIGH",
     region: "NA-EAST REGION",
-    title: "Malware Outbreak — Ransomware Precursor",
-    desc: "Cobalt Strike beacon activity identified on 12 workstations across the NA-East segment. Likely precursor to ransomware deployment.",
+    title: "Investigate Suspicious Authentication Activity",
+    desc: "Overnight, the authentication system flagged an unusual pattern on a Finance account: a wave of failed logins, then a success from a location the user has never signed in from. Reconstruct the timeline and decide whether this is a real account takeover.",
     detected: "Today 03:52 UTC",
-    systems: "Endpoints · AV · EDR",
-    assigned: "Cmdr. Brooks",
+    systems: "Identity & Access · Authentication Logs · Finance Apps",
+    assigned: "Unassigned — Priority Queue",
     opId: "OPS-2026-003",
-    threatClass: "Malware / C2 Activity",
+    threatClass: "Authentication Security & Account Compromise",
     priority: "P2 — HIGH",
     objectives: [
-      "Identify C2 beaconing hosts",
-      "Block external C2 domains",
-      "Quarantine affected endpoints",
-      "Assess encryption readiness"
+      "Reconstruct the login pattern from the authentication logs",
+      "Check where the successful login came from",
+      "Look for changes made to the account after the login",
+      "Identify the compromised account — then recommend a response"
     ],
-    managerNote: '"Brooks is handling NA-East. This could escalate quickly. Containment window is narrow. — Reyes"',
-    terminalBrief: "ALERT OPS-2026-003: Cobalt Strike C2 beacon detected on 12 hosts. External C2: 185.220.101.47. EDR kill-switch ready.",
+    managerNote: '"Same Finance name from your first case — A. Okafor. Could be nothing, could be someone reusing what they learned. Read the logs in order, then recommend the response. Don\'t reset credentials org-wide yourself. — Reyes"',
+    terminalBrief: "ALERT OPS-2026-003: Authentication anomaly on a Finance account — failed-login burst followed by a success from an unrecognized location. Reconstruct the timeline.",
     commsOnSelect: {
-      author: "cmd",
-      name: "Cmdr. Brooks",
-      role: "Incident Commander",
-      text: "NA-East malware is Cobalt Strike stage 2. We have a 30-minute window before potential ransomware drop. Containment authorized."
+      author: "lead",
+      name: "Sarah Reyes",
+      role: "SOC Lead",
+      text: "Analyst — OPS-003 is an account-takeover review. Read the auth logs in order and tell me which Finance account was compromised."
     }
   },
   "latam": {
@@ -212,7 +212,7 @@ const INCIDENTS = {
     severity: "MEDIUM",
     region: "MENA REGION",
     title: "Suspicious Login Activity",
-    desc: "Anomalous authentication events detected — multiple failed MFA challenges from unfamiliar geolocations targeting privileged accounts. The most-targeted account belongs to J. Okafor (Finance) — the same employee who flagged the OPS-001 phishing wave.",
+    desc: "Anomalous authentication events detected — multiple failed MFA challenges from unfamiliar geolocations targeting privileged accounts. The most-targeted account belongs to J. Okafor (Finance) — the same employee tied to the OPS-001 contractor data-handling case.",
     detected: "Today 01:44 UTC",
     systems: "IAM · MFA · Cloud Auth",
     assigned: "Unassigned",
@@ -264,9 +264,9 @@ const INCIDENTS = {
 };
 
 const INITIAL_ALERTS = [
-  { severity: "critical", name: "Credential Phishing Campaign", region: "EMEA", time: "06:14" },
-  { severity: "high",     name: "Lateral Movement Detected",    region: "APAC", time: "04:38" },
-  { severity: "high",     name: "Malware Outbreak — C2 Beacon", region: "NA-EAST", time: "03:52" },
+  { severity: "high",     name: "Sensitive Data Release — Contractor Access", region: "EMEA", time: "06:14" },
+  { severity: "medium",   name: "Unapproved Device on Internal Network",      region: "APAC", time: "04:38" },
+  { severity: "high",     name: "Account Takeover — Finance Login Anomaly",   region: "NA-EAST", time: "03:52" },
   { severity: "medium",   name: "Reconnaissance Sweep Active",  region: "LATAM", time: "02:07" },
   { severity: "medium",   name: "Suspicious Login — MFA Failure", region: "MENA", time: "01:44" },
   { severity: "low",      name: "Anomalous Port Scan Logged",   region: "SEA", time: "21:30" },
@@ -274,38 +274,38 @@ const INITIAL_ALERTS = [
 
 const ROLLING_ALERTS = [
   { severity: "info",    name: "TLS certificate anomaly — corp-mail.cybercorp.net", region: "GLOBAL", time: null },
-  { severity: "medium",  name: "PowerShell obfuscation pattern detected", region: "NA-EAST", time: null },
+  { severity: "medium",  name: "New device joined finance segment — pending inventory match", region: "APAC", time: null },
   { severity: "info",    name: "DNS lookup spike — 3× baseline on resolver-02", region: "EMEA", time: null },
-  { severity: "high",    name: "Privilege escalation attempt — SVC_BACKUP account", region: "APAC", time: null },
+  { severity: "high",    name: "Repeated failed logins then success — Finance account", region: "NA-EAST", time: null },
   { severity: "low",     name: "Unusual outbound traffic — 22MB to unknown ASN", region: "MENA", time: null },
   { severity: "medium",  name: "Shadow IT detection — unapproved SaaS OAuth token", region: "LATAM", time: null },
   { severity: "info",    name: "Threat feed update: 148 new IOCs ingested", region: "GLOBAL", time: null },
-  { severity: "critical",name: "Endpoint AV disabled on host NA-WS-1092", region: "NA-EAST", time: null },
+  { severity: "high",    name: "Unmanaged host reaching finance file share — APAC office LAN", region: "APAC", time: null },
 ];
 
 const INTEL_UPDATES = [
-  { kind: "threat",  text: "New Cobalt Strike C2 infrastructure mapped to AS47337 (RU)." },
-  { kind: "malware", text: "Black Basta ransomware precursor TTPs observed in NA-East beacon." },
+  { kind: "network", text: "APAC asset inventory drift — active host count exceeds the approved CMDB baseline." },
+  { kind: "threat",  text: "Contractor account contractor01 flagged for out-of-scope Finance file access." },
   { kind: "recon",   text: "203.0.113.0/24 range flagged across 3 active threat intel feeds." },
   { kind: "network", text: "MFA bypass attempt uses SS7 relay — disable SMS auth on privileged accounts." },
   { kind: "info",    text: "CISA advisory AA26-071A: Active exploitation of CVE-2026-1033 in VPN appliances." },
-  { kind: "threat",  text: "Phishing domain external-reyes@cybercorp-support[.]net registered 48h ago." },
-  { kind: "recon",   text: "APAC-SEG-3 host fingerprint matches threat actor group FIN-12." },
-  { kind: "info",    text: "Blue Team drill scheduled: 14:00 UTC — tabletop ransomware response." },
+  { kind: "threat",  text: "Finance account a.okafor: failed-login burst then success from an unrecognized location." },
+  { kind: "recon",   text: "Perimeter probe 198.51.100.20 fingerprinted against SEA DMZ services." },
+  { kind: "info",    text: "Blue Team drill scheduled: 14:00 UTC — tabletop access-control review." },
 ];
 
 const INITIAL_COMMS = [
   {
     author: "lead", name: "Sarah Reyes", role: "SOC Lead", time: "06:10",
-    text: "All analysts report. We have an active phishing wave in EMEA. OPS-001 is priority one. Stand by for assignments."
+    text: "All analysts, status check. OPS-001 — the contractor data release — stays priority one until it's classified. Watch for that same contractor turning up elsewhere."
   },
   {
     author: "intel", name: "Marcus Chen", role: "Threat Intel", time: "06:11",
-    text: "Threat intel confirms EMEA phishing is linked to FIN-12 group. Same domain spoofing pattern as the Q1 campaign."
+    text: "Intel note: the contractor flagged on OPS-001 is also turning up on unmanaged hardware. Correlating across regions now."
   },
   {
     author: "cmd", name: "Cmdr. Brooks", role: "Incident Cmd", time: "06:12",
-    text: "NA-East containment is authorized. I'm escalating Cobalt Strike hosts to P1 if we don't cut C2 in the next 20 minutes."
+    text: "OPS-003 in NA-East is a possible Finance account takeover. If those credentials are confirmed compromised, we move to containment fast."
   },
   {
     author: "junior", name: "Alex Torres", role: "Junior Analyst", time: "06:13",
@@ -314,29 +314,29 @@ const INITIAL_COMMS = [
 ];
 
 const ROLLING_COMMS = [
-  { author: "intel", name: "Marcus Chen", role: "Threat Intel", text: "Pulling additional IOCs from MISP feed. Will push to SIEM in 5 minutes." },
-  { author: "cmd",   name: "Cmdr. Brooks", role: "Incident Cmd", text: "Escalation threshold: if any P2 becomes active encryption, we invoke IR protocol DELTA." },
+  { author: "intel", name: "Marcus Chen", role: "Threat Intel", text: "Pulling additional context on the contractor account from IAM. Will push findings to the case file." },
+  { author: "cmd",   name: "Cmdr. Brooks", role: "Incident Cmd", text: "Escalation threshold: if a Finance account is confirmed taken over, we invoke IR protocol DELTA." },
   { author: "lead",  name: "Sarah Reyes", role: "SOC Lead", text: "Document everything in real time. Legal and compliance will need the timeline." },
   { author: "junior", name: "Alex Torres", role: "Junior Analyst", text: "MENA-005 auth logs are in. 47 failures across 9 accounts — all admins. This looks targeted." },
-  { author: "intel", name: "Marcus Chen", role: "Threat Intel", text: "Domain registration for cybercorp-support[.]net traced to bulletproof hosting in AS8003. Confirmed malicious." },
-  { author: "cmd",   name: "Cmdr. Brooks", role: "Incident Cmd", text: "NA-East — 6 hosts quarantined. C2 domain blocked at perimeter. Holding. Waiting for full forensic triage." },
+  { author: "intel", name: "Marcus Chen", role: "Threat Intel", text: "The APAC unmanaged device traces back to a contractor's personal laptop on the finance segment. Not in inventory." },
+  { author: "cmd",   name: "Cmdr. Brooks", role: "Incident Cmd", text: "NA-East — Finance account secured, MFA enforced. Holding. Waiting for the full timeline reconstruction." },
   { author: "lead",  name: "Sarah Reyes", role: "SOC Lead", text: "Good work team. Holding the line. EMEA analyst — update me every 10 minutes." },
-  { author: "junior", name: "Alex Torres", role: "Junior Analyst", text: "LATAM perimeter report filed. Recommend geo-blocking AS47337 range as proactive measure." },
+  { author: "junior", name: "Alex Torres", role: "Junior Analyst", text: "LATAM perimeter report filed. Recommend geo-blocking the 203.0.113.0/24 recon range as a proactive measure." },
 ];
 
 const TICKER_IOCS = [
-  { sev: "critical", text: "IOC: external-reyes@cybercorp-support[.]net — Active credential phishing domain" },
-  { sev: "high",     text: "C2: 185.220.101.47:443 — Cobalt Strike beacon active on NA-EAST segment" },
-  { sev: "high",     text: "Hash: 4d1f8e29a031bcc7 — Malware dropper on NA-WS-1092 — quarantine pending" },
+  { sev: "high",     text: "Contractor account contractor01 — out-of-scope reads on the Finance release folder — under review" },
+  { sev: "medium",   text: "Unknown host 192.168.1.57 — unmanaged device on APAC finance segment — not in inventory" },
+  { sev: "high",     text: "Finance account a.okafor — failed-login burst then foreign success — MFA disabled post-login" },
   { sev: "medium",   text: "IP Range: 203.0.113.0/24 — Sequential port scan ongoing LATAM perimeter" },
   { sev: "medium",   text: "47 failed MFA challenges — Privileged accounts targeted in MENA region" },
-  { sev: "high",     text: "Pass-the-hash lateral movement — APAC-SEG-3 → APAC-SEG-7 — source: 10.44.2.19" },
+  { sev: "medium",   text: "Asset drift — active host count exceeds approved CMDB baseline on APAC office LAN" },
   { sev: "info",     text: "CISA AA26-071A: CVE-2026-1033 active exploitation confirmed in VPN appliances" },
   { sev: "low",      text: "CDN probe 198.51.100.20 — SEA DMZ ports 80,443 — automated scan, low rate" },
   { sev: "info",     text: "Threat feed update: 148 new IOCs ingested from MISP — SIEM rules refreshed" },
-  { sev: "medium",   text: "PowerShell obfuscation pattern detected — NA-EAST endpoint — policy alert triggered" },
-  { sev: "high",     text: "Domain: cybercorp-support[.]net — Bulletproof hosting AS8003 — confirmed malicious" },
-  { sev: "info",     text: "Blue Team tabletop 14:00 UTC — ransomware response exercise — all analysts required" },
+  { sev: "medium",   text: "Unmanaged personal laptop reaching finance file share — APAC office LAN" },
+  { sev: "high",     text: "Account a.okafor — sensitive Finance data accessed after foreign login — containment pending" },
+  { sev: "info",     text: "Blue Team tabletop 14:00 UTC — access-control & contractor-offboarding review — all analysts" },
 ];
 
 /* ============================================================
@@ -382,11 +382,17 @@ const THREAT_ACTORS = {
     infra: ["cybercorp-support[.]net", "AS8003 (bulletproof hosting)"],
     ttps:  ["spoofed executive domains", "MFA-failure bursts", "credential theft"],
   },
+  contractor: {
+    label: "Contractor account misuse",
+    summary: "A recurring over-privileged contractor — out-of-scope data access, unmanaged personal hardware on internal segments, and a Finance account compromise.",
+    infra: ["contractor01 account", "personal laptop 192.168.1.57"],
+    ttps:  ["out-of-scope file access", "unmanaged device on the finance segment", "Finance credential compromise"],
+  },
   redbeacon: {
-    label: "Cobalt Strike cluster",
-    summary: "Hands-on-keyboard intrusion set — Cobalt Strike beacons, ransomware precursors.",
-    infra: ["185.220.101.47", "AS47337 (RU)", "203.0.113.0/24"],
-    ttps:  ["Cobalt Strike C2", "pass-the-hash lateral movement", "Black Basta precursors"],
+    label: "Perimeter recon cluster",
+    summary: "External scanning activity — sequential port sweeps and automated probes against perimeter and DMZ services.",
+    infra: ["203.0.113.0/24", "198.51.100.20"],
+    ttps:  ["sequential port scanning", "perimeter service enumeration", "automated DMZ probes"],
   },
 };
 function actorLabel(key) { return THREAT_ACTORS[key]?.label || "unattributed activity"; }
@@ -396,15 +402,15 @@ function actorLabel(key) { return THREAT_ACTORS[key]?.label || "unattributed act
 // (reactive world state); `connects` links to a PRIOR node and only surfaces
 // when that prior mission is complete (mission connections that reward memory).
 const WORLD_CONTINUITY = {
-  "emea":    { dept: "finance",     employee: "okafor",    actor: "fin12",
-               resolved: "FIN-12 phishing domain cybercorp-support[.]net blocked at the perimeter." },
-  "apac":    { dept: "itinfra",     employee: "nwosu",     actor: "redbeacon",
-               resolved: "APAC source host 10.44.2.19 isolated; pass-the-hash playbook updated." },
-  "na-east": { dept: "engineering", actor: "redbeacon",    connects: "apac",
-               resolved: "Cobalt Strike C2 185.220.101.47 sinkholed; AS47337 range geo-blocked." },
-  "latam":   { dept: "itinfra",     actor: "redbeacon",    connects: "na-east",
+  "emea":    { dept: "finance",     employee: "okafor",    actor: "contractor",
+               resolved: "Contractor's out-of-scope access to the Finance release folder revoked; release held pending classification." },
+  "apac":    { dept: "itinfra",     employee: "nwosu",     actor: "contractor", connects: "emea",
+               resolved: "Unapproved contractor device 192.168.1.57 removed from the finance segment; asset inventory reconciled." },
+  "na-east": { dept: "finance",     actor: "contractor",   connects: "apac",
+               resolved: "Compromised Finance account a.okafor secured; MFA enforced; tied back to the flagged contractor." },
+  "latam":   { dept: "itinfra",     actor: "redbeacon",
                resolved: "Recon range 203.0.113.0/24 added to the perimeter blocklist." },
-  "mena":    { dept: "exec",        employee: "whitfield", actor: "fin12",     connects: "emea",
+  "mena":    { dept: "exec",        employee: "whitfield", actor: "fin12",
                resolved: "Privileged-account MFA hardened after the 47-failure burst." },
   "sea":     { dept: "secops",      actor: "redbeacon",    connects: "latam",
                resolved: "DMZ exposure closed; CDN probe baseline re-tuned." },
@@ -420,8 +426,9 @@ const SECURITY_BULLETINS = [
   { tag: "IT INFRA", text: "Scheduled maintenance: IT Infrastructure rotates resolver-02 at 13:00 UTC." },
   { tag: "HR",       text: "Mandatory security-awareness refresher is due this quarter — see the HR portal." },
   { tag: "EXEC OPS", text: "Executive Operations: heightened spear-phishing risk targeting finance approvers." },
-  { tag: "RESOLVED", text: "FIN-12 phishing infrastructure blocked. Stay alert for re-registered look-alike domains.", after: "emea" },
-  { tag: "RESOLVED", text: "Cobalt Strike C2 sinkholed on NA-East. AS47337 reuse is being monitored across regions.", after: "na-east" },
+  { tag: "RESOLVED", text: "Contractor's out-of-scope access to the Finance release folder revoked; the release is held pending classification.", after: "emea" },
+  { tag: "RESOLVED", text: "Unapproved contractor device removed from the APAC finance segment; asset inventory reconciled.", after: "apac" },
+  { tag: "RESOLVED", text: "Compromised Finance account secured and MFA enforced on NA-East; tied back to the flagged contractor.", after: "na-east" },
 ];
 
 // Dev guard: a `connects` edge must reference a PRIOR mission in NODE_CHAIN,
