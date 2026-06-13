@@ -1,0 +1,837 @@
+# ETHICAL CYBERHACKERS
+# CYBERSECURITY INTERN ROLE REFACTOR
+# PHASE 1 CAREER SIMULATION
+# INVESTIGATION-FIRST CURRICULUM
+# MASTER REPLIT IMPLEMENTATION PROMPT
+
+IMPORTANT
+
+Do NOT redesign the UI.
+
+Do NOT replace the Operating Center.
+
+Do NOT remove the Terminal.
+
+Do NOT remove the Analyst Notebook.
+
+Do NOT remove Investigation Confidence.
+
+Do NOT remove Resource Tracking.
+
+Do NOT remove Consequence Tracking.
+
+Do NOT add additional Intern missions.
+
+The current UI foundation is strong.
+
+The curriculum philosophy must change.
+
+The Intern role is no longer a collection of cybersecurity lessons.
+
+The Intern role becomes:
+
+"A student's first month working inside a Security Operations Center."
+
+The curriculum should teach students how cybersecurity professionals think, investigate, document, escalate, and assess risk.
+
+Students should not feel like they are solving puzzles.
+
+Students should feel like they are performing real cybersecurity work.
+
+--------------------------------------------------
+ROLE DESIGN PHILOSOPHY
+--------------------------------------------------
+
+The Cybersecurity Intern is NOT learning:
+
+- Tools
+- Commands
+- Memorization
+- Attack terminology
+
+The Cybersecurity Intern IS learning:
+
+- Observation
+- Investigation
+- Evidence Collection
+- Documentation
+- Escalation
+- Risk Recognition
+
+Students should continuously ask:
+
+What happened?
+
+What evidence supports it?
+
+How serious is it?
+
+Who should know?
+
+What should happen next?
+
+--------------------------------------------------
+AUTHORITY MODEL
+--------------------------------------------------
+
+Cybersecurity Intern CAN:
+
+- Investigate
+- Classify
+- Recommend
+- Escalate
+- Document
+- Submit Findings
+
+Cybersecurity Intern CANNOT:
+
+- Approve Budgets
+- Purchase Tools
+- Change Policy
+- Approve Containment
+- Hire Vendors
+- Engage Executives
+- Engage Legal Directly
+- Notify Customers
+
+Students should see these activities happen.
+
+Students should not control them.
+
+--------------------------------------------------
+ORGANIZATION MODEL
+--------------------------------------------------
+
+Company:
+
+CyberCorp
+
+Department:
+
+Security Operations Center
+
+Supervisor:
+
+Sarah Reyes
+SOC Lead
+
+All missions occur inside the same company.
+
+All investigations occur inside the same company.
+
+The company remembers.
+
+The company changes.
+
+The company reacts.
+
+--------------------------------------------------
+PERSISTENT ORGANIZATIONAL RESOURCES
+--------------------------------------------------
+
+Visible Across Entire Intern Role
+
+Security Posture
+
+Organization Budget
+
+Executive Trust
+
+Compliance Exposure
+
+Career Reputation
+
+Business Continuity
+
+Important:
+
+Budget is visible.
+
+Budget is NOT controllable.
+
+Students may create costs.
+
+Students cannot spend money.
+
+Example:
+
+Student publishes sensitive data.
+
+Result:
+
+Legal Review Required
+
+External Review Cost:
+$12,000
+
+Compliance Assessment:
+$8,000
+
+Organization Budget:
+-$20,000
+
+Students learn consequences.
+
+--------------------------------------------------
+CURRICULUM STRUCTURE
+--------------------------------------------------
+
+MISSION 1
+
+Protect Sensitive Information
+
+Primary Competency:
+
+Data Protection
+
+Student Thinks:
+
+"I'm reviewing documents."
+
+Actually Learning:
+
+Sensitive Data Recognition
+Classification
+Policy Application
+Documentation
+Escalation
+
+--------------------------------------------------
+
+MISSION 2
+
+Investigate Network Assets
+
+Primary Competency:
+
+Asset Security
+
+Student Thinks:
+
+"I'm reviewing an unknown device."
+
+Actually Learning:
+
+Asset Ownership
+Inventory Validation
+Network Awareness
+Risk Assessment
+
+--------------------------------------------------
+
+MISSION 3
+
+Investigate Suspicious Authentication Activity
+
+Primary Competency:
+
+Identity Security
+
+Student Thinks:
+
+"I'm reviewing unusual login activity."
+
+Actually Learning:
+
+Authentication Analysis
+Identity Risk
+Evidence Correlation
+Account Security
+
+--------------------------------------------------
+
+MISSION 4
+
+Data Exfiltration Investigation
+
+Primary Competency:
+
+Incident Investigation
+
+Student Thinks:
+
+"I'm reviewing a large transfer."
+
+Actually Learning:
+
+Timeline Reconstruction
+Evidence Correlation
+Root Cause Analysis
+Business Impact Assessment
+
+--------------------------------------------------
+HIDDEN NARRATIVE LAYER
+--------------------------------------------------
+
+Do NOT expose attacker lifecycle terminology.
+
+Students should not see:
+
+Reconnaissance
+Foothold
+Credential Access
+Exfiltration
+
+Instead:
+
+Students gradually discover connections.
+
+Mission 1:
+
+Contractor activity appears unusual.
+
+Mission 2:
+
+Contractor-linked system appears.
+
+Mission 3:
+
+Contractor-linked account activity appears.
+
+Mission 4:
+
+Student discovers all previous events were connected.
+
+Mission 4 should create an "aha" moment.
+
+Students should realize:
+
+"I've seen these indicators before."
+
+--------------------------------------------------
+CASE HISTORY SYSTEM
+--------------------------------------------------
+
+Every mission after Mission 1 contains:
+
+CASE HISTORY
+
+Mission 2 Example:
+
+Mission 1:
+Contractor reviewed files outside normal responsibilities.
+
+Current Investigation:
+Unknown device appears on corporate network.
+
+--------------------------------------------------
+
+Mission 3 Example:
+
+Mission 1:
+Contractor reviewed restricted files.
+
+Mission 2:
+Contractor-linked device identified.
+
+Current Investigation:
+Suspicious login activity detected.
+
+--------------------------------------------------
+
+Mission 4 Example:
+
+Mission 1:
+Contractor accessed sensitive information.
+
+Mission 2:
+Unknown device identified.
+
+Mission 3:
+Authentication anomalies detected.
+
+Current Investigation:
+Large outbound transfer detected.
+
+--------------------------------------------------
+SUPERVISOR MEMORY SYSTEM
+--------------------------------------------------
+
+Sarah Reyes remembers.
+
+Dynamic comments should reference prior actions.
+
+Example:
+
+Student found contractor issue:
+
+"Good catch identifying the contractor activity earlier."
+
+--------------------------------------------------
+
+Student missed contractor issue:
+
+"The contractor account appeared in an earlier review. Take a closer look."
+
+--------------------------------------------------
+
+Student escalated appropriately:
+
+"Your previous escalation helped us get ahead of the issue."
+
+--------------------------------------------------
+
+Student over-escalated:
+
+"Let's ensure the evidence supports escalation this time."
+
+--------------------------------------------------
+COMPANY TIMELINE SYSTEM
+--------------------------------------------------
+
+Notebook Tab:
+
+Company Timeline
+
+Track:
+
+Mission
+Decision
+Impact
+Outcome
+
+Example:
+
+Mission 1
+
+Decision:
+Restricted contractor access
+
+Impact:
+Compliance exposure reduced
+
+--------------------------------------------------
+
+Mission 2
+
+Decision:
+Escalated rogue device
+
+Impact:
+Security posture improved
+
+--------------------------------------------------
+
+Mission 3
+
+Decision:
+Recommended MFA
+
+Impact:
+Identity security improved
+
+Timeline persists forever.
+
+--------------------------------------------------
+ANALYST NOTEBOOK REFACTOR
+--------------------------------------------------
+
+Replace checklist mentality.
+
+Notebook Sections:
+
+FACTS
+
+HYPOTHESES
+
+UNKNOWNS
+
+RECOMMENDATIONS
+
+--------------------------------------------------
+FACTS
+--------------------------------------------------
+
+Only verified information.
+
+Example:
+
+✓ Contractor account accessed restricted files
+
+✓ Unknown device exists
+
+✓ Login succeeded after repeated failures
+
+--------------------------------------------------
+HYPOTHESES
+--------------------------------------------------
+
+Possible explanations.
+
+Example:
+
+□ Contractor account may be compromised
+
+□ Device may be unauthorized
+
+□ Login pattern may indicate account takeover
+
+--------------------------------------------------
+UNKNOWNS
+--------------------------------------------------
+
+Open questions.
+
+Example:
+
+□ Who owns the device?
+
+□ Was access legitimate?
+
+□ Was data transferred externally?
+
+--------------------------------------------------
+RECOMMENDATIONS
+--------------------------------------------------
+
+Student-generated actions.
+
+Example:
+
+□ Escalate
+
+□ Recommend MFA
+
+□ Recommend legal review
+
+□ Restrict access
+
+--------------------------------------------------
+INVESTIGATION CONFIDENCE
+--------------------------------------------------
+
+Confidence represents certainty.
+
+Not mission completion.
+
+Mission Start:
+
+10%
+
+Evidence Found:
++10%
+
+Correlation Found:
++15%
+
+Root Cause Identified:
++20%
+
+Risk Validated:
++15%
+
+Recommendation Submitted:
++10%
+
+Mission Complete:
+80-100%
+
+--------------------------------------------------
+EVIDENCE PROGRESSION MODEL
+--------------------------------------------------
+
+Do NOT overwhelm beginners.
+
+Every artifact supports:
+
+BEGINNER VIEW
+
+ANALYST VIEW
+
+TECHNICAL VIEW
+
+--------------------------------------------------
+BEGINNER VIEW
+--------------------------------------------------
+
+"This user failed to log in several times before successfully accessing the account from an unfamiliar location."
+
+--------------------------------------------------
+ANALYST VIEW
+--------------------------------------------------
+
+"Repeated login failures followed by a successful login may indicate account compromise."
+
+--------------------------------------------------
+TECHNICAL VIEW
+--------------------------------------------------
+
+Raw authentication logs.
+
+IP addresses.
+
+Timestamps.
+
+Events.
+
+--------------------------------------------------
+COMMAND FRAMEWORK
+--------------------------------------------------
+
+Every command output follows:
+
+RAW EVIDENCE
+
+PLAIN-LANGUAGE OBSERVATION
+
+GUIDED QUESTION
+
+INTERPRETATION
+
+NOTEBOOK UPDATE
+
+CONFIDENCE UPDATE
+
+NEXT SUGGESTED STEP
+
+Never dump raw data without context.
+
+--------------------------------------------------
+MISSION 1 DESIGN
+--------------------------------------------------
+
+Protect Sensitive Information
+
+Core Competency:
+
+Data Protection
+
+Skills:
+
+- Classification
+- Sensitive Data Recognition
+- Policy Review
+- Escalation
+
+Student Questions:
+
+What information is sensitive?
+
+Who accessed it?
+
+Was access appropriate?
+
+Should this be escalated?
+
+Carry Flags:
+
+contractorAccessDiscovered
+
+contractorAccessIgnored
+
+legalReviewTriggered
+
+sensitiveDataExposed
+
+--------------------------------------------------
+MISSION 2 DESIGN
+--------------------------------------------------
+
+Investigate Network Assets
+
+Core Competency:
+
+Asset Security
+
+Skills:
+
+- Device Ownership
+- Asset Inventory
+- Service Review
+- Risk Assessment
+
+Student Questions:
+
+Does this device belong here?
+
+Who owns it?
+
+Why is it here?
+
+Should it be escalated?
+
+Carry Flags:
+
+rogueDeviceActive
+
+rogueDeviceContained
+
+contractorDeviceLinked
+
+--------------------------------------------------
+MISSION 3 DESIGN
+--------------------------------------------------
+
+Investigate Suspicious Authentication Activity
+
+Core Competency:
+
+Identity Security
+
+Skills:
+
+- Authentication Review
+- Identity Security
+- Login Analysis
+- Account Risk Assessment
+
+Student Questions:
+
+Was this login legitimate?
+
+Was the location expected?
+
+Is the account compromised?
+
+What should happen next?
+
+Carry Flags:
+
+mfaRecommended
+
+mfaApproved
+
+credentialRiskHigh
+
+contractorAccountCompromised
+
+--------------------------------------------------
+MISSION 4 DESIGN
+--------------------------------------------------
+
+Data Exfiltration Investigation
+
+Core Competency:
+
+Incident Investigation
+
+Skills:
+
+- Timeline Reconstruction
+- Event Correlation
+- Root Cause Analysis
+- Business Impact Assessment
+
+Student Questions:
+
+How did the incident begin?
+
+How did the attacker gain access?
+
+What data was affected?
+
+What business impact occurred?
+
+What should be reported?
+
+Mission 4 reveals:
+
+The contractor.
+
+The device.
+
+The account.
+
+The data transfer.
+
+All previous missions were connected.
+
+--------------------------------------------------
+MISSION REPORT SYSTEM
+--------------------------------------------------
+
+After every mission generate:
+
+Investigation Summary
+
+Key Findings
+
+Evidence Collected
+
+Recommendations
+
+Resource Impact
+
+Company Timeline Entry
+
+Supervisor Feedback
+
+Carry Forward Effects
+
+Mission Reports become permanent company records.
+
+--------------------------------------------------
+QUARTERLY PERFORMANCE REVIEW
+--------------------------------------------------
+
+After Mission 4
+
+Sarah Reyes conducts review.
+
+Evaluate:
+
+Observation Quality
+
+Evidence Quality
+
+Investigation Quality
+
+Documentation Quality
+
+Escalation Quality
+
+Recommendation Quality
+
+Risk Recognition
+
+Business Awareness
+
+Resource Outcomes:
+
+Security Posture
+
+Budget Impact
+
+Executive Trust
+
+Compliance Exposure
+
+Career Reputation
+
+Business Continuity
+
+Possible Results:
+
+Needs Additional Training
+
+Cybersecurity Intern II
+
+Senior Cybersecurity Intern
+
+Junior SOC Analyst Candidate
+
+Do NOT unlock next role.
+
+Only preview next career path.
+
+--------------------------------------------------
+SUCCESS CRITERIA
+--------------------------------------------------
+
+Students should finish the Intern role saying:
+
+"I investigated a cybersecurity incident inside a real company."
+
+Better:
+
+"I helped uncover a larger security problem affecting CyberCorp."
+
+Best:
+
+"I understand how cybersecurity professionals investigate, document, escalate, and assess risk."
+
+Students should NOT finish saying:
+
+"I completed four cybersecurity lessons."
+
+The role should feel like employment experience, not coursework.
