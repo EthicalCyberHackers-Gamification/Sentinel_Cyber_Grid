@@ -412,6 +412,290 @@ function careerRankName() {
 }
 
 /* ============================================================
+   COURSE PATH — left-column learning path (graduated from the
+   ops-center prototype). Replaces the old Alert Queue / Intel left
+   panel as the primary view; those are demoted into collapsibles
+   beneath it. Presentation-only: reads live progress through
+   missionMapStatus() and launches via the canonical
+   launchMissionFromMap() — it writes nothing.
+
+   COURSE_MISSION_META is keyed by MISSION ID and authored to match
+   the SHIPPING missions actually launched: career-sim owns 001–004,
+   so slot 004 is the Data Exfiltration case (NOT the legacy
+   registry's "Reconnaissance Sweep"). Region/severity mirror the
+   Global Ops Map nodes (OCV2_NODE_META).
+   ============================================================ */
+const COURSE_MISSION_META = {
+  "mission-001": {
+    region: "EMEA", severity: "HIGH",
+    title: "Protect Sensitive Information",
+    difficulty: "Beginner", duration: "~15 min",
+    objective: "Classify a sensitive release folder and review the suspicious contractor access before anything leaves the building.",
+    skills: ["Data classification", "Information handling"],
+  },
+  "mission-002": {
+    region: "APAC", severity: "MEDIUM",
+    title: "Investigate Network Assets",
+    difficulty: "Beginner", duration: "~15 min",
+    objective: "Map the office subnet, compare it to the approved inventory, and find the device that doesn't belong.",
+    skills: ["Network discovery", "Asset inventory"],
+  },
+  "mission-003": {
+    region: "NA-EAST", severity: "HIGH",
+    title: "Investigate Suspicious Authentication Activity",
+    difficulty: "Intermediate", duration: "~20 min",
+    objective: "Reconstruct the login timeline and decide whether the Finance account was really taken over.",
+    skills: ["Authentication analysis", "Timeline reconstruction"],
+  },
+  "mission-004": {
+    region: "LATAM", severity: "CRITICAL",
+    title: "Investigate a Data Exfiltration Incident",
+    difficulty: "Intermediate", duration: "~20 min",
+    objective: "Trace how customer data left the network and tie the four cases together as one adversary campaign.",
+    skills: ["Exfiltration analysis", "Insider threat"],
+  },
+  "mission-005": {
+    region: "MENA", severity: "MEDIUM",
+    title: "Account Takeover Investigation",
+    difficulty: "Intermediate", duration: "~20 min",
+    objective: "Identify the privileged accounts targeted in an MFA-bypass attempt and recommend a response.",
+    skills: ["Account-takeover triage", "IAM review"],
+  },
+  "mission-006": {
+    region: "SEA", severity: "LOW",
+    title: "Anomalous Scan Triage",
+    difficulty: "Advanced", duration: "~15 min",
+    objective: "Verify automated-scan attribution and log it for trend analysis.",
+    skills: ["Perimeter monitoring", "Threat attribution"],
+  },
+};
+
+// Role tracks across the play order: Intern (4) → Junior SOC Analyst (1) → SOC Analyst (1).
+const COURSE_GROUPS = [
+  { key: "intern", name: "Cybersecurity Intern", span: 4,
+    purpose: "Your foundational CyberCorp campaign — work the opening incidents one guided case at a time, under Sarah Reyes' supervision.",
+    unlock: "Open from day one." },
+  { key: "junior", name: "Junior SOC Analyst", span: 1,
+    purpose: "Validate alerts and reconstruct what happened across hosts, accounts, and logs.",
+    unlock: "Finish the Cybersecurity Intern track." },
+  { key: "analyst", name: "SOC Analyst", span: 1,
+    purpose: "Correlate signals across systems and recommend containment on your own.",
+    unlock: "Finish the Junior SOC Analyst track." },
+];
+
+// Build the path by slicing the canonical play order into the role spans. The
+// last group absorbs any remainder so every mission is always covered.
+const COURSE_PATH = (() => {
+  let cursor = 0;
+  return COURSE_GROUPS.map((g, idx) => {
+    const isLast = idx === COURSE_GROUPS.length - 1;
+    const missions = isLast
+      ? MISSION_PLAY_ORDER.slice(cursor)
+      : MISSION_PLAY_ORDER.slice(cursor, cursor + g.span);
+    cursor += missions.length;
+    const skills = [...new Set(missions.flatMap((id) => (COURSE_MISSION_META[id] || {}).skills || []))];
+    return { key: g.key, name: g.name, purpose: g.purpose, unlock: g.unlock, skills, missions };
+  });
+})();
+
+// Dev guard — the path must cover the play order exactly (catches drift if a
+// mission is added/reordered without updating the COURSE_GROUPS spans).
+{
+  const flat = COURSE_PATH.flatMap((r) => r.missions);
+  if (flat.length !== MISSION_PLAY_ORDER.length || flat.some((id, i) => id !== MISSION_PLAY_ORDER[i])) {
+    console.warn("[course-path] COURSE_PATH does not cover MISSION_PLAY_ORDER exactly", flat, MISSION_PLAY_ORDER);
+  }
+}
+
+const COURSE_STATUS_LABEL = { ready: "READY", active: "ACTIVE", completed: "COMPLETED", locked: "LOCKED" };
+
+function courseSeverityClass(sev) {
+  return { CRITICAL: "critical", HIGH: "high", MEDIUM: "medium", LOW: "low" }[sev] || "low";
+}
+
+// Map the canonical missionMapStatus() (completed/available/locked) onto the
+// course-path vocabulary. There's no in-progress tracking, so "available"
+// surfaces as "ready".
+function courseMissionStatus(missionId) {
+  const s = missionMapStatus(missionId);
+  if (s === "completed") return "completed";
+  if (s === "locked") return "locked";
+  return "ready";
+}
+
+function courseRoleStatus(role) {
+  const states = role.missions.map((id) => courseMissionStatus(id));
+  const total = states.length;
+  const done = states.filter((s) => s === "completed").length;
+  let status;
+  if (total > 0 && done === total) status = "completed";
+  else if (states.some((s) => s !== "locked")) status = "active";
+  else status = "locked";
+  return { status, done, total };
+}
+
+// Selection state for the inspector (module-scoped so it survives re-renders).
+let coursePathPinned = null;
+const coursePathCollapsedRoles = new Set();
+
+// First not-completed, not-locked mission — the player's current step.
+function defaultCoursePathItem() {
+  for (const role of COURSE_PATH) {
+    for (const id of role.missions) {
+      const st = courseMissionStatus(id);
+      if (st === "ready" || st === "active") return { type: "mission", id };
+    }
+  }
+  return { type: "mission", id: COURSE_PATH[0].missions[0] };
+}
+
+function renderCoursePath() {
+  const root = document.getElementById("coursePath");
+  if (!root) return;
+  root.innerHTML = "";
+
+  COURSE_PATH.forEach((role) => {
+    const rs = courseRoleStatus(role);
+    const collapsed = coursePathCollapsedRoles.has(role.key);
+
+    const group = document.createElement("div");
+    group.className = `cp-group cp-group--${rs.status}` + (collapsed ? " cp-group--collapsed" : "");
+
+    const roleStatusText =
+      rs.status === "locked" ? "Locked" : rs.status === "completed" ? "Complete" : "In progress";
+
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "cp-role";
+    head.setAttribute("aria-expanded", String(!collapsed));
+    head.innerHTML =
+      `<span class="cp-role-caret" aria-hidden="true">${collapsed ? "▸" : "▾"}</span>` +
+      `<span class="cp-role-name">${escapeHtml(role.name)}</span>` +
+      `<span class="cp-role-meta">` +
+        `<span class="cp-role-status cp-role-status--${rs.status}">${escapeHtml(roleStatusText)}</span>` +
+        `<span class="cp-role-count">${rs.done} / ${rs.total}</span>` +
+      `</span>`;
+    head.addEventListener("click", () => {
+      if (coursePathCollapsedRoles.has(role.key)) coursePathCollapsedRoles.delete(role.key);
+      else coursePathCollapsedRoles.add(role.key);
+      renderCoursePath();
+    });
+    const previewRole = () => showPathInspector({ type: "role", id: role.key });
+    head.addEventListener("mouseenter", previewRole);
+    head.addEventListener("focus", previewRole);
+    group.appendChild(head);
+
+    const list = document.createElement("div");
+    list.className = "cp-missions";
+    role.missions.forEach((missionId) => {
+      const meta = COURSE_MISSION_META[missionId];
+      if (!meta) return;
+      const st = courseMissionStatus(missionId);
+      const item = { type: "mission", id: missionId };
+
+      const row = document.createElement("button");
+      row.type = "button";
+      const isSelected =
+        coursePathPinned && coursePathPinned.type === "mission" && coursePathPinned.id === missionId;
+      row.className = `cp-mission cp-mission--${st}` + (isSelected ? " cp-mission--selected" : "");
+      const chip = st === "completed" ? "✓ DONE" : COURSE_STATUS_LABEL[st];
+      row.innerHTML =
+        `<span class="cp-sev cp-sev--${courseSeverityClass(meta.severity)}" aria-hidden="true"></span>` +
+        `<span class="cp-status-chip cp-status-chip--${st}">${escapeHtml(chip)}</span>` +
+        `<span class="cp-mission-title">${escapeHtml(meta.title)}</span>`;
+      row.setAttribute("aria-label", `${meta.title} — ${COURSE_STATUS_LABEL[st]}`);
+      row.addEventListener("click", () => {
+        coursePathPinned = item;
+        showPathInspector(item);
+        root.querySelectorAll(".cp-mission--selected").forEach((n) => n.classList.remove("cp-mission--selected"));
+        row.classList.add("cp-mission--selected");
+      });
+      const previewMission = () => showPathInspector(item);
+      row.addEventListener("mouseenter", previewMission);
+      row.addEventListener("focus", previewMission);
+      list.appendChild(row);
+    });
+    group.appendChild(list);
+    root.appendChild(group);
+  });
+
+  // Restore the inspector to the pinned selection (or the current step) when the
+  // pointer leaves, and seed it on every render.
+  root.onmouseleave = () => showPathInspector(coursePathPinned || defaultCoursePathItem());
+  showPathInspector(coursePathPinned || defaultCoursePathItem());
+}
+
+function showPathInspector(item) {
+  const el = document.getElementById("pathInspector");
+  if (!el) return;
+  if (!item) item = defaultCoursePathItem();
+
+  if (item.type === "role") {
+    const role = COURSE_PATH.find((r) => r.key === item.id);
+    if (!role) return;
+    const rs = courseRoleStatus(role);
+    const statusText =
+      rs.status === "locked" ? "Locked" : rs.status === "completed" ? "Complete" : "In progress";
+    const titles = role.missions
+      .map((id) => (COURSE_MISSION_META[id] || {}).title)
+      .filter(Boolean)
+      .join(" · ");
+    el.innerHTML =
+      `<div class="pi-kicker">ROLE TRACK</div>` +
+      `<div class="pi-title">${escapeHtml(role.name)}</div>` +
+      `<div class="pi-status pi-status--${rs.status}">${escapeHtml(statusText)} · ${rs.done}/${rs.total} cases</div>` +
+      `<p class="pi-purpose">${escapeHtml(role.purpose)}</p>` +
+      `<div class="pi-field"><span class="pi-label">Cases</span><span class="pi-value">${escapeHtml(titles)}</span></div>` +
+      `<div class="pi-field"><span class="pi-label">Unlocks</span><span class="pi-value">${escapeHtml(role.unlock)}</span></div>` +
+      (role.skills.length
+        ? `<div class="pi-field"><span class="pi-label">Skills</span><span class="pi-value">${escapeHtml(role.skills.join(", "))}</span></div>`
+        : "");
+    return;
+  }
+
+  const missionId = item.id;
+  const meta = COURSE_MISSION_META[missionId];
+  if (!meta) return;
+  const st = courseMissionStatus(missionId);
+  const chipLabel = st === "completed" ? "✓ COMPLETED" : COURSE_STATUS_LABEL[st];
+
+  let actionHtml;
+  if (st === "locked") {
+    actionHtml = `<button class="pi-launch pi-launch--locked" type="button" disabled>🔒 Locked</button>`;
+  } else {
+    const label = st === "completed" ? "▶ Replay case" : "▶ Start mission";
+    actionHtml = `<button class="pi-launch" type="button" data-launch="${escapeHtml(missionId)}">${label}</button>`;
+  }
+  const lockedNote = st === "locked"
+    ? `<div class="pi-field"><span class="pi-label">Locked</span><span class="pi-value">Complete the previous case to unlock this one.</span></div>`
+    : "";
+
+  el.innerHTML =
+    `<div class="pi-kicker">CASE · ${escapeHtml(meta.region)}</div>` +
+    `<div class="pi-title">${escapeHtml(meta.title)}</div>` +
+    `<div class="pi-badges">` +
+      `<span class="cp-status-chip cp-status-chip--${st}">${escapeHtml(chipLabel)}</span>` +
+      `<span class="pi-sev pi-sev--${courseSeverityClass(meta.severity)}">${escapeHtml(meta.severity)}</span>` +
+    `</div>` +
+    `<p class="pi-purpose">${escapeHtml(meta.objective)}</p>` +
+    `<div class="pi-field"><span class="pi-label">Difficulty</span><span class="pi-value">${escapeHtml(meta.difficulty || "—")}</span></div>` +
+    `<div class="pi-field"><span class="pi-label">Est. time</span><span class="pi-value">${escapeHtml(meta.duration || "—")}</span></div>` +
+    `<div class="pi-field"><span class="pi-label">Skills</span><span class="pi-value">${escapeHtml((meta.skills || []).join(", "))}</span></div>` +
+    lockedNote +
+    `<div class="pi-actions">${actionHtml}</div>`;
+
+  const btn = el.querySelector("[data-launch]");
+  if (btn) btn.addEventListener("click", () => coursePathLaunch(missionId));
+}
+
+// Launch a course-path mission through the canonical OC launch flow (it guards
+// locked state and the onboarding gate internally).
+function coursePathLaunch(missionId) {
+  if (missionMapStatus(missionId) === "locked") return;
+  launchMissionFromMap(missionId, true);
+}
+
+/* ============================================================
    CyberCorp identity card — OCV2 home, right column (#ocIdentity)
    ------------------------------------------------------------
    Presentation-only chrome ported from the career prototype. The
@@ -8117,6 +8401,19 @@ function initOcv2() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && ocv2ActiveNodeId) hideOcv2IncidentCard();
   });
+
+  // Demoted monitoring sections (Alert Queue / Intel Updates) — collapsed by
+  // default so the Course Path leads. Toggle expand/collapse on header click.
+  document.querySelectorAll(".oc-collapsible-head[data-collapse]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const sec = document.getElementById(btn.dataset.collapse);
+      if (!sec) return;
+      const collapsed = sec.classList.toggle("oc-collapsible--collapsed");
+      btn.setAttribute("aria-expanded", String(!collapsed));
+      const caret = btn.querySelector(".cp-role-caret");
+      if (caret) caret.textContent = collapsed ? "▸" : "▾";
+    });
+  });
 }
 
 /**
@@ -8304,6 +8601,10 @@ function renderOcPanelV2() {
       glyph.remove();
     }
   });
+
+  // Course Path (graduated from the prototype) — left-column learning path.
+  // Reflects live progress; re-rendered on every OC render.
+  renderCoursePath();
 
   // Refresh incident card if it's visible (state may have changed)
   if (ocv2ActiveNodeId) showOcv2IncidentCard(ocv2ActiveNodeId);

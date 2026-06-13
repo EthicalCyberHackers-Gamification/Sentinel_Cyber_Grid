@@ -136,31 +136,45 @@
       <!-- THREE-PANEL BODY -->
       <main class="ocv2-body">
 
-        <!-- LEFT — ALERT QUEUE + INTEL UPDATES -->
-        <aside class="ocv2-panel ocv2-panel--left" aria-label="Alert queue and intel">
+        <!-- LEFT — COURSE PATH (graduated from prototype) + demoted monitoring -->
+        <aside class="ocv2-panel ocv2-panel--left" aria-label="Course path and monitoring">
           <div class="ocv2-panel-head">
             <div class="ocv2-phead-title">
-              <span class="ocv2-phead-icon" aria-hidden="true">◉</span>
-              <span>ALERT QUEUE</span>
+              <span class="ocv2-phead-icon" aria-hidden="true">◈</span>
+              <span>COURSE PATH</span>
             </div>
-            <div class="ocv2-phead-badge" id="ocv2AlertCount">3 ACTIVE</div>
+            <div class="ocv2-phead-badge">PROGRESS</div>
           </div>
 
-          <div class="ocv2-alert-feed" id="ocv2AlertFeed" role="log" aria-live="polite" aria-label="Mission alert queue"></div>
+          <div class="course-path" id="coursePath" aria-label="Course path"></div>
 
-          <div class="ocv2-panel-divider"></div>
+          <div class="path-inspector" id="pathInspector" aria-live="polite" aria-label="Path inspector"></div>
 
-          <div class="ocv2-panel-head ocv2-panel-head--sm">
-            <div class="ocv2-phead-title">
-              <span class="ocv2-phead-icon" aria-hidden="true">▤</span>
-              <span>INTEL UPDATES</span>
+          <!-- Demoted monitoring: Alert Queue + Intel Updates, collapsed by default -->
+          <div class="oc-collapsible oc-collapsible--collapsed" id="ocAlertSection">
+            <button class="oc-collapsible-head" type="button" aria-expanded="false" data-collapse="ocAlertSection">
+              <span class="cp-role-caret" aria-hidden="true">▸</span>
+              <span class="ocv2-phead-title"><span class="ocv2-phead-icon" aria-hidden="true">◉</span><span>ALERT QUEUE</span></span>
+              <span class="ocv2-phead-badge" id="ocv2AlertCount">3 ACTIVE</span>
+            </button>
+            <div class="oc-collapsible-body">
+              <div class="ocv2-alert-feed" id="ocv2AlertFeed" role="log" aria-live="polite" aria-label="Mission alert queue"></div>
             </div>
           </div>
-          <div class="ocv2-bulletin" id="ocv2Bulletin" style="display:none;" aria-live="polite">
-            <span class="ocv2-bulletin-tag" id="ocv2BulletinTag">ADVISORY</span>
-            <span class="ocv2-bulletin-text" id="ocv2BulletinText"></span>
+
+          <div class="oc-collapsible oc-collapsible--collapsed" id="ocIntelSection">
+            <button class="oc-collapsible-head" type="button" aria-expanded="false" data-collapse="ocIntelSection">
+              <span class="cp-role-caret" aria-hidden="true">▸</span>
+              <span class="ocv2-phead-title"><span class="ocv2-phead-icon" aria-hidden="true">▤</span><span>INTEL UPDATES</span></span>
+            </button>
+            <div class="oc-collapsible-body">
+              <div class="ocv2-bulletin" id="ocv2Bulletin" style="display:none;" aria-live="polite">
+                <span class="ocv2-bulletin-tag" id="ocv2BulletinTag">ADVISORY</span>
+                <span class="ocv2-bulletin-text" id="ocv2BulletinText"></span>
+              </div>
+              <div class="ocv2-intel-feed" id="ocv2IntelFeed"></div>
+            </div>
           </div>
-          <div class="ocv2-intel-feed" id="ocv2IntelFeed"></div>
         </aside>
 
         <!-- CENTER — GLOBAL OPERATIONS MAP -->
