@@ -42,6 +42,15 @@ in lab.js, which would otherwise steal the launch). Gating is three layers:
 The `?career=<id>` deep-link in sim.js calls `openCareerMission` DIRECTLY and
 INTENTIONALLY bypasses all of this for demos/testing — don't "fix" that.
 
+## Terminal placeholder must track the command model
+The `#simTermInput` placeholder is the most prominent "what do I type" cue. Its
+static default ("try `ls`, then `cat <file>`") is wrong for command-model missions —
+typing `ls` there returns "command not found", which reads as a broken terminal.
+`openCareerMission` sets it per-mission via `simTermPlaceholder(def)`: command-model
+missions suggest their first `core` (or first) command's `match[0]` (e.g.
+`cat auth.log`, `ip addr`); file-model missions keep the ls/cat hint. **Any new
+"what to type" hint must be derived from `def.commands`, never hard-coded.**
+
 ## Carry-forward flags
 Each mission declares `def.carryFlags:[{key,label}]`; flags persist in the shared
 `CAREER.missionFlags` and `reportSectionHtml` shows only the active mission's

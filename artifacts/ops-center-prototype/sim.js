@@ -288,6 +288,20 @@ const SIM = {
 
 function careerMission() { return SIM.def; }
 
+/* Per-mission terminal hint. Command-model missions (def.commands[]) define their
+ * own verbs, so `ls`/`cat <file>` return "command not found" there — suggest the
+ * mission's real starting command instead. File-model missions keep the ls/cat hint. */
+function simTermPlaceholder(def) {
+  if (def && Array.isArray(def.commands) && def.commands.length) {
+    const first = def.commands.find(c => c.core) || def.commands[0];
+    const start = first && first.match && first.match[0];
+    return start
+      ? 'type a command — try `' + start + '`, or `help`'
+      : 'type a command — try `help`';
+  }
+  return 'type a command — try `ls`, then `cat <file>`, or `help`';
+}
+
 function openCareerMission(missionId) {
   const def = CAREER_MISSIONS[missionId];
   if (!def) return;
@@ -327,7 +341,10 @@ function openCareerMission(missionId) {
   renderFeedbackPanel();
 
   const input = document.getElementById('simTermInput');
-  if (input) setTimeout(() => input.focus(), 50);
+  if (input) {
+    input.placeholder = simTermPlaceholder(def);
+    setTimeout(() => input.focus(), 50);
+  }
 }
 
 function returnFromCareerMission() {
