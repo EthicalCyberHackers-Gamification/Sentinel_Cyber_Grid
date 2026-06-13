@@ -2660,26 +2660,28 @@ const CAREER_MISSIONS = {
       ],
     },
 
-    // Reactive identity/auth map (Task #97) — review-only, same engine as
-    // mission-002. Nodes/links stay hidden until the terminal surfaces the
-    // matching evidence; nothing is persisted or scored. Only the corporate
-    // sign-in service is seeded (genuinely pre-known infrastructure). The
-    // targeted account, the external attacker, the impossible-travel session,
-    // the sensitive-data access and the contractor tie each appear ONLY once
-    // their proving evidence is found — the map never names the culprit early.
+    // Reactive identity/auth map — review-only, same engine as mission-002.
+    // Nodes/links stay hidden until the terminal surfaces the matching
+    // evidence; nothing is persisted or scored. Only the corporate sign-in /
+    // alerting service is seeded (genuinely pre-known infrastructure). The
+    // targeted account, the external attacker, the brute-force-then-success,
+    // the impossible-travel session, the MFA-off state, the password reset /
+    // lockout, the sensitive-data access and the contractor tie each appear
+    // ONLY once their proving evidence is found — the map never names the
+    // culprit or a finding early.
     map: {
       cap: 'IDENTITY & AUTH · SIGN-IN REVIEW — NA-EAST REGION',
       hint: 'Red marks the external source driving the takeover and the assets it reached. Select any node or connection for analyst intel.',
       nodes: {
         authsys: {
-          x: 50, y: 12, glyph: '🔐', label: 'auth.cybercorp', sub: 'sign-in service', seed: true, status: 'identified',
+          x: 50, y: 10, glyph: '🔐', label: 'auth.cybercorp', sub: 'sign-in & alerting', seed: true, status: 'identified',
           intel: {
-            what: 'The corporate sign-in service every account authenticates through, and where login events are recorded.',
-            technique: 'It is the system under review — the authentication log (cat auth.log) is read from here.',
-            why: 'It is the central record of every login attempt, so all account activity is reviewed against it.' },
+            what: 'The corporate sign-in service every account authenticates through — and the system that raised this login alert.',
+            technique: 'It is the system under review — auth.log and the failed-login alert both originate here.',
+            why: 'It records every login attempt and flags abnormal bursts, so all account activity is reviewed against it.' },
         },
         account: {
-          x: 50, y: 48, glyph: '👤', label: 'a.okafor', sub: 'Finance Controller',
+          x: 50, y: 40, glyph: '👤', label: 'a.okafor', sub: 'Finance Controller',
           revealBy: 'ev_overview', statusBy: { ev_overview: 'target' },
           intel: {
             what: 'The Finance Controller account named in the brief — the one the authentication alert fired on.',
@@ -2687,23 +2689,39 @@ const CAREER_MISSIONS = {
             why: 'It is the account under review; confirming whether it was taken over is the whole point of the case.' },
         },
         attacker: {
-          x: 84, y: 22, glyph: '🌐', label: '203.0.113.44', sub: 'external source',
-          revealBy: 'ev_overview', status: 'unknown', statusBy: { ev_success: 'suspicious', ev_contractor_tie: 'suspicious' },
+          x: 84, y: 20, glyph: '🌐', label: '203.0.113.44', sub: 'external source',
+          revealBy: 'ev_overview', status: 'unknown', statusBy: { ev_failures: 'suspicious', ev_success: 'suspicious', ev_contractor_tie: 'suspicious' },
           intel: {
-            what: 'The external source address behind the login attempts — later traced to the recurring contractor.',
-            technique: 'It is the src on every failed and successful login in auth.log; contractor_activity.log attributes it.',
+            what: 'The external source address behind this account\u2019s login attempts.',
+            technique: 'It is the src on every failed and successful login in auth.log.',
             why: 'One outside address driving dozens of failures then a success is the signature of a credential attack.' },
         },
         homebase: {
-          x: 16, y: 28, glyph: '🏢', label: 'London, UK', sub: 'usual session',
+          x: 14, y: 26, glyph: '🏢', label: 'London, UK', sub: 'usual session',
           revealBy: 'ev_location', status: 'identified',
           intel: {
             what: 'The account\u2019s usual London location, with a normal session open at the same time as the attack.',
             technique: 'cat login_locations.log — every prior login is London, and a concurrent London session is noted.',
             why: 'A real London session at the moment of a Lagos login proves the two cannot be the same person.' },
         },
+        controls: {
+          x: 16, y: 60, glyph: '🔑', label: 'MFA + sign-in', sub: 'account security',
+          revealBy: 'ev_mfa_off', statusBy: { ev_mfa_off: 'target', ev_changes: 'target', ev_reset: 'target' },
+          intel: {
+            what: 'This account\u2019s multi-factor protection — now switched OFF.',
+            technique: 'cat mfa_status.txt — MFA shows DISABLED; it was ENABLED until 03:21.',
+            why: 'With MFA off, only the password is left guarding the account.' },
+        },
+        lockout: {
+          x: 38, y: 78, glyph: '🔒', label: 'password reset', sub: 'owner locked out',
+          revealBy: 'ev_reset', statusBy: { ev_reset: 'target' },
+          intel: {
+            what: 'The account password, reset from the attacker\u2019s address so the real owner is locked out.',
+            technique: 'grep password_reset user_access.log — a reset issued from 203.0.113.44 (Lagos).',
+            why: 'Resetting the password is how the intruder keeps control and stops the owner regaining access.' },
+        },
         finance_data: {
-          x: 50, y: 88, glyph: '💰', label: 'finance_share', sub: 'payroll · payments',
+          x: 68, y: 82, glyph: '💰', label: 'finance_share', sub: 'payroll · payments',
           revealBy: 'ev_access', statusBy: { ev_access: 'target' },
           intel: {
             what: 'The Finance share holding payroll and customer-payment data the compromised account opened.',
@@ -2711,7 +2729,7 @@ const CAREER_MISSIONS = {
             why: 'It is the sensitive data now exposed through the takeover — the real impact of the incident.' },
         },
         contractor: {
-          x: 86, y: 64, glyph: '👷', label: 'ext-contractor-07', sub: 'J. Demir (disabled)',
+          x: 86, y: 60, glyph: '👷', label: 'ext-contractor-07', sub: 'J. Demir (disabled)',
           revealBy: 'ev_contractor_tie', statusBy: { ev_contractor_tie: 'suspicious' },
           intel: {
             what: 'The recurring vendor (J. Demir / ext-contractor-07) whose own account was already disabled.',
@@ -2727,14 +2745,24 @@ const CAREER_MISSIONS = {
             why: 'It is the normal login path; the attack shows up as abnormal events along this same path.' } },
         { a: 'attacker', b: 'account', revealBy: 'ev_overview', danger: true,
           intel: {
-            what: '47 failed logins in seven minutes then a success against this account, all from one external address.',
-            technique: 'cat auth.log, then grep failed auth.log and grep successful auth.log.',
-            why: 'A failure burst ending in a success is a brute-force that worked — the moment of takeover.' } },
+            what: 'Repeated failed logins followed by a success against this account, all from one external address.',
+            technique: 'cat auth.log; grep failed auth.log and grep successful auth.log quantify the burst and the success.',
+            why: 'A wave of failures ending in a success is a brute-force that worked — the moment of takeover.' } },
         { a: 'homebase', b: 'account', revealBy: 'ev_location',
           intel: {
             what: 'A legitimate London session for the same account, open at the time of the foreign login.',
             technique: 'cat login_locations.log — usual London logins plus a concurrent London session.',
-            why: 'Two sessions thousands of km apart minutes apart is impossible travel — the Lagos login is an intruder.' } },
+            why: 'A real London session running while a login arrives from a never-used place means the foreign login is someone else.' } },
+        { a: 'attacker', b: 'controls', revealBy: 'ev_changes', danger: true,
+          intel: {
+            what: 'Right after logging in, the intruder disabled MFA, added mail forwarding and changed the password.',
+            technique: 'cat account_changes.log — MFA off (03:21), mail-forward added, password changed, all from 203.0.113.44.',
+            why: 'Altering these settings strips the account\u2019s defences and cements the takeover.' } },
+        { a: 'attacker', b: 'lockout', revealBy: 'ev_reset', danger: true,
+          intel: {
+            what: 'The intruder reset the account password from its own address, locking the real owner out.',
+            technique: 'grep password_reset user_access.log — reset issued from 203.0.113.44 (Lagos).',
+            why: 'A password reset from the attacker\u2019s location is persistence — the owner can no longer get back in.' } },
         { a: 'account', b: 'finance_data', revealBy: 'ev_access', danger: true,
           intel: {
             what: 'After the takeover the account opened payroll and customer-payment data and downloaded a compensation file.',

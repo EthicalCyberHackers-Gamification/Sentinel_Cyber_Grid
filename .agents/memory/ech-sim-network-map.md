@@ -3,7 +3,7 @@ name: Sim reactive Network Map (career-sim popup)
 description: Review-only device-map overlay for ops-center-prototype career missions — its presentation-only invariant, the evidence-driven reveal model, and the body-not-careerOps overlay gotcha.
 ---
 
-# Sim reactive Network Map (Task #94, prototype)
+# Sim reactive Network Map (ops-center-prototype)
 
 On-demand "◈ NETWORK MAP" popup for career-sim missions (`sim.js`/`sim.css`/
 `index.html` in `artifacts/ops-center-prototype`). Same presentation-only family
@@ -63,7 +63,13 @@ re-run `node --check` + `rg demomap`). Per-mission full-map ids:
   `ev_customer_pii`, `ev_confidential_pricing`, `ev_confidential_roadmap`,
   `ev_public_safe`.
 - M2: `ev_subnet`, `ev_unknown_host`, `ev_not_in_inventory`, `ev_probe`.
-- M3: `ev_overview`, `ev_success`, `ev_access`, `ev_location`, `ev_contractor_tie`.
+- M3 (8 nodes): `ev_overview`, `ev_failures`, `ev_success`, `ev_location`,
+  `ev_mfa_off`, `ev_changes`, `ev_reset`, `ev_access`, `ev_contractor_tie`. The M3
+  map must cover the full takeover chain the task spells out — targeted account,
+  attacker source, brute-force→success, impossible-travel, **MFA-off** (controls
+  node, `ev_mfa_off`), **password reset / lockout** (lockout node, `ev_reset`),
+  sensitive-data access, contractor tie — plus auth+alerting (the seed authsys
+  carries the alerting role; no separate SIEM node needed, no evidence backs one).
 Empty-map (no ids) must show ONLY seeds with a neutral caption — that screenshot
 is the no-spoiler proof (M1 seeds: contractor+release pkg → "2 of 8"; M3 seed:
-auth.cybercorp → "1 of 6").
+auth.cybercorp → "1 of 8").
