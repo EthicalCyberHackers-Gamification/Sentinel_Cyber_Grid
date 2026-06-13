@@ -933,6 +933,8 @@ function simRunCommand(raw) {
   if (verb === 'help')  return simCmdHelp();
   if (verb === 'clear') { const out = document.getElementById('simTerminal'); if (out) out.innerHTML = ''; return; }
   if (verb === 'decide' || verb === 'actions') return simRevealActions(true);
+  if (verb === 'pwd')   return simCmdPwd();
+  if (verb === 'ls' || verb === 'dir') return simCmdList();
 
   // Command-model missions (M2+) define their own command set.
   if (SIM.def && Array.isArray(SIM.def.commands) && SIM.def.commands.length) {
@@ -961,6 +963,8 @@ function simCmdHelp() {
       const name = (c.match && c.match[0]) || c.id;
       simPrint('  ' + name.padEnd(26) + (c.help || ''), 'dim');
     });
+    simPrint('  ' + 'ls'.padEnd(26) + 'list the files in this directory', 'dim');
+    simPrint('  ' + 'pwd'.padEnd(26) + 'show the current directory', 'dim');
     simPrint('  ' + 'decide'.padEnd(26) + 'review your findings and choose a response', 'dim');
     simPrint('  ' + 'clear'.padEnd(26) + 'clear the terminal', 'dim');
     return;
@@ -969,6 +973,7 @@ function simCmdHelp() {
   simPrint('  ls            list the files queued for release', 'dim');
   simPrint('  cat <file>    read a file (surfaces evidence)', 'dim');
   simPrint('  less <file>   page through a file (same as cat here)', 'dim');
+  simPrint('  pwd           show the current directory', 'dim');
   simPrint('  decide        reveal the handling actions when ready', 'dim');
   simPrint('  clear         clear the terminal', 'dim');
 }
@@ -1075,6 +1080,53 @@ function simCmdLs() {
   simPrint(`release/  —  ${files.length} files queued for external release`, 'head');
   files.forEach(f => simPrint(`  ${f.name}${SIM.read.has(f.name) ? '   ✓ reviewed' : ''}`, 'file'));
   simPrint('Read each file with  cat <file>  to assess its sensitivity.', 'dim');
+}
+
+/* `ls` / `pwd` are universal navigation helpers — non-scoring: they never surface
+ * evidence or count as a command run. File-model missions keep the original
+ * release-folder listing; command-model missions list the files their commands read. */
+function simCmdList() {
+  const def = SIM.def;
+  if (def && Array.isArray(def.commands) && def.commands.length) return simCmdLsCommands();
+  return simCmdLs();
+}
+
+/* Derive the readable filenames a command-model mission references from the
+ * file-like tokens in its command aliases (e.g. `cat auth.log` -> auth.log).
+ * Tokens like 192.168.1.57 or 192.168.1.0/24 are excluded (no alpha extension). */
+function missionCommandFiles() {
+  const cmds = (SIM.def && SIM.def.commands) || [];
+  const seen = new Set();
+  const files = [];
+  cmds.forEach(c => (c.match || []).forEach(alias => {
+    String(alias).split(/\s+/).forEach(tok => {
+      if (/^[\w./-]+\.[a-z]{2,4}$/i.test(tok) && !seen.has(tok)) {
+        seen.add(tok);
+        files.push(tok);
+      }
+    });
+  }));
+  return files;
+}
+
+function simCmdLsCommands() {
+  const files = missionCommandFiles();
+  if (!files.length) {
+    simPrint('No readable files here — this mission works through live tools.', 'dim');
+    simPrint('Type  help  to see the available commands.', 'dim');
+    return;
+  }
+  simPrint(`${files.length} file${files.length === 1 ? '' : 's'} in this directory:`, 'head');
+  files.forEach(f => simPrint('  ' + f, 'file'));
+  simPrint('Read one with  cat <file>  — or type  help  for the full command list.', 'dim');
+}
+
+/* Print the working directory taken from the mission's prompt label. */
+function simCmdPwd() {
+  const label = (SIM.def && SIM.def.promptLabel) || 'intern@cybercorp:~/release$';
+  let path = label.slice(label.lastIndexOf(':') + 1).replace(/\$\s*$/, '').trim();
+  if (!path) path = '~';
+  simPrint(path.replace(/^~/, '/home/intern'), 'file');
 }
 
 function simCmdRead(arg, mode) {

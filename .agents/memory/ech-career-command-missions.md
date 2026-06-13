@@ -51,6 +51,19 @@ missions suggest their first `core` (or first) command's `match[0]` (e.g.
 `cat auth.log`, `ip addr`); file-model missions keep the ls/cat hint. **Any new
 "what to type" hint must be derived from `def.commands`, never hard-coded.**
 
+## `ls` / `pwd` are universal, non-scoring helpers
+`ls`/`dir`/`pwd` are handled in the universal-verb block of `simRunCommand`
+(alongside help/clear/decide), so they work in BOTH mission models and must NEVER
+surface evidence or count toward `ranCommands`/thoroughness. `simCmdList()` routes
+by model: file-model → original `simCmdLs()` (preserve byte-identical); command-model
+→ `simCmdLsCommands()`, whose file list is DERIVED from the missions' command
+aliases via `missionCommandFiles()` (regex keeps only tokens ending in an alpha
+extension, so `192.168.1.57` / `192.168.1.0/24` are excluded). **Why derive, not
+author:** the listing stays in sync with the commands automatically. `pwd` prints
+the cwd parsed from `def.promptLabel` (`~` → `/home/intern`). Edge: a file that only
+appears in a `grep ... file` alias (e.g. `network_notes.txt`) is listed by `ls` but
+has no `cat <file>` command wired — acceptable.
+
 ## Carry-forward flags
 Each mission declares `def.carryFlags:[{key,label}]`; flags persist in the shared
 `CAREER.missionFlags` and `reportSectionHtml` shows only the active mission's
