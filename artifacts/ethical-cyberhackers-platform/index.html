@@ -20,6 +20,7 @@
          Scoped to .screen / .sc-* / .lab-* selectors (no collisions with
          style.css). See lab.js for behaviour. -->
     <link rel="stylesheet" href="/lab.css" />
+    <link rel="stylesheet" href="/career-sim.css" />
   </head>
   <body>
     <!-- Milestone 24E-2 — Interactive Alert Modal root.
@@ -83,6 +84,11 @@
          existing renderOperationsCenter() / renderAnalystProfile() logic
          continues to run without modification. -->
     <section id="moduleLanding" class="module-landing ocv2-screen" aria-label="Operations Center">
+
+      <!-- Career resource bar (six organizational meters + role/authority).
+           Populated by career-sim.js renderResourceBar() — one render fills
+           every .sim-resbar host on the page. Presentation-only chrome. -->
+      <div class="sim-resbar" aria-label="Organizational resources"></div>
 
       <!-- OPS CENTER V2 HEADER -->
       <header class="ocv2-header">
@@ -330,6 +336,12 @@
 
         <!-- RIGHT — SOC COMMUNICATIONS + ANALYST ROSTER -->
         <aside class="ocv2-panel ocv2-panel--right" aria-label="SOC communications">
+
+          <!-- CyberCorp identity card (role / clearance / advancement / queue).
+               Populated by renderIdentityPanel() in script.js — derived from
+               deriveCareerState() + the mission play order. Presentation-only. -->
+          <div class="oc-identity" id="ocIdentity"></div>
+
           <div class="ocv2-panel-head">
             <div class="ocv2-phead-title">
               <span class="ocv2-phead-icon" aria-hidden="true">◈</span>
@@ -443,6 +455,64 @@
       </div>
 
     </section>
+
+    <!-- ============================================================
+         CAREER OPERATING CENTER (career simulator — mission interior).
+         Four panels: Mission Brief / Evidence / Terminal+Action / Feedback.
+         Static hosts; career-sim.js (isolated ES module) populates them and
+         persists career state through the shipping saveProgress() chokepoint
+         (ech.progress.v1 'career' namespace). Hidden until a career mission
+         launches; the shipping site header/footer stay visible above/below.
+         ============================================================ -->
+    <div id="careerOps" class="screen screen--career" style="display:none;" aria-label="Career Operating Center">
+
+      <!-- Always-visible resource bar (populated by career-sim.js) -->
+      <div class="sim-resbar" aria-label="Organizational resources"></div>
+
+      <div class="career-header">
+        <button class="career-back-btn" id="careerBackBtn" type="button">
+          ← RETURN TO OPERATIONS CENTER
+        </button>
+        <div class="career-incident-strip">
+          <span class="career-severity" id="careerSeverity" data-severity="HIGH">HIGH</span>
+          <span class="career-region" id="careerRegion">EMEA REGION</span>
+          <span class="career-sep" aria-hidden="true">—</span>
+          <span class="career-title" id="careerTitle">Protect Sensitive Information</span>
+        </div>
+        <button class="career-reset-btn" id="simResetBtn" type="button" title="Reset career progress">
+          ⟲ RESET
+        </button>
+      </div>
+
+      <div class="career-main">
+
+        <!-- Panel 1 — Mission Brief -->
+        <section class="sim-panel sim-panel--brief" id="simBrief" aria-label="Mission brief"></section>
+
+        <!-- Panel 3 — Investigation terminal + decision actions -->
+        <section class="sim-panel sim-panel--work" aria-label="Investigation terminal and actions">
+          <div class="sim-panel-head">
+            <span>INVESTIGATION TERMINAL</span>
+            <button type="button" class="sim-map-btn" id="simMapBtn" data-map-open hidden>◈ NETWORK MAP</button>
+          </div>
+          <div class="sim-term-out" id="simTerminal" aria-live="polite"></div>
+          <form class="sim-term-form" id="simTermForm">
+            <span class="sim-term-prompt" id="simTermPrompt" aria-hidden="true">intern@cybercorp:~/release$</span>
+            <input class="sim-term-input" id="simTermInput" type="text" autocomplete="off"
+                   autocapitalize="off" spellcheck="false"
+                   placeholder="type a command — try `help`" aria-label="Command input" />
+          </form>
+          <div class="sim-actions" id="simActions"></div>
+        </section>
+
+        <!-- Right column — Panel 2 Evidence (top) + Panel 4 Feedback/Consequence (bottom) -->
+        <div class="career-col career-col--right">
+          <section class="sim-panel sim-panel--evidence" id="simEvidence" aria-label="Evidence"></section>
+          <section class="sim-panel sim-panel--feedback" id="simFeedback" aria-label="Feedback and consequence"></section>
+        </div>
+
+      </div>
+    </div>
 
     <!-- ===== CYBER MISSIONS MAP — RETIRED (Task 22) =====
          The legacy "Cyber Operations Map" (#missionsMap) was removed once the
@@ -2345,6 +2415,7 @@
 
     <!-- Scripts -->
     <script type="module" src="/missions.js"></script>
+    <script type="module" src="/career-sim.js"></script>
     <script type="module" src="/script.js"></script>
   </body>
 </html>

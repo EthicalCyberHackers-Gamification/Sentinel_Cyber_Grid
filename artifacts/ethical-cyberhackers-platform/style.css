@@ -9572,6 +9572,82 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
   border-right: none;
 }
 
+/* ============================================================
+ * CyberCorp identity card (OCV2 home, right column #ocIdentity)
+ * Ported from the career prototype's oc.css. Uses the lab.css token
+ * set (--green / --border / --bg-panel-alt …, defined globally) so it
+ * matches the career resource-bar chrome. Presentation-only; host-
+ * rendered by renderIdentityPanel() in script.js. Sits as the first
+ * flex child of .ocv2-panel--right, above SOC COMMS.
+ * ============================================================ */
+.oc-identity {
+  flex: 0 0 auto;
+  margin: 12px 12px 0;
+  padding: 11px 12px;
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--green);
+  border-radius: var(--radius-sm);
+}
+.oc-id-head { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+.oc-id-badge {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  color: var(--green); background: var(--green-dark);
+  border: 1px solid var(--border-glow); border-radius: var(--radius-sm);
+}
+.oc-id-org { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.oc-id-employer { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: 0.3px; }
+.oc-id-division {
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.5px;
+  color: var(--text-muted); text-transform: uppercase;
+}
+.oc-id-rows { display: flex; flex-direction: column; gap: 4px; }
+.oc-id-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.oc-id-label {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-muted); flex-shrink: 0;
+}
+.oc-id-val { font-family: var(--font-mono); font-size: 10px; color: var(--text); text-align: right; }
+.oc-id-val--clear { color: var(--green); }
+.oc-id-advance {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.oc-id-advance-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.oc-id-advance-next {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  color: var(--green); text-align: right; letter-spacing: 0.3px;
+}
+.oc-id-bar {
+  height: 5px;
+  background: var(--green-dark);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.oc-id-bar-fill {
+  display: block; height: 100%;
+  background: var(--green);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.oc-id-advance-cap {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+.oc-id-rows--status {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+}
+
 .ocv2-panel-head {
   display: flex;
   align-items: center;

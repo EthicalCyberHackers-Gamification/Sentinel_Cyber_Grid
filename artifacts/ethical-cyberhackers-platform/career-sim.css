@@ -1,0 +1,1189 @@
+/* ==================================================================
+ * sim.css — Cybersecurity Career Simulator (prototype)
+ * Styles the always-visible resource bar and the four-panel Career
+ * Operating Center (#careerOps). Reuses oc.css :root tokens so the
+ * career sim matches the SOC aesthetic. Scoped to .sim-* / .career-*
+ * so it never touches the legacy Ops Center / holotable / console / lab.
+ * ================================================================== */
+
+/* ---------- Resource bar (top of home + mission screens) ---------- */
+.sim-resbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 7px 16px;
+  min-height: 50px;
+  background: linear-gradient(180deg, #0c1019 0%, #080b13 100%);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  z-index: 5;
+}
+.sim-resbar::-webkit-scrollbar { height: 5px; }
+.sim-resbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.sim-resbar-role {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-right: 20px;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sim-resbar-role-tag,
+.sim-resbar-auth-tag {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px 5px;
+}
+.sim-resbar-role-name {
+  font-family: var(--font-hud);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
+}
+.sim-resbar-auth {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  letter-spacing: 0.4px;
+}
+
+.sim-resbar-resources {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  /* flex:0 0 auto + margin-left:auto pins the meters to the right edge WITHOUT
+   * letting this block shrink below its content. The old `flex:1 1 auto;
+   * min-width:0; justify-content:flex-end` let it shrink past its content and
+   * the right-aligned cells spilled LEFTWARD over the role/authority text
+   * (Security Posture "72" read as "12"). The role block now clips instead. */
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.sim-res {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 92px;
+  flex: 0 0 auto;
+}
+.sim-res-label {
+  font-size: 8.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.sim-res-val {
+  font-family: var(--font-hud);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-bright);
+  line-height: 1;
+  transition: color var(--transition);
+}
+.sim-res--good .sim-res-val { color: var(--green); }
+.sim-res--warn .sim-res-val { color: var(--yellow); }
+.sim-res--bad  .sim-res-val { color: var(--red); }
+.sim-res-val--flash { animation: simResFlash 700ms ease; }
+@keyframes simResFlash {
+  0%   { text-shadow: 0 0 14px currentColor; transform: scale(1.18); }
+  100% { text-shadow: none; transform: scale(1); }
+}
+.sim-res-meter {
+  display: block;
+  height: 3px;
+  width: 100%;
+  background: var(--bg-hover);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.sim-res-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  transition: width 450ms ease, background var(--transition);
+}
+.sim-res-good { background: var(--green); }
+.sim-res-warn { background: var(--yellow); }
+.sim-res-bad  { background: var(--red); }
+
+/* ---------- Career Operating Center screen ---------- */
+.screen--career {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(0, 229, 255, 0.05), transparent 60%),
+    var(--bg);
+  color: var(--text);
+}
+
+.career-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 16px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+.career-back-btn,
+.career-reset-btn {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 11px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.career-back-btn:hover { color: var(--green); border-color: var(--border-glow); }
+.career-reset-btn { margin-left: auto; color: var(--text-muted); }
+.career-reset-btn:hover { color: var(--orange); border-color: var(--orange); }
+
+.career-incident-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-width: 0;
+}
+.career-severity {
+  font-family: var(--font-hud);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+.career-severity[data-severity="HIGH"]     { color: var(--orange); border-color: var(--orange); }
+.career-severity[data-severity="CRITICAL"] { color: var(--red);    border-color: var(--red); }
+.career-severity[data-severity="MEDIUM"]   { color: var(--yellow); border-color: var(--yellow); }
+.career-region { color: var(--cyan); letter-spacing: 0.8px; }
+.career-sep { color: var(--text-muted); }
+.career-title {
+  color: var(--text-bright);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Four-panel grid ---------- */
+.career-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(420px, 1.6fr) minmax(300px, 1.1fr);
+  gap: 12px;
+  padding: 12px;
+  overflow: hidden;
+}
+.career-col--right {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
+  min-height: 0;
+}
+
+.sim-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.sim-panel--work { display: flex; }
+.sim-panel-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-hud);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: var(--green-dim);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel-alt);
+}
+.sim-panel-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--bg);
+  background: var(--green);
+  border-radius: 10px;
+  padding: 1px 8px;
+  min-width: 20px;
+  text-align: center;
+}
+.sim-empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 14px;
+}
+
+/* ---------- Panel 1: Mission Brief ---------- */
+.sim-brief-body { padding: 12px; overflow-y: auto; font-size: 12.5px; }
+.sim-brief-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.sim-brief-key { color: var(--text-muted); letter-spacing: 0.6px; }
+.sim-brief-v { color: var(--text-bright); text-align: right; }
+.sim-brief-v--alert { color: var(--orange); }
+.sim-brief-divider { height: 1px; background: var(--border); margin: 11px 0; }
+.sim-brief-section-label {
+  font-family: var(--font-hud);
+  font-size: 9.5px;
+  letter-spacing: 1.4px;
+  color: var(--cyan-dim);
+  margin-bottom: 6px;
+}
+.sim-brief-text, .sim-brief-note { line-height: 1.65; color: var(--text); margin-bottom: 12px; }
+.sim-brief-note { color: var(--text-dim); font-style: italic; border-left: 2px solid var(--border); padding-left: 10px; }
+.sim-brief-objs { list-style: none; margin: 0 0 12px; padding: 0; }
+.sim-brief-obj { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; line-height: 1.45; }
+.sim-brief-obj-icon { color: var(--cyan); flex: 0 0 auto; }
+.sim-brief-obj--done .sim-brief-obj-icon { color: var(--green); }
+.sim-brief-obj--done span:last-child { color: var(--text-muted); text-decoration: line-through; }
+
+/* ---------- Panel 3: Terminal + Actions ---------- */
+.sim-term-out {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.sim-term-line { white-space: pre-wrap; word-break: break-word; }
+.sim-term-line--head { color: var(--green); }
+.sim-term-line--dim { color: var(--text-dim); }
+.sim-term-line--cmd { color: var(--cyan); }
+.sim-term-line--err { color: var(--red); }
+.sim-term-line--ok { color: var(--green); }
+.sim-term-line--warn { color: var(--yellow); }
+.sim-term-line--file { color: var(--text-bright); }
+.sim-term-line--evidence { color: var(--yellow); }
+.sim-term-line--observe { color: var(--cyan); padding-left: 2px; }
+.sim-term-line--question { color: var(--purple); font-style: italic; }
+.sim-term-line--confidence { color: var(--green-dim); }
+.sim-term-line--next { color: var(--text-dim); }
+.sim-term-line--spacer { height: 8px; }
+.sim-term-form {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel-alt);
+}
+.sim-term-prompt { font-family: var(--font-mono); font-size: 12px; color: var(--green-dim); white-space: nowrap; }
+.sim-term-input {
+  flex: 1 1 auto;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.sim-term-input::placeholder { color: var(--text-muted); }
+
+.sim-actions {
+  flex: 0 0 auto;
+  max-height: 42%;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.sim-actions:empty { display: none; }
+.sim-actions-head {
+  font-family: var(--font-hud);
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  color: var(--green-dim);
+  padding: 9px 12px 5px;
+}
+.sim-actions-grid { display: flex; flex-direction: column; gap: 7px; padding: 4px 12px 12px; }
+
+.sim-action-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--green-dim);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: var(--font-body);
+}
+.sim-action-btn:hover { background: var(--bg-hover); border-left-color: var(--green); }
+.sim-action-btn-label { font-size: 12.5px; font-weight: 600; color: var(--text-bright); }
+.sim-action-btn-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+.sim-action-btn--locked {
+  border-left-color: var(--text-muted);
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+.sim-action-btn--locked .sim-action-btn-label { color: var(--text-dim); }
+.sim-action-btn--locked .sim-action-btn-label::before { content: "🔒 "; }
+.sim-action-btn--rec { border-left-color: var(--cyan); }
+.sim-action-btn--rec:hover { border-left-color: var(--cyan); }
+
+/* ---------- Panel 2: Evidence ---------- */
+.sim-evidence-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 12px; }
+.sim-ev-item {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--yellow);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: var(--bg-panel-alt);
+  animation: simEvIn 280ms ease;
+}
+@keyframes simEvIn { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
+.sim-ev-label { font-size: 12px; color: var(--text-bright); font-weight: 600; }
+.sim-ev-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: 10px; font-family: var(--font-mono); color: var(--text-dim); }
+.sim-ev-quality { color: var(--green-dim); letter-spacing: 0.5px; }
+.sim-ev-src { color: var(--text-muted); }
+
+/* ---------- Classification controls ---------- */
+.sim-classify { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+.sim-classify-head { font-family: var(--font-hud); font-size: 9.5px; letter-spacing: 1.4px; color: var(--cyan-dim); margin-bottom: 8px; }
+.sim-classify-row { margin-bottom: 10px; }
+.sim-classify-file { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-bright); margin-bottom: 5px; }
+.sim-classify-opts { display: flex; flex-wrap: wrap; gap: 5px; }
+.sim-classify-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-classify-btn:hover { color: var(--text-bright); border-color: var(--border-glow); }
+.sim-classify-btn--active { background: var(--green-dark); color: var(--green); border-color: var(--green-dim); }
+.sim-class-tag { font-size: 9px; letter-spacing: 0.6px; padding: 1px 5px; border-radius: 2px; font-family: var(--font-mono); }
+.sim-class-tag--public { color: var(--text-dim); border: 1px solid var(--text-muted); }
+.sim-class-tag--internal { color: var(--cyan); border: 1px solid var(--cyan-dim); }
+.sim-class-tag--confidential { color: var(--yellow); border: 1px solid var(--yellow); }
+.sim-class-tag--restricted { color: var(--red); border: 1px solid var(--red); }
+
+/* ==================================================================
+ * Evidence presentation layers (Task #91) — beginner-first view,
+ * per-item disclosure, glossary tooltips, and the ungraded
+ * "What concerns you?" reflection step. Presentation only.
+ * ================================================================== */
+
+/* View toggle: Beginner / Analyst */
+.sim-ev-viewbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.sim-ev-viewbar-label {
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  color: var(--cyan-dim);
+}
+.sim-ev-viewtoggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.sim-ev-viewbtn {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border: none;
+  padding: 4px 11px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-ev-viewbtn + .sim-ev-viewbtn { border-left: 1px solid var(--border); }
+.sim-ev-viewbtn:hover { color: var(--text-bright); }
+.sim-ev-viewbtn--on { background: var(--green-dark); color: var(--green); }
+
+/* Evidence item content */
+.sim-ev-content { margin-top: 6px; }
+.sim-ev-plain { font-size: 12.5px; line-height: 1.55; color: var(--text-bright); }
+.sim-ev-item--analyst .sim-ev-plain { color: var(--text); font-weight: 500; }
+.sim-ev-why {
+  margin-top: 6px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text);
+  border-left: 2px solid var(--yellow);
+  padding-left: 8px;
+}
+.sim-ev-why-label {
+  display: block;
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.2px;
+  color: var(--yellow);
+  margin-bottom: 2px;
+}
+.sim-ev-prompt {
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--cyan-dim);
+}
+
+/* Disclosure layers (analyst notes / technical details) */
+.sim-ev-layer {
+  margin-top: 8px;
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  animation: simEvIn 200ms ease;
+}
+.sim-ev-layer--analyst { border-left: 2px solid var(--cyan-dim); }
+.sim-ev-layer--tech { border-left: 2px solid var(--purple); }
+.sim-ev-layer-label {
+  display: block;
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.2px;
+  margin-bottom: 4px;
+}
+.sim-ev-layer--analyst .sim-ev-layer-label { color: var(--cyan-dim); }
+.sim-ev-layer--tech .sim-ev-layer-label { color: var(--purple); }
+.sim-ev-layer-text { font-size: 11.5px; line-height: 1.5; color: var(--text); }
+.sim-ev-tech {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Disclosure control */
+.sim-ev-controls:empty { display: none; }
+.sim-ev-controls { margin-top: 8px; }
+.sim-ev-more {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  color: var(--cyan);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-ev-more:hover { border-color: var(--cyan-dim); color: var(--text-bright); }
+
+/* Key-terms row */
+.sim-ev-terms { margin-top: 8px; font-size: 11px; color: var(--text-dim); }
+.sim-ev-terms-label {
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.1px;
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+
+/* Glossary term chip + tooltip (hover / keyboard focus / tap-to-pin) */
+.sim-term-wrap { position: relative; display: inline-block; }
+.sim-term {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--cyan);
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px dashed var(--cyan-dim);
+  border-radius: var(--radius-sm);
+  padding: 0 5px;
+  cursor: help;
+  transition: all var(--transition);
+}
+.sim-term:hover,
+.sim-term:focus-visible { background: rgba(0, 229, 255, 0.16); color: var(--text-bright); outline: none; }
+.sim-tip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 0;
+  z-index: 60;
+  width: 240px;
+  max-width: 70vw;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 11px;
+  background: #0a0d16;
+  border: 1px solid var(--cyan-dim);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+  text-align: left;
+}
+.sim-tip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 16px;
+  border: 6px solid transparent;
+  border-top-color: var(--cyan-dim);
+}
+.sim-term-wrap:hover .sim-tip,
+.sim-term-wrap:focus-within .sim-tip,
+.sim-term-wrap--open .sim-tip { display: flex; }
+.sim-tip-term { font-family: var(--font-hud); font-size: 10px; letter-spacing: 0.6px; color: var(--cyan); }
+.sim-tip-def { font-size: 11px; line-height: 1.5; color: var(--text-bright); }
+.sim-tip-why { font-size: 10.5px; line-height: 1.5; color: var(--text-dim); }
+.sim-tip-why-label { color: var(--yellow); }
+
+/* "What concerns you?" reflection step (ungraded) */
+.sim-reflect {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--cyan-dim);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-alt);
+  padding: 11px 12px;
+  animation: simEvIn 280ms ease;
+}
+.sim-reflect-head {
+  font-family: var(--font-hud);
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  color: var(--cyan);
+  margin-bottom: 8px;
+}
+.sim-reflect-prompt { font-size: 12px; line-height: 1.5; color: var(--text-bright); margin-bottom: 8px; }
+.sim-reflect-prompt--judge { margin-top: 12px; }
+.sim-reflect-concerns { display: flex; flex-direction: column; gap: 6px; }
+.sim-concern {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-concern:hover { border-color: var(--border-glow); color: var(--text-bright); }
+.sim-concern--on { border-color: var(--cyan-dim); background: rgba(0, 229, 255, 0.08); color: var(--text-bright); }
+.sim-concern-box { color: var(--cyan); font-size: 13px; line-height: 1.2; }
+.sim-reflect-judgments { display: flex; flex-wrap: wrap; gap: 6px; }
+.sim-judgment {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-judgment:hover { color: var(--text-bright); border-color: var(--border-glow); }
+.sim-judgment--on { background: var(--green-dark); color: var(--green); border-color: var(--green-dim); }
+.sim-reflect-feedback {
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text);
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
+.sim-reflect-feedback-label {
+  display: block;
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.2px;
+  color: var(--cyan-dim);
+  margin-bottom: 3px;
+}
+
+/* Beginner classify legend + per-file plain-language hint */
+.sim-classify-legend {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 2;
+  margin-bottom: 10px;
+}
+.sim-classify-legend-label {
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.1px;
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+.sim-classify-hint {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  margin-bottom: 5px;
+}
+
+/* ---------- Panel 4: Feedback / Consequence ---------- */
+.sim-feedback-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px; }
+.sim-conseq { animation: simEvIn 280ms ease; }
+.sim-conseq-title { font-family: var(--font-hud); font-size: 13px; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+.sim-conseq-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; }
+.sim-conseq-block { margin-bottom: 12px; }
+.sim-conseq-label {
+  font-family: var(--font-hud);
+  font-size: 9.5px;
+  letter-spacing: 1.3px;
+  margin-bottom: 5px;
+}
+.sim-conseq-label--immediate { color: var(--green-dim); }
+.sim-conseq-label--business { color: var(--cyan-dim); }
+.sim-conseq-label--resource { color: var(--yellow); }
+.sim-conseq-label--future { color: var(--purple); }
+.sim-conseq-text { font-size: 12px; line-height: 1.6; color: var(--text); }
+.sim-conseq-changes { list-style: none; margin: 0; padding: 0; }
+.sim-conseq-change {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 3px 0;
+}
+.sim-conseq-change-name { color: var(--text-dim); }
+.sim-conseq-change-delta--up { color: var(--green); }
+.sim-conseq-change-delta--down { color: var(--red); }
+.sim-conseq-change-delta--flat { color: var(--text-muted); }
+
+/* Recommendation outcome banner */
+.sim-rec-outcome {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.sim-rec-outcome--approved  { border-color: var(--green);  background: rgba(0, 255, 136, 0.07); }
+.sim-rec-outcome--partial   { border-color: var(--yellow); background: rgba(255, 215, 0, 0.07); }
+.sim-rec-outcome--deferred  { border-color: var(--cyan);   background: rgba(0, 229, 255, 0.07); }
+.sim-rec-outcome--denied    { border-color: var(--red);    background: rgba(255, 51, 68, 0.07); }
+.sim-rec-verdict { font-family: var(--font-hud); font-size: 13px; font-weight: 700; letter-spacing: 0.5px; }
+.sim-rec-outcome--approved .sim-rec-verdict { color: var(--green); }
+.sim-rec-outcome--partial  .sim-rec-verdict { color: var(--yellow); }
+.sim-rec-outcome--deferred .sim-rec-verdict { color: var(--cyan); }
+.sim-rec-outcome--denied   .sim-rec-verdict { color: var(--red); }
+.sim-rec-reason { font-size: 11.5px; line-height: 1.55; color: var(--text-dim); margin-top: 5px; }
+
+/* Locked-authority notice */
+.sim-locked-note {
+  border: 1px solid var(--orange);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 107, 0, 0.07);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  animation: simEvIn 280ms ease;
+}
+.sim-locked-title { font-family: var(--font-hud); font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--orange); margin-bottom: 5px; }
+.sim-locked-why { font-size: 11.5px; line-height: 1.55; color: var(--text); margin-bottom: 8px; }
+.sim-locked-alt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan);
+  background: transparent;
+  border: 1px solid var(--cyan-dim);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-locked-alt:hover { background: rgba(0, 229, 255, 0.1); }
+
+/* ---------- Mission report ---------- */
+.sim-report { animation: simEvIn 320ms ease; }
+.sim-report-title { font-family: var(--font-hud); font-size: 15px; font-weight: 700; color: var(--green); margin-bottom: 6px; }
+.sim-report-grade { font-family: var(--font-hud); font-size: 12px; color: var(--text-bright); margin-bottom: 12px; }
+.sim-report-section { margin-bottom: 12px; }
+.sim-report-flags { list-style: none; margin: 0; padding: 0; }
+.sim-report-flag { display: flex; gap: 8px; font-size: 11.5px; padding: 3px 0; color: var(--text); }
+.sim-report-flag-icon { color: var(--green); }
+.sim-report-done {
+  width: 100%;
+  font-family: var(--font-hud);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--bg);
+  background: var(--green);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.sim-report-done:hover { background: var(--green-dim); }
+
+/* ---------- Analyst Notebook: confidence meter, risks, identify ---------- */
+.sim-confidence {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  padding: 9px 11px 10px;
+  margin-bottom: 12px;
+}
+.sim-confidence-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.sim-confidence-pct { font-size: 13px; font-weight: 700; }
+.sim-confidence--low  .sim-confidence-pct { color: var(--red); }
+.sim-confidence--warn .sim-confidence-pct { color: var(--yellow); }
+.sim-confidence--good .sim-confidence-pct { color: var(--green); }
+.sim-confidence-meter {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.sim-confidence-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 480ms cubic-bezier(0.22, 1, 0.36, 1), background 360ms ease;
+}
+.sim-confidence--low  .sim-confidence-fill { background: var(--red); }
+.sim-confidence--warn .sim-confidence-fill { background: var(--yellow); }
+.sim-confidence--good .sim-confidence-fill { background: var(--green); }
+.sim-confidence-note { font-size: 10px; color: var(--text-muted); margin-top: 6px; line-height: 1.45; }
+
+.sim-notebook-section { margin-bottom: 14px; }
+.sim-notebook-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 1.3px;
+  color: var(--cyan-dim);
+  margin-bottom: 8px;
+}
+.sim-notebook-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0 7px;
+}
+
+.sim-risks { list-style: none; margin: 0; padding: 0; }
+.sim-risk {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  padding: 3px 0;
+  transition: color var(--transition);
+}
+.sim-risk-box { color: var(--text-muted); flex: 0 0 auto; }
+.sim-risk--on { color: var(--text); }
+.sim-risk--on .sim-risk-box { color: var(--green); }
+
+/* Identify (determination) step */
+.sim-identify-prompt { font-size: 11.5px; line-height: 1.55; color: var(--text); margin-bottom: 9px; }
+.sim-identify-opts { display: flex; flex-direction: column; gap: 6px; }
+.sim-identify-btn {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-identify-btn:hover { border-color: var(--border-glow); color: var(--text-bright); }
+.sim-identify-btn--on { border-color: var(--cyan); background: rgba(0, 229, 255, 0.08); color: var(--cyan); }
+.sim-identify-note {
+  margin-top: 9px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
+
+/* ---------- Responsive: stack panels on narrow widths ---------- */
+@media (max-width: 1100px) {
+  .career-main { grid-template-columns: 1fr; grid-auto-rows: minmax(220px, auto); overflow-y: auto; }
+  .career-col--right { grid-template-rows: minmax(220px, auto) minmax(220px, auto); }
+}
+
+/* ==================================================================
+ * Network / device map — reactive, review-only popup (Task #94).
+ * Presentation only. Scoped .sim-map-* so it never touches other UIs.
+ * ================================================================== */
+
+/* Terminal-panel button that opens the map */
+.sim-map-btn {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  color: var(--cyan);
+  background: var(--bg-panel);
+  border: 1px solid var(--cyan-dim);
+  border-radius: var(--radius-sm);
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-map-btn:hover,
+.sim-map-btn:focus-visible {
+  background: rgba(0, 229, 255, 0.12);
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
+  outline: none;
+}
+.sim-map-btn[hidden] { display: none; }
+
+/* Overlay + modal */
+.sim-map-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(2, 5, 10, 0.78);
+  backdrop-filter: blur(3px);
+  animation: simMapFade 160ms ease;
+}
+.sim-map-overlay[hidden] { display: none; }
+@keyframes simMapFade { from { opacity: 0; } to { opacity: 1; } }
+
+.sim-map-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(820px, 96vw);
+  max-height: 90vh;
+  background: var(--bg-panel);
+  border: 1px solid var(--cyan-dim);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 229, 255, 0.12);
+  overflow: hidden;
+  animation: simMapIn 180ms ease;
+}
+@keyframes simMapIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+.sim-map-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel-alt);
+}
+.sim-map-title {
+  flex: 0 0 auto;
+  font-family: var(--font-hud);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: var(--cyan);
+}
+.sim-map-cap {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sim-map-close {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-map-close:hover,
+.sim-map-close:focus-visible {
+  color: var(--red);
+  border-color: var(--red);
+  outline: none;
+}
+
+.sim-map-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 320px;
+  margin: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(900px 400px at 50% 0%, rgba(0, 229, 255, 0.05), transparent 60%),
+    repeating-linear-gradient(0deg, transparent 0 26px, rgba(255, 255, 255, 0.015) 26px 27px),
+    repeating-linear-gradient(90deg, transparent 0 26px, rgba(255, 255, 255, 0.015) 26px 27px),
+    var(--bg);
+  overflow: hidden;
+}
+.sim-map-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sim-map-nodes { position: absolute; inset: 0; }
+
+.sim-map-link {
+  stroke: var(--cyan-dim);
+  stroke-width: 1.4;
+  opacity: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+.sim-map-link.is-danger {
+  stroke: var(--red);
+  stroke-width: 1.8;
+  stroke-dasharray: 5 4;
+  opacity: 0.85;
+}
+
+.sim-map-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 120px;
+  text-align: center;
+  cursor: pointer;
+  animation: simMapNodeIn 360ms ease;
+}
+@keyframes simMapNodeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+.sim-map-node-dot {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cyan-dim);
+  background: var(--bg-panel);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.22);
+  transition: all var(--transition);
+}
+.sim-map-node-label { font-family: var(--font-mono); font-size: 11px; color: var(--text-bright); line-height: 1.2; }
+.sim-map-node-sub { font-size: 9px; color: var(--text-dim); line-height: 1.2; }
+.sim-map-node-tag {
+  margin-top: 1px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.sim-map-node:hover .sim-map-node-dot,
+.sim-map-node:focus-visible .sim-map-node-dot {
+  border-color: var(--cyan);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.5);
+}
+.sim-map-node:focus-visible { outline: none; }
+.sim-map-node:focus-visible .sim-map-node-label { color: var(--cyan); }
+
+/* status variants */
+.sim-map-node.is-self .sim-map-node-dot { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 14px rgba(0, 229, 255, 0.4); }
+.sim-map-node.is-self .sim-map-node-tag { color: var(--cyan); border-color: var(--cyan-dim); }
+.sim-map-node.is-unknown .sim-map-node-dot { border-color: var(--yellow); color: var(--yellow); box-shadow: 0 0 14px rgba(255, 209, 102, 0.3); }
+.sim-map-node.is-unknown .sim-map-node-tag { color: var(--yellow); border-color: var(--yellow); }
+.sim-map-node.is-target .sim-map-node-dot { border-color: var(--orange); color: var(--orange); box-shadow: 0 0 14px rgba(255, 107, 0, 0.35); }
+.sim-map-node.is-target .sim-map-node-tag { color: var(--orange); border-color: var(--orange); }
+.sim-map-node.is-suspicious .sim-map-node-dot { border-color: var(--red); color: var(--red); box-shadow: 0 0 16px rgba(255, 51, 68, 0.45); }
+.sim-map-node.is-suspicious .sim-map-node-label { color: var(--red); }
+.sim-map-node.is-suspicious .sim-map-node-tag { color: var(--red); border-color: var(--red); }
+
+/* connection midpoint intel marker */
+.sim-map-linkmid {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 17px;
+  height: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-style: italic;
+  font-weight: 700;
+  color: var(--bg-panel);
+  background: var(--cyan-dim);
+  border: 1px solid var(--cyan);
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all var(--transition);
+}
+.sim-map-linkmid:hover,
+.sim-map-linkmid:focus-visible { opacity: 1; box-shadow: 0 0 10px rgba(0, 229, 255, 0.6); outline: none; }
+.sim-map-linkmid.is-danger { background: var(--red); border-color: var(--red); color: #fff; }
+.sim-map-linkmid.is-danger:hover,
+.sim-map-linkmid.is-danger:focus-visible { box-shadow: 0 0 10px rgba(255, 51, 68, 0.7); }
+
+/* footer: legend + hint */
+.sim-map-foot { flex: 0 0 auto; padding: 0 14px 13px; }
+.sim-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.sim-map-leg { display: inline-flex; align-items: center; gap: 5px; }
+.sim-map-swatch { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--cyan-dim); }
+.sim-map-swatch.is-self { border-color: var(--cyan); background: rgba(0, 229, 255, 0.25); }
+.sim-map-swatch.is-known { border-color: var(--cyan-dim); }
+.sim-map-swatch.is-unknown { border-color: var(--yellow); background: rgba(255, 209, 102, 0.2); }
+.sim-map-swatch.is-target { border-color: var(--orange); background: rgba(255, 107, 0, 0.2); }
+.sim-map-swatch.is-suspicious { border-color: var(--red); background: rgba(255, 51, 68, 0.25); }
+.sim-map-hint { margin: 0; font-size: 11px; line-height: 1.5; color: var(--text-dim); }
+
+/* shared floating intel card */
+.sim-map-intel {
+  position: fixed;
+  z-index: 1200;
+  width: 300px;
+  max-width: calc(100vw - 20px);
+  padding: 12px 13px;
+  background: var(--bg-panel);
+  border: 1px solid var(--cyan-dim);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55), 0 0 18px rgba(0, 229, 255, 0.18);
+  font-family: var(--font-body);
+  animation: simMapIntelIn 140ms ease;
+}
+.sim-map-intel[hidden] { display: none; }
+@keyframes simMapIntelIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.sim-map-intel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border);
+}
+.sim-map-intel-kind {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--cyan);
+  border: 1px solid var(--cyan-dim);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  flex: none;
+}
+.sim-map-intel-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-bright);
+  line-height: 1.3;
+  min-width: 0;
+}
+.sim-map-intel-row { margin-top: 7px; }
+.sim-map-intel-row:first-of-type { margin-top: 0; }
+.sim-map-intel-k {
+  display: block;
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.sim-map-intel-v { display: block; font-size: 11.5px; color: var(--text); line-height: 1.5; }

@@ -411,6 +411,79 @@ function careerRankName() {
   return deriveCareerState().role.name;
 }
 
+/* ============================================================
+   CyberCorp identity card — OCV2 home, right column (#ocIdentity)
+   ------------------------------------------------------------
+   Presentation-only chrome ported from the career prototype. The
+   org identity is static; Role / Clearance / Advancement / Queue
+   are DERIVED on each render from deriveCareerState() + the mission
+   play order. Writes nothing (no localStorage, no Supabase, no XP).
+   ============================================================ */
+const CYBERCORP_IDENTITY = {
+  employer: "CyberCorp",
+  division: "Security Operations Division",
+  supervisor: "Sarah Reyes",
+  supervisorRole: "SOC Lead",
+};
+
+function renderIdentityPanel() {
+  const el = document.getElementById("ocIdentity");
+  if (!el) return;
+  const id = CYBERCORP_IDENTITY;
+  const c = deriveCareerState();
+  const role = c.role;
+
+  // Keep the roster "You" role label in sync with the live career rank.
+  const youRole = document.getElementById("ocv2RosterYouRole");
+  if (youRole) youRole.textContent = role.name;
+
+  // Active assignment = first not-yet-completed mission in play order.
+  const nextId = MISSION_PLAY_ORDER.find((mid) => missionMapStatus(mid) !== "completed") || null;
+  let queue, advanceCap;
+  if (nextId) {
+    const region = ((OCV2_NODE_META[nextId] || {}).region || "GLOBAL").replace(" REGION", "");
+    const title = (MISSION_MAP[nextId] || {}).title
+      || (isGenericMission(nextId) ? (getGenericMission(nextId) || {}).title : "")
+      || nextId;
+    queue = `${region} — ${title}`;
+    advanceCap = c.next ? `Clear ${region} to advance` : "Top role — division command";
+  } else {
+    queue = "All assignments resolved";
+    advanceCap = c.next ? "Awaiting next assignment" : "Top role — division command";
+  }
+
+  const barPct = c.total > 0 ? Math.round((c.completed / c.total) * 100) : 0;
+  const nextLabel = c.next ? c.next.name : "Highest tier attained";
+
+  el.innerHTML = `
+    <div class="oc-id-head">
+      <span class="oc-id-badge" aria-hidden="true">ID</span>
+      <div class="oc-id-org">
+        <span class="oc-id-employer">${escapeHtml(id.employer)}</span>
+        <span class="oc-id-division">${escapeHtml(id.division)}</span>
+      </div>
+    </div>
+    <div class="oc-id-rows">
+      <div class="oc-id-row"><span class="oc-id-label">Role</span><span class="oc-id-val">${escapeHtml(role.name)}</span></div>
+      <div class="oc-id-row"><span class="oc-id-label">Supervisor</span><span class="oc-id-val">${escapeHtml(id.supervisor)} · ${escapeHtml(id.supervisorRole)}</span></div>
+      <div class="oc-id-row"><span class="oc-id-label">Clearance</span><span class="oc-id-val oc-id-val--clear">${escapeHtml(role.clearance)}</span></div>
+    </div>
+    <div class="oc-id-advance">
+      <div class="oc-id-advance-row">
+        <span class="oc-id-label">Advancement</span>
+        <span class="oc-id-advance-next">${escapeHtml(nextLabel)}</span>
+      </div>
+      <div class="oc-id-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${barPct}" aria-label="Promotion progress">
+        <span class="oc-id-bar-fill" style="width:${barPct}%"></span>
+      </div>
+      <div class="oc-id-advance-cap">${escapeHtml(advanceCap)}</div>
+    </div>
+    <div class="oc-id-rows oc-id-rows--status">
+      <div class="oc-id-row"><span class="oc-id-label">Queue</span><span class="oc-id-val">${escapeHtml(queue)}</span></div>
+      <div class="oc-id-row"><span class="oc-id-label">Division</span><span class="oc-id-val">Active Ops · ${c.completed}/${c.total} resolved</span></div>
+    </div>`;
+}
+
 /**
  * Build timestamp — update this string whenever you push a revision.
  * It appears in the footer so you can confirm you are running the latest version.
@@ -3742,6 +3815,13 @@ function loadSavedProgress() {
    repopulate STORAGE_KEY after we wiped it. */
 let suppressSave = false;
 
+/* Career simulator (career-sim.js) — authoritative in-memory career state lives
+   in that isolated module; this mirror holds the serializable snapshot it last
+   handed us (via window.echCareerSave) so saveProgress() can persist it inside
+   ech.progress.v1 under `career`. null until the career sim writes or a save
+   restores it. */
+let careerProgress = null;
+
 /** Write the current in-memory state to localStorage. Safe no-op on error. */
 function saveProgress() {
   if (suppressSave) return;
@@ -3844,6 +3924,10 @@ function saveProgress() {
       containmentActionsUsed: {
         "mission-001": Array.from(containmentActionsUsed["mission-001"]),
       },
+      // Career simulator (career-sim.js) — additive namespace. The whole career
+      // state (6 resources, role/rank, evidenceView, missionFlags,
+      // completedMissions) is owned by career-sim and persisted ONLY here.
+      career: careerProgress || null,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     updateSaveIndicator(true);
@@ -3884,6 +3968,13 @@ function restoreSavedProgress() {
   if (!data) {
     updateSaveIndicator(false);
     return;
+  }
+
+  // Career simulator (career-sim.js) — restore the additive career namespace so
+  // echCareerInit() (end of boot) re-hydrates the resource bar from it. Defensive:
+  // older saves have no `career` key (career-sim then falls back to defaults).
+  if (data.career && typeof data.career === "object") {
+    careerProgress = data.career;
   }
 
   // 1. Student name — fill input, enable Enter Module button
@@ -4333,6 +4424,13 @@ function clearSavedProgress() {
 
   // Milestone 33A — clearing progress wipes the persistent career history too.
   operationalHistory = [];
+
+  // Career simulator — clearing progress also wipes the career namespace and
+  // resets the in-memory career state to defaults. No persist: storage stays
+  // empty (parity with the rest of this function) until the next real save.
+  careerProgress = null;
+  try { if (typeof window.echCareerResetInMemory === "function") window.echCareerResetInMemory(); }
+  catch (_) { /* career sim is optional */ }
 
   // Milestone 32A — reset the Operations Center home to its fresh-recruit state.
   renderOperationsCenter();
@@ -8261,6 +8359,13 @@ function renderOperationsCenter() {
   const home = document.getElementById("moduleLanding");
   if (!home) return;
 
+  // Career chrome (presentation-only): CyberCorp identity card + the six-meter
+  // resource bar. Both derive from current progress and write nothing.
+  renderIdentityPanel();
+  if (typeof window !== "undefined" && typeof window.echCareerRenderResourceBar === "function") {
+    window.echCareerRenderResourceBar();
+  }
+
   const m1Done = !!missionComplete;
   const m2Done = !!mission2Complete;
   const m3Done = !!mission3Complete;
@@ -9025,6 +9130,22 @@ function launchMissionFromMap(missionId, fromOC = false) {
     return;
   }
   if (missionMapStatus(missionId) === "locked") return;
+  // Career simulator interior (career-sim.js isolated module) — assignments that
+  // career-sim owns open its resource-driven interior instead of the legacy lab /
+  // dashboard. Routed FIRST (before the lab) so 001/002 divert from the lab. We
+  // (1) ensure the module is initialized (idempotent) so it renders the RESTORED
+  // career state rather than module-eval defaults — this also closes the boot-order
+  // gap where a ?mission= deep-link launches before echCareerInit() runs;
+  // (2) open the backend attempt so completion can close it; then (3) hand off.
+  // finalizeMission() -> the echCareerComplete bridge records real host completion.
+  if (typeof window.echCareerHasMission === "function" &&
+      window.echCareerHasMission(missionId) &&
+      typeof window.openCareerMission === "function") {
+    try { if (typeof window.echCareerInit === "function") window.echCareerInit(); } catch (_) { /* best-effort */ }
+    try { startAssignmentAttempt(missionId); } catch (_) { /* non-fatal */ }
+    window.openCareerMission(missionId);
+    return;
+  }
   // Graduated Progressive Lab — assignments with a lab dataset (mission-001,
   // mission-002) open the terminal-first lab interior instead of their legacy
   // dashboard/overview. The lab's onComplete hook records real completion.
@@ -9085,6 +9206,48 @@ function showModuleLanding() {
   // Refresh so career/assignment/XP/trust changes are reflected (no stale state).
   renderOperationsCenter();
 }
+
+/* ============================================================
+   Career simulator screen bridges (career-sim.js isolated module)
+   ------------------------------------------------------------
+   career-sim.js is loaded as a separate ES module (its own scope). It calls
+   these window hooks to swap between the Operations Center home (#moduleLanding)
+   and the Career Operating Center (#careerOps), keeping the shipping site chrome
+   (header / sign-in / footer) intact. Exit routes through showModuleLanding() so
+   the home re-renders (renderOperationsCenter) with no stale progress.
+   ============================================================ */
+window.echEnterCareerScreen = function echEnterCareerScreen() {
+  if (moduleLandingEl) moduleLandingEl.style.display = "none";
+  const c = document.getElementById("careerOps");
+  if (c) c.style.display = "flex";
+  window.scrollTo({ top: 0, behavior: "instant" });
+};
+window.echExitCareerScreen = function echExitCareerScreen() {
+  const c = document.getElementById("careerOps");
+  if (c) c.style.display = "none";
+  showModuleLanding();
+};
+
+/* Career simulator persistence bridges — career-sim.js holds the authoritative
+   in-memory career state and calls these to read/write it. Writes route through
+   saveProgress() (the single chokepoint that also enqueues the best-effort
+   Supabase mirror), so career state lives in ech.progress.v1 under `career`. */
+window.echCareerLoad = function echCareerLoad() {
+  return careerProgress; // raw object or null; career-sim applies its defaults.
+};
+window.echCareerSave = function echCareerSave(career) {
+  careerProgress = (career && typeof career === "object") ? career : null;
+  saveProgress();
+};
+
+/* Career simulator completion bridge — career-sim.js finalizeMission() calls this
+   when a career assignment is completed. It delegates to the single canonical
+   completion chokepoint notifyLabComplete(), which sets the per-mission flag,
+   awards XP, persists, enforces play-order prerequisites + idempotency (already
+   complete -> no-op), and closes the best-effort cloud attempt. Never throws. */
+window.echCareerComplete = function echCareerComplete(missionId) {
+  try { notifyLabComplete(missionId); } catch (_) { /* non-fatal */ }
+};
 
 /**
  * Reveal the Mission 1 dashboard. This is the body of the old enterModule()
@@ -13443,6 +13606,12 @@ function boot() {
     pendingDeepLinkMission = null;
     launchMissionFromMap(mid, true); // Task 11 — deep-link arrives from the OC.
   }
+
+  // Career simulator (career-sim.js isolated module) — initialized AFTER progress
+  // load and the initial render so its resource bar reflects saved state. The
+  // call is idempotent and best-effort: it must never block or break boot.
+  try { if (typeof window.echCareerInit === "function") window.echCareerInit(); }
+  catch (_) { /* career sim is optional; never block boot */ }
 }
 
 /* ============================================================
