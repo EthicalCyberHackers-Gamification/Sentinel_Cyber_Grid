@@ -352,12 +352,12 @@ const ROLE_LADDER = [
  * surface (Ops Center alert feed, unlock gating, completion guards, lab
  * numbering) derives from it. */
 const MISSION_PLAY_ORDER = [
-  "mission-003", // Assignment 001 — Reconnaissance Detection
-  "mission-006", // Assignment 002 — Anomalous Scan Triage
-  "mission-001", // Assignment 003 — Credential Phishing
-  "mission-005", // Assignment 004 — Account Takeover
-  "mission-004", // Assignment 005 — Reconnaissance Sweep
-  "mission-002", // Assignment 006 — Lateral Movement
+  "mission-001", // Assignment 001 — Protect Sensitive Information (EMEA)
+  "mission-002", // Assignment 002 — Investigate Network Assets (APAC)
+  "mission-003", // Assignment 003 — Investigate Suspicious Authentication Activity (NA-EAST)
+  "mission-004", // Assignment 004 — Reconnaissance Sweep (LATAM)
+  "mission-005", // Assignment 005 — Account Takeover Investigation (MENA)
+  "mission-006", // Assignment 006 — Anomalous Scan Triage (SE ASIA)
 ];
 
 /** The mission that must be completed before this one (null for the first). */
@@ -443,6 +443,7 @@ function renderIdentityPanel() {
   if (nextId) {
     const region = ((OCV2_NODE_META[nextId] || {}).region || "GLOBAL").replace(" REGION", "");
     const title = (MISSION_MAP[nextId] || {}).title
+      || (OCV2_GENERIC_DISPLAY[nextId] || {}).title
       || (isGenericMission(nextId) ? (getGenericMission(nextId) || {}).title : "")
       || nextId;
     queue = `${region} — ${title}`;
@@ -7420,41 +7421,41 @@ function setOpsAssignment(rowId, statusId, label, state) {
  */
 const OCV2_NODE_META = {
   "mission-001": {
-    severity:    "CRITICAL",
+    severity:    "HIGH",
     region:      "EMEA REGION",
     commsAuthor: "lead",
     commsName:   "Sarah Reyes",
     commsRole:   "SOC Lead",
   },
   "mission-002": {
-    severity:    "HIGH",
+    severity:    "MEDIUM",
     region:      "APAC REGION",
-    commsAuthor: "intel",
-    commsName:   "Marcus Chen",
-    commsRole:   "Threat Intel",
+    commsAuthor: "lead",
+    commsName:   "Sarah Reyes",
+    commsRole:   "SOC Lead",
   },
   "mission-003": {
     severity:    "HIGH",
     region:      "NA-EAST REGION",
-    commsAuthor: "cmd",
-    commsName:   "Cmdr. Brooks",
-    commsRole:   "Incident Cmd",
+    commsAuthor: "lead",
+    commsName:   "Sarah Reyes",
+    commsRole:   "SOC Lead",
   },
   // Task 29 — data-driven assignments 004/005/006 surfaced on the OC map.
   // `threat` supplies the card's THREAT TYPE (GENERIC_MISSIONS has no such
-  // field); region/severity mirror the GENERIC_MISSIONS entries.
+  // field); region/severity/comms mirror the prototype's incident set.
   "mission-004": {
     severity:    "MEDIUM",
     region:      "LATAM REGION",
-    threat:      "External Reconnaissance Sweep",
-    commsAuthor: "intel",
-    commsName:   "Marcus Chen",
-    commsRole:   "Threat Intel",
+    threat:      "Reconnaissance / Scanning",
+    commsAuthor: "junior",
+    commsName:   "Alex Torres",
+    commsRole:   "Junior Analyst",
   },
   "mission-005": {
     severity:    "MEDIUM",
     region:      "MENA REGION",
-    threat:      "Account Takeover",
+    threat:      "Account Takeover Attempt",
     commsAuthor: "lead",
     commsName:   "Sarah Reyes",
     commsRole:   "SOC Lead",
@@ -7462,32 +7463,37 @@ const OCV2_NODE_META = {
   "mission-006": {
     severity:    "LOW",
     region:      "SE ASIA REGION",
-    threat:      "Anomalous Scanning",
-    commsAuthor: "cmd",
-    commsName:   "Cmdr. Brooks",
-    commsRole:   "Incident Cmd",
+    threat:      "Automated Scan",
+    commsAuthor: "intel",
+    commsName:   "Marcus Chen",
+    commsRole:   "Threat Intel",
   },
 };
 
 const OCV2_TICKER_IOCS = [
-  { sev: "critical", text: "IOC: external-reyes@cybercorp-support[.]net — Active credential phishing domain" },
-  { sev: "high",     text: "Network exposure on target APAC host — 4 open services require triage" },
-  { sev: "high",     text: "External source repeatedly contacting internal NA-East services — recon pattern confirmed" },
-  { sev: "info",     text: "CISA AA26-071A: CVE-2026-1033 active exploitation confirmed in enterprise VPN appliances" },
-  { sev: "medium",   text: "PowerShell obfuscation pattern detected — NA-EAST endpoint — policy alert triggered" },
-  { sev: "high",     text: "Domain: cybercorp-support[.]net — Bulletproof hosting AS8003 — confirmed malicious" },
+  { sev: "high",     text: "Contractor account contractor01 — out-of-scope reads on the Finance release folder — under review" },
+  { sev: "medium",   text: "Unknown host 192.168.1.57 — unmanaged device on APAC finance segment — not in inventory" },
+  { sev: "high",     text: "Finance account a.okafor — failed-login burst then foreign success — MFA disabled post-login" },
+  { sev: "medium",   text: "IP Range: 203.0.113.0/24 — Sequential port scan ongoing LATAM perimeter" },
+  { sev: "medium",   text: "47 failed MFA challenges — Privileged accounts targeted in MENA region" },
+  { sev: "medium",   text: "Asset drift — active host count exceeds approved CMDB baseline on APAC office LAN" },
+  { sev: "info",     text: "CISA AA26-071A: CVE-2026-1033 active exploitation confirmed in VPN appliances" },
+  { sev: "low",      text: "CDN probe 198.51.100.20 — SEA DMZ ports 80,443 — automated scan, low rate" },
   { sev: "info",     text: "Threat feed update: 148 new IOCs ingested from MISP — SIEM rules refreshed" },
-  { sev: "medium",   text: "Anomalous auth events — multiple failed MFA challenges on privileged accounts" },
-  { sev: "critical", text: "Finance workstation — suspicious file requesting credential share to external domain" },
-  { sev: "high",     text: "Shodan fingerprinting signatures detected against internal service endpoints" },
+  { sev: "medium",   text: "Unmanaged personal laptop reaching finance file share — APAC office LAN" },
+  { sev: "high",     text: "Account a.okafor — sensitive Finance data accessed after foreign login — containment pending" },
+  { sev: "info",     text: "Blue Team tabletop 14:00 UTC — access-control & contractor-offboarding review — all analysts" },
 ];
 
 const OCV2_INTEL_ITEMS = [
-  { kind: "threat",  text: "Phishing domain cybercorp-support[.]net traced to bulletproof hosting AS8003." },
-  { kind: "network", text: "Target host in APAC segment — services 22, 80, 443, 8080 confirmed reachable." },
-  { kind: "recon",   text: "External probe pattern consistent with Shodan fingerprinting methodology." },
-  { kind: "info",    text: "CISA advisory AA26-071A: active exploitation of CVE-2026-1033 in VPN appliances." },
-  { kind: "threat",  text: "Credential collection via spoofed executive domain active for 48+ hours." },
+  { kind: "network", text: "APAC asset inventory drift — active host count exceeds the approved CMDB baseline." },
+  { kind: "threat",  text: "Contractor account contractor01 flagged for out-of-scope Finance file access." },
+  { kind: "recon",   text: "203.0.113.0/24 range flagged across 3 active threat intel feeds." },
+  { kind: "network", text: "MFA bypass attempt uses SS7 relay — disable SMS auth on privileged accounts." },
+  { kind: "info",    text: "CISA advisory AA26-071A: Active exploitation of CVE-2026-1033 in VPN appliances." },
+  { kind: "threat",  text: "Finance account a.okafor: failed-login burst then success from an unrecognized location." },
+  { kind: "recon",   text: "Perimeter probe 198.51.100.20 fingerprinted against SEA DMZ services." },
+  { kind: "info",    text: "Blue Team drill scheduled: 14:00 UTC — tabletop access-control review." },
 ];
 
 /* ============================================================
@@ -7523,8 +7529,9 @@ const WC_EMPLOYEES = {
 
 // Recurring adversary infrastructure / TTP clusters — NOT named villains.
 const WC_THREAT_ACTORS = {
-  fin12:     { label: "FIN-12" },
-  redbeacon: { label: "Cobalt Strike cluster" },
+  fin12:      { label: "FIN-12" },
+  contractor: { label: "Contractor account misuse" },
+  redbeacon:  { label: "Perimeter recon cluster" },
 };
 
 // Per-mission continuity. `dept`/`employee`/`actor` tie an incident to the
@@ -7532,17 +7539,17 @@ const WC_THREAT_ACTORS = {
 // complete; `connects` links to a PRIOR mission and only surfaces when that
 // prior mission is complete (mission connections that reward memory).
 const WORLD_CONTINUITY = {
-  "mission-001": { dept: "finance",     employee: "okafor",    actor: "fin12",
-                   resolved: "FIN-12 phishing domain cybercorp-support[.]net blocked at the perimeter." },
-  "mission-002": { dept: "itinfra",     employee: "nwosu",     actor: "redbeacon",  connects: "mission-004",
-                   resolved: "APAC source host 10.44.2.19 isolated; pass-the-hash playbook updated." },
-  "mission-003": { dept: "engineering", actor: "redbeacon",
-                   resolved: "Cobalt Strike C2 185.220.101.47 sinkholed; AS47337 range geo-blocked." },
-  "mission-004": { dept: "itinfra",     actor: "redbeacon",    connects: "mission-006",
+  "mission-001": { dept: "finance",     employee: "okafor",    actor: "contractor",
+                   resolved: "Contractor's out-of-scope access to the Finance release folder revoked; the release is held pending classification." },
+  "mission-002": { dept: "itinfra",     employee: "nwosu",     actor: "contractor", connects: "mission-001",
+                   resolved: "Unapproved contractor device 192.168.1.57 removed from the finance segment; asset inventory reconciled." },
+  "mission-003": { dept: "finance",     actor: "contractor",   connects: "mission-002",
+                   resolved: "Compromised Finance account a.okafor secured; MFA enforced; tied back to the flagged contractor." },
+  "mission-004": { dept: "itinfra",     actor: "redbeacon",
                    resolved: "Recon range 203.0.113.0/24 added to the perimeter blocklist." },
-  "mission-005": { dept: "exec",        employee: "whitfield", actor: "fin12",     connects: "mission-001",
+  "mission-005": { dept: "exec",        employee: "whitfield", actor: "fin12",
                    resolved: "Privileged-account MFA hardened after the 47-failure burst." },
-  "mission-006": { dept: "secops",      actor: "redbeacon",    connects: "mission-003",
+  "mission-006": { dept: "secops",      actor: "redbeacon",    connects: "mission-004",
                    resolved: "DMZ exposure closed; CDN probe baseline re-tuned." },
 };
 
@@ -7553,10 +7560,12 @@ const SECURITY_BULLETINS = [
   { tag: "PHISHING", text: "Reminder: CyberCorp will never request VPN credentials by email. Forward suspicious mail to Security Operations." },
   { tag: "ADVISORY", text: "Patch advisory — apply the CVE-2026-1033 VPN appliance fix. Active exploitation observed in the wild." },
   { tag: "FINANCE",  text: "Finance reports increased invoice-fraud attempts. Verify any payment-detail change out-of-band." },
+  { tag: "IT INFRA", text: "Scheduled maintenance: IT Infrastructure rotates resolver-02 at 13:00 UTC." },
   { tag: "HR",       text: "Mandatory security-awareness refresher is due this quarter — see the HR portal." },
   { tag: "EXEC OPS", text: "Executive Operations: heightened spear-phishing risk targeting finance approvers." },
-  { tag: "RESOLVED", text: "FIN-12 phishing infrastructure blocked. Stay alert for re-registered look-alike domains.", after: "mission-001" },
-  { tag: "RESOLVED", text: "Cobalt Strike C2 sinkholed on NA-East. AS47337 reuse is being monitored across regions.", after: "mission-003" },
+  { tag: "RESOLVED", text: "Contractor's out-of-scope access to the Finance release folder revoked; the release is held pending classification.", after: "mission-001" },
+  { tag: "RESOLVED", text: "Unapproved contractor device removed from the APAC finance segment; asset inventory reconciled.", after: "mission-002" },
+  { tag: "RESOLVED", text: "Compromised Finance account secured and MFA enforced on NA-East; tied back to the flagged contractor.", after: "mission-003" },
 ];
 
 // Dev guard: a `connects` edge must reference a PRIOR mission, otherwise the
@@ -7621,20 +7630,20 @@ function wcIncidentContext(missionId) {
  */
 const OCV2_COMPLETION_COMMS = {
   "mission-001": {
-    excellent: "Phishing assignment closed — clean containment, zero spread. Textbook work, analyst. The EMEA node is dark.",
-    reactive:  "Threat was already moving, but you stabilized it fast — solid reactive recovery. EMEA node is clear.",
-    delayed:   "Credential phishing handled, though it expanded a little before you locked it down. EMEA node is clear — let's tighten the timing next round.",
-    weak:      "EMEA phishing incident is closed, but the response lagged and the threat gained ground. We'll debrief on faster containment.",
+    excellent: "Contractor data-release incident closed — access revoked, clean containment, zero spread. Textbook work, analyst. The EMEA node is dark.",
+    reactive:  "The contractor was already moving on the release folder, but you stabilized it fast — solid reactive recovery. EMEA node is clear.",
+    delayed:   "Out-of-scope access handled, though it widened a little before you locked it down. EMEA node is clear — let's tighten the timing next round.",
+    weak:      "EMEA data-exposure incident is closed, but the response lagged and the access spread. We'll debrief on faster containment.",
   },
   "mission-002": {
-    excellent: "APAC exposure review complete — correct call, no scope drift, high confidence. Host is locked down. Sharp triage, analyst.",
-    delayed:   "APAC network recommendation landed — right answer, just took a few detours. Exposure closed. Tighten the scope next time.",
-    weak:      "APAC host is contained, but the ideal Blue Team recommendation slipped past. Good effort — let's sharpen the analysis.",
+    excellent: "APAC asset review complete — correct call, no scope drift, high confidence. The unmanaged device is off the segment. Sharp triage, analyst.",
+    delayed:   "APAC asset recommendation landed — right answer, just took a few detours. Device removed. Tighten the scope next time.",
+    weak:      "APAC segment is contained, but the ideal Blue Team recommendation slipped past. Good effort — let's sharpen the analysis.",
   },
   "mission-003": {
-    excellent: "NA-East recon detection wrapped — correct report-and-monitor call, clean and confident. Outstanding work, analyst.",
-    delayed:   "NA-East recon assignment closed — right recommendation reached after some drift. Source is on the monitor list.",
-    weak:      "NA-East reconnaissance reported, but the optimal call was missed. Source is monitored — review the decision tree with me.",
+    excellent: "NA-East authentication investigation wrapped — compromise confirmed and contained, clean and confident. Outstanding work, analyst.",
+    delayed:   "NA-East account assignment closed — right recommendation reached after some drift. The Finance account is secured.",
+    weak:      "NA-East account compromise reported, but the optimal call was missed. Account is secured — review the decision tree with me.",
   },
   // Task 29 — generic missions resolve to the neutral `excellent` line (the
   // tier detector in ocv2PostCompletionComms only refines 001/002/003).
@@ -7650,24 +7659,22 @@ const OCV2_COMPLETION_COMMS = {
 };
 
 /**
- * Build the initial SOC comms feed from canonical MISSION_MAP transmission
- * text.  The `transmission` field on each MISSION_MAP entry is the official
- * in-world briefing voice for that assignment; reusing it here keeps the
- * narrative single-sourced and prevents copy drift.
+ * Build the initial SOC comms feed — a team status-check seed mirrored from the
+ * Ops Center prototype's INITIAL_COMMS. These are general shift-handover updates
+ * from the whole team (not a single assignment's voice), so they are authored
+ * here rather than derived from MISSION_MAP.transmission (which is the per-node
+ * on-select voice surfaced by showOcv2IncidentCard).
  */
 function ocv2BuildInitialComms() {
-  const m1 = MISSION_MAP["mission-001"] || {};
-  const m2 = MISSION_MAP["mission-002"] || {};
-  const m3 = MISSION_MAP["mission-003"] || {};
   return [
-    { author: "lead",   name: "Sarah Reyes",  role: "SOC Lead",
-      time: "06:10", text: m1.transmission || "Blue Team active. Assignments are pending." },
-    { author: "intel",  name: "Marcus Chen",  role: "Threat Intel",
-      time: "06:11", text: m2.transmission || "APAC network exposure scoped. Awaiting triage assignment." },
-    { author: "cmd",    name: "Cmdr. Brooks", role: "Incident Cmd",
-      time: "06:12", text: m3.transmission || "NA-East monitoring elevated. External recon pattern is persistent." },
-    { author: "junior", name: "Alex Torres",  role: "Junior Analyst",
-      time: "06:13", text: "All assignments queued. Standing by for analyst deployment." },
+    { author: "lead",   name: "Sarah Reyes",  role: "SOC Lead",      time: "06:10",
+      text: "All analysts, status check. OPS-001 — the contractor data release — stays priority one until it's classified. Watch for that same contractor turning up elsewhere." },
+    { author: "intel",  name: "Marcus Chen",  role: "Threat Intel",  time: "06:11",
+      text: "Intel note: the contractor flagged on OPS-001 is also turning up on unmanaged hardware. Correlating across regions now." },
+    { author: "cmd",    name: "Cmdr. Brooks", role: "Incident Cmd",  time: "06:12",
+      text: "OPS-003 in NA-East is a possible Finance account takeover. If those credentials are confirmed compromised, we move to containment fast." },
+    { author: "junior", name: "Alex Torres",  role: "Junior Analyst", time: "06:13",
+      text: "LATAM recon scope confirmed — 600 ports scanned across 12 hosts. No exploitation attempts yet. Firewall rules updated." },
   ];
 }
 
@@ -7862,6 +7869,33 @@ function ocv2PromptOnboarding() {
   if (nameInput) nameInput.focus();
 }
 
+// Home-only incident presentation for the data-driven assignments (004-006).
+// The prototype Operations Center authors these incident cards independently of
+// the mission engine, so the HOME card/queue must read the prototype's golden
+// title/briefing/threat/transmission — NOT the engine's generic mission title.
+// Presentation-only: consumed solely by showOcv2IncidentCard + the identity
+// queue. Interiors (Progressive Lab / GENERIC_MISSIONS) never read this.
+const OCV2_GENERIC_DISPLAY = {
+  "mission-004": {
+    title:        "Reconnaissance Activity",
+    briefing:     "Systematic port scanning observed against the LATAM external perimeter from an unknown IP range. Pattern consistent with pre-attack recon.",
+    threat:       "Reconnaissance / Scanning",
+    transmission: "On it — scanning pattern matches the Shodan fingerprinting playbook. Pulling the IP reputation report now.",
+  },
+  "mission-005": {
+    title:        "Suspicious Login Activity",
+    briefing:     "Anomalous authentication events detected — multiple failed MFA challenges from unfamiliar geolocations targeting privileged accounts. The most-targeted account belongs to J. Okafor (Finance) — the same employee tied to the EMEA contractor data-handling case.",
+    threat:       "Account Takeover Attempt",
+    transmission: "MENA is open. Looks like an ATO attempt on admin accounts. Needs an analyst immediately.",
+  },
+  "mission-006": {
+    title:        "Anomalous Port Scan Detected",
+    briefing:     "Low-rate port scanning from a known CDN exit node against the SEA DMZ services. Likely automated, low threat — logged for trending.",
+    threat:       "Automated Scan",
+    transmission: "SEA is a known CDN scanner. Attribution confirmed — Shodan-adjacent crawl. Log and close unless it persists.",
+  },
+};
+
 function showOcv2IncidentCard(missionId) {
   // Onboarding gate: mission cards must not open before the analyst has
   // started their shift (name entry → enterModule side effects: saveProgress,
@@ -7878,13 +7912,14 @@ function showOcv2IncidentCard(missionId) {
   // Narrative content: live missions (001-003) come from the canonical
   // MISSION_MAP; data-driven missions (004-006) from GENERIC_MISSIONS. Both
   // are normalized into one shape so the card-fill code below stays uniform.
-  const gen = isGenericMission(missionId) ? (getGenericMission(missionId) || {}) : null;
+  const gen  = isGenericMission(missionId) ? (getGenericMission(missionId) || {}) : null;
+  const disp = OCV2_GENERIC_DISPLAY[missionId] || null;
   const mapData = gen
     ? {
-        title:        gen.title,
-        briefing:     gen.briefing,
-        threat:       meta.threat || gen.severity,
-        transmission: gen.supervisorIntro,
+        title:        (disp && disp.title)        || gen.title,
+        briefing:     (disp && disp.briefing)     || gen.briefing,
+        threat:       (disp && disp.threat)       || meta.threat || gen.severity,
+        transmission: (disp && disp.transmission) || gen.supervisorIntro,
       }
     : (MISSION_MAP[missionId] || {});
 
@@ -8163,7 +8198,17 @@ function renderOcPanelV2() {
     };
     const ALERT_TIME = {
       "mission-001": "06:14", "mission-002": "04:38", "mission-003": "03:52",
-      "mission-004": "02:47", "mission-005": "02:19", "mission-006": "01:05",
+      "mission-004": "02:07", "mission-005": "01:44", "mission-006": "21:30",
+    };
+    // Prototype alert-queue names (INITIAL_ALERTS) — intentionally distinct from
+    // the incident-card title, which uses the canonical MISSION_MAP/GENERIC title.
+    const ALERT_NAME = {
+      "mission-001": "Sensitive Data Release — Contractor Access",
+      "mission-002": "Unapproved Device on Internal Network",
+      "mission-003": "Account Takeover — Finance Login Anomaly",
+      "mission-004": "Reconnaissance Sweep Active",
+      "mission-005": "Suspicious Login — MFA Failure",
+      "mission-006": "Anomalous Port Scan Logged",
     };
     const alerts = ALERT_ORDER.map((id) => {
       const status  = missionMapStatus(id);
@@ -8174,7 +8219,7 @@ function renderOcPanelV2() {
                 : status === "locked"    ? "locked"
                 : baseSev;
       const gen  = isGenericMission(id) ? (getGenericMission(id) || {}) : null;
-      const name = (MISSION_MAP[id] || {}).title || (gen && gen.title) || id;
+      const name = ALERT_NAME[id] || (MISSION_MAP[id] || {}).title || (gen && gen.title) || id;
       return {
         id, sev, name,
         region: ALERT_REGION[id] || (meta.region || "GLOBAL").split(" ")[0],
@@ -8879,13 +8924,14 @@ const MISSION_MAP = {
     num: "01",
     nodeId: "mapNode1",
     statusId: "mapNode1Status",
-    title: "Credential Phishing Investigation",
+    title: "Protect Sensitive Information",
     role: "Cybersecurity Intern",
-    threat: "Phishing / Credential Theft",
+    threat: "Data Classification & Information Handling",
     briefing:
-      "A finance workstation contains a suspicious file asking an employee to " +
-      "share their password with an unknown external address. Inspect the files, " +
-      "weigh the evidence, and report what you find.",
+      "A contractor has requested an external release of a Finance shared folder. " +
+      "Access logs show the same contractor account reading files well outside its " +
+      "remit. Before anything leaves the building, the release folder must be " +
+      "classified and the suspicious access reviewed.",
     skills: [
       "Inspecting files safely",
       "Classifying evidence",
@@ -8893,21 +8939,21 @@ const MISSION_MAP = {
       "Reporting findings",
     ],
     transmission:
-      "Finance reported suspicious workstation activity. Review the assignment " +
-      "brief, then launch the investigation.",
+      "Analyst — OPS-001 is a data-handling review. Classify the release folder " +
+      "and tell me if that contractor access is a problem.",
   },
   "mission-002": {
     num: "02",
     nodeId: "mapNode2",
     statusId: "mapNode2Status",
-    title: "Network Exposure Review",
+    title: "Investigate Network Assets",
     role: "Cybersecurity Intern",
-    threat: "Network Exposure",
+    threat: "Network Fundamentals & Asset Discovery",
     briefing:
-      "Following the credential-phishing containment, network monitoring is " +
-      "elevated. A target host is now exposing services that need review. Map the " +
-      "local network, confirm which host is reachable, and assess the open " +
-      "services for risk.",
+      "A low-priority alert on the APAC office network: the count of active " +
+      "devices is higher than the approved asset inventory. Map what is actually " +
+      "on the subnet, compare it to what should be there, and find the device " +
+      "that does not belong.",
     skills: [
       "Identifying IP addresses",
       "Testing host reachability",
@@ -8915,21 +8961,21 @@ const MISSION_MAP = {
       "Reasoning about attack surface",
     ],
     transmission:
-      "With phishing contained, monitoring around exposed services has increased. " +
-      "Investigate the network safely and report your findings.",
+      "Analyst — OPS-002 is an asset-discovery review. Map the APAC office subnet " +
+      "and tell me which device isn't supposed to be there.",
   },
   "mission-003": {
     num: "03",
     nodeId: "mapNode3",
     statusId: "mapNode3Status",
-    title: "Reconnaissance Detection",
+    title: "Investigate Suspicious Authentication Activity",
     role: "Cybersecurity Intern",
-    threat: "Early-Stage Reconnaissance",
+    threat: "Authentication Security & Account Compromise",
     briefing:
-      "Network monitoring has flagged unusual activity from an external source. " +
-      "Review the active connections, identify the unknown source that keeps " +
-      "appearing, search the logs for what it has been doing, and correlate the " +
-      "signals to confirm reconnaissance before it becomes a breach.",
+      "Overnight, the authentication system flagged an unusual pattern on a " +
+      "Finance account: a wave of failed logins, then a success from a location " +
+      "the user has never signed in from. Reconstruct the timeline and decide " +
+      "whether this is a real account takeover.",
     skills: [
       "Reviewing active connections",
       "Identifying an unknown source",
@@ -8937,8 +8983,8 @@ const MISSION_MAP = {
       "Correlating reconnaissance signals",
     ],
     transmission:
-      "An unknown external source is repeatedly contacting internal services. " +
-      "Review the assignment brief, then launch the investigation.",
+      "Analyst — OPS-003 is an account-takeover review. Read the auth logs in " +
+      "order and tell me which Finance account was compromised.",
   },
 };
 
@@ -9558,7 +9604,7 @@ function buildCourseCardHTML(entry) {
     if (missionComplete && !mission2Complete) {
       actionHTML = `
         <div class="course-card-unlock-note">
-          ✓ Assignment 2 unlocked: Network Exposure Review
+          ✓ Assignment 2 unlocked: Investigate Network Assets
         </div>
         <button id="startMission2Btn" class="course-start-btn">
           ▶&nbsp; Start Mission 2

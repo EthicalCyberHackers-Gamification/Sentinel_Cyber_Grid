@@ -874,8 +874,8 @@ export const MISSION_STATUS = {
 export const missionRegistry = [
   {
     missionId:           "mission1",
-    title:               "New Cybersecurity Intern",
-    description:         "Investigate a suspicious workstation.",
+    title:               "Protect Sensitive Information",
+    description:         "Classify a sensitive data release and review suspicious contractor access.",
     order:               1,
     status:              "available",     // Mission 1 is always available
     placeholderOnly:     false,
@@ -884,8 +884,8 @@ export const missionRegistry = [
   },
   {
     missionId:           "mission2",
-    title:               "Network Basics",
-    description:         "Identify devices and services on a network.",
+    title:               "Investigate Network Assets",
+    description:         "Map the office subnet and find the unapproved device.",
     order:               2,
     status:              "locked",        // Becomes "unlocked" after Mission 1
     placeholderOnly:     false,
@@ -894,8 +894,8 @@ export const missionRegistry = [
   },
   {
     missionId:           "mission3",
-    title:               "Reconnaissance Detection",
-    description:         "Detect and report external reconnaissance against the network.",
+    title:               "Investigate Suspicious Authentication Activity",
+    description:         "Reconstruct a login anomaly and confirm an account takeover.",
     order:               3,
     status:              "locked",        // Becomes "unlocked" after Mission 2
     placeholderOnly:     true,            // Surfaced in the course list once M2 is complete
