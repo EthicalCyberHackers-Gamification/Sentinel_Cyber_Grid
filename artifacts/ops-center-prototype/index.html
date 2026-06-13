@@ -83,28 +83,42 @@
     <!-- THREE-PANEL BODY -->
     <main class="oc-body">
 
-      <!-- LEFT — ALERTS & INTEL -->
-      <aside class="oc-panel oc-panel--left" aria-label="Alerts and Intel">
+      <!-- LEFT — COURSE PATH + monitoring -->
+      <aside class="oc-panel oc-panel--left" aria-label="Course path and monitoring">
         <div class="panel-head">
           <div class="panel-head-title">
-            <span class="panel-head-icon" aria-hidden="true">◉</span>
-            <span>ALERT QUEUE</span>
+            <span class="panel-head-icon" aria-hidden="true">◈</span>
+            <span>COURSE PATH</span>
           </div>
-          <div class="panel-head-badge" id="alertCount">0 ACTIVE</div>
+          <div class="panel-head-badge panel-head-badge--live"><span class="live-dot" aria-hidden="true"></span>PROGRESS</div>
         </div>
 
-        <div class="alert-feed" id="alertFeed" role="log" aria-live="polite" aria-label="Live alert feed">
-        </div>
+        <div class="course-path" id="coursePath" aria-label="Course path"></div>
 
-        <div class="panel-divider"></div>
+        <div class="path-inspector" id="pathInspector" aria-live="polite" aria-label="Path inspector"></div>
 
-        <div class="panel-head panel-head--sm">
-          <div class="panel-head-title">
-            <span class="panel-head-icon" aria-hidden="true">▤</span>
-            <span>INTEL UPDATES</span>
+        <!-- Demoted monitoring: alert queue + intel updates, collapsed by default -->
+        <div class="oc-collapsible oc-collapsible--collapsed" id="alertSection">
+          <button class="oc-collapsible-head" type="button" aria-expanded="false" data-collapse="alertSection">
+            <span class="cp-role-caret" aria-hidden="true">▸</span>
+            <span class="panel-head-title"><span class="panel-head-icon" aria-hidden="true">◉</span><span>ALERT QUEUE</span></span>
+            <span class="panel-head-badge" id="alertCount">0 ACTIVE</span>
+          </button>
+          <div class="oc-collapsible-body">
+            <div class="alert-feed" id="alertFeed" role="log" aria-live="polite" aria-label="Live alert feed">
+            </div>
           </div>
         </div>
-        <div class="intel-feed" id="intelFeed">
+
+        <div class="oc-collapsible oc-collapsible--collapsed" id="intelSection">
+          <button class="oc-collapsible-head" type="button" aria-expanded="false" data-collapse="intelSection">
+            <span class="cp-role-caret" aria-hidden="true">▸</span>
+            <span class="panel-head-title"><span class="panel-head-icon" aria-hidden="true">▤</span><span>INTEL UPDATES</span></span>
+          </button>
+          <div class="oc-collapsible-body">
+            <div class="intel-feed" id="intelFeed">
+            </div>
+          </div>
         </div>
       </aside>
 

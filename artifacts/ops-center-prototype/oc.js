@@ -98,6 +98,87 @@ function getCareerState() {
   return { tierIdx, role, next, completed, activeId, activePct };
 }
 
+/* ============================================================
+   COURSE PATH — presentation-only learning-path model
+   ------------------------------------------------------------
+   Groups the six real missions into role tiers so the left
+   column reads as a guided curriculum. Statuses are DERIVED
+   from the existing read-only helpers (getMissionStates /
+   getMissionProgress); the launch action reuses the existing
+   launchWorkspace() path. No new gameplay, unlock, or
+   persistence logic lives here.
+   ============================================================ */
+
+// Per-mission teaching metadata the INCIDENTS data doesn't carry, keyed by node
+// id so it can never drift from the real mission list.
+const MISSION_META = {
+  "emea":    { difficulty: "Beginner",     duration: "~15 min", objective: "Classify a sensitive release folder and flag suspicious contractor access.", skills: ["Data classification", "Information handling"] },
+  "apac":    { difficulty: "Beginner",     duration: "~15 min", objective: "Map the office subnet and find the device that doesn't belong.",            skills: ["Network discovery", "Asset inventory"] },
+  "na-east": { difficulty: "Intermediate", duration: "~20 min", objective: "Reconstruct a login timeline and confirm an account takeover.",             skills: ["Authentication analysis", "Timeline reconstruction"] },
+  "latam":   { difficulty: "Intermediate", duration: "~20 min", objective: "Fingerprint the scanning sources and review the exposed service surface.",   skills: ["Reconnaissance detection", "Threat intel"] },
+  "mena":    { difficulty: "Intermediate", duration: "~20 min", objective: "Identify the privileged accounts targeted in an MFA-bypass attempt.",        skills: ["Account-takeover triage", "IAM review"] },
+  "sea":     { difficulty: "Advanced",     duration: "~15 min", objective: "Verify automated-scan attribution and log it for trend analysis.",           skills: ["Perimeter monitoring", "Threat attribution"] },
+};
+
+// The curriculum: role tiers each grouping CONSECUTIVE nodes from NODE_CHAIN, so
+// the linear unlock order is preserved within and across roles. Role names are
+// drawn from ROLE_LADDER; the grouping is the learning-path framing only.
+const COURSE_PATH = [
+  {
+    key: "intern",
+    name: "Cybersecurity Intern",
+    purpose: "Learn the fundamentals — work one guided incident at a time under supervision.",
+    unlock: "Open from day one.",
+    skills: ["Data classification", "Information handling", "Network asset discovery"],
+    missions: ["emea", "apac"],
+  },
+  {
+    key: "junior",
+    name: "Junior SOC Analyst",
+    purpose: "Validate alerts and reconstruct what happened across hosts and logs.",
+    unlock: "Finish the Cybersecurity Intern track.",
+    skills: ["Authentication analysis", "Timeline reconstruction", "Reconnaissance detection"],
+    missions: ["na-east", "latam"],
+  },
+  {
+    key: "analyst",
+    name: "SOC Analyst",
+    purpose: "Correlate signals across systems and recommend containment on your own.",
+    unlock: "Finish the Junior SOC Analyst track.",
+    skills: ["Account-takeover triage", "Perimeter monitoring", "Threat attribution"],
+    missions: ["mena", "sea"],
+  },
+];
+
+const COURSE_STATUS_LABEL = { ready: "READY", active: "ACTIVE", completed: "COMPLETED", locked: "LOCKED" };
+
+// Map an INCIDENTS severity to the shared severity color class.
+function courseSeverityClass(sev) {
+  return ({ CRITICAL: "critical", HIGH: "high", MEDIUM: "medium", LOW: "low" })[sev] || "low";
+}
+
+// READY / ACTIVE / COMPLETED / LOCKED for one mission node. Splits the single
+// next-unlocked "active" node into ACTIVE (already started) vs READY (untouched)
+// using the read-only in-progress signal. Pure derivation — never writes.
+function courseMissionStatus(nodeId, states, progress) {
+  const s = states[nodeId];
+  if (s === "completed") return "completed";
+  if (s === "locked") return "locked";
+  return (progress[nodeId] && progress[nodeId].started) ? "active" : "ready";
+}
+
+// Role status + progress count derived from its missions.
+function courseRoleStatus(role, states, progress) {
+  const items = role.missions.map(id => courseMissionStatus(id, states, progress));
+  const total = items.length;
+  const done = items.filter(s => s === "completed").length;
+  let status;
+  if (total > 0 && done === total) status = "completed";
+  else if (items.some(s => s !== "locked")) status = "active";
+  else status = "locked";
+  return { status, done, total };
+}
+
 const INCIDENTS = {
   "emea": {
     id: "emea",
@@ -2030,6 +2111,11 @@ function applyMissionProgress() {
       node.setAttribute("aria-label", baseLabel);
     }
   });
+
+  // The Course Path mirrors the same read-only progress as the map badges, so
+  // re-render it on every progress refresh. This one chokepoint covers init, the
+  // focus/pageshow resync, and returns from the in-prototype interiors.
+  renderCoursePath();
 }
 
 /* ============================================================
@@ -2337,6 +2423,180 @@ function renderIntelFeed() {
   if (!feed) return;
   feed.innerHTML = '';
   [...INTEL_UPDATES, ...getWorldMemoryIntel()].forEach(renderIntelItem);
+}
+
+/* ============================================================
+   COURSE PATH — render + inspector + launch (presentation-only)
+   ============================================================ */
+
+// Expand/collapse state (role keys collapsed) and the pinned inspector target
+// both persist across re-renders so live progress updates don't reset the view.
+const coursePathCollapsed = new Set();
+let coursePathPinned = null;
+
+// The mission to show in the inspector by default: the current step (first
+// non-locked, non-completed mission), else the very first mission.
+function defaultPathItem() {
+  const states = getMissionStates();
+  const progress = getMissionProgress();
+  for (const role of COURSE_PATH) {
+    for (const id of role.missions) {
+      const st = courseMissionStatus(id, states, progress);
+      if (st === "active" || st === "ready") return { type: "mission", id };
+    }
+  }
+  return { type: "mission", id: COURSE_PATH[0].missions[0] };
+}
+
+// Rebuild the Course Path list from current (read-only) progress. Idempotent and
+// safe to call repeatedly — collapse + pinned state persist via module vars.
+function renderCoursePath() {
+  const root = document.getElementById("coursePath");
+  if (!root) return;
+  const states = getMissionStates();
+  const progress = getMissionProgress();
+  root.innerHTML = "";
+
+  COURSE_PATH.forEach(role => {
+    const rs = courseRoleStatus(role, states, progress);
+    const collapsed = coursePathCollapsed.has(role.key);
+
+    const group = document.createElement("div");
+    group.className = `cp-group cp-group--${rs.status}${collapsed ? " cp-group--collapsed" : ""}`;
+
+    const roleStatusText = rs.status === "locked" ? "Locked" : rs.status === "completed" ? "Complete" : "In progress";
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "cp-role";
+    head.setAttribute("aria-expanded", String(!collapsed));
+    head.innerHTML =
+      `<span class="cp-role-caret" aria-hidden="true">${collapsed ? "▸" : "▾"}</span>` +
+      `<span class="cp-role-name">${role.name}</span>` +
+      `<span class="cp-role-meta">` +
+        `<span class="cp-role-status cp-role-status--${rs.status}">${roleStatusText}</span>` +
+        `<span class="cp-role-count">${rs.done} / ${rs.total}</span>` +
+      `</span>`;
+    head.addEventListener("click", () => {
+      if (coursePathCollapsed.has(role.key)) coursePathCollapsed.delete(role.key);
+      else coursePathCollapsed.add(role.key);
+      coursePathPinned = { type: "role", id: role.key };
+      renderCoursePath();
+    });
+    const previewRole = () => showPathInspector({ type: "role", id: role.key });
+    head.addEventListener("mouseenter", previewRole);
+    head.addEventListener("focus", previewRole);
+    group.appendChild(head);
+
+    const list = document.createElement("div");
+    list.className = "cp-missions";
+    role.missions.forEach(nodeId => {
+      const inc = INCIDENTS[nodeId];
+      if (!inc) return;
+      const st = courseMissionStatus(nodeId, states, progress);
+      const item = { type: "mission", id: nodeId };
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = `cp-mission cp-mission--${st}` +
+        (coursePathPinned && coursePathPinned.type === "mission" && coursePathPinned.id === nodeId ? " cp-mission--selected" : "");
+      const chip = st === "completed" ? "✓ DONE" : COURSE_STATUS_LABEL[st];
+      row.innerHTML =
+        `<span class="cp-sev cp-sev--${courseSeverityClass(inc.severity)}" aria-hidden="true"></span>` +
+        `<span class="cp-status-chip cp-status-chip--${st}">${chip}</span>` +
+        `<span class="cp-mission-title">${inc.title}</span>`;
+      row.setAttribute("aria-label", `${inc.title} — ${COURSE_STATUS_LABEL[st]}`);
+      row.addEventListener("click", () => {
+        coursePathPinned = item;
+        showPathInspector(item);
+        root.querySelectorAll(".cp-mission--selected").forEach(n => n.classList.remove("cp-mission--selected"));
+        row.classList.add("cp-mission--selected");
+      });
+      const previewMission = () => showPathInspector(item);
+      row.addEventListener("mouseenter", previewMission);
+      row.addEventListener("focus", previewMission);
+      list.appendChild(row);
+    });
+    group.appendChild(list);
+    root.appendChild(group);
+  });
+
+  // Revert the inspector to the pinned (or default) target when the pointer
+  // leaves the list, so hover-preview never sticks.
+  root.onmouseleave = () => showPathInspector(coursePathPinned || defaultPathItem());
+
+  // Keep the inspector in sync with current progress.
+  showPathInspector(coursePathPinned || defaultPathItem());
+}
+
+// Populate the compact Path Inspector for a role or a mission. Read-only; the
+// only side effect is wiring the launch button to the existing launcher.
+function showPathInspector(item) {
+  const el = document.getElementById("pathInspector");
+  if (!el) return;
+  if (!item) item = defaultPathItem();
+  const states = getMissionStates();
+  const progress = getMissionProgress();
+
+  if (item.type === "role") {
+    const role = COURSE_PATH.find(r => r.key === item.id);
+    if (!role) return;
+    const rs = courseRoleStatus(role, states, progress);
+    const statusText = rs.status === "locked" ? "Locked" : rs.status === "completed" ? "Complete" : "In progress";
+    const missionTitles = role.missions.map(id => INCIDENTS[id] && INCIDENTS[id].title).filter(Boolean).join(" · ");
+    el.innerHTML =
+      `<div class="pi-kicker">ROLE</div>` +
+      `<div class="pi-title">${role.name}</div>` +
+      `<div class="pi-status pi-status--${rs.status}">${statusText} · ${rs.done}/${rs.total} missions</div>` +
+      `<p class="pi-purpose">${role.purpose}</p>` +
+      `<div class="pi-field"><span class="pi-label">Missions</span><span class="pi-value">${missionTitles}</span></div>` +
+      `<div class="pi-field"><span class="pi-label">Unlocks</span><span class="pi-value">${role.unlock}</span></div>` +
+      `<div class="pi-field"><span class="pi-label">Skills</span><span class="pi-value">${role.skills.join(", ")}</span></div>`;
+    return;
+  }
+
+  const nodeId = item.id;
+  const inc = INCIDENTS[nodeId];
+  if (!inc) return;
+  const meta = MISSION_META[nodeId] || {};
+  const st = courseMissionStatus(nodeId, states, progress);
+  const chip = st === "completed" ? "✓ COMPLETED" : COURSE_STATUS_LABEL[st];
+
+  let actionHtml;
+  if (st === "locked") {
+    actionHtml = `<button class="pi-launch pi-launch--locked" type="button" disabled>🔒 Locked</button>`;
+  } else {
+    const label = st === "completed" ? "▶ Replay" : st === "active" ? "▶ Resume" : "▶ Start mission";
+    actionHtml = `<button class="pi-launch" type="button" data-launch="${nodeId}">${label}</button>`;
+  }
+  const lockedRow = st === "locked"
+    ? `<div class="pi-field"><span class="pi-label">Locked</span><span class="pi-value">Complete the previous mission to unlock.</span></div>`
+    : "";
+
+  el.innerHTML =
+    `<div class="pi-kicker">MISSION · ${inc.region}</div>` +
+    `<div class="pi-title">${inc.title}</div>` +
+    `<div class="pi-badges">` +
+      `<span class="cp-status-chip cp-status-chip--${st}">${chip}</span>` +
+      `<span class="pi-sev pi-sev--${courseSeverityClass(inc.severity)}">${inc.severity}</span>` +
+    `</div>` +
+    `<p class="pi-purpose">${meta.objective || inc.desc}</p>` +
+    `<div class="pi-field"><span class="pi-label">Difficulty</span><span class="pi-value">${meta.difficulty || "—"}</span></div>` +
+    `<div class="pi-field"><span class="pi-label">Est. time</span><span class="pi-value">${meta.duration || "—"}</span></div>` +
+    `<div class="pi-field"><span class="pi-label">Skills</span><span class="pi-value">${(meta.skills || []).join(", ")}</span></div>` +
+    lockedRow +
+    `<div class="pi-actions">${actionHtml}</div>`;
+
+  const btn = el.querySelector("[data-launch]");
+  if (btn) btn.addEventListener("click", () => coursePathLaunch(nodeId));
+}
+
+// Launch a mission from the Course Path by reusing the EXACT map-node launch
+// path: select the node (the same activeNodeId the map click sets) then call the
+// existing launcher. Adds no new gameplay/unlock logic; locked nodes are blocked
+// here and again inside launchWorkspace().
+function coursePathLaunch(nodeId) {
+  if (getMissionStates()[nodeId] === "locked") return;
+  activeNodeId = nodeId;
+  launchWorkspace();
 }
 
 /* ============================================================
@@ -3489,6 +3749,19 @@ function init() {
     if (card.style.display !== 'none' && !card.contains(e.target) && !e.target.closest('.incident-node')) {
       hideIncidentCard();
     }
+  });
+
+  // Demoted monitoring sections (Alert Queue / Intel Updates) — collapsed by
+  // default so the Course Path leads. Toggle expand/collapse on header click.
+  document.querySelectorAll('.oc-collapsible-head[data-collapse]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sec = document.getElementById(btn.dataset.collapse);
+      if (!sec) return;
+      const collapsed = sec.classList.toggle('oc-collapsible--collapsed');
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      const caret = btn.querySelector('.cp-role-caret');
+      if (caret) caret.textContent = collapsed ? '▸' : '▾';
+    });
   });
 
   // Sound toggle
