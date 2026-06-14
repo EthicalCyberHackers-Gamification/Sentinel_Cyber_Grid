@@ -21,3 +21,13 @@ do NOT render the section unconditionally. Leaving the out-of-scope mission's da
 untouched keeps its panel visibly identical. Detect cross-section state (e.g. a
 "notebook updated" notice) once at this render chokepoint, not inside the HTML
 builders, and make that detection a no-op when the flag is off.
+
+**Full restructure (not just one section):** when one mission needs a wholly
+different notebook (e.g. a `caseFileNotebook` flag swapping the panel for a
+FACT/ASSESSMENT/REASON/UNKNOWNS/RECOMMENDATIONS case file + graded challenge cards),
+branch at the TOP of `renderEvidencePanel()` on the flag and `host.innerHTML = …;
+return;` with its own composition. Out-of-scope missions never reach the new code and
+their shared tail is literally untouched — safer than threading conditionals through
+the shared composition. Any sibling state writer (e.g. `setDiscoveryJudgment`) must
+itself stay gated: resolve only defined items, require the triggering evidence to be
+surfaced, validate input, and lock after the first write.

@@ -341,6 +341,8 @@ const SIM = {
   runToken: 0,              // invalidates stray timers across opens
   mapOpen: false,           // network-map overlay visibility (transient, presentation-only)
   dynamic: [],              // active dynamic conditions for this mission (carry-flag driven)
+  discoveryJudgments: {},   // challengeId -> chosen optionId (graded discovery challenges; transient)
+  autoOpenedBoardEvents: new Set(), // evidence ids that already auto-opened the board (once each)
 };
 
 function careerMission() { return SIM.def; }
@@ -384,6 +386,8 @@ function openCareerMission(missionId) {
   SIM.recommendations = [];
   SIM.evReveal = {};
   SIM.reflection = { concerns: new Set(), judgment: null };
+  SIM.discoveryJudgments = {};            // graded discovery challenges (caseFileNotebook missions)
+  SIM.autoOpenedBoardEvents = new Set();  // board auto-open fires once per milestone evidence id
 
   // Network-map overlay is review-only + transient: never carries across missions.
   SIM.mapOpen = false;
@@ -569,7 +573,10 @@ function timelineItemHtml(t) {
  * weighted evidence is surfaced. Touches no scoring; the recommendation engine
  * still reads evidenceQuality()/classificationQuality() directly. */
 function investigationConfidence() {
-  return Math.max(10, Math.min(100, Math.round(10 + 90 * evidenceQuality())));
+  const eq = evidenceQuality();
+  const jq = judgmentQualityVisible();   // null unless this mission has surfaced graded challenges
+  const base = (jq == null) ? eq : (0.75 * eq + 0.25 * jq);
+  return Math.max(10, Math.min(100, Math.round(10 + 90 * base)));
 }
 
 function confidenceMeterHtml() {
@@ -769,6 +776,24 @@ function renderEvidencePanel() {
   const risksHtml = risksNotebookHtml();
   const extrasHtml = notebookExtrasHtml();
   const responseHtml = responseStatusHtml();
+
+  // Investigation-First pilot (Mission 1): a case-file notebook with graded
+  // discovery cards. Strictly gated on the dataset flag — every other mission
+  // falls through to the original notebook below, byte-for-byte unchanged.
+  if (SIM.def && SIM.def.caseFileNotebook) {
+    host.innerHTML = `
+      <div class="sim-panel-head">ANALYST NOTEBOOK</div>
+      <div class="sim-evidence-body">
+        ${confidenceMeterHtml()}
+        ${viewbar}
+        ${evSection}
+        ${analystJudgmentHtml()}
+        ${caseFileSummaryHtml()}
+        ${classHtml}
+        ${responseHtml}
+      </div>`;
+    return;
+  }
 
   // Detect newly-filled notebook sections here (the single render chokepoint) so
   // the feed can flag them; no-op on Mission 1 (it never opts into the feed).
@@ -980,6 +1005,149 @@ function reflectionCardHtml(e) {
       <div class="sim-reflect-prompt sim-reflect-prompt--judge">${r.judgmentPrompt || 'Based on your findings, how would you judge this activity?'}</div>
       <div class="sim-reflect-judgments">${judgments}</div>
       ${feedback}
+    </div>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * CASE-FILE NOTEBOOK + GRADED DISCOVERY CARDS (Investigation-First, M1)
+ * ------------------------------------------------------------------ *
+ * Rendered ONLY when SIM.def.caseFileNotebook is set. The graded discovery
+ * challenges become the interactive "ANALYST JUDGMENT" cards; the reactive risks
+ * and the recorded judgments are synthesised into a FACT / ASSESSMENT / REASON /
+ * UNKNOWNS / RECOMMENDATIONS case file. Presentation-only beyond
+ * setDiscoveryJudgment (the sole writer, already gated). Missions without the
+ * flag never reach any of this. */
+
+/* One graded discovery card. Unanswered → clickable options. Answered → locks,
+ * marks your pick + the correct answer, and shows contextual Sarah Reyes feedback. */
+function discoveryCardHtml(ch) {
+  const ans = SIM.discoveryJudgments[ch.id];
+  const answered = !!ans;
+  const correct = answered && ans === ch.correct;
+  const opts = (ch.options || []).map(o => {
+    if (!answered) {
+      return `<button type="button" class="sim-discovery-opt" data-discovery-judgment data-challenge="${ch.id}" data-option="${o.id}">${o.label}</button>`;
+    }
+    let cls = 'sim-discovery-opt sim-discovery-opt--locked';
+    let mark = '';
+    if (o.id === ans && correct)  { cls += ' sim-discovery-opt--correct'; mark = '<span class="sim-discovery-mark">✓ your answer</span>'; }
+    else if (o.id === ans)        { cls += ' sim-discovery-opt--wrong';   mark = '<span class="sim-discovery-mark">✗ your answer</span>'; }
+    else if (o.id === ch.correct) { cls += ' sim-discovery-opt--key';     mark = '<span class="sim-discovery-mark">correct answer</span>'; }
+    else                          { cls += ' sim-discovery-opt--muted'; }
+    return `<div class="${cls}">${o.label}${mark}</div>`;
+  }).join('');
+  const chosen = answered ? (ch.options || []).find(o => o.id === ans) : null;
+  const feedback = chosen
+    ? `<div class="sim-discovery-feedback sim-discovery-feedback--${correct ? 'correct' : 'wrong'}">
+         <span class="sim-discovery-feedback-label">Sarah Reyes</span>${chosen.feedback || ''}</div>`
+    : '';
+  return `
+    <div class="sim-discovery${answered ? (correct ? ' sim-discovery--correct' : ' sim-discovery--wrong') : ''}">
+      <div class="sim-discovery-card-head">ANALYST JUDGMENT · ${ch.short || ''}</div>
+      <div class="sim-discovery-prompt">${ch.prompt || ''}</div>
+      <div class="sim-discovery-opts">${opts}</div>
+      ${feedback}
+    </div>`;
+}
+
+/* The ANALYST JUDGMENT section — one card per SURFACED challenge. '' until the
+ * first triggering finding surfaces (and '' for non-challenge missions). */
+function analystJudgmentHtml() {
+  const vis = visibleDiscoveryChallenges();
+  if (!vis.length) return '';
+  const answered = vis.filter(c => SIM.discoveryJudgments[c.id]).length;
+  const cards = vis.map(discoveryCardHtml).join('');
+  return `
+    <div class="sim-notebook-section">
+      <div class="sim-notebook-head">ANALYST JUDGMENT <span class="sim-notebook-count">${answered}/${vis.length}</span></div>
+      ${cards}
+    </div>`;
+}
+
+/* Plain-language "what to do next", case-file flavour. Pending judgments first. */
+function caseFileNextStep() {
+  const pending = visibleDiscoveryChallenges().filter(c => !SIM.discoveryJudgments[c.id]);
+  if (pending.length) return 'Make the analyst judgment on your latest finding (above).';
+  const unread = simFiles().filter(f => !SIM.read.has(f.name));
+  if (unread.length) return `Open the remaining ${unread.length} file(s) to surface more evidence.`;
+  const unclassified = simFiles().filter(f => SIM.read.has(f.name) && !SIM.classified[f.name]);
+  if (unclassified.length) return 'Classify each file you have reviewed.';
+  if (SIM.stage === 'investigation') return 'When the evidence is in, type  decide  to choose your response.';
+  return '';
+}
+
+/* One labelled case-file row. */
+function caseFileRow(tag, mod, bodyHtml) {
+  return `
+    <div class="sim-casefile-row">
+      <span class="sim-casefile-tag sim-casefile-tag--${mod}">${tag}</span>
+      <div class="sim-casefile-body">${bodyHtml}</div>
+    </div>`;
+}
+
+/* The case file — a synthesis of the reactive risks (FACT / UNKNOWNS), the graded
+ * judgments (ASSESSMENT / REASON) and the response plan (RECOMMENDATIONS). On
+ * caseFileNotebook missions this replaces the POTENTIAL RISKS + reflection cards. */
+function caseFileSummaryHtml() {
+  const risks = (SIM.def && SIM.def.risks) || [];
+  const confirmed = risks.filter(riskConfirmed);
+  const openRisks = risks.filter(r => !riskConfirmed(r));
+  const answered = simDiscoveryChallenges().filter(c => SIM.discoveryJudgments[c.id]);
+
+  // FACT — established from surfaced evidence.
+  const factBody = confirmed.length
+    ? `<ul class="sim-casefile-list">${confirmed.map(r => `<li>${r.label}</li>`).join('')}</ul>`
+    : `<span class="sim-casefile-empty">No facts established yet — review the files in the terminal.</span>`;
+
+  // ASSESSMENT — your graded judgments.
+  const assessBody = answered.length
+    ? `<ul class="sim-casefile-list">${answered.map(c => {
+        const ok = challengeCorrect(c);
+        const opt = (c.options || []).find(o => o.id === SIM.discoveryJudgments[c.id]);
+        return `<li class="sim-casefile-${ok ? 'ok' : 'bad'}"><span class="sim-casefile-mk">${ok ? '✓' : '✗'}</span>${c.short}: ${opt ? opt.label : ''}</li>`;
+      }).join('')}</ul>`
+    : `<span class="sim-casefile-empty">No analyst judgments recorded yet.</span>`;
+
+  // REASON — Sarah Reyes' rationale on each judgment you made.
+  const reasonBody = answered.length
+    ? `<ul class="sim-casefile-list">${answered.map(c => {
+        const opt = (c.options || []).find(o => o.id === SIM.discoveryJudgments[c.id]);
+        return `<li>${opt ? opt.feedback : ''}</li>`;
+      }).join('')}</ul>`
+    : `<span class="sim-casefile-empty">Record a judgment to capture the reasoning.</span>`;
+
+  // UNKNOWNS — open risks + unread files + pending judgments.
+  const unkItems = [];
+  openRisks.forEach(r => unkItems.push(r.label));
+  const unread = simFiles().filter(f => !SIM.read.has(f.name));
+  if (unread.length) unkItems.push(`${unread.length} file(s) not yet opened`);
+  const pending = visibleDiscoveryChallenges().filter(c => !SIM.discoveryJudgments[c.id]);
+  if (pending.length) unkItems.push(`${pending.length} finding(s) awaiting your judgment`);
+  const unkBody = unkItems.length
+    ? `<ul class="sim-casefile-list">${unkItems.map(u => `<li>${u}</li>`).join('')}</ul>`
+    : `<span class="sim-casefile-empty">All known threads resolved.</span>`;
+
+  // RECOMMENDATIONS — the recorded response, or the next step.
+  let recBody;
+  if (SIM.decision) {
+    const d = SIM.decision;
+    let chosen = '';
+    if (d.actionId) { const a = (SIM.def.actions || []).find(x => x.id === d.actionId); chosen = a ? a.label : d.actionId; }
+    else if (d.recommendationId) { const rc = (SIM.def.recommendations || {})[d.recommendationId]; chosen = rc ? rc.label : d.recommendationId; }
+    recBody = `<span class="sim-casefile-done">Response recorded — ${chosen || 'submitted'}</span>`;
+  } else {
+    const ns = caseFileNextStep();
+    recBody = ns ? `<span class="sim-casefile-next">${ns}</span>` : `<span class="sim-casefile-empty">—</span>`;
+  }
+
+  return `
+    <div class="sim-casefile">
+      <div class="sim-casefile-head">CASE FILE</div>
+      ${caseFileRow('FACT', 'fact', factBody)}
+      ${caseFileRow('ASSESSMENT', 'assess', assessBody)}
+      ${caseFileRow('REASON', 'reason', reasonBody)}
+      ${caseFileRow('UNKNOWNS', 'unknown', unkBody)}
+      ${caseFileRow('RECOMMENDATIONS', 'rec', recBody)}
     </div>`;
 }
 
@@ -1306,6 +1474,63 @@ function classificationQuality() {
   return correct / files.length;
 }
 
+/* ------------------------------------------------------------------ *
+ * GRADED DISCOVERY CHALLENGES (Investigation-First pilot — Mission 1)
+ * ------------------------------------------------------------------ *
+ * A mission may attach `discoveryChallenges`: per-finding multiple-choice
+ * judgment prompts, each tied to an evidence id and surfaced once that evidence
+ * is. They are GRADED — correctness feeds investigationConfidence() (live) and
+ * computeRecommendationOutcome() (final). Missions that define no challenges are
+ * completely unaffected: every helper returns null/[] so the confidence + scoring
+ * paths fall back to their original behaviour (M2–M4 are untouched). */
+function simDiscoveryChallenges() {
+  return (SIM.def && Array.isArray(SIM.def.discoveryChallenges)) ? SIM.def.discoveryChallenges : [];
+}
+function discoveryChallengeById(id) {
+  return simDiscoveryChallenges().find(c => c.id === id) || null;
+}
+/* Challenges whose triggering evidence has surfaced — the only ones the player
+ * can answer (and the only ones shown). */
+function visibleDiscoveryChallenges() {
+  return simDiscoveryChallenges().filter(c => SIM.evidence.has(c.evidenceId));
+}
+function challengeCorrect(ch) {
+  return !!ch && SIM.discoveryJudgments[ch.id] === ch.correct;
+}
+/* Weighted correctness over the SURFACED challenges — drives the live confidence
+ * meter, so answering surfaced findings well lifts confidence. null when the
+ * mission defines no challenges (meter stays evidence-only). */
+function judgmentQualityVisible() {
+  if (!simDiscoveryChallenges().length) return null;
+  const vis = visibleDiscoveryChallenges();
+  const total = vis.reduce((s, c) => s + (c.weight || 1), 0);
+  if (total <= 0) return null;
+  let got = 0;
+  vis.forEach(c => { if (challengeCorrect(c)) got += (c.weight || 1); });
+  return Math.min(1, got / total);
+}
+/* Weighted correctness over ALL defined challenges — drives the final score, so
+ * unanswered or wrong judgments cost points (mirrors classificationQuality). */
+function judgmentQualityAll() {
+  const chs = simDiscoveryChallenges();
+  if (!chs.length) return null;
+  const total = chs.reduce((s, c) => s + (c.weight || 1), 0);
+  if (total <= 0) return null;
+  let got = 0;
+  chs.forEach(c => { if (challengeCorrect(c)) got += (c.weight || 1); });
+  return Math.min(1, got / total);
+}
+/* Record an answer. Locks after the first pick (honest grading) and only for a
+ * surfaced challenge with a valid option. Re-renders the notebook. */
+function setDiscoveryJudgment(challengeId, optionId) {
+  const ch = discoveryChallengeById(challengeId);
+  if (!ch || !SIM.evidence.has(ch.evidenceId)) return;
+  if (SIM.discoveryJudgments[challengeId]) return;             // locked after first answer
+  if (!(ch.options || []).some(o => o.id === optionId)) return;
+  SIM.discoveryJudgments[challengeId] = optionId;
+  renderEvidencePanel();
+}
+
 /* Terminal command router. ls / cat / less per the Mission 1 spec, plus help,
  * clear, and `decide` to reveal the handling actions when the player is ready. */
 function simRunCommand(raw) {
@@ -1549,6 +1774,22 @@ function surfaceEvidence(evId) {
     updateMapButton();
     if (SIM.mapOpen) renderSimMap();
   }
+  maybeAutoOpenSimMap(evId);
+}
+
+/* Investigation-First (Mission 1): auto-open the investigation board the first
+ * time a milestone discovery surfaces, so the player SEES the picture build up.
+ * Strictly gated on def.boardMilestones (absent on M2-M4 → never fires), fires
+ * once per milestone (autoOpenedBoardEvents), and never steals an already-open
+ * or manually-closed-this-frame map. Reuses the existing overlay; no scoring. */
+function maybeAutoOpenSimMap(evId) {
+  const milestones = (SIM.def && SIM.def.boardMilestones) || null;
+  if (!milestones || !milestones.includes(evId)) return;
+  if (!missionHasMap()) return;
+  if (SIM.autoOpenedBoardEvents.has(evId)) return;
+  SIM.autoOpenedBoardEvents.add(evId);
+  if (SIM.mapOpen) return; // already showing — the live render above covers it
+  openSimMap();
 }
 
 function setClassification(fileName, value) {
@@ -1717,9 +1958,18 @@ function computeRecommendationOutcome() {
   const timing = SIM.evidence.size > 0 ? 1 : 0;
   const sev = (SIM.def && SIM.def.severity) || 'MEDIUM';
   const sevBoost = sev === 'CRITICAL' ? 10 : sev === 'HIGH' ? 10 : sev === 'MEDIUM' ? 5 : 0;
+  // Challenge missions (M1 pilot) reweight evidence + accuracy to make room for a
+  // graded-judgment term; missions without challenges keep the original weights.
+  const jq = judgmentQualityAll();                   // null when no discovery challenges
   let score = 0;
-  score += q * 30;                                   // evidence surfaced
-  score += accuracy * 25;                            // correct answer (classify / identify)
+  if (jq == null) {
+    score += q * 30;                                 // evidence surfaced
+    score += accuracy * 25;                          // correct answer (classify / identify)
+  } else {
+    score += q * 25;                                 // evidence surfaced (rebalanced)
+    score += accuracy * 22;                          // correct classification
+    score += jq * 13;                                // graded discovery judgments
+  }
   score += (CAREER.executiveTrust / 100) * 12;
   score += (CAREER.careerReputation / 100) * 8;
   score += timing ? 8 : 0;
@@ -1730,7 +1980,7 @@ function computeRecommendationOutcome() {
   else if (score >= 50) { verdict = 'Partially Approved';  multiplier = 0.6; }
   else if (score >= 30) { verdict = 'Deferred';            multiplier = 0.3; }
   else                  { verdict = 'Denied';              multiplier = 0;   }
-  return { verdict, multiplier, score: Math.round(score), evidenceQuality: q, classificationQuality: accuracy };
+  return { verdict, multiplier, score: Math.round(score), evidenceQuality: q, classificationQuality: accuracy, judgmentQuality: jq };
 }
 
 function scaleDeltas(deltas, m) {
@@ -1743,11 +1993,12 @@ function recommendationReason(o) {
   const ev = Math.round(o.evidenceQuality * 100);
   const cl = Math.round((o.classificationQuality || 0) * 100);
   if (simFiles().length) {
-    // FILE-MODEL (Mission 1) — wording unchanged.
-    if (o.verdict === 'Approved')           return `Strong, well-evidenced case — ${ev}% of evidence gathered, ${cl}% of files classified correctly. Leadership approved it in full.`;
-    if (o.verdict === 'Partially Approved') return `Reasonable case — ${ev}% evidence, ${cl}% classified correctly. Leadership approved part of it, pending tighter work.`;
-    if (o.verdict === 'Deferred')           return `Thin work — ${ev}% evidence, ${cl}% classified correctly. Leadership deferred the decision for now.`;
-    return `Insufficient case — ${ev}% evidence, ${cl}% classified correctly. Leadership declined — investigate and classify before recommending.`;
+    // FILE-MODEL (Mission 1). On challenge missions, also credit graded judgments.
+    const jc = (o.judgmentQuality != null) ? `, ${Math.round(o.judgmentQuality * 100)}% of discovery judgments correct` : '';
+    if (o.verdict === 'Approved')           return `Strong, well-evidenced case — ${ev}% of evidence gathered, ${cl}% of files classified correctly${jc}. Leadership approved it in full.`;
+    if (o.verdict === 'Partially Approved') return `Reasonable case — ${ev}% evidence, ${cl}% classified correctly${jc}. Leadership approved part of it, pending tighter work.`;
+    if (o.verdict === 'Deferred')           return `Thin work — ${ev}% evidence, ${cl}% classified correctly${jc}. Leadership deferred the decision for now.`;
+    return `Insufficient case — ${ev}% evidence, ${cl}% classified correctly${jc}. Leadership declined — investigate and classify before recommending.`;
   }
   // COMMAND-MODEL (Mission 2+) — accuracy is the identification, not classification.
   const idOk = (SIM.def && SIM.def.identify) ? identificationQuality() === 1 : null;
@@ -2294,6 +2545,89 @@ const CAREER_MISSIONS = {
             why: 'Material non-public deal information read by a vendor account is well beyond any legitimate need.' } },
       ],
     },
+
+    /* ---- INVESTIGATION-FIRST PILOT (Mission 1 only) -----------------------
+     * caseFileNotebook restructures the Analyst Notebook into a case-file model
+     * (FACT / ASSESSMENT / REASON / UNKNOWNS / RECOMMENDATIONS). boardMilestones
+     * auto-open the existing network map once each as the dangerous findings
+     * surface. discoveryChallenges are per-finding GRADED judgment prompts with
+     * contextual Sarah Reyes feedback. All three are read only where present, so
+     * Assignments 2–4 (which omit them) are unchanged. */
+    caseFileNotebook: true,
+    boardMilestones: ['ev_pii_salary', 'ev_customer_pii', 'ev_contractor_access'],
+    discoveryChallenges: [
+      {
+        id: 'ch_release_context', evidenceId: 'ev_release_context', short: 'Release ownership',
+        weight: 1, correct: 'a',
+        prompt: 'You read the release cover note. What concerns you MOST about how this package was prepared?',
+        options: [
+          { id: 'a', label: 'The external contractor assembled the release with no internal review',
+            feedback: '"Exactly. An outside account deciding what leaves the company — with no data-owner sign-off — is the thread to pull. Good instinct." — Sarah Reyes' },
+          { id: 'b', label: 'The cover note is short and a little informal',
+            feedback: '"Tone is not the issue. Look at WHO prepared this and whether anyone inside checked it." — Sarah Reyes' },
+          { id: 'c', label: 'The partner is in logistics, not security',
+            feedback: '"The partner being logistics is fine. The problem is the contractor self-approving the contents." — Sarah Reyes' },
+          { id: 'd', label: 'Nothing — this is a routine partner release',
+            feedback: '"I would push back. A contractor packaging finance files unsupervised is not routine — keep reading." — Sarah Reyes' },
+        ],
+      },
+      {
+        id: 'ch_public_safe', evidenceId: 'ev_public_safe', short: 'Public collateral',
+        weight: 1, correct: 'safe',
+        prompt: 'Is the product datasheet safe to include in an external partner release?',
+        options: [
+          { id: 'safe', label: 'Yes — it is already public, marketing-cleared collateral',
+            feedback: '"Right. Published, marketing-cleared material is exactly what belongs in a partner package. Knowing what is SAFE matters as much as spotting what is not." — Sarah Reyes' },
+          { id: 'hold', label: 'No — hold anything that is in a flagged release',
+            feedback: '"Careful — over-blocking erodes trust with the business. Already-public collateral is fine to share." — Sarah Reyes' },
+          { id: 'redact', label: 'Only after redacting the pricing it mentions',
+            feedback: '"The list pricing here is the PUBLISHED price, not the confidential negotiated rates. No redaction needed." — Sarah Reyes' },
+        ],
+      },
+      {
+        id: 'ch_pii_salary', evidenceId: 'ev_pii_salary', short: 'Salary file handling',
+        weight: 1, correct: 'restricted',
+        prompt: 'Employee salaries are sitting in the outbound package. How should this file be classified?',
+        options: [
+          { id: 'restricted', label: 'Restricted — HR PII + compensation, must never leave the company',
+            feedback: '"Correct — names tied to pay is the highest-sensitivity tier. This must never reach a partner." — Sarah Reyes' },
+          { id: 'confidential', label: 'Confidential — internal only',
+            feedback: '"Close, but salary PII outranks Confidential. Personal compensation data is Restricted." — Sarah Reyes' },
+          { id: 'internal', label: 'Internal — fine for staff to see',
+            feedback: '"No — staff at large should not see individual salaries either. This is Restricted." — Sarah Reyes' },
+          { id: 'public', label: 'Public',
+            feedback: '"That would be a serious breach. Salary data is Restricted — the highest tier." — Sarah Reyes' },
+        ],
+      },
+      {
+        id: 'ch_customer_pii', evidenceId: 'ev_customer_pii', short: 'Payment data risk',
+        weight: 1, correct: 'exposure',
+        prompt: 'You found customer payment records in the package. What is the SINGLE highest concern?',
+        options: [
+          { id: 'exposure', label: 'Regulated customer cardholder data could be exposed to an outside party',
+            feedback: '"That is the one. PCI cardholder data leaving to a third party is a regulated-data breach — fines and real customer harm." — Sarah Reyes' },
+          { id: 'format', label: 'The CSV is messy and hard to read',
+            feedback: '"Formatting is irrelevant to the risk. Focus on what the data IS: regulated payment records." — Sarah Reyes' },
+          { id: 'volume', label: 'There are only a few rows, so impact is small',
+            feedback: '"Even one exposed card record is a reportable breach. Volume does not lower the severity here." — Sarah Reyes' },
+          { id: 'dupe', label: 'It might duplicate data the partner already has',
+            feedback: '"We cannot assume that, and it would not reduce our liability anyway. The exposure itself is the concern." — Sarah Reyes' },
+        ],
+      },
+      {
+        id: 'ch_contractor_access', evidenceId: 'ev_contractor_access', short: 'Contractor activity',
+        weight: 2, correct: 'suspicious',
+        prompt: 'The access log shows ext-contractor-07 reading HR/Finance files at 02:00, outside its remit. How do you judge this activity?',
+        options: [
+          { id: 'suspicious', label: 'Suspicious — flag and escalate for investigation',
+            feedback: '"Exactly the right call. We have strong indicators but not proof of intent — Suspicious means we escalate and investigate, which is your job here." — Sarah Reyes' },
+          { id: 'benign', label: 'Benign — probably just release preparation',
+            feedback: '"I would challenge that. A vendor account reading salaries and deal roadmaps at 2 AM is not normal prep — at minimum it is suspicious." — Sarah Reyes' },
+          { id: 'malicious', label: 'Malicious — confirmed insider attack, lock everything down now',
+            feedback: '"Good instinct to take it seriously, but we cannot prove intent yet. Call it Suspicious and escalate — let the investigation establish malice." — Sarah Reyes' },
+        ],
+      },
+    ],
 
     intro: [
       { t: 'CyberCorp SOC // Career Operating Center — Data Handling Review', c: 'head' },
@@ -5397,6 +5731,8 @@ function simInit() {
       if (concern) { toggleConcern(Number(concern.dataset.concern)); return; }
       const judg = e.target.closest('[data-judgment]');
       if (judg) { setJudgment(judg.dataset.judgment); return; }
+      const disc = e.target.closest('[data-discovery-judgment]');
+      if (disc) { setDiscoveryJudgment(disc.dataset.challenge, disc.dataset.option); return; }
       const ident = e.target.closest('[data-identify]');
       if (ident) { setIdentification(ident.dataset.identify); return; }
 

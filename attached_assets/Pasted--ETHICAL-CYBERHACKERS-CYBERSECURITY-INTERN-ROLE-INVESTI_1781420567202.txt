@@ -1,0 +1,578 @@
+# ETHICAL CYBERHACKERS
+
+# CYBERSECURITY INTERN ROLE
+
+# INVESTIGATION-FIRST IMMERSION ENHANCEMENT
+
+# VISUAL INVESTIGATION BOARD IMPLEMENTATION
+
+# REPLIT BUILD PROMPT
+
+IMPORTANT
+
+This is NOT a curriculum rewrite.
+
+Do NOT rename missions.
+
+Do NOT redesign the overall UI.
+
+Do NOT remove:
+
+* Investigation Terminal
+* Analyst Notebook
+* Resource Bar
+* Investigation Confidence
+* Sarah Reyes
+* Existing mission flow
+
+The goal is to transform passive investigations into active detective gameplay while preserving all existing learning objectives.
+
+The biggest problem today:
+
+The player discovers evidence but is rarely required to think about it.
+
+Current flow:
+
+Command
+→ Read Output
+→ Notebook Update
+→ Next Command
+
+Target flow:
+
+Command
+→ Discovery
+→ Visual Reveal
+→ Analyst Judgment
+→ Feedback
+→ Notebook Update
+→ Continue Investigation
+
+The player should repeatedly move through:
+
+Discover
+→ Interpret
+→ Justify
+→ Learn
+
+This should feel similar to successful detective and investigation games such as:
+
+* Return of the Obra Dinn
+* Case of the Golden Idol
+* Papers Please
+* Her Story
+
+The student should feel like they are solving a case, not reading a lesson.
+
+---
+
+## CORE DESIGN PRINCIPLE
+
+The Investigation Terminal discovers facts.
+
+The Visual Investigation Board reveals relationships.
+
+The Analyst Notebook captures reasoning.
+
+Sarah Reyes teaches judgment.
+
+Each system has a unique role.
+
+Avoid duplicate functionality.
+
+---
+
+## VISUAL INVESTIGATION BOARD
+
+Repurpose the current in-mission Network Map.
+
+For the Intern role, it becomes:
+
+Visual Investigation Board
+
+The board should not function as a traditional network diagram.
+
+The board should function as a visual case board.
+
+Every important discovery becomes a visual node.
+
+Examples:
+
+People
+Devices
+Files
+Accounts
+Systems
+Alerts
+Databases
+Transfers
+
+Nodes should visually connect as relationships are discovered.
+
+The board should reveal the investigation gradually.
+
+Students should feel they are uncovering a mystery.
+
+---
+
+## DISCOVERY EVENT SYSTEM
+
+Do NOT open the board after every command.
+
+Only trigger board events when:
+
+1. New Entity Discovered
+2. New Relationship Discovered
+3. New Risk Discovered
+4. Major Investigation Milestone Reached
+
+Examples:
+
+New Contractor Found
+
+Unknown Device Found
+
+Sensitive File Found
+
+Compromised Account Found
+
+Large Transfer Found
+
+Each event should trigger a Visual Investigation Moment.
+
+---
+
+## VISUAL INVESTIGATION MOMENT
+
+When a major discovery occurs:
+
+The board slides open from the side.
+
+Do NOT use intrusive modal popups.
+
+The terminal remains visible.
+
+The board highlights the new node.
+
+Example:
+
+Student runs:
+
+cat release_notes.txt
+
+Board reveals:
+
+[ External Contractor ]
+│
+▼
+[ Release Package ]
+
+The relationship animates.
+
+Student attention is drawn to the connection.
+
+---
+
+## ANALYST JUDGMENT CARDS
+
+After a visual reveal:
+
+Present a short judgment challenge.
+
+Example:
+
+ANALYST ASSESSMENT
+
+What stands out?
+
+○ Contractor involvement
+○ File timestamp
+○ File name
+○ Nothing unusual
+
+Student must answer.
+
+Immediate feedback follows.
+
+This is the core engagement mechanic.
+
+The student should be making judgments throughout the mission.
+
+Not only at the end.
+
+---
+
+## SARAH REYES MENTOR FEEDBACK
+
+Avoid generic:
+
+"Correct"
+
+Use contextual mentor feedback.
+
+Example:
+
+Sarah Reyes:
+
+"Good observation.
+
+External contractors normally do not prepare release packages without internal review.
+
+Let's find out who approved this."
+
+Feedback should feel conversational and educational.
+
+Sarah should act as a mentor.
+
+Not a tutorial system.
+
+---
+
+MISSION 1
+PROTECT SENSITIVE INFORMATION
+-----------------------------
+
+Current mission objective remains unchanged.
+
+Build a visual investigation board focused on:
+
+Information Flow
+
+Initial Board State:
+
+[ Release Package ]
+
+All other nodes hidden.
+
+Student begins with incomplete information.
+
+---
+
+## DISCOVERY 1
+
+Command:
+
+cat release_notes.txt
+
+Reveal:
+
+[ External Contractor ]
+│
+▼
+[ Release Package ]
+
+Analyst Challenge:
+
+What concerns you most?
+
+○ Contractor involvement
+○ Release package name
+○ File size
+○ Nothing concerning
+
+Feedback updates notebook.
+
+---
+
+## DISCOVERY 2
+
+Command:
+
+cat marketing_materials.txt
+
+Reveal:
+
+[ Marketing Materials ]
+
+Connection:
+
+Release Package
+│
+▼
+Marketing Materials
+
+Challenge:
+
+Is this file safe for public release?
+
+○ Safe
+○ Sensitive
+○ Need More Review
+
+Correct:
+
+Safe
+
+---
+
+## DISCOVERY 3
+
+Command:
+
+cat employee_salaries.csv
+
+Reveal:
+
+[ Employee Salaries ]
+
+Connection:
+
+Release Package
+│
+▼
+Employee Salaries
+
+Node turns orange.
+
+Challenge:
+
+How should this information be classified?
+
+○ Public
+○ Internal
+○ Confidential
+○ Restricted
+
+Correct:
+
+Confidential or Restricted
+
+Sarah explains why.
+
+---
+
+## DISCOVERY 4
+
+Command:
+
+cat customer_payment_records.csv
+
+Reveal:
+
+[ Customer Payment Records ]
+
+Node turns red.
+
+Connection:
+
+Release Package
+│
+▼
+Customer Payment Records
+
+Challenge:
+
+What is the highest concern?
+
+○ Customer data exposure
+○ File naming
+○ Contractor identity
+○ Publication delay
+
+Correct:
+
+Customer data exposure
+
+---
+
+## BOARD PROGRESSION
+
+Hidden nodes should appear as:
+
+?
+
+Example:
+
+Release Package
+
+├── Marketing Materials
+├── Employee Salaries
+├── ?
+├── ?
+
+Students should want to uncover the unknown nodes.
+
+Discovery should feel rewarding.
+
+---
+
+## ANALYST NOTEBOOK REFACTOR
+
+Notebook should record student reasoning.
+
+Current:
+
+Finding:
+Contractor involved.
+
+New:
+
+FACT
+
+Contractor prepared release package.
+
+ASSESSMENT
+
+Suspicious.
+
+REASON
+
+No internal reviewer identified.
+
+Notebook should store:
+
+Facts
+
+Assessments
+
+Unknowns
+
+Recommendations
+
+The notebook becomes the player's case file.
+
+---
+
+## ACTIVE INVESTIGATION FEED
+
+Add a small panel near notebook.
+
+Purpose:
+
+Show latest discovery requiring judgment.
+
+Example:
+
+NEW FINDING
+
+Contractor assembled release package.
+
+ACTION REQUIRED
+
+Classify concern.
+
+This prevents students from hunting through notebook updates.
+
+---
+
+MISSION 2
+INVESTIGATE NETWORK ASSETS
+--------------------------
+
+Board evolves into:
+
+Asset Relationship View
+
+Examples:
+
+Unknown Device
+Contractor Device
+File Server
+Finance Network
+
+Students visually discover:
+
+Device
+→ Network Segment
+→ Critical Resource
+
+Judgment challenges focus on:
+
+Ownership
+
+Placement
+
+Risk
+
+Exposure
+
+---
+
+MISSION 3
+INVESTIGATE SUSPICIOUS AUTHENTICATION ACTIVITY
+----------------------------------------------
+
+Board evolves into:
+
+Identity Relationship View
+
+Examples:
+
+Contractor Account
+Failed Logins
+Successful Login
+Sensitive Resource
+
+Students identify suspicious relationships.
+
+Challenges focus on:
+
+Likelihood
+
+Risk
+
+Evidence Strength
+
+Recommended Action
+
+---
+
+MISSION 4
+DATA EXFILTRATION INVESTIGATION
+-------------------------------
+
+Board evolves into:
+
+Attack Reconstruction Board
+
+Students gradually assemble:
+
+Contractor
+↓
+Device
+↓
+Account
+↓
+Database
+↓
+Archive
+↓
+External Transfer
+
+The final mission should feel like solving a case.
+
+Not reading a report.
+
+Students should actively connect relationships.
+
+---
+
+## SUCCESS CRITERIA
+
+Students should spend less time reading.
+
+Students should spend more time:
+
+Observing
+
+Interpreting
+
+Justifying
+
+Learning
+
+Every major discovery should create a moment of judgment.
+
+Every judgment should create feedback.
+
+Every feedback cycle should improve reasoning.
+
+The student should finish Mission 4 feeling:
+
+"I solved an investigation."
+
+Not:
+
+"I completed a cybersecurity lesson."
+
+The Visual Investigation Board should become the primary engagement layer that transforms cybersecurity training into detective-style investigative gameplay while preserving all existing mission names, curriculum goals, and technical learning outcomes.
