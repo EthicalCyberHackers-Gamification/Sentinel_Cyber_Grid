@@ -376,6 +376,8 @@ function openCareerMission(missionId) {
   SIM.ranCommands = new Set();
   SIM.evidence = new Set();
   SIM.lastEvidenceId = null; // Active Investigation Feed — newest-finding tracker.
+  SIM.notebookSeen = new Set(); // Feed "notebook updated" notice — sections seen.
+  SIM.notebookNotice = '';      // Latest notebook section to fill in (label).
   SIM.classified = {};
   SIM.identified = null;
   SIM.decision = null;
@@ -764,6 +766,16 @@ function renderEvidencePanel() {
 
   const classHtml = renderClassifyHtml(mode);    // M1 file flow ('' for command-model)
   const identifyHtml = identifyNotebookHtml();    // command-model ('' for M1)
+  const risksHtml = risksNotebookHtml();
+  const extrasHtml = notebookExtrasHtml();
+  const responseHtml = responseStatusHtml();
+
+  // Detect newly-filled notebook sections here (the single render chokepoint) so
+  // the feed can flag them; no-op on Mission 1 (it never opts into the feed).
+  noteNotebookSections({
+    reflection: reflectHtml, risks: risksHtml, extras: extrasHtml,
+    classification: classHtml, identification: identifyHtml, response: responseHtml,
+  });
 
   host.innerHTML = `
     <div class="sim-panel-head">ANALYST NOTEBOOK</div>
@@ -772,12 +784,12 @@ function renderEvidencePanel() {
       ${viewbar}
       ${evSection}
       ${investigationFeedHtml()}
-      ${risksNotebookHtml()}
-      ${notebookExtrasHtml()}
+      ${risksHtml}
+      ${extrasHtml}
       ${reflectHtml}
       ${classHtml}
       ${identifyHtml}
-      ${responseStatusHtml()}
+      ${responseHtml}
     </div>`;
 }
 
@@ -867,7 +879,38 @@ function investigationNextStep() {
   return '';
 }
 
+const NOTEBOOK_SECTION_LABELS = {
+  reflection: 'Reasoning prompt',
+  risks: 'Risk notes',
+  extras: 'Notebook notes',
+  classification: 'File classification',
+  identification: 'Identification',
+  response: 'Response plan',
+};
+
+/* Track which notebook sections have filled in so the feed can show a brief
+ * "notebook updated" notice the first time a new one appears. Presentation-only:
+ * mutates transient SIM trackers, writes no progress and adds no scoring. Called
+ * once per panel render (the single chokepoint) so the HTML builders stay
+ * side-effect free. No-op unless the mission opts into the feed (Mission 1 never
+ * does), so it can never alter Mission 1. */
+function noteNotebookSections(sections) {
+  if (!SIM.def || !SIM.def.investigationFeed) return;
+  if (!SIM.notebookSeen) SIM.notebookSeen = new Set();
+  let newest = '';
+  Object.keys(sections).forEach(key => {
+    if (sections[key] && !SIM.notebookSeen.has(key)) {
+      SIM.notebookSeen.add(key);
+      newest = NOTEBOOK_SECTION_LABELS[key] || '';
+    }
+  });
+  if (newest) SIM.notebookNotice = newest;
+}
+
 function investigationFeedHtml() {
+  // M2–M4 opt in via the dataset flag; Mission 1 has no flag, so this returns ''
+  // and Mission 1's notebook panel stays byte-for-byte unchanged.
+  if (!SIM.def || !SIM.def.investigationFeed) return '';
   const latest = newestEvidence();
   if (!latest) return ''; // collapse until the first finding surfaces
 
@@ -892,6 +935,11 @@ function investigationFeedHtml() {
   }
 
   const next = investigationNextStep();
+  const noticeRow = SIM.notebookNotice
+    ? `<div class="sim-feed-row sim-feed-row--note">
+        <span class="sim-feed-tag">Notebook updated</span>
+        <span class="sim-feed-text">${SIM.notebookNotice}</span></div>`
+    : '';
   return `
     <div class="sim-feed" role="status" aria-live="polite">
       <div class="sim-feed-head">ACTIVE INVESTIGATION</div>
@@ -900,6 +948,7 @@ function investigationFeedHtml() {
         <span class="sim-feed-text">${latest.label}</span>
       </div>
       ${judgeBlock}
+      ${noticeRow}
       ${next ? `<div class="sim-feed-row sim-feed-row--next">
         <span class="sim-feed-tag">Next step</span>
         <span class="sim-feed-text">${next}</span></div>` : ''}
@@ -2604,6 +2653,7 @@ const CAREER_MISSIONS = {
    * ================================================================== */
   'mission-002': {
     id: 'mission-002',
+    investigationFeed: true, // Part B — Active Investigation Feed. Mission 1 opts out.
     opId: 'OPS-2026-002',
     severity: 'MEDIUM',
     region: 'APAC REGION',
@@ -3244,6 +3294,7 @@ const CAREER_MISSIONS = {
    * ================================================================== */
   'mission-003': {
     id: 'mission-003',
+    investigationFeed: true, // Part B — Active Investigation Feed. Mission 1 opts out.
     opId: 'OPS-2026-003',
     severity: 'HIGH',
     region: 'NA-EAST REGION',
@@ -3998,6 +4049,7 @@ const CAREER_MISSIONS = {
    * ================================================================== */
   'mission-004': {
     id: 'mission-004',
+    investigationFeed: true, // Part B — Active Investigation Feed. Mission 1 opts out.
     opId: 'OPS-2026-004',
     severity: 'CRITICAL',
     region: 'LATAM REGION',

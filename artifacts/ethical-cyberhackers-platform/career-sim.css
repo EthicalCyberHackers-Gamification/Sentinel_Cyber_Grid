@@ -1439,6 +1439,8 @@
 }
 .sim-feed-text { font-size: 12px; line-height: 1.5; color: var(--text-bright); }
 .sim-feed-row--next .sim-feed-text { color: var(--text); font-style: italic; }
+.sim-feed-row--note .sim-feed-tag { color: var(--green); }
+.sim-feed-row--note .sim-feed-text { color: var(--text); }
 .sim-feed-judge { margin-bottom: 8px; }
 .sim-feed-judge-label { display: block; font-size: 11.5px; line-height: 1.45; color: var(--text-bright); margin-bottom: 6px; }
 .sim-feed-judgments { display: flex; flex-wrap: wrap; gap: 6px; }
