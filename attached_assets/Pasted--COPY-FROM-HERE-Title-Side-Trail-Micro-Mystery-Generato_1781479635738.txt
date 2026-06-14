@@ -1,0 +1,73 @@
+—— COPY FROM HERE ——
+
+Title: Side-Trail Micro‑Mystery Generator — CyberCorp
+
+Task
+Design 2–3 optional, 60–120 second side‑trail micro‑mysteries to embed in a cybersecurity mission for the Ethical CyberHackers platform. These side trails must reward curiosity without blocking main progression.
+
+Goals
+• Spark immediate curiosity with a concrete, in‑world anomaly at CyberCorp.
+• Complete in 1–3 small actions (~1–2 minutes each).
+• Never gate main mission; purely optional yet meaningfully rewarding.
+• Reinforce exactly one thinking habit: Observation OR Interpretation OR Justification OR Risk Recognition.
+• Grant a precise, lightweight reward on resolution.
+
+Constraints
+• Tone: professional, grounded, inside a living organization.
+• Use plausible lightweight artifacts only (short log snippets, filenames/metadata, brief emails/chats, ticket excerpts).
+• Include at least one misleading‑but‑plausible detail to require justification (not guessing).
+• Rewards must be one of:
+  - Case Board node reveal (adds a relationship).
+  - Temporary perk (lasts 1–2 missions): Evidence Threader, Risk Calibrator, or Investigation Confidence +5.
+  - CyberCorp “postcard” outcome (2–3 sentences) delivered next session.
+• Output exactly 3 side trails unless told otherwise.
+
+Inputs (provided to you)
+• Mission context (1–3 sentences)
+• Departments in focus (e.g., Marketing, HR, Finance, IT)
+• Primary competency to reinforce: Observation | Interpretation | Justification | Risk Recognition
+• Difficulty: Easy | Moderate
+
+Output format (strict JSON)
+{
+  "missioncontext": "...",
+  "sidetrails": [
+    {
+      "id": "ST-001",
+      "hook": "One-line anomaly that triggers curiosity.",
+      "artifacts": [
+        {"type": "log" | "filemeta" | "message" | "ticket", "label": "name.ext or title", "content": "concise 2–6 lines"}
+      ],
+      "thinkingfocus": "Observation | Interpretation | Justification | Risk Recognition",
+      "misleadingdetail": "A plausible but wrong lead the player might follow.",
+      "whatgoodlookslike": "1–2 sentences with the correct takeaway.",
+      "resolutionsteps": [
+        "Step 1: ...",
+        "Step 2: ...",
+        "Optional Step 3: ..."
+      ],
+      "reward": {
+        "type": "CaseBoard" | "Perk" | "Postcard",
+        "details": "Exact node/perk/postcard text; include duration if a perk."
+      }
+    },
+    { ... },
+    { ... }
+  ]
+}
+
+Style rules
+• Keep artifacts concise and scannable.
+• Use realistic internal names/domains (e.g., cybercorp.local, vendors like acme-payroll.io).
+• Do not reveal main‑mission answers; these run in parallel.
+• All people, companies, and data are fictional.
+
+Now generate.
+
+Example inputs to start
+• Mission context: “Unmanaged device observed accessing a Finance share during off‑hours; initial triage underway.”
+• Departments: Finance, IT
+• Primary competency: Observation
+• Difficulty: Moderate
+
+—— COPY ENDS ——
