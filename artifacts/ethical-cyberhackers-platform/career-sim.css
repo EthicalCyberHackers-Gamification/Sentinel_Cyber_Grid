@@ -1570,3 +1570,67 @@ button.sim-discovery-opt:hover { border-color: var(--border-glow); color: var(--
 .sim-casefile-bad .sim-casefile-mk { color: var(--red); }
 .sim-casefile-done { font-size: 11px; line-height: 1.5; color: var(--green); }
 .sim-casefile-next { font-size: 11px; line-height: 1.5; color: var(--text); font-style: italic; }
+.sim-casefile-mid { color: var(--text-bright); }
+.sim-casefile-mid .sim-casefile-mk { color: var(--orange); }
+
+/* TWO-STEP ANALYST JUDGMENT — observation → justification ------------------
+ * Each discovery card now stacks two graded steps. The card border-left tracks
+ * the OVERALL status (correct / partial / wrong); each step carries its own
+ * label, options and inline Sarah Reyes feedback. */
+.sim-discovery--partial { border-left-color: var(--orange); }
+.sim-discovery--partial .sim-discovery-card-head { color: var(--orange); }
+
+.sim-discovery-step {
+  margin-top: 9px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--border-glow);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+}
+.sim-discovery-step:first-of-type { margin-top: 8px; }
+.sim-discovery-step--correct { border-left-color: var(--green-dim); }
+.sim-discovery-step--wrong { border-left-color: var(--red); }
+.sim-discovery-step--locked {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  font-style: italic;
+  border-left-color: var(--border);
+}
+.sim-discovery-step-label {
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.2px;
+  color: var(--cyan-dim);
+  margin-bottom: 6px;
+}
+.sim-discovery-step--justification .sim-discovery-step-label { color: var(--yellow); }
+.sim-discovery-step--correct .sim-discovery-step-label { color: var(--green); }
+.sim-discovery-step--wrong .sim-discovery-step-label { color: var(--red); }
+.sim-discovery-step .sim-discovery-prompt { margin-bottom: 7px; }
+.sim-discovery-step .sim-discovery-feedback { margin-top: 8px; }
+
+/* Card footer — status chip + qualitative confidence impact (never a fake +N%) */
+.sim-discovery-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.sim-discovery-status {
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1px;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.sim-discovery-status--correct { color: var(--green); border-color: var(--green-dim); background: rgba(0, 255, 136, 0.08); }
+.sim-discovery-status--partial { color: var(--orange); border-color: var(--orange); background: rgba(255, 170, 0, 0.08); }
+.sim-discovery-status--incorrect { color: var(--red); border-color: var(--red); background: rgba(255, 51, 68, 0.08); }
+.sim-discovery-impact { font-size: 10.5px; line-height: 1.45; color: var(--text-dim); }

@@ -341,7 +341,7 @@ const SIM = {
   runToken: 0,              // invalidates stray timers across opens
   mapOpen: false,           // network-map overlay visibility (transient, presentation-only)
   dynamic: [],              // active dynamic conditions for this mission (carry-flag driven)
-  discoveryJudgments: {},   // challengeId -> chosen optionId (graded discovery challenges; transient)
+  discoveryJudgments: {},   // challengeId -> { observation, justification } chosen option ids (two-step graded judgments; transient)
   autoOpenedBoardEvents: new Set(), // evidence ids that already auto-opened the board (once each)
 };
 
@@ -787,9 +787,11 @@ function renderEvidencePanel() {
         ${confidenceMeterHtml()}
         ${viewbar}
         ${evSection}
+        ${investigationFeedHtml()}
         ${analystJudgmentHtml()}
         ${caseFileSummaryHtml()}
         ${classHtml}
+        ${identifyHtml}
         ${responseHtml}
       </div>`;
     return;
@@ -933,38 +935,33 @@ function noteNotebookSections(sections) {
 }
 
 function investigationFeedHtml() {
-  // M2–M4 opt in via the dataset flag; Mission 1 has no flag, so this returns ''
-  // and Mission 1's notebook panel stays byte-for-byte unchanged.
+  // Opt-in via the dataset flag; a mission without it returns '' (panel unchanged).
   if (!SIM.def || !SIM.def.investigationFeed) return '';
   const latest = newestEvidence();
   if (!latest) return ''; // collapse until the first finding surfaces
 
-  // (2) The judgment this finding asks for — only while a reflection is open.
-  const refEv = activeReflectionEv();
-  const st = SIM.reflection;
+  // (2) The judgment this finding asks for — a TEXT pointer to the pending step
+  // on the card below. The card is the single interactive surface (no buttons
+  // here), so judgment state lives in exactly one place.
+  const vis = visibleDiscoveryChallenges().filter(challengeValid);
+  const pendingObs = vis.find(c => !stepAnswered(c, 'observation'));
+  const pendingJust = vis.find(c => stepAnswered(c, 'observation') && !stepAnswered(c, 'justification'));
   let judgeBlock = '';
-  if (refEv) {
-    const r = refEv.reflection || {};
-    if (st.judgment) {
-      judgeBlock = `<div class="sim-feed-judge sim-feed-judge--done">
-        <span class="sim-feed-judge-label">Your judgment</span>
-        <span class="sim-feed-judge-value">${st.judgment}</span></div>`;
-    } else {
-      const btns = JUDGMENTS.map(j =>
-        `<button type="button" class="sim-judgment sim-feed-judgment" data-judgment="${j}" aria-pressed="false">${j}</button>`
-      ).join('');
-      judgeBlock = `<div class="sim-feed-judge">
-        <span class="sim-feed-judge-label">${r.judgmentPrompt || 'How would you judge this activity?'}</span>
-        <div class="sim-feed-judgments">${btns}</div></div>`;
-    }
+  if (pendingObs) {
+    judgeBlock = `<div class="sim-feed-judge">
+      <span class="sim-feed-judge-label">Required judgment</span>
+      <span class="sim-feed-judge-value">What stands out about "${pendingObs.short}"? — make the call below.</span></div>`;
+  } else if (pendingJust) {
+    judgeBlock = `<div class="sim-feed-judge">
+      <span class="sim-feed-judge-label">Required judgment</span>
+      <span class="sim-feed-judge-value">Why does "${pendingJust.short}" matter? — explain below.</span></div>`;
+  } else if (vis.length) {
+    judgeBlock = `<div class="sim-feed-judge sim-feed-judge--done">
+      <span class="sim-feed-judge-label">Judgment</span>
+      <span class="sim-feed-judge-value">Every surfaced finding has been judged.</span></div>`;
   }
 
-  const next = investigationNextStep();
-  const noticeRow = SIM.notebookNotice
-    ? `<div class="sim-feed-row sim-feed-row--note">
-        <span class="sim-feed-tag">Notebook updated</span>
-        <span class="sim-feed-text">${SIM.notebookNotice}</span></div>`
-    : '';
+  const next = caseFileNextStep();
   return `
     <div class="sim-feed" role="status" aria-live="polite">
       <div class="sim-feed-head">ACTIVE INVESTIGATION</div>
@@ -973,7 +970,6 @@ function investigationFeedHtml() {
         <span class="sim-feed-text">${latest.label}</span>
       </div>
       ${judgeBlock}
-      ${noticeRow}
       ${next ? `<div class="sim-feed-row sim-feed-row--next">
         <span class="sim-feed-tag">Next step</span>
         <span class="sim-feed-text">${next}</span></div>` : ''}
@@ -1018,44 +1014,87 @@ function reflectionCardHtml(e) {
  * setDiscoveryJudgment (the sole writer, already gated). Missions without the
  * flag never reach any of this. */
 
-/* One graded discovery card. Unanswered → clickable options. Answered → locks,
- * marks your pick + the correct answer, and shows contextual Sarah Reyes feedback. */
-function discoveryCardHtml(ch) {
-  const ans = SIM.discoveryJudgments[ch.id];
+/* One step of a discovery card (observation or justification): a prompt + its
+ * options. Unanswered → clickable. Answered → locks, marks your pick + the
+ * correct answer, and shows contextual Sarah Reyes feedback (distinct for
+ * correct vs incorrect — never a bare "Correct."). */
+function discoveryStepHtml(ch, step, label) {
+  const cfg = challengeStep(ch, step);
+  if (!cfg) return '';
+  const ans = challengeAnswers(ch)[step];
   const answered = !!ans;
-  const correct = answered && ans === ch.correct;
-  const opts = (ch.options || []).map(o => {
+  const correct = answered && ans === cfg.correct;
+  const opts = cfg.options.map(o => {
     if (!answered) {
-      return `<button type="button" class="sim-discovery-opt" data-discovery-judgment data-challenge="${ch.id}" data-option="${o.id}">${o.label}</button>`;
+      return `<button type="button" class="sim-discovery-opt" data-discovery-judgment data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}">${o.label}</button>`;
     }
     let cls = 'sim-discovery-opt sim-discovery-opt--locked';
     let mark = '';
-    if (o.id === ans && correct)  { cls += ' sim-discovery-opt--correct'; mark = '<span class="sim-discovery-mark">✓ your answer</span>'; }
-    else if (o.id === ans)        { cls += ' sim-discovery-opt--wrong';   mark = '<span class="sim-discovery-mark">✗ your answer</span>'; }
-    else if (o.id === ch.correct) { cls += ' sim-discovery-opt--key';     mark = '<span class="sim-discovery-mark">correct answer</span>'; }
-    else                          { cls += ' sim-discovery-opt--muted'; }
+    if (o.id === ans && correct)   { cls += ' sim-discovery-opt--correct'; mark = '<span class="sim-discovery-mark">✓ your answer</span>'; }
+    else if (o.id === ans)         { cls += ' sim-discovery-opt--wrong';   mark = '<span class="sim-discovery-mark">✗ your answer</span>'; }
+    else if (o.id === cfg.correct) { cls += ' sim-discovery-opt--key';     mark = '<span class="sim-discovery-mark">correct answer</span>'; }
+    else                           { cls += ' sim-discovery-opt--muted'; }
     return `<div class="${cls}">${o.label}${mark}</div>`;
   }).join('');
-  const chosen = answered ? (ch.options || []).find(o => o.id === ans) : null;
+  const chosen = answered ? cfg.options.find(o => o.id === ans) : null;
   const feedback = chosen
     ? `<div class="sim-discovery-feedback sim-discovery-feedback--${correct ? 'correct' : 'wrong'}">
          <span class="sim-discovery-feedback-label">Sarah Reyes</span>${chosen.feedback || ''}</div>`
     : '';
   return `
-    <div class="sim-discovery${answered ? (correct ? ' sim-discovery--correct' : ' sim-discovery--wrong') : ''}">
-      <div class="sim-discovery-card-head">ANALYST JUDGMENT · ${ch.short || ''}</div>
-      <div class="sim-discovery-prompt">${ch.prompt || ''}</div>
+    <div class="sim-discovery-step sim-discovery-step--${step}${answered ? (correct ? ' sim-discovery-step--correct' : ' sim-discovery-step--wrong') : ''}">
+      <div class="sim-discovery-step-label">${label}</div>
+      <div class="sim-discovery-prompt">${cfg.prompt || ''}</div>
       <div class="sim-discovery-opts">${opts}</div>
       ${feedback}
+    </div>`;
+}
+
+/* One graded discovery card = the two-step judgment loop. Step 1 ("what stands
+ * out?") is shown as soon as the finding surfaces; step 2 ("why does it matter?")
+ * unlocks only after step 1 is recorded. Once both are in, the card is the
+ * reasoning entry: the fact, your two picks + Sarah's feedback, a status chip and
+ * a qualitative confidence impact (never a fake +N%). */
+function discoveryCardHtml(ch) {
+  if (!challengeValid(ch)) return '';
+  const obsAnswered = stepAnswered(ch, 'observation');
+  const full = challengeAnswered(ch);
+  const status = full ? challengeStatus(ch) : null;
+  const obsHtml = discoveryStepHtml(ch, 'observation', 'What stands out?');
+  const justHtml = obsAnswered
+    ? discoveryStepHtml(ch, 'justification', 'Why does it matter?')
+    : `<div class="sim-discovery-step sim-discovery-step--locked">Record what stands out to unlock the next question.</div>`;
+  let footer = '';
+  if (full) {
+    const impact = status === 'correct' ? 'Strengthens your case'
+      : status === 'partial' ? 'Partial support — revisit the reasoning'
+      : 'Weakens your case';
+    const label = status === 'correct' ? 'Sound judgment'
+      : status === 'partial' ? 'Partly right' : 'Off the mark';
+    footer = `<div class="sim-discovery-footer">
+        <span class="sim-discovery-status sim-discovery-status--${status}">${label}</span>
+        <span class="sim-discovery-impact">Investigation confidence — ${impact}</span>
+      </div>`;
+  }
+  const cardMod = full
+    ? (status === 'correct' ? ' sim-discovery--correct'
+      : status === 'partial' ? ' sim-discovery--partial' : ' sim-discovery--wrong')
+    : '';
+  return `
+    <div class="sim-discovery${cardMod}">
+      <div class="sim-discovery-card-head">ANALYST JUDGMENT · ${ch.short || ''}</div>
+      ${obsHtml}
+      ${justHtml}
+      ${footer}
     </div>`;
 }
 
 /* The ANALYST JUDGMENT section — one card per SURFACED challenge. '' until the
  * first triggering finding surfaces (and '' for non-challenge missions). */
 function analystJudgmentHtml() {
-  const vis = visibleDiscoveryChallenges();
+  const vis = visibleDiscoveryChallenges().filter(challengeValid);
   if (!vis.length) return '';
-  const answered = vis.filter(c => SIM.discoveryJudgments[c.id]).length;
+  const answered = vis.filter(challengeAnswered).length;
   const cards = vis.map(discoveryCardHtml).join('');
   return `
     <div class="sim-notebook-section">
@@ -1066,12 +1105,14 @@ function analystJudgmentHtml() {
 
 /* Plain-language "what to do next", case-file flavour. Pending judgments first. */
 function caseFileNextStep() {
-  const pending = visibleDiscoveryChallenges().filter(c => !SIM.discoveryJudgments[c.id]);
-  if (pending.length) return 'Make the analyst judgment on your latest finding (above).';
+  const vis = visibleDiscoveryChallenges().filter(challengeValid);
+  if (vis.some(c => !stepAnswered(c, 'observation'))) return 'Record what stands out on your latest finding (above).';
+  if (vis.some(c => !stepAnswered(c, 'justification'))) return 'Explain why your latest finding matters (above).';
   const unread = simFiles().filter(f => !SIM.read.has(f.name));
   if (unread.length) return `Open the remaining ${unread.length} file(s) to surface more evidence.`;
   const unclassified = simFiles().filter(f => SIM.read.has(f.name) && !SIM.classified[f.name]);
   if (unclassified.length) return 'Classify each file you have reviewed.';
+  if (SIM.def && SIM.def.identify && !SIM.identified) return 'Record your determination, then type  decide  to choose your response.';
   if (SIM.stage === 'investigation') return 'When the evidence is in, type  decide  to choose your response.';
   return '';
 }
@@ -1092,27 +1133,29 @@ function caseFileSummaryHtml() {
   const risks = (SIM.def && SIM.def.risks) || [];
   const confirmed = risks.filter(riskConfirmed);
   const openRisks = risks.filter(r => !riskConfirmed(r));
-  const answered = simDiscoveryChallenges().filter(c => SIM.discoveryJudgments[c.id]);
+  const answered = simDiscoveryChallenges().filter(challengeAnswered);
 
   // FACT — established from surfaced evidence.
   const factBody = confirmed.length
     ? `<ul class="sim-casefile-list">${confirmed.map(r => `<li>${r.label}</li>`).join('')}</ul>`
     : `<span class="sim-casefile-empty">No facts established yet — review the files in the terminal.</span>`;
 
-  // ASSESSMENT — your graded judgments.
+  // ASSESSMENT — your graded judgments (status + what you said stood out).
   const assessBody = answered.length
     ? `<ul class="sim-casefile-list">${answered.map(c => {
-        const ok = challengeCorrect(c);
-        const opt = (c.options || []).find(o => o.id === SIM.discoveryJudgments[c.id]);
-        return `<li class="sim-casefile-${ok ? 'ok' : 'bad'}"><span class="sim-casefile-mk">${ok ? '✓' : '✗'}</span>${c.short}: ${opt ? opt.label : ''}</li>`;
+        const status = challengeStatus(c);
+        const obs = challengeStep(c, 'observation').options.find(o => o.id === challengeAnswers(c).observation);
+        const mk = status === 'correct' ? '✓' : status === 'partial' ? '~' : '✗';
+        const cls = status === 'correct' ? 'ok' : status === 'partial' ? 'mid' : 'bad';
+        return `<li class="sim-casefile-${cls}"><span class="sim-casefile-mk">${mk}</span>${c.short}: ${obs ? obs.label : ''}</li>`;
       }).join('')}</ul>`
     : `<span class="sim-casefile-empty">No analyst judgments recorded yet.</span>`;
 
-  // REASON — Sarah Reyes' rationale on each judgment you made.
+  // REASON — the justification you chose, with Sarah Reyes' note on each.
   const reasonBody = answered.length
     ? `<ul class="sim-casefile-list">${answered.map(c => {
-        const opt = (c.options || []).find(o => o.id === SIM.discoveryJudgments[c.id]);
-        return `<li>${opt ? opt.feedback : ''}</li>`;
+        const just = challengeStep(c, 'justification').options.find(o => o.id === challengeAnswers(c).justification);
+        return `<li>${just ? just.feedback : ''}</li>`;
       }).join('')}</ul>`
     : `<span class="sim-casefile-empty">Record a judgment to capture the reasoning.</span>`;
 
@@ -1121,7 +1164,7 @@ function caseFileSummaryHtml() {
   openRisks.forEach(r => unkItems.push(r.label));
   const unread = simFiles().filter(f => !SIM.read.has(f.name));
   if (unread.length) unkItems.push(`${unread.length} file(s) not yet opened`);
-  const pending = visibleDiscoveryChallenges().filter(c => !SIM.discoveryJudgments[c.id]);
+  const pending = visibleDiscoveryChallenges().filter(c => challengeValid(c) && !challengeAnswered(c));
   if (pending.length) unkItems.push(`${pending.length} finding(s) awaiting your judgment`);
   const unkBody = unkItems.length
     ? `<ul class="sim-casefile-list">${unkItems.map(u => `<li>${u}</li>`).join('')}</ul>`
@@ -1494,40 +1537,92 @@ function discoveryChallengeById(id) {
 function visibleDiscoveryChallenges() {
   return simDiscoveryChallenges().filter(c => SIM.evidence.has(c.evidenceId));
 }
-function challengeCorrect(ch) {
-  return !!ch && SIM.discoveryJudgments[ch.id] === ch.correct;
+/* ---- Two-step judgment helpers (observation → justification) -------------- *
+ * A well-formed challenge carries an `observation` and a `justification` step,
+ * each { prompt, correct, options:[{id,label,feedback}] }. Helpers tolerate the
+ * old single-step shape and any malformed entry by treating it as not-valid
+ * (it simply contributes nothing to grading and renders as '').               */
+const JUDGMENT_STEPS = ['observation', 'justification'];
+
+/* The config object for one step of a challenge, or null if missing/malformed. */
+function challengeStep(ch, step) {
+  return (ch && ch[step] && Array.isArray(ch[step].options)) ? ch[step] : null;
 }
-/* Weighted correctness over the SURFACED challenges — drives the live confidence
- * meter, so answering surfaced findings well lifts confidence. null when the
- * mission defines no challenges (meter stays evidence-only). */
+/* A challenge is gradable/renderable only if BOTH steps are well-formed. */
+function challengeValid(ch) {
+  return !!challengeStep(ch, 'observation') && !!challengeStep(ch, 'justification');
+}
+/* The recorded picks for a challenge ({} when nothing answered yet). */
+function challengeAnswers(ch) {
+  return (ch && SIM.discoveryJudgments[ch.id]) || {};
+}
+function stepAnswered(ch, step) {
+  return !!challengeAnswers(ch)[step];
+}
+/* Both steps recorded = a complete reasoning entry. */
+function challengeAnswered(ch) {
+  return challengeValid(ch) && stepAnswered(ch, 'observation') && stepAnswered(ch, 'justification');
+}
+/* Is the recorded pick for this step the correct one? */
+function challengeStepCorrect(ch, step) {
+  const cfg = challengeStep(ch, step);
+  return !!cfg && challengeAnswers(ch)[step] === cfg.correct;
+}
+/* Both steps correct. */
+function challengeFullyCorrect(ch) {
+  return challengeValid(ch) && challengeStepCorrect(ch, 'observation') && challengeStepCorrect(ch, 'justification');
+}
+/* Status of an answered challenge: 'correct' | 'partial' | 'incorrect'. */
+function challengeStatus(ch) {
+  const o = challengeStepCorrect(ch, 'observation');
+  const j = challengeStepCorrect(ch, 'justification');
+  if (o && j) return 'correct';
+  if (o || j) return 'partial';
+  return 'incorrect';
+}
+
+/* Weighted half-credit correctness over a list of challenges. Each well-formed
+ * challenge contributes its weight, split evenly across the two steps; only an
+ * answered+correct step earns its half. null when there is nothing valid to
+ * grade, so the meter/score fall back to evidence-only (M-with-no-challenges). */
+function judgmentQualityOver(list) {
+  const valid = list.filter(challengeValid);
+  const total = valid.reduce((s, c) => s + (c.weight || 1), 0);
+  if (total <= 0) return null;
+  let got = 0;
+  valid.forEach(c => {
+    const half = (c.weight || 1) / 2;
+    if (challengeStepCorrect(c, 'observation')) got += half;
+    if (challengeStepCorrect(c, 'justification')) got += half;
+  });
+  return Math.min(1, got / total);
+}
+/* Live meter — only the challenges whose finding has surfaced. */
 function judgmentQualityVisible() {
-  if (!simDiscoveryChallenges().length) return null;
-  const vis = visibleDiscoveryChallenges();
-  const total = vis.reduce((s, c) => s + (c.weight || 1), 0);
-  if (total <= 0) return null;
-  let got = 0;
-  vis.forEach(c => { if (challengeCorrect(c)) got += (c.weight || 1); });
-  return Math.min(1, got / total);
+  if (!simDiscoveryChallenges().some(challengeValid)) return null;
+  return judgmentQualityOver(visibleDiscoveryChallenges());
 }
-/* Weighted correctness over ALL defined challenges — drives the final score, so
- * unanswered or wrong judgments cost points (mirrors classificationQuality). */
+/* Final score — all defined challenges, so unanswered/wrong steps cost points. */
 function judgmentQualityAll() {
-  const chs = simDiscoveryChallenges();
-  if (!chs.length) return null;
-  const total = chs.reduce((s, c) => s + (c.weight || 1), 0);
-  if (total <= 0) return null;
-  let got = 0;
-  chs.forEach(c => { if (challengeCorrect(c)) got += (c.weight || 1); });
-  return Math.min(1, got / total);
+  if (!simDiscoveryChallenges().some(challengeValid)) return null;
+  return judgmentQualityOver(simDiscoveryChallenges());
 }
-/* Record an answer. Locks after the first pick (honest grading) and only for a
- * surfaced challenge with a valid option. Re-renders the notebook. */
-function setDiscoveryJudgment(challengeId, optionId) {
+/* Record one step's answer — the SOLE writer of SIM.discoveryJudgments. Honest
+ * grading: the finding must have surfaced, the step must be valid, the
+ * justification step opens only after the observation is recorded, each step
+ * locks after its first pick, and the option must be valid for that step. */
+function setDiscoveryJudgment(challengeId, step, optionId) {
   const ch = discoveryChallengeById(challengeId);
-  if (!ch || !SIM.evidence.has(ch.evidenceId)) return;
-  if (SIM.discoveryJudgments[challengeId]) return;             // locked after first answer
-  if (!(ch.options || []).some(o => o.id === optionId)) return;
-  SIM.discoveryJudgments[challengeId] = optionId;
+  if (!ch || !challengeValid(ch)) return;
+  if (!SIM.evidence.has(ch.evidenceId)) return;                // finding must have surfaced
+  if (step !== 'observation' && step !== 'justification') return;
+  const cfg = challengeStep(ch, step);
+  if (!cfg) return;
+  if (step === 'justification' && !stepAnswered(ch, 'observation')) return; // observation first
+  if (stepAnswered(ch, step)) return;                          // locked after first answer
+  if (!cfg.options.some(o => o.id === optionId)) return;       // valid option only — validate BEFORE allocating
+  const ans = SIM.discoveryJudgments[challengeId] || (SIM.discoveryJudgments[challengeId] = {});
+  ans[step] = optionId;
   renderEvidencePanel();
 }
 
@@ -2546,86 +2641,155 @@ const CAREER_MISSIONS = {
       ],
     },
 
-    /* ---- INVESTIGATION-FIRST PILOT (Mission 1 only) -----------------------
+    /* ---- TWO-STEP ANALYST JUDGMENT ENGINE (shared across all four interns) -
      * caseFileNotebook restructures the Analyst Notebook into a case-file model
-     * (FACT / ASSESSMENT / REASON / UNKNOWNS / RECOMMENDATIONS). boardMilestones
-     * auto-open the existing network map once each as the dangerous findings
-     * surface. discoveryChallenges are per-finding GRADED judgment prompts with
-     * contextual Sarah Reyes feedback. All three are read only where present, so
-     * Assignments 2–4 (which omit them) are unchanged. */
+     * (FACT / ASSESSMENT / REASON / UNKNOWNS / RECOMMENDATIONS). investigationFeed
+     * surfaces the Active Investigation pointer. boardMilestones auto-open the
+     * network map once each as significant findings surface. discoveryChallenges
+     * are the per-finding TWO-STEP judgments: first "what stands out?"
+     * (observation), then "why does it matter?" (justification), each with
+     * distinct correct/incorrect Sarah Reyes feedback. All read only where
+     * present. */
     caseFileNotebook: true,
+    investigationFeed: true,
     boardMilestones: ['ev_pii_salary', 'ev_customer_pii', 'ev_contractor_access'],
     discoveryChallenges: [
       {
-        id: 'ch_release_context', evidenceId: 'ev_release_context', short: 'Release ownership',
-        weight: 1, correct: 'a',
-        prompt: 'You read the release cover note. What concerns you MOST about how this package was prepared?',
-        options: [
-          { id: 'a', label: 'The external contractor assembled the release with no internal review',
-            feedback: '"Exactly. An outside account deciding what leaves the company — with no data-owner sign-off — is the thread to pull. Good instinct." — Sarah Reyes' },
-          { id: 'b', label: 'The cover note is short and a little informal',
-            feedback: '"Tone is not the issue. Look at WHO prepared this and whether anyone inside checked it." — Sarah Reyes' },
-          { id: 'c', label: 'The partner is in logistics, not security',
-            feedback: '"The partner being logistics is fine. The problem is the contractor self-approving the contents." — Sarah Reyes' },
-          { id: 'd', label: 'Nothing — this is a routine partner release',
-            feedback: '"I would push back. A contractor packaging finance files unsupervised is not routine — keep reading." — Sarah Reyes' },
-        ],
+        id: 'ch_release_context', evidenceId: 'ev_release_context', short: 'Release ownership', weight: 1,
+        observation: {
+          prompt: 'You read the release cover note. What stands out MOST about how this package was prepared?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'An external contractor assembled the release with no internal review',
+              feedback: '"Exactly — an outside account deciding what leaves the company is the thread to pull. Good eye." — Sarah Reyes' },
+            { id: 'b', label: 'The cover note is short and a little informal',
+              feedback: '"Tone is not the signal. Look at WHO prepared this and whether anyone inside checked it." — Sarah Reyes' },
+            { id: 'c', label: 'The partner is in logistics, not security',
+              feedback: '"The partner being logistics is fine. The issue is the contractor self-approving the contents." — Sarah Reyes' },
+            { id: 'd', label: 'Nothing — this is a routine partner release',
+              feedback: '"I would push back — a contractor packaging finance files unsupervised is not routine." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'Why does a contractor self-assembling this release matter?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'No data-owner ever signed off on what is leaving the company',
+              feedback: '"Right — the missing sign-off is the control failure. Without an owner check, anything can slip into that package." — Sarah Reyes' },
+            { id: 'b', label: 'Contractors are usually careless with formatting',
+              feedback: '"This is not about tidiness. The risk is the absent approval, not the file layout." — Sarah Reyes' },
+            { id: 'c', label: 'It will slow the partner down',
+              feedback: '"Partner speed is not our concern here. The point is that no one inside vetted the contents." — Sarah Reyes' },
+          ],
+        },
       },
       {
-        id: 'ch_public_safe', evidenceId: 'ev_public_safe', short: 'Public collateral',
-        weight: 1, correct: 'safe',
-        prompt: 'Is the product datasheet safe to include in an external partner release?',
-        options: [
-          { id: 'safe', label: 'Yes — it is already public, marketing-cleared collateral',
-            feedback: '"Right. Published, marketing-cleared material is exactly what belongs in a partner package. Knowing what is SAFE matters as much as spotting what is not." — Sarah Reyes' },
-          { id: 'hold', label: 'No — hold anything that is in a flagged release',
-            feedback: '"Careful — over-blocking erodes trust with the business. Already-public collateral is fine to share." — Sarah Reyes' },
-          { id: 'redact', label: 'Only after redacting the pricing it mentions',
-            feedback: '"The list pricing here is the PUBLISHED price, not the confidential negotiated rates. No redaction needed." — Sarah Reyes' },
-        ],
+        id: 'ch_public_safe', evidenceId: 'ev_public_safe', short: 'Public collateral', weight: 1,
+        observation: {
+          prompt: 'You open the product datasheet. What stands out about this file?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'It is published, marketing-cleared collateral',
+              feedback: '"Yes — recognising what is already public is just as important as spotting what is not." — Sarah Reyes' },
+            { id: 'b', label: 'It mentions pricing, so it must be confidential',
+              feedback: '"Look closer — that is the PUBLISHED list price, not a negotiated rate. Pricing alone does not make it sensitive." — Sarah Reyes' },
+            { id: 'c', label: 'It is in a flagged release, so it must be risky',
+              feedback: '"Guilt by association is not analysis. Judge the file on what it contains, not the folder it sits in." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'Why is the datasheet safe to include in the partner release?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'Already-public material carries no new exposure if it leaves',
+              feedback: '"Exactly — over-blocking public collateral just erodes trust with the business. This one is fine to share." — Sarah Reyes' },
+            { id: 'b', label: 'Partners usually ignore datasheets anyway',
+              feedback: '"We do not judge by whether they read it. It is safe because it is already public." — Sarah Reyes' },
+            { id: 'c', label: 'We can always redact the pricing later',
+              feedback: '"No redaction needed — the pricing is the published price. It is safe as-is." — Sarah Reyes' },
+          ],
+        },
       },
       {
-        id: 'ch_pii_salary', evidenceId: 'ev_pii_salary', short: 'Salary file handling',
-        weight: 1, correct: 'restricted',
-        prompt: 'Employee salaries are sitting in the outbound package. How should this file be classified?',
-        options: [
-          { id: 'restricted', label: 'Restricted — HR PII + compensation, must never leave the company',
-            feedback: '"Correct — names tied to pay is the highest-sensitivity tier. This must never reach a partner." — Sarah Reyes' },
-          { id: 'confidential', label: 'Confidential — internal only',
-            feedback: '"Close, but salary PII outranks Confidential. Personal compensation data is Restricted." — Sarah Reyes' },
-          { id: 'internal', label: 'Internal — fine for staff to see',
-            feedback: '"No — staff at large should not see individual salaries either. This is Restricted." — Sarah Reyes' },
-          { id: 'public', label: 'Public',
-            feedback: '"That would be a serious breach. Salary data is Restricted — the highest tier." — Sarah Reyes' },
-        ],
+        id: 'ch_pii_salary', evidenceId: 'ev_pii_salary', short: 'Salary file handling', weight: 1,
+        observation: {
+          prompt: 'Employee salaries are sitting in the outbound package. What stands out about this file?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'It ties named employees to their pay',
+              feedback: '"That is the heart of it — names linked to compensation is the most sensitive kind of HR data." — Sarah Reyes' },
+            { id: 'b', label: 'It is a large spreadsheet',
+              feedback: '"Size is not the signal. It is WHAT the rows contain — names and salaries." — Sarah Reyes' },
+            { id: 'c', label: 'It looks slightly out of date',
+              feedback: '"Freshness does not change the sensitivity. Old salary data is still salary data." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'Why does named salary data demand the highest classification?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'Compensation PII must never leave the company — it is the Restricted tier',
+              feedback: '"Correct call — names tied to pay is the top tier. This can never reach a partner." — Sarah Reyes' },
+            { id: 'b', label: 'Staff might get jealous of each other\u2019s pay',
+              feedback: '"Internal morale is real, but the classification is about external exposure of PII — that is what makes it Restricted." — Sarah Reyes' },
+            { id: 'c', label: 'It is only Confidential — internal staff can see it',
+              feedback: '"Close, but salary PII outranks Confidential. Individual pay is Restricted." — Sarah Reyes' },
+          ],
+        },
       },
       {
-        id: 'ch_customer_pii', evidenceId: 'ev_customer_pii', short: 'Payment data risk',
-        weight: 1, correct: 'exposure',
-        prompt: 'You found customer payment records in the package. What is the SINGLE highest concern?',
-        options: [
-          { id: 'exposure', label: 'Regulated customer cardholder data could be exposed to an outside party',
-            feedback: '"That is the one. PCI cardholder data leaving to a third party is a regulated-data breach — fines and real customer harm." — Sarah Reyes' },
-          { id: 'format', label: 'The CSV is messy and hard to read',
-            feedback: '"Formatting is irrelevant to the risk. Focus on what the data IS: regulated payment records." — Sarah Reyes' },
-          { id: 'volume', label: 'There are only a few rows, so impact is small',
-            feedback: '"Even one exposed card record is a reportable breach. Volume does not lower the severity here." — Sarah Reyes' },
-          { id: 'dupe', label: 'It might duplicate data the partner already has',
-            feedback: '"We cannot assume that, and it would not reduce our liability anyway. The exposure itself is the concern." — Sarah Reyes' },
-        ],
+        id: 'ch_customer_pii', evidenceId: 'ev_customer_pii', short: 'Payment data risk', weight: 1,
+        observation: {
+          prompt: 'You find customer payment records in the package. What stands out MOST?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'These are regulated cardholder records',
+              feedback: '"Yes — recognising this as regulated payment data is the whole game." — Sarah Reyes' },
+            { id: 'b', label: 'The CSV is messy and hard to read',
+              feedback: '"Formatting is noise. Focus on what the data IS: regulated card records." — Sarah Reyes' },
+            { id: 'c', label: 'There are only a few rows',
+              feedback: '"Even one card record matters. Volume is not what stands out here." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'Why is cardholder data in an outbound package the single highest concern?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'Sending it to an outside party is a regulated-data breach',
+              feedback: '"Exactly — PCI cardholder data leaving to a third party means fines and real customer harm." — Sarah Reyes' },
+            { id: 'b', label: 'The partner might already have a copy',
+              feedback: '"We cannot assume that, and it would not reduce our liability. The exposure itself is the concern." — Sarah Reyes' },
+            { id: 'c', label: 'Only a few customers are affected',
+              feedback: '"Even one exposed record is reportable. Scale does not lower the severity." — Sarah Reyes' },
+          ],
+        },
       },
       {
-        id: 'ch_contractor_access', evidenceId: 'ev_contractor_access', short: 'Contractor activity',
-        weight: 2, correct: 'suspicious',
-        prompt: 'The access log shows ext-contractor-07 reading HR/Finance files at 02:00, outside its remit. How do you judge this activity?',
-        options: [
-          { id: 'suspicious', label: 'Suspicious — flag and escalate for investigation',
-            feedback: '"Exactly the right call. We have strong indicators but not proof of intent — Suspicious means we escalate and investigate, which is your job here." — Sarah Reyes' },
-          { id: 'benign', label: 'Benign — probably just release preparation',
-            feedback: '"I would challenge that. A vendor account reading salaries and deal roadmaps at 2 AM is not normal prep — at minimum it is suspicious." — Sarah Reyes' },
-          { id: 'malicious', label: 'Malicious — confirmed insider attack, lock everything down now',
-            feedback: '"Good instinct to take it seriously, but we cannot prove intent yet. Call it Suspicious and escalate — let the investigation establish malice." — Sarah Reyes' },
-        ],
+        id: 'ch_contractor_access', evidenceId: 'ev_contractor_access', short: 'Contractor activity', weight: 2,
+        observation: {
+          prompt: 'The access log shows ext-contractor-07 reading HR/Finance files at 02:00, outside its remit. What stands out?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'A vendor account is reaching data far outside its job, at 2 AM',
+              feedback: '"Right — scope and timing together are the tell: a vendor account in HR/Finance in the middle of the night." — Sarah Reyes' },
+            { id: 'b', label: 'The timestamps use a 24-hour clock',
+              feedback: '"The clock format is irrelevant. It is WHAT was accessed and by WHOM that matters." — Sarah Reyes' },
+            { id: 'c', label: 'The log file is quite long',
+              feedback: '"Length is not the signal. Zero in on the out-of-scope reads by the contractor account." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'How should you judge this activity?',
+          correct: 'suspicious',
+          options: [
+            { id: 'suspicious', label: 'Suspicious — flag and escalate for investigation',
+              feedback: '"Exactly the right call. Strong indicators but not proof of intent — Suspicious means we escalate and investigate." — Sarah Reyes' },
+            { id: 'benign', label: 'Benign — probably just release preparation',
+              feedback: '"I would challenge that. A vendor reading salaries and roadmaps at 2 AM is not normal prep." — Sarah Reyes' },
+            { id: 'malicious', label: 'Malicious — confirmed insider attack, lock everything down now',
+              feedback: '"Good instinct to take it seriously, but we cannot prove intent yet. Call it Suspicious and escalate." — Sarah Reyes' },
+          ],
+        },
       },
     ],
 
@@ -2987,7 +3151,94 @@ const CAREER_MISSIONS = {
    * ================================================================== */
   'mission-002': {
     id: 'mission-002',
-    investigationFeed: true, // Part B — Active Investigation Feed. Mission 1 opts out.
+    investigationFeed: true, // Active Investigation Feed (data-driven from discoveryChallenges).
+    /* Two-step Analyst Judgment Engine — see Mission 1 for the schema. Authored on
+     * existing evidence ids; boardMilestones auto-open the network map once each. */
+    caseFileNotebook: true,
+    boardMilestones: ['ev_contractor_device', 'ev_segment', 'ev_probe'],
+    discoveryChallenges: [
+      {
+        id: 'ch_m2_device', evidenceId: 'ev_contractor_device', short: 'Device ownership', weight: 1,
+        observation: {
+          prompt: 'You trace the unknown laptop. What stands out about who it belongs to?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'It is a contractor\u2019s personal device, barred from internal segments',
+              feedback: '"Exactly — an unmanaged personal device on our internal network is the core problem. Good trace." — Sarah Reyes' },
+            { id: 'b', label: 'The hostname is auto-generated',
+              feedback: '"Hostnames are often auto-generated; that is not the issue. WHO owns it and whether it is allowed here is." — Sarah Reyes' },
+            { id: 'c', label: 'It runs a common operating system',
+              feedback: '"The OS is not the signal. Focus on the fact that it is a personal device on a restricted segment." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'Why does a contractor\u2019s personal device on this network matter?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'Unmanaged devices bypass our patching, monitoring and policy controls',
+              feedback: '"Right — we cannot patch, monitor, or trust a device we do not manage. That is the exposure." — Sarah Reyes' },
+            { id: 'b', label: 'Contractors should buy their own laptops',
+              feedback: '"Procurement is not the point. The risk is an unmanaged device sitting inside our controls." — Sarah Reyes' },
+            { id: 'c', label: 'It might void the contractor\u2019s warranty',
+              feedback: '"Their warranty is not our concern. The concern is an uncontrolled device on our network." — Sarah Reyes' },
+          ],
+        },
+      },
+      {
+        id: 'ch_m2_segment', evidenceId: 'ev_segment', short: 'Network placement', weight: 1,
+        observation: {
+          prompt: 'You check where the device sits. What stands out about its network placement?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'It is on the internal CORP segment beside Finance, not guest',
+              feedback: '"Yes — placement is everything here. A stranger\u2019s device next to Finance is far worse than one on guest Wi-Fi." — Sarah Reyes' },
+            { id: 'b', label: 'It has a private IP address',
+              feedback: '"Most internal devices have private IPs. The detail that matters is WHICH segment — it is on CORP, beside Finance." — Sarah Reyes' },
+            { id: 'c', label: 'It connected during the afternoon',
+              feedback: '"Connection time is minor here. The placement on the internal Finance segment is what stands out." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'Why does sitting on the internal Finance segment matter?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'It gives the device a direct path to sensitive Finance systems',
+              feedback: '"Exactly — guest isolation would have contained it. On CORP it can reach the crown jewels." — Sarah Reyes' },
+            { id: 'b', label: 'Internal IPs are harder to remember',
+              feedback: '"That is not a security concern. The point is the device has line of sight to Finance data." — Sarah Reyes' },
+            { id: 'c', label: 'Guest Wi-Fi is usually slower',
+              feedback: '"Speed is irrelevant. The risk is the internal placement giving access to Finance." — Sarah Reyes' },
+          ],
+        },
+      },
+      {
+        id: 'ch_m2_probe', evidenceId: 'ev_probe', short: 'Device behaviour', weight: 2,
+        observation: {
+          prompt: 'You review the device\u2019s traffic. What stands out about its behaviour?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'It has repeatedly tried to reach the Finance file share',
+              feedback: '"That is the tell — repeated reach for Finance data is intent, not an idle device." — Sarah Reyes' },
+            { id: 'b', label: 'It sends occasional DNS lookups',
+              feedback: '"Every device does DNS. The standout is the repeated probing of the Finance share." — Sarah Reyes' },
+            { id: 'c', label: 'It has been online for several hours',
+              feedback: '"Uptime alone is not suspicious. The repeated Finance-share attempts are." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'How should you judge this device\u2019s activity?',
+          correct: 'suspicious',
+          options: [
+            { id: 'suspicious', label: 'Suspicious — an unauthorized device actively probing Finance; escalate and contain',
+              feedback: '"Right call. Unauthorized plus actively reaching for Finance data is escalate-and-contain territory." — Sarah Reyes' },
+            { id: 'benign', label: 'Benign — it is probably just auto-discovery',
+              feedback: '"I would challenge that. Auto-discovery does not repeatedly target a Finance file share." — Sarah Reyes' },
+            { id: 'malicious', label: 'Malicious — confirmed breach, pull every cable now',
+              feedback: '"Take it seriously, yes, but we have not proven a breach. Call it Suspicious, contain, and investigate." — Sarah Reyes' },
+          ],
+        },
+      },
+    ],
     opId: 'OPS-2026-002',
     severity: 'MEDIUM',
     region: 'APAC REGION',
@@ -3628,7 +3879,94 @@ const CAREER_MISSIONS = {
    * ================================================================== */
   'mission-003': {
     id: 'mission-003',
-    investigationFeed: true, // Part B — Active Investigation Feed. Mission 1 opts out.
+    investigationFeed: true, // Active Investigation Feed (data-driven from discoveryChallenges).
+    /* Two-step Analyst Judgment Engine — see Mission 1 for the schema. Authored on
+     * existing evidence ids; boardMilestones auto-open the network map once each. */
+    caseFileNotebook: true,
+    boardMilestones: ['ev_failures', 'ev_impossible', 'ev_changes'],
+    discoveryChallenges: [
+      {
+        id: 'ch_m3_failures', evidenceId: 'ev_failures', short: 'Login pattern', weight: 1,
+        observation: {
+          prompt: 'You open the auth logs. What stands out about the login pattern?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: '47 failed logins in 7 minutes from one external address',
+              feedback: '"Yes — a tight burst of failures from a single source is the signature of automated guessing." — Sarah Reyes' },
+            { id: 'b', label: 'The logs are recorded in UTC',
+              feedback: '"Time zone is just bookkeeping. The standout is the rapid burst of failed attempts." — Sarah Reyes' },
+            { id: 'c', label: 'The account has a long username',
+              feedback: '"Username length is irrelevant. Focus on the 47 failures in 7 minutes." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'Why does that burst of failures matter?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'It is automated password guessing — a brute-force attempt',
+              feedback: '"Exactly — that volume and speed is not a human mistyping. It is a credential attack." — Sarah Reyes' },
+            { id: 'b', label: 'The user simply forgot their password',
+              feedback: '"A forgetful user does not generate 47 tries in 7 minutes from an external host. This is automated." — Sarah Reyes' },
+            { id: 'c', label: 'The login page was running slowly',
+              feedback: '"Performance does not create failed-login bursts like this. It is a brute-force pattern." — Sarah Reyes' },
+          ],
+        },
+      },
+      {
+        id: 'ch_m3_impossible', evidenceId: 'ev_impossible', short: 'Session geography', weight: 1,
+        observation: {
+          prompt: 'You map the sessions. What stands out about their geography?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'Two sessions thousands of km apart, only minutes apart',
+              feedback: '"Right — that is textbook impossible travel. One person cannot be in both places." — Sarah Reyes' },
+            { id: 'b', label: 'One session used a mobile browser',
+              feedback: '"Device type is a detail. The standout is two locations too far apart to be the same person." — Sarah Reyes' },
+            { id: 'c', label: 'The sessions each lasted a few minutes',
+              feedback: '"Session length is minor. The impossibility is the distance covered in the time between them." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'Why does impossible travel matter?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'It proves a second party is using the account, not the real owner',
+              feedback: '"Exactly — physics rules out one user. Someone else is logged in alongside the owner." — Sarah Reyes' },
+            { id: 'b', label: 'The owner was probably just travelling',
+              feedback: '"No amount of travel covers thousands of km in minutes. This is a second actor." — Sarah Reyes' },
+            { id: 'c', label: 'A VPN makes location data meaningless',
+              feedback: '"A VPN can shift one location, not create two simultaneous impossible ones. This is account misuse." — Sarah Reyes' },
+          ],
+        },
+      },
+      {
+        id: 'ch_m3_changes', evidenceId: 'ev_changes', short: 'Post-login actions', weight: 2,
+        observation: {
+          prompt: 'You review what happened right after the successful login. What stands out?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'MFA was disabled, mail forwarding added, and the password changed',
+              feedback: '"That is the tell — those are persistence and lock-out moves, not normal account use." — Sarah Reyes' },
+            { id: 'b', label: 'The user changed their profile photo',
+              feedback: '"Cosmetic changes do not matter. The standout is MFA off, forwarding on, password reset." — Sarah Reyes' },
+            { id: 'c', label: 'The session sat idle for a while',
+              feedback: '"Idle time is not the signal. The security-control changes are." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'How should you judge these post-login actions?',
+          correct: 'malicious',
+          options: [
+            { id: 'malicious', label: 'Malicious — the attacker is entrenching access; treat it as a confirmed compromise',
+              feedback: '"Agreed. Disabling MFA and adding forwarding is deliberate entrenchment — this is a confirmed takeover." — Sarah Reyes' },
+            { id: 'suspicious', label: 'Suspicious — worth a closer look later',
+              feedback: '"This is past suspicious. Active control-tampering after an impossible login is a confirmed compromise — act now." — Sarah Reyes' },
+            { id: 'benign', label: 'Benign — users tweak their settings all the time',
+              feedback: '"Not like this. Turning off MFA right after a brute-force success is an attacker covering their tracks." — Sarah Reyes' },
+          ],
+        },
+      },
+    ],
     opId: 'OPS-2026-003',
     severity: 'HIGH',
     region: 'NA-EAST REGION',
@@ -4383,7 +4721,67 @@ const CAREER_MISSIONS = {
    * ================================================================== */
   'mission-004': {
     id: 'mission-004',
-    investigationFeed: true, // Part B — Active Investigation Feed. Mission 1 opts out.
+    investigationFeed: true, // Active Investigation Feed (data-driven from discoveryChallenges).
+    /* Two-step Analyst Judgment Engine — see Mission 1 for the schema. Authored on
+     * existing evidence ids; boardMilestones auto-open the network map once each. */
+    caseFileNotebook: true,
+    boardMilestones: ['ev_transfer', 'ev_external_dest'],
+    discoveryChallenges: [
+      {
+        id: 'ch_m4_transfer', evidenceId: 'ev_transfer', short: 'Data movement', weight: 1,
+        observation: {
+          prompt: 'You trace the customer archive. What stands out about where it went?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'It was uploaded to an address outside the company',
+              feedback: '"Yes — data leaving the perimeter is the moment a risk becomes a breach. Good catch." — Sarah Reyes' },
+            { id: 'b', label: 'The archive was compressed',
+              feedback: '"Compression is normal for transfers. The standout is that it went OUTSIDE the company." — Sarah Reyes' },
+            { id: 'c', label: 'It was created late at night',
+              feedback: '"Timing is secondary. The decisive fact is the upload to an external address." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'Why does an outbound upload of this archive matter?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'Customer data has left our control — this is an actual breach, not just risk',
+              feedback: '"Exactly — once regulated data leaves the building, we are in breach response, not prevention." — Sarah Reyes' },
+            { id: 'b', label: 'External backups are good practice',
+              feedback: '"This is no sanctioned backup. An unapproved upload of the customer database is exfiltration." — Sarah Reyes' },
+            { id: 'c', label: 'The partner probably requested it',
+              feedback: '"We cannot assume that, and no request justifies the full customer DB leaving. Treat it as a breach." — Sarah Reyes' },
+          ],
+        },
+      },
+      {
+        id: 'ch_m4_dest', evidenceId: 'ev_external_dest', short: 'Exfil destination', weight: 2,
+        observation: {
+          prompt: 'You examine the upload destination. What stands out about it?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'It is an unknown external host, not a known partner system',
+              feedback: '"Right — an unrecognised external endpoint is the hallmark of attacker-controlled infrastructure." — Sarah Reyes' },
+            { id: 'b', label: 'It is located in the LATAM region',
+              feedback: '"Region alone is not damning — plenty of legitimate systems live there. The standout is that the host is UNKNOWN." — Sarah Reyes' },
+            { id: 'c', label: 'It responded quickly',
+              feedback: '"Latency is irrelevant. What matters is that the destination is an unknown external host." — Sarah Reyes' },
+          ],
+        },
+        justification: {
+          prompt: 'How should you judge this exfiltration?',
+          correct: 'malicious',
+          options: [
+            { id: 'malicious', label: 'Malicious — confirmed exfiltration to attacker infrastructure; escalate to IR now',
+              feedback: '"Agreed — the full customer DB to an unknown external host is a confirmed exfil. Escalate to incident response now." — Sarah Reyes' },
+            { id: 'suspicious', label: 'Suspicious — keep monitoring before acting',
+              feedback: '"Monitoring wastes time we do not have. A confirmed upload of the customer DB to an unknown host demands escalation now." — Sarah Reyes' },
+            { id: 'benign', label: 'Benign — likely a misconfigured backup job',
+              feedback: '"A backup job does not target an unknown external host with the entire customer database. This is exfiltration." — Sarah Reyes' },
+          ],
+        },
+      },
+    ],
     opId: 'OPS-2026-004',
     severity: 'CRITICAL',
     region: 'LATAM REGION',
@@ -5732,7 +6130,7 @@ function simInit() {
       const judg = e.target.closest('[data-judgment]');
       if (judg) { setJudgment(judg.dataset.judgment); return; }
       const disc = e.target.closest('[data-discovery-judgment]');
-      if (disc) { setDiscoveryJudgment(disc.dataset.challenge, disc.dataset.option); return; }
+      if (disc) { setDiscoveryJudgment(disc.dataset.challenge, disc.dataset.step, disc.dataset.option); return; }
       const ident = e.target.closest('[data-identify]');
       if (ident) { setIdentification(ident.dataset.identify); return; }
 
