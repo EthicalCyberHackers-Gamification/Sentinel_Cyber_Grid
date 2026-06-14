@@ -1,0 +1,229 @@
+Evaluate the current Cybersecurity Intern mission experience for immersion, continuity, notebook usefulness, and mentor-driven gameplay.
+
+Do not build or refactor yet.
+
+Review the current implementation and provide a technical evaluation of whether the existing architecture can support the following improvements without major redesign.
+
+Core objective:
+Increase immersion by making the student feel supervised by Sarah Reyes, affected by past decisions, and actively engaged through the Analyst Notebook.
+
+Evaluate these proposed systems:
+
+1. Sarah Reyes Dynamic Mentor System
+
+Purpose:
+Make Sarah Reyes feel like an active SOC Lead, not static briefing text.
+
+Evaluate whether the codebase can support contextual Sarah messages triggered by:
+- mission start
+- command discovery
+- evidence finding
+- notebook update
+- poor decision
+- strong decision
+- carry-forward flag
+- end-of-mission review
+
+Example:
+If student discovers contractor access:
+“Good catch. Contractors should not normally approve release packages alone. Check whether an internal reviewer signed off.”
+
+Determine:
+- where mentor messages should be stored
+- how triggers should fire
+- whether messages should appear in the briefing, feedback panel, or active investigation feed
+- how Sarah should reference past mission decisions
+
+2. Persistent Consequence Engine
+
+Purpose:
+Make student decisions matter across missions.
+
+Evaluate current support for:
+- carry-forward flags
+- stored mission decisions
+- resource changes
+- mission reports
+- dynamic future briefings
+- supervisor memory
+
+Example:
+If contractor concern was ignored in Mission 1, Mission 3 should reference that:
+“The contractor account appeared in an earlier review, but the concern was not escalated.”
+
+Determine:
+- what already exists
+- what is missing
+- what files/functions should be extended
+- safest implementation path
+
+3. Interactive Analyst Notebook
+
+Purpose:
+Turn the notebook from passive reference into active investigation workspace.
+
+Evaluate changing the notebook into four active sections:
+- Facts
+- Hypotheses
+- Unknowns
+- Recommendations
+
+The notebook should not reveal everything upfront.
+
+New findings should appear only after evidence is discovered.
+
+Notebook should ask the student judgment questions:
+- Is this finding normal, suspicious, or critical?
+- What risk level does this evidence suggest?
+- What remains unknown?
+- What evidence supports your recommendation?
+
+Determine:
+- whether notebook entries are currently static or dynamic
+- how to add interactive notebook prompts
+- how notebook responses should affect confidence, reputation, and mission report quality
+
+4. Active Investigation Feed
+
+Purpose:
+Prevent students from scrolling through the notebook looking for updates.
+
+Evaluate adding a small “Active Investigation” area near the notebook or feedback panel.
+
+It should surface:
+- newest finding
+- active question
+- required student judgment
+- suggested next step
+- notebook update notification
+
+Example:
+NEW FINDING:
+Contractor assembled release package.
+
+ACTION REQUIRED:
+Classify this finding:
+Normal / Suspicious / Critical
+
+Determine:
+- best UI location
+- whether it can reuse existing feedback panel components
+- how to avoid clutter
+- how to make it non-disruptive
+
+5. Case Continuity System
+
+Purpose:
+Make Missions 1–4 feel like one connected CyberCorp investigation, not separate lessons.
+
+Evaluate adding a Case History section to each mission after Mission 1.
+
+Example Mission 3:
+CASE HISTORY:
+Mission 1: Contractor accessed restricted files.
+Mission 2: Unknown contractor-linked device appeared.
+Current Case: Suspicious authentication activity involving contractor account.
+
+Determine:
+- how to generate case history dynamically from previous mission outcomes
+- how to avoid revealing too much too early
+- how to make Mission 4 reveal the full campaign connection
+
+6. Resource Consequence Narratives
+
+Purpose:
+Make resource changes feel like real business consequences instead of game stats.
+
+Evaluate replacing simple deltas like:
+Budget -5000
+
+with:
+Legal review required.
+External review cost: $5,000.
+Organization Budget decreased because sensitive data exposure required compliance review.
+
+Determine:
+- where resource changes are currently calculated
+- where narrative explanations should be displayed
+- how they should be stored for mission reports and quarterly review
+
+7. Mission 4 Attack Reconstruction Finale
+
+Purpose:
+Create the emotional payoff of the Intern role.
+
+Evaluate whether Mission 4 can include a final reconstruction sequence showing how the previous cases connect:
+
+Mission 1: contractor activity
+Mission 2: unknown device
+Mission 3: suspicious account activity
+Mission 4: data transfer
+
+Student should feel:
+“I have been investigating the same campaign all along.”
+
+Evaluate:
+- whether the current Network Map / Case Map can support this
+- whether the Analyst Notebook can support timeline reconstruction
+- whether Sarah Reyes can deliver the reveal
+- what minimum implementation would create the strongest payoff
+
+8. Quarterly Performance Review
+
+Purpose:
+End the Cybersecurity Intern role with career progression.
+
+Evaluate adding Sarah Reyes performance review after Mission 4.
+
+Assessment categories:
+- Observation Quality
+- Investigation Quality
+- Evidence Quality
+- Documentation Quality
+- Escalation Quality
+- Recommendation Quality
+- Risk Recognition
+- Business Awareness
+
+Possible outcomes:
+- Needs Additional Training
+- Cybersecurity Intern II
+- Senior Cybersecurity Intern
+- Junior SOC Analyst Candidate
+
+Determine:
+- what metrics already exist
+- what must be added
+- how review outcome should be calculated
+- how this should prepare for Mission 5 as Junior SOC Analyst, not another Intern mission
+
+Important constraints:
+- Do not add more Cybersecurity Intern missions.
+- Do not redesign the full UI.
+- Do not remove current mission flow.
+- Do not increase terminology complexity.
+- Preserve beginner-friendly evidence layers.
+- Preserve command-line engagement.
+- Prioritize immersion, continuity, and student reasoning.
+
+Deliverables:
+1. Current-state assessment
+2. What already exists
+3. What is missing
+4. Recommended implementation order
+5. Risk level for each proposed system
+6. Files likely affected
+7. Specific build tasks for the next implementation phase
+8. Whether any proposal should be rejected or delayed
+
+Recommended priority order to evaluate:
+1. Sarah Reyes Dynamic Mentor System
+2. Persistent Consequence Engine
+3. Interactive Analyst Notebook
+4. Active Investigation Feed
+5. Case Continuity System
+6. Resource Consequence Narratives
+7. Mission 4 Attack Reconstruction Finale
+8. Quarterly Performance Review
+
+Do not implement until the evaluation is complete.
