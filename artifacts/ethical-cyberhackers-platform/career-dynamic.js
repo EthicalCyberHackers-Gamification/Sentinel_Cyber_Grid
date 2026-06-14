@@ -198,3 +198,40 @@ export function performanceReview(signals) {
   const average = dimensions.reduce((sum, d) => sum + d.score, 0) / (dimensions.length || 1);
   return { dimensions, average, standing: performanceStanding(average) };
 }
+
+/* ================================================================== *
+ * CAMPAIGN PROMOTION (M1–M4 capstone) — pure, DOM-free decision.
+ *
+ * The Cybersecurity Intern campaign governs exactly ONE promotion:
+ * Intern -> the next role on the ladder, earned ONLY at the top
+ * performance standing. Sticky/monotonic: a role already past Intern is
+ * kept (never demoted, never re-promoted), so replaying the capstone is
+ * idempotent. career-sim.js supplies the live role ids + the live next
+ * role, so this module hard-codes only the campaign's Intern anchor.
+ * ================================================================== */
+export const CAMPAIGN_PROMOTION_FROM_ROLE = 'cybersecurity_intern';
+
+/* The average-score threshold (0..1) that earns the campaign promotion: the
+ * top performance standing tier. Exported so career-sim never re-hardcodes it. */
+export const PROMOTION_STANDING_MIN = PERFORMANCE_STANDINGS[0].min;
+
+/* Decide whether the capstone performance earns the one campaign promotion.
+ * @param currentRoleId the analyst's current role id (career-sim CAREER.currentRole)
+ * @param average       the performance review's 0..1 average score
+ * @param nextRoleId    the next role id on career-sim's ladder (or null at the top)
+ * @returns {{promoted, alreadyEarned, fromRoleId, toRoleId, reason}} */
+export function promotionDecision({ currentRoleId, average, nextRoleId } = {}) {
+  const cur = (typeof currentRoleId === 'string' && currentRoleId)
+    ? currentRoleId : CAMPAIGN_PROMOTION_FROM_ROLE;
+  // Sticky: only the Intern is eligible. Any higher role is kept as-is.
+  if (cur !== CAMPAIGN_PROMOTION_FROM_ROLE) {
+    return { promoted: false, alreadyEarned: true, fromRoleId: cur, toRoleId: cur, reason: 'already-promoted' };
+  }
+  if (!nextRoleId) {
+    return { promoted: false, alreadyEarned: false, fromRoleId: cur, toRoleId: cur, reason: 'no-next-role' };
+  }
+  const avg = Math.max(0, Math.min(1, Number(average) || 0));
+  return avg >= PROMOTION_STANDING_MIN
+    ? { promoted: true, alreadyEarned: false, fromRoleId: CAMPAIGN_PROMOTION_FROM_ROLE, toRoleId: nextRoleId, reason: 'earned' }
+    : { promoted: false, alreadyEarned: false, fromRoleId: cur, toRoleId: cur, reason: 'below-threshold' };
+}

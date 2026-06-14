@@ -23,7 +23,7 @@
 - [pnpm lockfile churn](pnpm-lockfile-churn.md) — temp pnpm add/remove rewrites pnpm-lock.yaml (strips catalogs, adds tarball); restore via `git show HEAD:pnpm-lock.yaml > pnpm-lock.yaml`.
 - [Generic mission engine (M4/5/6)](ech-generic-mission-engine.md) — LEGACY/bypassed: 003-006 now route to the Progressive Lab; `GENERIC_MISSIONS` only supplies `quiz.xpReward` now.
 - [Progressive Lab dataset schema](ech-lab-dataset-schema.md) — 003+ are per-file ES modules spread into LAB_MISSIONS; runner routes by cmd FIRST WORD only (no shared first words); verify via node validator, terminal is gated.
-- [Career ladder (authoritative rank)](ech-career-ladder.md) — rank is DERIVED from completed-mission count via `careerRankName()`; never hard-code a rank at any completion/reset site.
+- [Career ladder (authoritative rank)](ech-career-ladder.md) — rank derives from the PERSISTED earned campaign role (not completion count); home + in-sim displays must share that one source or they diverge.
 - [World Continuity layer](ech-world-continuity.md) — presentation-only recurring-NPC/resolved-trace/bulletin flavor read from `missionMapStatus()`; intel feed must guard static items on a static marker, not children.length.
 - [Progressive Lab graduation](ech-lab-graduation.md) — terminal lab graduated prototype→shipping via configureLab() hooks; ANY alternate lab entry (e.g. `?lab=`) must reuse the host gate + completion prereq guard or it bypasses unlock/onboarding.
 - [Career progression (prototype)](ech-career-progression.md) — role/promotion derived read-only from completed-mission count; never persisted; promotion notice via session-only last-seen tier; bar uses in-mission confidence; framing labels only.

@@ -330,8 +330,12 @@ const INITIAL_RANK = "Cybersecurity Intern";
    player's rank. The tier is DERIVED (read-only) from how many of the six
    assignments are completed — no second progress system and no persistence of
    its own (the completed flags it reads are already persisted). Tier 0,
-   "Cybersecurity Intern", is the starting role and spans the early Intern
-   assignments; each cleared assignment advances exactly one tier.
+   "Cybersecurity Intern", is the starting role and spans the entire M1–M4
+   Intern campaign. The Intern->Junior promotion is EARNED at the M4 capstone
+   and persisted by the career simulator; deriveCareerState() derives rank SOLELY
+   from that earned role (via careerProgress) — the single source of truth shared
+   with the in-sim rank — rather than advancing one tier per mission. Later roles
+   are not conferred yet, so post-campaign assignments (M5/M6) do not advance rank.
    ============================================================ */
 const ROLE_LADDER = [
   { name: "Cybersecurity Intern",      threshold: 0, clearance: "Tier 1 Operations Access", scope: "guided single-incident triage",      unlocked: "supervised incident triage" },
@@ -382,6 +386,26 @@ function missionCompleteFlag(missionId) {
 // Career counting is order-independent; keep it aligned with the play order.
 const CAREER_MISSION_IDS = MISSION_PLAY_ORDER;
 
+// The career simulator's earned campaign role mapped onto the display ladder.
+// Explicit ids (NOT name-matching) — career-sim's higher role ids diverge from
+// the ladder names beyond Junior SOC Analyst, so only the campaign pair is mapped.
+const CAMPAIGN_ROLE_TIER = { cybersecurity_intern: 0, junior_soc_analyst: 1 };
+
+/**
+ * The earned campaign tier from the persisted career role (career-sim writes
+ * careerProgress.currentRole). Absent/invalid role → Intern (tier 0); we never
+ * fall back to a completed-count tier for the campaign, so an old save without a
+ * career role shows Intern rather than an over-promoted rank.
+ */
+function campaignEarnedTier() {
+  const cp = (careerProgress && typeof careerProgress === "object") ? careerProgress : null;
+  const roleId = cp && typeof cp.currentRole === "string" ? cp.currentRole : null;
+  if (roleId && Object.prototype.hasOwnProperty.call(CAMPAIGN_ROLE_TIER, roleId)) {
+    return CAMPAIGN_ROLE_TIER[roleId];
+  }
+  return 0;
+}
+
 /**
  * Derive the player's current career standing from completed assignments.
  * Pure computation — no writes, no persistence. Counts completions via the
@@ -393,10 +417,16 @@ function deriveCareerState() {
   for (const id of CAREER_MISSION_IDS) {
     if (missionMapStatus(id) === "completed") completed++;
   }
-  let tierIdx = 0;
-  for (let i = 0; i < ROLE_LADDER.length; i++) {
-    if (completed >= ROLE_LADDER[i].threshold) tierIdx = i;
-  }
+  // Rank is the SINGLE source of truth shared with the career simulator (Task
+  // #108): it derives solely from the EARNED, persisted campaign role, so the
+  // home/identity rank and the in-sim rank can never disagree. Today the only
+  // real promotion is Intern->Junior (earned at the M4 capstone); later roles are
+  // not conferred yet, so completing post-campaign assignments (M5/M6) does NOT
+  // advance rank here either. `completed` still counts all six so the progress
+  // bars are unchanged.
+  let tierIdx = campaignEarnedTier();
+  if (tierIdx < 0) tierIdx = 0;
+  if (tierIdx > ROLE_LADDER.length - 1) tierIdx = ROLE_LADDER.length - 1;
   return {
     tierIdx,
     role: ROLE_LADDER[tierIdx],

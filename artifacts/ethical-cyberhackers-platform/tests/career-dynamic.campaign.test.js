@@ -16,6 +16,9 @@ import {
   supervisorMemoryLines,
   upsertCompanyHistory,
   companyTimeline,
+  promotionDecision,
+  PROMOTION_STANDING_MIN,
+  CAMPAIGN_PROMOTION_FROM_ROLE,
 } from "../career-dynamic.js";
 
 let failures = 0;
@@ -109,6 +112,44 @@ console.log("companyTimeline");
     sorted.map(t => t.missionId).join(",") === "mission-001,mission-004");
 
   check("empty history → []", companyTimeline(undefined, "mission-001", order).length === 0);
+}
+
+console.log("promotionDecision");
+{
+  const INTERN = CAMPAIGN_PROMOTION_FROM_ROLE; // 'cybersecurity_intern'
+  const NEXT = "junior_soc_analyst";
+
+  check("threshold export is the top standing min",
+    PROMOTION_STANDING_MIN >= 0.8 && PROMOTION_STANDING_MIN <= 1);
+
+  // Earns the promotion at / above the top-standing threshold.
+  const earned = promotionDecision({ currentRoleId: INTERN, average: PROMOTION_STANDING_MIN, nextRoleId: NEXT });
+  check("intern AT threshold promotes", earned.promoted === true && earned.toRoleId === NEXT);
+  check("promotion reports fromRoleId intern", earned.fromRoleId === INTERN);
+  check("earned reason", earned.reason === "earned");
+
+  const above = promotionDecision({ currentRoleId: INTERN, average: 0.99, nextRoleId: NEXT });
+  check("intern WELL above threshold promotes", above.promoted === true);
+
+  // Just below threshold → no promotion, role unchanged.
+  const below = promotionDecision({ currentRoleId: INTERN, average: PROMOTION_STANDING_MIN - 0.001, nextRoleId: NEXT });
+  check("intern below threshold stays intern", below.promoted === false && below.toRoleId === INTERN);
+  check("below-threshold reason", below.reason === "below-threshold");
+
+  // Sticky / idempotent: an already-promoted analyst never re-promotes or demotes.
+  const replay = promotionDecision({ currentRoleId: NEXT, average: 0.99, nextRoleId: "soc_analyst" });
+  check("already-promoted is sticky (no promotion)", replay.promoted === false && replay.alreadyEarned === true);
+  check("already-promoted keeps current role", replay.fromRoleId === NEXT && replay.toRoleId === NEXT);
+
+  // No next role on the ladder → cannot promote (top of ladder).
+  const noNext = promotionDecision({ currentRoleId: INTERN, average: 1, nextRoleId: null });
+  check("no next role → no promotion", noNext.promoted === false && noNext.reason === "no-next-role");
+
+  // Defensive: missing / garbage inputs default to Intern, never promote.
+  const empty = promotionDecision();
+  check("no args → no promotion, not already-earned", empty.promoted === false && empty.alreadyEarned === false);
+  const nanAvg = promotionDecision({ currentRoleId: INTERN, average: "x", nextRoleId: NEXT });
+  check("NaN average treated as 0 → no promotion", nanAvg.promoted === false);
 }
 
 if (failures) {

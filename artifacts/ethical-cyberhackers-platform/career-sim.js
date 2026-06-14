@@ -52,6 +52,7 @@ import {
   upsertCompanyHistory,
   companyTimeline,
   performanceReview,
+  promotionDecision,
 } from './career-dynamic.js';
 
 const CAREER_ROLES = [
@@ -374,6 +375,7 @@ function openCareerMission(missionId) {
   SIM.read = new Set();
   SIM.ranCommands = new Set();
   SIM.evidence = new Set();
+  SIM.lastEvidenceId = null; // Active Investigation Feed — newest-finding tracker.
   SIM.classified = {};
   SIM.identified = null;
   SIM.decision = null;
@@ -769,6 +771,7 @@ function renderEvidencePanel() {
       ${confidenceMeterHtml()}
       ${viewbar}
       ${evSection}
+      ${investigationFeedHtml()}
       ${risksNotebookHtml()}
       ${notebookExtrasHtml()}
       ${reflectHtml}
@@ -832,6 +835,75 @@ function layerBtn(id, level, label) {
 /* The first surfaced evidence item that carries a reflection config. */
 function activeReflectionEv() {
   return simEvidenceDefs().find(e => e.reflection && SIM.evidence.has(e.id)) || null;
+}
+
+/* ACTIVE INVESTIGATION FEED — a compact, always-current notebook strip that
+ * surfaces (1) the newest finding, (2) the judgment it asks for, and (3) a
+ * suggested next step. Presentation-only: it renders existing SIM state, routes
+ * any judgment through the existing data-judgment handler (setJudgment), writes
+ * nothing, and adds NO scoring path. Collapses to nothing until a finding surfaces. */
+function newestEvidence() {
+  if (!SIM.evidence || SIM.evidence.size === 0) return null;
+  let id = SIM.lastEvidenceId;
+  if (!id || !SIM.evidence.has(id)) {
+    const arr = Array.from(SIM.evidence); // Set preserves insertion order
+    id = arr[arr.length - 1];
+  }
+  return id ? evidenceById(id) : null;
+}
+
+/* A plain-language "what to do next" line, derived from existing investigation
+ * state (no new logic / no scoring). Returns '' when there is nothing to suggest. */
+function investigationNextStep() {
+  const refEv = activeReflectionEv();
+  if (refEv && !SIM.reflection.judgment) return 'Record your judgment on the latest finding below.';
+  if (simFiles().length) {
+    const unread = simFiles().filter(f => !SIM.read.has(f.name));
+    if (unread.length) return 'Open the remaining files to surface more evidence.';
+    const unclassified = simFiles().filter(f => !SIM.classified[f.name]);
+    if (unclassified.length) return 'Classify each file you have reviewed.';
+  }
+  if (SIM.stage === 'investigation') return 'When the evidence is in, type  decide  to choose an action.';
+  return '';
+}
+
+function investigationFeedHtml() {
+  const latest = newestEvidence();
+  if (!latest) return ''; // collapse until the first finding surfaces
+
+  // (2) The judgment this finding asks for — only while a reflection is open.
+  const refEv = activeReflectionEv();
+  const st = SIM.reflection;
+  let judgeBlock = '';
+  if (refEv) {
+    const r = refEv.reflection || {};
+    if (st.judgment) {
+      judgeBlock = `<div class="sim-feed-judge sim-feed-judge--done">
+        <span class="sim-feed-judge-label">Your judgment</span>
+        <span class="sim-feed-judge-value">${st.judgment}</span></div>`;
+    } else {
+      const btns = JUDGMENTS.map(j =>
+        `<button type="button" class="sim-judgment sim-feed-judgment" data-judgment="${j}" aria-pressed="false">${j}</button>`
+      ).join('');
+      judgeBlock = `<div class="sim-feed-judge">
+        <span class="sim-feed-judge-label">${r.judgmentPrompt || 'How would you judge this activity?'}</span>
+        <div class="sim-feed-judgments">${btns}</div></div>`;
+    }
+  }
+
+  const next = investigationNextStep();
+  return `
+    <div class="sim-feed" role="status" aria-live="polite">
+      <div class="sim-feed-head">ACTIVE INVESTIGATION</div>
+      <div class="sim-feed-row">
+        <span class="sim-feed-tag">Newest finding</span>
+        <span class="sim-feed-text">${latest.label}</span>
+      </div>
+      ${judgeBlock}
+      ${next ? `<div class="sim-feed-row sim-feed-row--next">
+        <span class="sim-feed-tag">Next step</span>
+        <span class="sim-feed-text">${next}</span></div>` : ''}
+    </div>`;
 }
 
 /* "What concerns you?" — a checklist of plain-language observations followed by
@@ -1419,6 +1491,7 @@ function surfaceEvidence(evId) {
   const e = evidenceById(evId);
   if (!e) return;
   SIM.evidence.add(evId);
+  SIM.lastEvidenceId = evId; // newest finding for the Active Investigation Feed.
   simPrint('● EVIDENCE: ' + e.label, 'evidence');
   if (e.setFlag) setMissionFlag(e.setFlag, true);
   // Reactive map: refresh the button count, and live-update the overlay if open.
@@ -1739,11 +1812,12 @@ function businessSignal() {
   return pts / tones.length;
 }
 
-/* QUARTERLY PERFORMANCE REVIEW (Mission 4 capstone) — PREVIEW-ONLY. Grades this
- * analyst across the role spec's eight quality dimensions, awards an overall
- * standing tier (Needs Additional Training → Junior SOC Analyst Candidate),
- * reports the organization's health, and PREVIEWS the next role WITHOUT unlocking
- * it (promotion stays deferred; role is unchanged). Reads state; mutates nothing. */
+/* QUARTERLY PERFORMANCE REVIEW (Mission 4 capstone). Grades this analyst across
+ * the role spec's eight quality dimensions, awards an overall standing tier
+ * (Needs Additional Training → Junior SOC Analyst Candidate), reports the
+ * organization's health, and — at a top standing — confers the REAL Intern→Junior
+ * promotion (see promotionDecision; persisted by finalizeMission). This render
+ * computes the decision only to phrase Reyes's message; it mutates nothing. */
 function performanceReviewHtml() {
   const cur = activeRole();
   const next = CAREER_ROLES.find(r => r.authorityLevel === cur.authorityLevel + 1);
@@ -1769,14 +1843,37 @@ function performanceReviewHtml() {
   }).join('');
 
   const completed = Array.isArray(CAREER.completedMissions) ? CAREER.completedMissions.length : 0;
-  const preview = next
-    ? `<div class="sim-review-next">
+
+  // PROMOTION PAYOFF (Task #108) — the capstone review now earns a REAL promotion.
+  // Compute the decision fresh here for the message; finalizeMission() applies the
+  // same pure decision to persist it. renderDebrief runs BEFORE finalizeMission, so
+  // `cur` is still the pre-promotion role at render time — the message reads as the
+  // promotion being conferred now.
+  const decision = promotionDecision({ currentRoleId: cur.id, average: review.average, nextRoleId: next && next.id });
+  let preview;
+  if (decision.promoted && next) {
+    preview = `<div class="sim-review-next sim-review-next--promoted">
+        <div class="sim-review-next-label">PROMOTION EARNED</div>
+        <div class="sim-review-next-role">${next.title}</div>
+        <div class="sim-review-next-dept">${next.department || ''}</div>
+        <div class="sim-review-promo-note"><strong>Sarah Reyes:</strong> You have earned it. Effective now, you are promoted from ${cur.title} to ${next.title} — clearance and responsibilities updated. Proud to have you on the team.</div>
+      </div>`;
+  } else if (decision.alreadyEarned) {
+    preview = `<div class="sim-review-next">
+        <div class="sim-review-next-label">CURRENT STANDING</div>
+        <div class="sim-review-next-role">${cur.title}</div>
+        <div class="sim-review-next-note">You hold the rank of ${cur.title}. Strong, dependable work — keep it up.</div>
+      </div>`;
+  } else if (next) {
+    preview = `<div class="sim-review-next">
         <div class="sim-review-next-label">NEXT ON THE LADDER</div>
         <div class="sim-review-next-role">${next.title}</div>
         <div class="sim-review-next-dept">${next.department || ''}</div>
-        <div class="sim-review-next-note">Previewed only — promotion is reviewed after sustained performance. Your current role stands.</div>
-      </div>`
-    : `<div class="sim-review-next"><div class="sim-review-next-note">You are at the top of the current ladder.</div></div>`;
+        <div class="sim-review-next-note"><strong>Sarah Reyes:</strong> The promotion to ${next.title} is within reach — reach a top quarter standing and it is yours. Widen your evidence and sharpen your final calls.</div>
+      </div>`;
+  } else {
+    preview = `<div class="sim-review-next"><div class="sim-review-next-note">You are at the top of the current ladder.</div></div>`;
+  }
   return `
     <div class="sim-review">
       <div class="sim-review-head">QUARTERLY PERFORMANCE REVIEW</div>
@@ -1952,8 +2049,9 @@ function recordCompanyHistory(ctx) {
 }
 
 /* ================================================================== *
- * CAREER ENGINE (P4) — record completion + persist. Rank is DERIVED
- * from the active role; promotion is deferred (out of slice scope).
+ * CAREER ENGINE (P4) — record completion + persist. A capstone mission
+ * carrying a performanceReview confers the real Intern→Junior promotion
+ * here (monotonic + idempotent); other missions leave the role untouched.
  * ================================================================== */
 function finalizeMission(ctx) {
   if (!SIM.missionId) return;
@@ -1964,7 +2062,18 @@ function finalizeMission(ctx) {
   // has (never reconstructed from the DOM) and upserted idempotently by mission
   // id, so a replay REPLACES rather than duplicates the entry.
   recordCompanyHistory(ctx);
-  CAREER.currentRank = roleById(CAREER.currentRole).title; // promotion deferred — stays Intern
+  // PROMOTION PAYOFF (Task #108) — a capstone mission carrying a performance
+  // review can earn a real, persisted promotion. Apply the SAME pure decision the
+  // review message used (monotonic + idempotent: sticky once earned, never demotes
+  // or double-promotes on replay). Non-capstone missions never touch the role.
+  if (SIM.def && SIM.def.performanceReview) {
+    const cur = activeRole();
+    const next = CAREER_ROLES.find(r => r.authorityLevel === cur.authorityLevel + 1);
+    const review = performanceReview(performanceSignals());
+    const decision = promotionDecision({ currentRoleId: cur.id, average: review.average, nextRoleId: next && next.id });
+    if (decision.promoted) CAREER.currentRole = decision.toRoleId;
+  }
+  CAREER.currentRank = roleById(CAREER.currentRole).title;
   saveCareerState();
   renderResourceBar();
   // Shipping integration: record REAL host completion through the canonical
