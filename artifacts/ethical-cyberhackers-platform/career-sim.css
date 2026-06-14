@@ -347,6 +347,8 @@
 .sim-term-line--question { color: var(--purple); font-style: italic; }
 .sim-term-line--confidence { color: var(--green-dim); }
 .sim-term-line--next { color: var(--text-dim); }
+.sim-term-line--cue { color: var(--cyan); font-weight: 600; margin-top: 2px; }
+.sim-term-line--cue-next { color: var(--text-bright); }
 .sim-term-line--spacer { height: 8px; }
 .sim-term-form {
   flex: 0 0 auto;
@@ -1634,3 +1636,62 @@ button.sim-discovery-opt:hover { border-color: var(--border-glow); color: var(--
 .sim-discovery-status--partial { color: var(--orange); border-color: var(--orange); background: rgba(255, 170, 0, 0.08); }
 .sim-discovery-status--incorrect { color: var(--red); border-color: var(--red); background: rgba(255, 51, 68, 0.08); }
 .sim-discovery-impact { font-size: 10.5px; line-height: 1.45; color: var(--text-dim); }
+
+/* ------------------------------------------------------------------ *
+ * Analyst Notebook feedback loop — attention cues
+ * Presentation-only: pull the player's eye from the terminal to the
+ * notebook when a command surfaces new evidence / leaves a judgment pending.
+ * ------------------------------------------------------------------ */
+
+/* "N to judge" badge on the ANALYST NOTEBOOK panel header. */
+.sim-nb-alert {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--bg);
+  background: var(--yellow);
+  border-radius: 9px;
+  padding: 1px 8px;
+  animation: simNbPulse 1.7s ease-in-out infinite;
+}
+@keyframes simNbPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 170, 0, 0.0); }
+  50%      { box-shadow: 0 0 9px 1px rgba(255, 170, 0, 0.55); }
+}
+
+/* One-shot highlight of the notebook body when new evidence lands. */
+.sim-evidence-body--flash { animation: simNbFlash 950ms ease; }
+@keyframes simNbFlash {
+  0%   { background: rgba(45, 212, 255, 0.12); }
+  100% { background: transparent; }
+}
+
+/* One-shot flash of the confidence meter when its value moves. */
+.sim-confidence--flash { animation: simConfFlash 850ms ease; }
+@keyframes simConfFlash {
+  0%   { border-color: var(--cyan); box-shadow: 0 0 11px rgba(45, 212, 255, 0.4); }
+  100% { border-color: var(--border); box-shadow: none; }
+}
+
+/* Gentle "action required" pulse on a discovery card awaiting judgment. */
+.sim-discovery--pending {
+  border-left-color: var(--yellow);
+  animation: simEvIn 280ms ease, simPendPulse 2s ease-in-out 0.3s infinite;
+}
+@keyframes simPendPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 170, 0, 0.0); }
+  50%      { box-shadow: 0 0 10px -1px rgba(255, 170, 0, 0.30); }
+}
+
+/* Make the feed's "Next step" read as the call-to-action, not a muted footnote. */
+.sim-feed-row--next .sim-feed-tag { color: var(--yellow); }
+.sim-feed-row--next .sim-feed-text { color: var(--text-bright); font-style: normal; }
+
+/* Respect reduced-motion: keep the cue colours/badge, drop the animation. */
+@media (prefers-reduced-motion: reduce) {
+  .sim-nb-alert,
+  .sim-evidence-body--flash,
+  .sim-confidence--flash,
+  .sim-discovery--pending { animation: none; }
+}

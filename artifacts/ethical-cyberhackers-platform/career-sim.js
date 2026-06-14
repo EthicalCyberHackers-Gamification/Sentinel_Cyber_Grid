@@ -388,6 +388,8 @@ function openCareerMission(missionId) {
   SIM.reflection = { concerns: new Set(), judgment: null };
   SIM.discoveryJudgments = {};            // graded discovery challenges (caseFileNotebook missions)
   SIM.autoOpenedBoardEvents = new Set();  // board auto-open fires once per milestone evidence id
+  SIM.nbEvidenceCount = 0;                // notebook attention: evidence count at last render
+  SIM.nbConfidence = null;                // notebook attention: confidence at last render (meter flash)
 
   // Network-map overlay is review-only + transient: never carries across missions.
   SIM.mapOpen = false;
@@ -781,8 +783,21 @@ function renderEvidencePanel() {
   // discovery cards. Strictly gated on the dataset flag — every other mission
   // falls through to the original notebook below, byte-for-byte unchanged.
   if (SIM.def && SIM.def.caseFileNotebook) {
+    // Attention loop: detect what changed since the last render so the panel can
+    // pull the player's eye to it (presentation-only — reads state, writes only
+    // transient view trackers).
+    const evCount = SIM.evidence.size;
+    const grew = evCount > (SIM.nbEvidenceCount || 0);
+    SIM.nbEvidenceCount = evCount;
+    const conf = investigationConfidence();
+    const confChanged = SIM.nbConfidence != null && conf !== SIM.nbConfidence;
+    SIM.nbConfidence = conf;
+    const pending = visibleDiscoveryChallenges()
+      .filter(c => challengeValid(c) && !challengeAnswered(c)).length;
+    const alert = pending > 0
+      ? `<span class="sim-nb-alert">${pending} to judge</span>` : '';
     host.innerHTML = `
-      <div class="sim-panel-head">ANALYST NOTEBOOK</div>
+      <div class="sim-panel-head">ANALYST NOTEBOOK${alert}</div>
       <div class="sim-evidence-body">
         ${confidenceMeterHtml()}
         ${viewbar}
@@ -794,6 +809,20 @@ function renderEvidencePanel() {
         ${identifyHtml}
         ${responseHtml}
       </div>`;
+    const body = host.querySelector('.sim-evidence-body');
+    if (body && grew) {
+      const newest = newestEvidence();
+      const target = (newest && body.querySelector(`.sim-discovery--pending[data-ev="${newest.id}"]`))
+        || body.querySelector('.sim-discovery--pending')
+        || body.querySelector('.sim-feed');
+      if (target) simScrollBodyTo(body, target);
+      void body.offsetWidth;                 // restart the highlight animation
+      body.classList.add('sim-evidence-body--flash');
+    }
+    if (body && confChanged) {
+      const meter = body.querySelector('.sim-confidence');
+      if (meter) { void meter.offsetWidth; meter.classList.add('sim-confidence--flash'); }
+    }
     return;
   }
 
@@ -1079,9 +1108,9 @@ function discoveryCardHtml(ch) {
   const cardMod = full
     ? (status === 'correct' ? ' sim-discovery--correct'
       : status === 'partial' ? ' sim-discovery--partial' : ' sim-discovery--wrong')
-    : '';
+    : ' sim-discovery--pending';
   return `
-    <div class="sim-discovery${cardMod}">
+    <div class="sim-discovery${cardMod}" data-ev="${ch.evidenceId || ''}">
       <div class="sim-discovery-card-head">ANALYST JUDGMENT · ${ch.short || ''}</div>
       ${obsHtml}
       ${justHtml}
@@ -1106,8 +1135,8 @@ function analystJudgmentHtml() {
 /* Plain-language "what to do next", case-file flavour. Pending judgments first. */
 function caseFileNextStep() {
   const vis = visibleDiscoveryChallenges().filter(challengeValid);
-  if (vis.some(c => !stepAnswered(c, 'observation'))) return 'Record what stands out on your latest finding (above).';
-  if (vis.some(c => !stepAnswered(c, 'justification'))) return 'Explain why your latest finding matters (above).';
+  if (vis.some(c => !stepAnswered(c, 'observation'))) return 'Record what stands out on your latest finding.';
+  if (vis.some(c => !stepAnswered(c, 'justification'))) return 'Explain why your latest finding matters.';
   const unread = simFiles().filter(f => !SIM.read.has(f.name));
   if (unread.length) return `Open the remaining ${unread.length} file(s) to surface more evidence.`;
   const unclassified = simFiles().filter(f => SIM.read.has(f.name) && !SIM.classified[f.name]);
@@ -1731,7 +1760,9 @@ function runCommandEntry(c) {
     else simPrint(line.t, line.c || 'file');
   });
 
+  const evBefore = SIM.evidence.size;
   if (firstRun) (c.reveals || []).forEach(surfaceEvidence);
+  const evSurfaced = SIM.evidence.size - evBefore;
 
   if (c.observation) simPrint('▸ ' + c.observation, 'observe');
   if (c.question)    simPrint('? ' + c.question, 'question');
@@ -1739,6 +1770,7 @@ function runCommandEntry(c) {
     simPrint('  confidence ↑ — now ' + investigationConfidence() + '%', 'confidence');
   }
   if (c.next) simPrint('→ Next: ' + c.next, 'next');
+  if (evSurfaced > 0) simNotebookCue(evSurfaced);
   simPrint('', 'spacer');
 
   renderEvidencePanel();
@@ -1845,7 +1877,10 @@ function simCmdRead(arg, mode) {
   simPrint(`── ${file.name} ──────────────────────────`, 'head');
   (file.content || []).forEach(l => simPrint('  ' + l, 'file'));
   simPrint('', 'spacer');
+  const evBefore = SIM.evidence.size;
   if (firstRead) (file.evidenceIds || []).forEach(surfaceEvidence);
+  const evSurfaced = SIM.evidence.size - evBefore;
+  if (evSurfaced > 0) simNotebookCue(evSurfaced);
   renderEvidencePanel();
   if (allFilesRead() && SIM.stage === 'investigation') {
     simPrint('All files reviewed. Classify what you found, then type  decide  to choose a handling action.', 'ok');
@@ -1870,6 +1905,32 @@ function surfaceEvidence(evId) {
     if (SIM.mapOpen) renderSimMap();
   }
   maybeAutoOpenSimMap(evId);
+}
+
+/* Smoothly bring an element into view WITHIN the notebook scroll container (never
+ * scrolls the whole page). Presentation-only. */
+function simScrollBodyTo(body, el) {
+  if (!body || !el) return;
+  const bRect = body.getBoundingClientRect();
+  const eRect = el.getBoundingClientRect();
+  const delta = (eRect.top - bRect.top) - 12;
+  if (Math.abs(delta) < 2) return;
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  try { body.scrollTo({ top: body.scrollTop + delta, behavior: reduce ? 'auto' : 'smooth' }); }
+  catch (_) { body.scrollTop += delta; }
+}
+
+/* Terminal → Notebook bridge. The player's attention is in the terminal; after a
+ * command surfaces new evidence, name the Analyst Notebook explicitly and state
+ * the next action so the silent panel update never goes unnoticed.
+ * Presentation-only: prints terminal lines, writes nothing. Gated on
+ * caseFileNotebook so it only speaks for missions that use the case file. */
+function simNotebookCue(n) {
+  if (!SIM.def || !SIM.def.caseFileNotebook) return;
+  if (!n || n < 1) return;
+  simPrint(`◆ ${n} new finding${n === 1 ? '' : 's'} logged to your ANALYST NOTEBOOK (right panel).`, 'cue');
+  const next = caseFileNextStep();
+  if (next) simPrint(`  In the notebook → ${next}`, 'cue-next');
 }
 
 /* Investigation-First (Mission 1): auto-open the investigation board the first

@@ -58,3 +58,23 @@ perfect run — grading is purely ADDITIVE, it never hard-blocks.
 per-step lock) BEFORE allocating `SIM.discoveryJudgments[id] = {}`, or invalid synthetic
 events leave a stray empty object in state. No terminal hard-lock — only board/feed/
 notebook surfaces gate on surfaced evidence; the terminal is always usable.
+
+## Notebook attention/feedback cues (presentation-only)
+
+The case-file notebook updates silently when a command surfaces evidence, so an
+attention layer bridges terminal→notebook. Two non-obvious invariants:
+
+- **Detect "what changed" by diffing transient trackers inside the render chokepoint,
+  and reset them on mission open.** `renderEvidencePanel()` compares `SIM.evidence.size`
+  and the live confidence against `SIM.nbEvidenceCount` / `SIM.nbConfidence` to fire a
+  body-flash + auto-scroll and a meter-flash. **Why:** `surfaceEvidence()` does NOT
+  render — command handlers render once after surfacing, so growth is only observable as
+  a delta at the render call. These trackers MUST be reset in `openCareerMission()` or
+  the flash/badge leaks across opens/replay (false-fires on a fresh open).
+- **The terminal cue diffs evidence count before/after in BOTH command paths** —
+  `simCmdRead` (M1 file/`cat` model) and `runCommandEntry` (M2–M4 command model) — and
+  only prints when the count actually grows, so reruns/duplicate reveals don't double-fire.
+  Gate the whole layer on `caseFileNotebook` so non-case-file missions are untouched.
+- Auto-scroll is container-only (`.sim-evidence-body.scrollTo`, guarded) targeting the
+  pending card for `newestEvidence()` (`data-ev` on the card), never the page; honour
+  `prefers-reduced-motion` for scroll behaviour + pulse/flash animations.
