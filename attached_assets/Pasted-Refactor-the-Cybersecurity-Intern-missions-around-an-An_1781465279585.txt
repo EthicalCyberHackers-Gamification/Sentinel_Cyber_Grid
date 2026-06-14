@@ -1,0 +1,307 @@
+Refactor the Cybersecurity Intern missions around an Analyst Judgment Engine.
+
+Do not redesign the full UI.
+Do not remove the terminal.
+Do not remove the analyst notebook.
+Do not remove the resource bar.
+Do not rename missions.
+Do not add more Intern missions.
+
+The current issue is that terminal commands reveal evidence, but the player is not consistently required to interpret, justify, and learn from the evidence.
+
+Create a new gameplay loop:
+
+Discover
+→ Interpret
+→ Justify
+→ Learn
+→ Consequence
+
+Every significant discovery from a command should trigger an Analyst Judgment Moment.
+
+A judgment moment should include:
+1. Raw evidence from the terminal
+2. A short visual reveal on the Investigation Board
+3. A question asking what stands out
+4. A follow-up asking why it matters
+5. Sarah Reyes mentor feedback
+6. Analyst Notebook update
+7. Confidence update
+8. Optional resource/consequence update
+
+Do not immediately tell the student the conclusion.
+
+Bad:
+Command runs.
+System says: Evidence: contractor prepared release package.
+
+Good:
+Command runs.
+System shows release notes.
+Student is asked: What is the important clue?
+Student answers.
+System asks: Why does it matter?
+Sarah Reyes explains.
+Notebook records the reasoning.
+Investigation Board updates.
+
+Create an Analyst Judgment Engine with reusable judgment objects:
+
+{
+  id,
+  missionId,
+  triggerCommand,
+  triggerFinding,
+  rawEvidence,
+  visualReveal,
+  observationQuestion,
+  observationChoices,
+  correctObservation,
+  justificationQuestion,
+  justificationChoices,
+  correctJustification,
+  sarahFeedbackCorrect,
+  sarahFeedbackIncorrect,
+  notebookUpdate,
+  confidenceDelta,
+  resourceEffects,
+  unlocksNextCommand,
+  unlocksBoardNode
+}
+
+Mission 1 examples:
+
+Command:
+cat release_notes.txt
+
+Raw evidence:
+Prepared by ext-contractor-07.
+Bundled a few extra finance files.
+
+Visual reveal:
+External Contractor → Release Package
+
+Observation question:
+What is the important clue?
+
+Choices:
+- External contractor prepared the package
+- The note is short
+- The partner is logistics
+- Nothing unusual
+
+Justification question:
+Why does this matter?
+
+Choices:
+- External release should have internal review
+- Contractors can never touch documents
+- Logistics companies are always risky
+- There is no risk
+
+Correct feedback from Sarah Reyes:
+Good. The contractor is not automatically suspicious. The issue is that external release decisions require internal company review.
+
+Notebook update:
+Fact: External contractor prepared release package.
+Hypothesis: Release approval chain may be weak.
+Unknown: Who internally approved this package?
+
+Confidence:
++10%
+
+Board unlock:
+External Contractor
+Release Package
+Missing Internal Review
+
+Command:
+cat employee_salaries.csv
+
+Visual reveal:
+Release Package → Employee Salaries
+
+Observation question:
+What stands out?
+
+Choices:
+- Employee salary data
+- CSV file format
+- File size
+- Employee names are alphabetized
+
+Justification:
+Why is this sensitive?
+
+Choices:
+- Compensation data is confidential employee information
+- CSV files are unsafe
+- Employee files are always public
+- It is only sensitive if encrypted
+
+Sarah feedback:
+Correct. Salary data creates HR, privacy, and trust risk if released outside the company.
+
+Notebook update:
+Fact: Employee salary data is included.
+Risk: Confidential employee information exposure.
+Recommendation: Restrict or escalate.
+
+Mission 2 examples:
+
+Command:
+cat contractor_assignments.txt
+
+Visual reveal:
+J. Demir → Laptop 192.168.1.57
+
+Observation:
+What concerns you?
+
+Choices:
+- Contractor-owned laptop
+- Device name
+- IP address alone
+- Nothing
+
+Justification:
+Why does it matter in this case?
+
+Choices:
+- Contractor-owned device is on an internal finance segment
+- Contractors cannot own laptops
+- IP addresses are always dangerous
+- It is safe because it has an address
+
+Sarah feedback:
+The issue is the relationship: contractor-owned device plus internal finance access.
+
+Board unlock:
+Contractor → Laptop → Finance Segment
+
+Mission 3 examples:
+
+Command:
+grep contractor01 auth.log
+
+Visual reveal:
+Contractor Account → Failed Logins → Successful Login
+
+Observation:
+What pattern matters?
+
+Choices:
+- Repeated failures followed by success
+- Username length
+- Time format
+- No issue
+
+Justification:
+Why does that increase concern?
+
+Choices:
+- It may indicate password guessing or account compromise
+- Failed logins are always harmless
+- Successful login proves safety
+- Contractor accounts cannot be compromised
+
+Mission 4 examples:
+
+Command:
+cat transfer.log
+
+Visual reveal:
+Contractor Account → Customer Database → External Transfer
+
+Observation:
+What is the strongest concern?
+
+Choices:
+- Large outbound transfer after sensitive file access
+- File name style
+- Time zone
+- Normal backup
+
+Justification:
+Why does this matter?
+
+Choices:
+- It may indicate data exfiltration
+- All transfers are malicious
+- Customer databases are public
+- External traffic is always approved
+
+Visual Investigation Board:
+Use the board as a visual reasoning tool, not just a map.
+
+Terminal discovers facts.
+Board shows relationships.
+Notebook records reasoning.
+Sarah Reyes teaches judgment.
+
+The board should animate only on significant discoveries:
+- new entity
+- new relationship
+- new risk
+- major milestone
+
+Do not open the board after every command.
+Trigger it only when there is a meaningful judgment to make.
+
+Active Investigation Feed:
+Add a small always-visible feed near the notebook.
+
+It should show:
+- New Finding
+- Required Judgment
+- Suggested Next Step
+
+Example:
+NEW FINDING:
+Release package prepared by external contractor.
+
+ACTION REQUIRED:
+Identify what concerns you.
+
+This prevents students from scrolling through the notebook.
+
+Notebook:
+Refactor notebook entries so they include player reasoning.
+
+Each entry should store:
+- Fact
+- Student assessment
+- Student justification
+- Sarah feedback
+- Confidence impact
+- Final status
+
+Do not make the notebook a passive evidence archive.
+
+Sarah Reyes:
+Sarah should respond to student judgment.
+
+Avoid generic “Correct.”
+Use mentor-style explanations.
+
+Examples:
+“Good catch. The issue is not the contractor alone. The issue is contractor-controlled release without internal review.”
+
+“I see why you chose that, but the stronger concern is the relationship between the account, the device, and the finance segment.”
+
+Game psychology target:
+Support autonomy by making the student choose.
+Support competence by giving immediate feedback.
+Support relatedness by making Sarah Reyes feel present.
+Support flow by keeping goals clear and feedback immediate.
+
+Success criteria:
+The student should not passively read command output.
+The student should repeatedly:
+- find evidence
+- identify what matters
+- explain why it matters
+- receive feedback
+- see the case evolve
+
+The final experience should feel closer to a detective investigation game than a static cybersecurity lab.
