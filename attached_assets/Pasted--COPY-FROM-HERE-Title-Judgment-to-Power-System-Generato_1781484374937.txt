@@ -1,0 +1,82 @@
+—— COPY FROM HERE ——
+
+Title: Judgment-to-Power System Generator — CyberCorp
+
+Task
+Design systems that convert demonstrated analyst judgment into small, tactile, spendable powers without undermining professional identity. Outputs must be diegetic to CyberCorp and reinforce the Discover → Interpret → Justify → Learn loop.
+
+Goals
+• Reward correct or well‑reasoned judgments with precise, actionable affordances (not points).
+• Keep powers lightweight, time‑bound, and situational; they should accelerate thinking, not replace it.
+• Make tradeoffs visible: spending power should carry a small, teachable cost.
+• Preserve identity: rewards feel like earned trust/tools, not game loot.
+
+Constraints
+• Tone: professional, grounded, in‑universe. Avoid overt gamification language.
+• Powers must be triggered by recognizable judgment patterns (e.g., accurate risk calls, strong justification use), not grind.
+• Each power must specify: trigger condition, effect, duration/limits, and a subtle cost or counterweight.
+• No permanent stat increases; no leaderboards; no RNG loot.
+• Integrate with existing systems when relevant: Investigation Confidence, Sarah Reyes, Notebook, Case Board.
+• Design for clarity and teachability in 1–2 sentences per effect.
+
+Inputs (provided to you)
+• Mission context (1–3 sentences)
+• Role: Intern | Junior SOC Analyst | SOC Analyst
+• Judgment pattern(s) to reward (e.g., “accurate medium-risk calls”, “declaring and resolving unknowns”)
+• Desired power category (choose one or more): Hinting | Acceleration | Context Reveal | Risk Calibration | Evidence Surfacing
+• Strictness: Lenient | Standard | Exacting (affects trigger thresholds and costs)
+
+Output format (strict JSON)
+{
+  "missioncontext": "...",
+  "role": "Intern | Junior SOC Analyst | SOC Analyst",
+  "judgmentpatterns": ["...","..."],
+  "powers": [
+    {
+      "id": "JP-001",
+      "name": "Short, professional name",
+      "category": "Hinting | Acceleration | Context Reveal | Risk Calibration | Evidence Surfacing",
+      "trigger": "Exact behavior/threshold that earns it",
+      "effect": "Concrete, in-universe capability the player gains (1–2 sentences)",
+      "duration": "Time-bound limit (e.g., 'active for next 2 judgments' or 'this mission only')",
+      "costortradeoff": "Subtle, teachable drawback (e.g., small Confidence spend, stricter upcoming judgment, added Operational Friction)",
+      "uisurface": "Where/how it appears (e.g., Notebook chip, Sarah prompt, artifact overlay)",
+      "integration": ["Investigation Confidence","Notebook","Case Board","Sarah Reyes"],
+      "abuseguardrails": "How it avoids spam/overuse (cooldown, diminishing returns, context checks)",
+      "exampleuse": "1–2 sentence vignette showing it in play"
+    },
+    { ... },
+    { ... }
+  ],
+  "spendrules": {
+    "currencymodel": "If any spendable meter is used (e.g., Confidence), define bounds and regen",
+    "spendactions": ["List the interactions that require a spend"],
+    "recovery": "How the resource is regained through good judgment",
+    "telemetry": "Key signals to log for tuning (e.g., misuse, accuracy after spend)"
+  },
+  "sarahinteractions": [
+    {
+      "moment": "When power is earned | spent | expires",
+      "linestyle": "Coaching | Calibration | Context",
+      "example_line": "A short, professional line Sarah would say"
+    }
+  ]
+}
+
+Design rules
+• Powers accelerate analyst behavior the player already demonstrated; they never reveal answers outright.
+• Tie each power to a single, named judgment habit; state the teaching intent explicitly via its trigger and cost.
+• Costs should teach craft: small Confidence spend, stricter next ambiguity, or minor Operational Friction—never punitive.
+• Keep names credible (e.g., “Evidence Threader”, “Scope Snapshot”, “Risk Railguard”), not gamey.
+• Ensure at least one power interfaces with Investigation Confidence as a limited, spendable resource.
+
+Now generate.
+
+Example inputs to start
+• Mission context: “Off-hours authentication anomalies against HR systems; scope unclear.”
+• Role: Junior SOC Analyst
+• Judgment patterns: ["accurate medium-risk calls within 60s","documenting counter-argument in Notebook before escalate"]
+• Desired power category: ["Risk Calibration","Evidence Surfacing"]
+• Strictness: Standard
+
+—— COPY ENDS ——

@@ -343,6 +343,7 @@ const SIM = {
   dynamic: [],              // active dynamic conditions for this mission (carry-flag driven)
   discoveryJudgments: {},   // challengeId -> { observation, justification } chosen option ids (two-step graded judgments; transient)
   autoOpenedBoardEvents: new Set(), // evidence ids that already auto-opened the board (once each)
+  powers: null,             // Judgment-to-Power transient state (set in openCareerMission via freshPowersState)
 };
 
 function careerMission() { return SIM.def; }
@@ -392,6 +393,7 @@ function openCareerMission(missionId) {
   SIM.nbConfidence = null;                // notebook attention: confidence at last render (meter flash)
   SIM.sideTrailOpen = new Set();          // optional side-trails the analyst has expanded (transient)
   SIM.sideTrailJudgments = {};            // {trailId:{observation,justification}} picks (transient)
+  SIM.powers = freshPowersState();        // Judgment-to-Power tools (transient, never persisted)
 
   // Network-map overlay is review-only + transient: never carries across missions.
   SIM.mapOpen = false;
@@ -770,14 +772,28 @@ function investigationConfidence() {
   return Math.max(10, Math.min(100, Math.round(10 + 90 * base)));
 }
 
+/* The number shown on the meter. This is investigationConfidence() minus any
+ * recoverable Risk Railguard dip (SIM.powers.confSpend) — a DISPLAY-ONLY offset.
+ * investigationConfidence() itself, and every grading path that reads it, stay
+ * untouched: the dip never reaches evidenceQuality/judgmentQuality/scoring. */
+function displayInvestigationConfidence() {
+  const base = investigationConfidence();
+  const spend = (SIM.powers && SIM.powers.confSpend) || 0;
+  return Math.max(10, base - spend);
+}
+
 function confidenceMeterHtml() {
-  const c = investigationConfidence();
+  const c = displayInvestigationConfidence();
+  const spend = (SIM.powers && SIM.powers.confSpend) || 0;
   const tone = c >= 70 ? 'good' : c >= 40 ? 'warn' : 'low';
+  const note = spend > 0
+    ? `\u2212${spend}% held for a calibration check \u00b7 recovers with your next sound judgment.`
+    : 'Climbs as your commands uncover evidence.';
   return `
-    <div class="sim-confidence sim-confidence--${tone}">
+    <div class="sim-confidence sim-confidence--${tone}${spend > 0 ? ' sim-confidence--spent' : ''}">
       <div class="sim-confidence-head"><span>INVESTIGATION CONFIDENCE</span><span class="sim-confidence-pct">${c}%</span></div>
       <div class="sim-confidence-meter"><span class="sim-confidence-fill" style="width:${c}%"></span></div>
-      <div class="sim-confidence-note">Climbs as your commands uncover evidence.</div>
+      <div class="sim-confidence-note">${note}</div>
     </div>`;
 }
 
@@ -993,6 +1009,7 @@ function renderEvidencePanel() {
         ${evSection}
         ${investigationFeedHtml()}
         ${analystJudgmentHtml()}
+        ${analystPowersHtml()}
         ${caseFileSummaryHtml()}
         ${classHtml}
         ${identifyHtml}
@@ -1841,7 +1858,287 @@ function setDiscoveryJudgment(challengeId, step, optionId) {
   if (!cfg.options.some(o => o.id === optionId)) return;       // valid option only — validate BEFORE allocating
   const ans = SIM.discoveryJudgments[challengeId] || (SIM.discoveryJudgments[challengeId] = {});
   ans[step] = optionId;
+  powersTick();              // earn/expire/recover analyst tools (transient, no render)
   renderEvidencePanel();
+}
+
+/* ================================================================== *
+ * JUDGMENT-TO-POWER SYSTEM (Task #117)
+ * ------------------------------------------------------------------ *
+ * Converts demonstrated analyst judgment into small, time-bound,
+ * spendable "tools". 100% transient (lives on SIM.powers, reset on
+ * openCareerMission, never persisted / never synced) and presentation-
+ * only: it READS the judgment / evidence / risk state but NEVER touches
+ * investigationConfidence(), the grading helpers, or saveProgress.
+ * Rendered inside the caseFileNotebook branch, so it appears exactly
+ * where the judgment engine does (all four Intern missions) and other
+ * missions never see it. Tools "appear" as trust is earned — there is
+ * no list of locked powers to grind toward.
+ * ================================================================== */
+const STANDING_CAP = 3;
+const RAILGUARD_DIP = 8;          // recoverable Investigation Confidence DISPLAY dip
+const SNAPSHOT_WINDOW = 2;        // Scope Snapshot visible for the next N judgment steps
+
+function freshPowersState() {
+  return {
+    standingSpent: 0,             // standing already spent (standing = sound calls - this, clamped)
+    confSpend: 0,                 // recoverable Investigation Confidence DISPLAY dip (Railguard)
+    spent: {},                    // powerId -> true (once-per-mission guard)
+    active: {},                   // powerId -> live effect payload (time-bound)
+    announced: new Set(),         // powerId -> earn line already shown (once)
+    sarah: '',                    // latest power coaching line (presentation)
+    lastSoundCount: 0,            // delta guard: sound judgments seen at the last tick
+    log: [],                      // local telemetry only (never persisted / synced)
+  };
+}
+
+/* ---- derived judgment-habit counters (pure, over current SIM state) ------- */
+function soundJudgmentCount() { return simDiscoveryChallenges().filter(challengeFullyCorrect).length; }
+function correctJustificationCount() { return simDiscoveryChallenges().filter(c => challengeValid(c) && challengeStepCorrect(c, 'justification')).length; }
+function correctObservationCount() { return simDiscoveryChallenges().filter(c => challengeValid(c) && challengeStepCorrect(c, 'observation')).length; }
+
+/* Earned, spendable "standing": rises with sound calls, falls as it is spent,
+ * capped so it can never be grinded. Recovery = make another sound call. */
+function analystStanding() {
+  const P = SIM.powers || (SIM.powers = freshPowersState());
+  return Math.max(0, Math.min(STANDING_CAP, soundJudgmentCount() - P.standingSpent));
+}
+
+/* The power registry — data-driven. Each entry names the ONE judgment habit it
+ * rewards (earned), its cost, and the in-voice coaching lines. The UI, the
+ * teaching, and the spend rules all read from here. */
+const ANALYST_POWERS = [
+  {
+    id: 'JP-001', name: 'Evidence Threader', category: 'Evidence Surfacing',
+    effect: 'Connects two findings you have already surfaced that corroborate the same risk.',
+    cost: { standing: 1 },
+    earned: () => soundJudgmentCount() >= 1,
+    sarahEarn: 'A clean call, start to finish \u2014 that is judgment I can build on. You have earned Evidence Threader; spend a little standing and it will tie together findings you have already pulled.',
+    sarahSpend: 'Good \u2014 let the evidence corroborate itself, then move on.',
+    sarahExpire: 'That thread has served its purpose. Back to first principles.',
+  },
+  {
+    id: 'JP-002', name: 'Scope Snapshot', category: 'Context Reveal',
+    effect: 'A brief recap of what is settled versus what is still open, to re-anchor your scope.',
+    cost: { standing: 1 },
+    earned: () => correctJustificationCount() >= 2,
+    sarahEarn: 'Your reasoning is holding up under weight. Scope Snapshot is yours \u2014 use it to re-anchor what is settled against what is still open.',
+    sarahSpend: 'Take the lay of the land, then keep moving \u2014 it will not stay up long.',
+    sarahExpire: 'Snapshot closed. Trust your notebook from here.',
+  },
+  {
+    id: 'JP-003', name: 'Risk Railguard', category: 'Risk Calibration',
+    effect: 'A calibration check on whether your confidence is in step with your evidence.',
+    cost: { confidence: RAILGUARD_DIP },
+    earned: () => correctObservationCount() >= 2,
+    sarahEarn: 'You are reading risk accurately and consistently. Risk Railguard is available \u2014 it is a calibration check, but it will cost you a little certainty until you reconfirm.',
+    sarahSpend: 'Second opinion noted. Your confidence dips until you back it with another solid call \u2014 that is the price of asking.',
+    sarahExpire: 'There it is \u2014 confidence restored. The calibration paid off.',
+  },
+];
+function powerById(id) { return ANALYST_POWERS.find(p => p.id === id) || null; }
+
+/* Telemetry \u2014 local only (console + in-memory log). Never persisted / synced. */
+function powerLog(ev, id, ctx) {
+  const P = SIM.powers; if (!P) return;
+  P.log.push({ t: Date.now(), ev, id, ctx: ctx || '', standing: analystStanding() });
+  try { console.debug('[powers]', ev, id, ctx || ''); } catch (_) { /* no console */ }
+}
+
+/* Two already-surfaced findings that corroborate the SAME confirmed risk \u2014 the
+ * Evidence Threader payload. Only ever names evidence the player has surfaced
+ * and a risk the case file already shows as FACT; it reveals nothing new and
+ * never points at an answer. null when no such pair exists yet. */
+function threadPair() {
+  const risks = (SIM.def && SIM.def.risks) || [];
+  const defs = simEvidenceDefs();
+  const label = id => { const e = defs.find(d => d.id === id); return e ? e.label : null; };
+  for (const r of risks) {
+    if (!riskConfirmed(r)) continue;
+    const got = (r.triggeredBy || []).filter(id => SIM.evidence.has(id)).map(label).filter(Boolean);
+    if (got.length >= 2) return { risk: r.label, a: got[0], b: got[1] };
+  }
+  return null;
+}
+
+/* Plain established-vs-open counts for Scope Snapshot \u2014 model-agnostic (works on
+ * the file-model M1 and the command-model M2-M4). Counts only; no answers. */
+function scopeCounts() {
+  const risks = (SIM.def && SIM.def.risks) || [];
+  const vis = visibleDiscoveryChallenges().filter(challengeValid);
+  const files = simFiles();
+  return {
+    facts: risks.filter(riskConfirmed).length,
+    judged: vis.filter(challengeAnswered).length,
+    toJudge: vis.filter(c => !challengeAnswered(c)).length,
+    toClassify: files.filter(f => SIM.read.has(f.name) && !SIM.classified[f.name]).length,
+    determinationOpen: !!(SIM.def && SIM.def.identify && !SIM.identified),
+  };
+}
+
+/* The Railguard calibration line \u2014 compares confidence to completeness. Never
+ * names a finding or an answer; it only flags over/under-confidence. */
+function railguardMessage() {
+  const conf = investigationConfidence();
+  const c = scopeCounts();
+  const open = c.toJudge + c.toClassify + (c.determinationOpen ? 1 : 0);
+  if (conf >= 70 && open > 0) {
+    return `Your confidence is running ahead of your evidence \u2014 ${open} item${open === 1 ? '' : 's'} still open. Confirm ${open === 1 ? 'it' : 'them'} before you commit.`;
+  }
+  if (conf < 45) {
+    return 'Your confidence is low for a call this size \u2014 surface more evidence before you decide.';
+  }
+  return 'Confidence and evidence are in step. You are calibrated to make the call.';
+}
+
+/* Whether a power's context makes it useful RIGHT NOW (separate from affording it). */
+function powerContextOk(id) {
+  if (id === 'JP-001') return !!threadPair();                  // need a real corroboration to thread
+  if (id === 'JP-002') return true;                            // a recap is always meaningful once earned
+  if (id === 'JP-003') return SIM.stage === 'investigation'    // calibration only teaches before deciding
+    && SIM.powers.confSpend === 0                              // not already dipped
+    && investigationConfidence() >= 30;                        // must have certainty to spend
+  return false;
+}
+function powerAffordable(p) {
+  if (p.cost.standing) return analystStanding() >= p.cost.standing;
+  return true; // confidence-cost powers gate via powerContextOk
+}
+function powerSpendable(p) {
+  return p.earned() && !SIM.powers.spent[p.id] && !SIM.powers.active[p.id]
+    && powerAffordable(p) && powerContextOk(p.id);
+}
+
+/* Spend a power \u2014 the ONLY place a power effect is applied. Mutates transient
+ * SIM.powers, then renders once. Never touches confidence/grading/persistence. */
+function useAnalystPower(id) {
+  const P = SIM.powers; if (!P) return;
+  const p = powerById(id);
+  if (!p || !powerSpendable(p)) return;
+  P.spent[id] = true;
+  if (p.cost.standing) P.standingSpent += p.cost.standing;
+  let railguarded = false;
+  if (id === 'JP-001')      { P.active['JP-001'] = { pair: threadPair() }; }
+  else if (id === 'JP-002') { P.active['JP-002'] = { left: SNAPSHOT_WINDOW, counts: scopeCounts() }; }
+  else if (id === 'JP-003') { P.confSpend = p.cost.confidence; P.active['JP-003'] = { calib: railguardMessage() }; railguarded = true; }
+  P.sarah = p.sarahSpend;
+  powerLog('spent', id);
+  renderEvidencePanel();
+  if (railguarded) {
+    const meter = document.querySelector('#simEvidence .sim-evidence-body .sim-confidence');
+    if (meter) { void meter.offsetWidth; meter.classList.add('sim-confidence--flash'); }
+  }
+}
+
+/* Expire a time-bound effect (returns the tool to "used" state + a closing line). */
+function expirePower(id) {
+  const P = SIM.powers; if (!P || !P.active[id]) return;
+  delete P.active[id];
+  const p = powerById(id);
+  if (p) { P.sarah = p.sarahExpire; powerLog('expired', id); }
+}
+
+/* Run once per recorded judgment step from setDiscoveryJudgment, BEFORE the
+ * render. Handles confidence recovery, time-bound expiry, and earn
+ * announcements. Never renders \u2014 the caller renders once afterwards. */
+function powersTick() {
+  const P = SIM.powers; if (!P) return;
+  const sound = soundJudgmentCount();
+  const newSound = sound > P.lastSoundCount;
+
+  // Recovery: a fresh sound call restores the Railguard confidence dip + closes it.
+  if (newSound && P.confSpend > 0) {
+    P.confSpend = 0;
+    if (P.active['JP-003']) expirePower('JP-003');
+    else { const rg = powerById('JP-003'); if (rg) { P.sarah = rg.sarahExpire; powerLog('recovered', 'JP-003'); } }
+  }
+  // Scope Snapshot counts down on each judgment step.
+  if (P.active['JP-002']) {
+    P.active['JP-002'].left -= 1;
+    if (P.active['JP-002'].left <= 0) expirePower('JP-002');
+  }
+  // Evidence Threader is a one-shot: it lasts until the NEXT judgment step.
+  if (P.active['JP-001']) expirePower('JP-001');
+
+  // Earn announcements \u2014 a tool "appears" with a coaching line, once each.
+  for (const p of ANALYST_POWERS) {
+    if (p.earned() && !P.announced.has(p.id)) {
+      P.announced.add(p.id);
+      P.sarah = p.sarahEarn;
+      powerLog('earned', p.id);
+    }
+  }
+  P.lastSoundCount = sound;
+}
+
+/* EARNED TOOLS section \u2014 '' until the first tool is earned (no locked-power
+ * grind list). Presentation-only; the sole writers are the chokepoint hook
+ * (powersTick) and the click handler (useAnalystPower). */
+function analystPowersHtml() {
+  const P = SIM.powers; if (!P) return '';
+  const earned = ANALYST_POWERS.filter(p => P.announced.has(p.id));
+  const anyActive = Object.keys(P.active).length > 0;
+  if (!earned.length && !anyActive) return '';
+
+  const have = analystStanding();
+  let dots = '';
+  for (let i = 0; i < STANDING_CAP; i++) dots += `<span class="sim-power-dot${i < have ? ' sim-power-dot--on' : ''}" aria-hidden="true"></span>`;
+
+  const rows = earned.map(p => {
+    const costLabel = p.cost.standing ? `${p.cost.standing} standing`
+      : p.cost.confidence ? `${p.cost.confidence}% confidence` : '';
+    let action;
+    if (P.active[p.id]) {
+      action = `<span class="sim-power-state sim-power-state--active">In use</span>`;
+    } else if (P.spent[p.id]) {
+      action = `<span class="sim-power-state sim-power-state--used">Used this case</span>`;
+    } else if (powerSpendable(p)) {
+      action = `<button type="button" class="sim-power-use" data-power="${p.id}">Use \u00b7 ${mapEsc(costLabel)}</button>`;
+    } else {
+      let why = `Needs ${mapEsc(costLabel)}`;
+      if (p.cost.standing && have < p.cost.standing) why = `Earn more standing (${have}/${p.cost.standing})`;
+      else if (p.id === 'JP-001') why = 'No two findings corroborate yet';
+      else if (p.id === 'JP-003') why = SIM.stage !== 'investigation' ? 'Calibrate before you decide' : 'Build more confidence first';
+      action = `<span class="sim-power-state sim-power-state--wait">${why}</span>`;
+    }
+    return `
+      <div class="sim-power-row">
+        <div class="sim-power-main">
+          <span class="sim-power-name">${mapEsc(p.name)}</span><span class="sim-power-cat">${mapEsc(p.category)}</span>
+          <span class="sim-power-effect">${mapEsc(p.effect)}</span>
+        </div>
+        <div class="sim-power-action">${action}</div>
+      </div>`;
+  }).join('');
+
+  let effects = '';
+  const thread = P.active['JP-001'] && P.active['JP-001'].pair;
+  if (thread) {
+    effects += `<div class="sim-power-fx sim-power-fx--thread"><span class="sim-power-fx-lab">Evidence Threader</span>\u201c${mapEsc(thread.a)}\u201d and \u201c${mapEsc(thread.b)}\u201d both point to ${mapEsc(thread.risk)} \u2014 weigh them together.</div>`;
+  }
+  if (P.active['JP-002']) {
+    const c = P.active['JP-002'].counts;
+    const open = [];
+    if (c.toJudge) open.push(`${c.toJudge} finding${c.toJudge === 1 ? '' : 's'} to judge`);
+    if (c.toClassify) open.push(`${c.toClassify} file${c.toClassify === 1 ? '' : 's'} to classify`);
+    if (c.determinationOpen) open.push('determination pending');
+    const openTxt = open.length ? open.join(', ') : 'nothing outstanding';
+    effects += `<div class="sim-power-fx sim-power-fx--snapshot"><span class="sim-power-fx-lab">Scope Snapshot</span>Settled: ${c.facts} fact${c.facts === 1 ? '' : 's'}, ${c.judged} judgment${c.judged === 1 ? '' : 's'}. Open: ${mapEsc(openTxt)}. <span class="sim-power-fx-exp">expires in ${P.active['JP-002'].left}</span></div>`;
+  }
+  if (P.active['JP-003']) {
+    effects += `<div class="sim-power-fx sim-power-fx--railguard"><span class="sim-power-fx-lab">Risk Railguard</span>${mapEsc(P.active['JP-003'].calib)}</div>`;
+  }
+
+  const sarah = P.sarah
+    ? `<div class="sim-power-sarah"><span class="sim-power-sarah-lab">Sarah Reyes</span>${mapEsc(P.sarah)}</div>` : '';
+
+  return `
+    <div class="sim-notebook-section sim-powers">
+      <div class="sim-notebook-head sim-notebook-head--powers">EARNED TOOLS <span class="sim-power-standing" title="Analyst standing">${dots}</span></div>
+      <div class="sim-powers-rows">${rows}</div>
+      ${effects}
+      ${sarah}
+    </div>`;
 }
 
 /* Terminal command router. ls / cat / less per the Mission 1 spec, plus help,
@@ -6531,6 +6828,9 @@ function simInit() {
       if (judg) { setJudgment(judg.dataset.judgment); return; }
       const disc = e.target.closest('[data-discovery-judgment]');
       if (disc) { setDiscoveryJudgment(disc.dataset.challenge, disc.dataset.step, disc.dataset.option); return; }
+      // Judgment-to-Power tools (Task #117) — transient, presentation-only spend.
+      const pwr = e.target.closest('[data-power]');
+      if (pwr) { useAnalystPower(pwr.dataset.power); return; }
       // Optional side-trails (presentation-only) — expand/collapse + two-step judgment.
       const stOpen = e.target.closest('[data-sidetrail-open]');
       if (stOpen) { openSideTrail(stOpen.dataset.sidetrailOpen); return; }

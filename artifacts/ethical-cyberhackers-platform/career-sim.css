@@ -2039,3 +2039,89 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
 .sim-casefile-tag--reason  { color: var(--cyan); }
 .sim-casefile-tag--unknown { color: var(--orange); }
 .sim-casefile-tag--rec     { color: var(--purple); }
+
+/* ==================================================================
+ * JUDGMENT-TO-POWER SYSTEM (Task #117) — "EARNED TOOLS"
+ * ------------------------------------------------------------------
+ * Presentation-only. Tools appear in the notebook as the analyst earns
+ * trust; styled as professional latitude, not game loot.
+ * ================================================================== */
+/* The confidence meter while a Risk Railguard dip is held back. */
+.sim-confidence--spent .sim-confidence-fill { opacity: 0.72; }
+.sim-confidence--spent .sim-confidence-note { color: var(--purple); }
+
+.sim-powers {
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--purple);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  padding: 10px 11px 11px;
+}
+.sim-notebook-head--powers { color: var(--purple); }
+.sim-power-standing { display: inline-flex; gap: 4px; margin-left: auto; align-items: center; }
+.sim-power-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  border: 1px solid var(--purple); background: transparent;
+}
+.sim-power-dot--on { background: var(--purple); box-shadow: 0 0 6px -1px var(--purple); }
+
+.sim-powers-rows { display: flex; flex-direction: column; gap: 8px; }
+.sim-power-row {
+  display: flex; align-items: flex-start; gap: 10px; justify-content: space-between;
+  padding: 8px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.sim-power-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sim-power-name { font-size: 12px; font-weight: 700; color: var(--text-bright); }
+.sim-power-cat {
+  font-family: var(--font-hud); font-size: 8px; letter-spacing: 1px;
+  color: var(--purple); text-transform: uppercase;
+}
+.sim-power-effect { font-size: 10.5px; line-height: 1.45; color: var(--text-muted); }
+.sim-power-action { flex: none; }
+.sim-power-use {
+  font-family: var(--font-hud); font-size: 10px; letter-spacing: 0.4px;
+  color: var(--bg); background: var(--purple); border: 1px solid var(--purple);
+  border-radius: var(--radius-sm); padding: 6px 10px; cursor: pointer;
+  white-space: nowrap; transition: filter var(--transition), box-shadow var(--transition);
+}
+.sim-power-use:hover { filter: brightness(1.12); box-shadow: 0 0 10px -2px var(--purple); }
+.sim-power-state {
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.5px;
+  padding: 5px 8px; border-radius: var(--radius-sm); white-space: nowrap;
+  border: 1px solid var(--border); color: var(--text-dim); display: inline-block;
+}
+.sim-power-state--active { color: var(--purple); border-color: var(--purple); }
+.sim-power-state--used   { color: var(--text-dim); }
+.sim-power-state--wait   { color: var(--text-muted); font-family: var(--font-mono); font-size: 9.5px; text-transform: none; letter-spacing: 0; }
+
+.sim-power-fx {
+  margin-top: 8px; padding: 8px 10px; font-size: 11px; line-height: 1.5;
+  color: var(--text-bright); border-radius: var(--radius-sm);
+  border: 1px solid var(--border); border-left: 2px solid var(--cyan);
+  background: rgba(45, 212, 255, 0.05);
+  animation: simPowerFxIn 280ms ease;
+}
+.sim-power-fx--thread    { border-left-color: var(--green);  background: rgba(0, 255, 136, 0.05); }
+.sim-power-fx--snapshot  { border-left-color: var(--cyan);   background: rgba(45, 212, 255, 0.05); }
+.sim-power-fx--railguard { border-left-color: var(--yellow); background: rgba(255, 170, 0, 0.06); }
+.sim-power-fx-lab {
+  display: block; font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-dim); margin-bottom: 3px;
+}
+.sim-power-fx-exp { font-family: var(--font-mono); font-size: 9.5px; color: var(--text-dim); }
+@keyframes simPowerFxIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.sim-power-sarah {
+  margin-top: 9px; padding-top: 8px; border-top: 1px dashed var(--border);
+  font-size: 11px; line-height: 1.5; color: var(--text-muted); font-style: italic;
+}
+.sim-power-sarah-lab {
+  display: block; font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--cyan-dim); font-style: normal; margin-bottom: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sim-power-fx { animation: none; }
+  .sim-power-use { transition: none; }
+}
