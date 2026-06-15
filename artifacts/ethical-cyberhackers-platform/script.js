@@ -63,6 +63,14 @@ import { missionBackLabel } from "/uiLabels.js";
 // configureLab() hooks (see boot()): completion sets the mission flag, awards XP,
 // saves, and the Operations Center map repaints/unlocks the next assignment.
 import { initLab, openLab, LAB_MISSION_IDS, configureLab } from "/lab.js";
+import {
+  MISSION_PLAY_ORDER,
+  prevMissionInOrder,
+  missionUnlockStatus,
+  canCompleteMission,
+  WORLD_CONTINUITY,
+  continuityEdgeProblems,
+} from "/mission-order.js";
 
 // Phase B0 — best-effort, local-first Supabase backend foundation. Every call
 // here is fire-and-forget and safe in "local-only mode"; gameplay never depends
@@ -355,20 +363,11 @@ const ROLE_LADDER = [
  * this array. To re-sequence the campaign, reorder this one list — every
  * surface (Ops Center alert feed, unlock gating, completion guards, lab
  * numbering) derives from it. */
-const MISSION_PLAY_ORDER = [
-  "mission-001", // Assignment 001 — Protect Sensitive Information (EMEA)
-  "mission-002", // Assignment 002 — Investigate Network Assets (APAC)
-  "mission-003", // Assignment 003 — Investigate Suspicious Authentication Activity (NA-EAST)
-  "mission-004", // Assignment 004 — Data Exfiltration Investigation (LATAM)
-  "mission-005", // Assignment 005 — Account Takeover Investigation (MENA)
-  "mission-006", // Assignment 006 — Anomalous Scan Triage (SE ASIA)
-];
-
-/** The mission that must be completed before this one (null for the first). */
-function prevMissionInOrder(missionId) {
-  const i = MISSION_PLAY_ORDER.indexOf(missionId);
-  return i > 0 ? MISSION_PLAY_ORDER[i - 1] : null;
-}
+// The canonical play order, unlock rules, and World Continuity link data live in
+// the DOM-free sibling module mission-order.js (the single source of truth) so
+// they can be unit-tested with node (script.js itself runs DOM init on import).
+// MISSION_PLAY_ORDER, prevMissionInOrder, missionUnlockStatus, canCompleteMission,
+// WORLD_CONTINUITY, and continuityEdgeProblems are imported at the top of the file.
 
 /** Read a mission's completion flag by id (live binding — flags declared later). */
 function missionCompleteFlag(missionId) {
@@ -5902,6 +5901,14 @@ function handleFindingAnswer(answerId) {
    Appears after the student submits the correct Finding.
    ============================================================ */
 
+/* QUARANTINED — legacy dead player-path (do not delete without an e2e pass).
+   All six assignments now route through the Progressive Lab, so the legacy
+   M1/M2/M3 quiz screens (showQuiz / showQuizEngine / renderM2Quiz +
+   handleM2QuizAnswer / renderM3Quiz + handleM3QuizAnswer) are no longer reached
+   in normal play. Static reachability could NOT be proven safe to remove —
+   career-sim routes missions 001–004 before the lab gate, and
+   window.MissionEngine.showQuiz is a public API — so this legacy quiz subsystem
+   is annotated and left in place rather than removed. */
 /** Hides command buttons and shows the quiz in their place. */
 function showQuiz() {
   if (!quizPanel || missionComplete) return;
@@ -7852,20 +7859,9 @@ const WC_THREAT_ACTORS = {
 // world model; `resolved` is a short case-file trace shown ONCE that mission is
 // complete; `connects` links to a PRIOR mission and only surfaces when that
 // prior mission is complete (mission connections that reward memory).
-const WORLD_CONTINUITY = {
-  "mission-001": { dept: "finance",     employee: "okafor",    actor: "contractor",
-                   resolved: "Contractor's out-of-scope access to the Finance release folder revoked; the release is held pending classification." },
-  "mission-002": { dept: "itinfra",     employee: "nwosu",     actor: "contractor", connects: "mission-001",
-                   resolved: "Unapproved contractor device 192.168.1.57 removed from the finance segment; asset inventory reconciled." },
-  "mission-003": { dept: "finance",     actor: "contractor",   connects: "mission-002",
-                   resolved: "Compromised Finance account a.okafor secured; MFA enforced; tied back to the flagged contractor." },
-  "mission-004": { dept: "finance",     actor: "contractor",   connects: "mission-003",
-                   resolved: "Customer-data exfiltration channel cut and the staged archive purged; breach notification scoped with Legal; tied back to the flagged contractor." },
-  "mission-005": { dept: "exec",        employee: "whitfield", actor: "fin12",
-                   resolved: "Privileged-account MFA hardened after the 47-failure burst." },
-  "mission-006": { dept: "secops",      actor: "redbeacon",    connects: "mission-004",
-                   resolved: "DMZ exposure closed; CDN probe baseline re-tuned." },
-};
+// WORLD_CONTINUITY (recurring people/actors + `connects` links) is defined in the
+// DOM-free sibling module mission-order.js and imported at the top of this file,
+// so its `connects` edges can be validated by tests/mission-order.test.js.
 
 // Security bulletins — short, atmospheric Operations Center notices. A bulletin
 // with `after` (a mission id) is REACTIVE: it only enters rotation once that
@@ -7884,12 +7880,11 @@ const SECURITY_BULLETINS = [
 ];
 
 // Dev guard: a `connects` edge must reference a PRIOR mission, otherwise the
-// continuity link could only appear after a LATER mission completes. Warns on
-// violation; silent (clean console) when valid.
-Object.entries(WORLD_CONTINUITY).forEach(([id, cont]) => {
-  if (cont.connects && CAREER_MISSION_IDS.indexOf(cont.connects) >= CAREER_MISSION_IDS.indexOf(id)) {
-    console.warn(`[continuity] ${id}.connects "${cont.connects}" is not a prior mission.`);
-  }
+// continuity link could only appear after a LATER mission completes. The pure
+// validator lives in mission-order.js (and is asserted by its test); here it
+// just warns. Silent (clean console) when valid.
+continuityEdgeProblems(WORLD_CONTINUITY).forEach((problem) => {
+  console.warn(`[continuity] ${problem}`);
 });
 
 function wcDeptName(key) { return WC_DEPARTMENTS[key] || "Security Operations"; }
@@ -9335,11 +9330,8 @@ function missionMapStatus(missionId) {
   // Phase 1 — unlock gating derives entirely from MISSION_PLAY_ORDER. The first
   // assignment in the play order has no prerequisite; every later one unlocks
   // once the previous assignment (by play order, not numeric id) is complete.
-  if (MISSION_PLAY_ORDER.indexOf(missionId) === -1) return "locked";
-  if (missionCompleteFlag(missionId)) return "completed";
-  const prev = prevMissionInOrder(missionId);
-  if (!prev) return "available";
-  return missionCompleteFlag(prev) ? "available" : "locked";
+  // Pure rule lives in mission-order.js; missionCompleteFlag supplies live state.
+  return missionUnlockStatus(missionId, missionCompleteFlag);
 }
 
 function mapStatusLabel(missionId, status) {
@@ -10840,6 +10832,7 @@ function handleM2AnalystAnswer(letter) {
    Milestone 22 — Mission 2 Quiz, XP Reward, Completion
    ============================================================ */
 
+/* QUARANTINED — legacy dead player-path (see the note above showQuiz). */
 function renderM2Quiz() {
   // Append a second .quiz-panel into the same #m2AnalystReview host.
   const host = document.getElementById("m2AnalystReview");
@@ -10874,6 +10867,7 @@ function renderM2Quiz() {
   m2QuizAnswered = false;
 }
 
+/* QUARANTINED — legacy dead player-path (see the note above showQuiz). */
 function handleM2QuizAnswer(letter) {
   if (m2QuizAnswered) return;
   const isCorrect = letter === M2_QUIZ.correct;
@@ -12236,6 +12230,7 @@ function handleM3AnalystAnswer(letter) {
    Milestone 22 — Mission 3 Quiz, XP Reward, Completion
    ============================================================ */
 
+/* QUARANTINED — legacy dead player-path (see the note above showQuiz). */
 function renderM3Quiz() {
   // Append a second .quiz-panel into the same #m3AnalystReview host.
   const host = document.getElementById("m3AnalystReview");
@@ -12270,6 +12265,7 @@ function renderM3Quiz() {
   m3QuizAnswered = false;
 }
 
+/* QUARANTINED — legacy dead player-path (see the note above showQuiz). */
 function handleM3QuizAnswer(letter) {
   if (m3QuizAnswered) return;
   const isCorrect = letter === M3_QUIZ.correct;
@@ -13008,6 +13004,7 @@ function showFindingSubmission() {
   }
 }
 
+/* QUARANTINED — legacy dead player-path (see the note above showQuiz). */
 /**
  * Reveals the multiple-choice quiz for the active mission.
  * Note: legacy M1 `showQuiz` already exists and is reused here; M2
@@ -13498,14 +13495,12 @@ function backendMissionScore(missionId) {
    notify. (Known limitation: rank/trust meters and mid-lab resume are not
    wired; a fresh open restarts the lab at stage 1.) */
 function notifyLabComplete(missionId) {
-  if (MISSION_PLAY_ORDER.indexOf(missionId) === -1) return; // no lab semantics for other ids
   // Idempotency + prerequisite gating both derive from the canonical play-order
-  // chain (Phase 1): a second submit for an already-complete assignment is a
-  // no-op, and an assignment cannot complete before its predecessor — even if
+  // chain (Phase 1), now centralized in mission-order.js: ids with no lab
+  // semantics, a second submit for an already-complete assignment, and an
+  // assignment whose predecessor isn't complete yet all return false — even if
   // an alternate entrypoint opened its lab out of order.
-  if (missionCompleteFlag(missionId)) return;       // already complete — no double award
-  const prev = prevMissionInOrder(missionId);
-  if (prev && !missionCompleteFlag(prev)) return;   // prereq guard (defense in depth)
+  if (!canCompleteMission(missionId, missionCompleteFlag)) return;
 
   let xp = 0;
   if (missionId === "mission-001") {
@@ -13793,19 +13788,23 @@ function boot() {
   // showModuleLanding → renderOperationsCenter); onComplete records real
   // completion (flag + XP + save + notify). Hooks reference hoisted function
   // declarations, so the forward references are safe.
+  // Orientation warm-up ids (Assignment 000 / 000b) — standalone beginner labs
+  // reachable only via ?lab=, outside the play-order/unlock chain (see canOpen).
+  const ORIENTATION_LAB_IDS = ["mission-000", "mission-000b"];
   configureLab({
     // Gate the lab's own ?lab= deep-link through the SAME rules as the Ops
     // Center map (launchMissionFromMap): the student must be onboarded and the
     // assignment must be unlocked. Without this, /?lab=mission-002 would bypass
     // gating and let notifyLabComplete persist out-of-order progression.
     canOpen: (missionId) => {
-      // Assignment 000 is a standalone beginner ORIENTATION reachable ONLY via
-      // ?lab=mission-000. It is intentionally outside the play-order/unlock
-      // chain (absent from the mission list, Ops Center map, and unlock flow),
-      // awards no XP, and never persists — notifyLabComplete no-ops for ids
-      // outside MISSION_PLAY_ORDER. So bypass the onboarding+unlock gate for
-      // this id alone; this cannot affect player progression.
-      if (missionId === "mission-000") return true;
+      // The standalone beginner ORIENTATION warm-ups (Assignment 000 / 000b)
+      // are reachable ONLY via ?lab=mission-000 / ?lab=mission-000b. They are
+      // intentionally outside the play-order/unlock chain (absent from the
+      // mission list, Ops Center map, and unlock flow), award no XP, and never
+      // persist — notifyLabComplete no-ops for ids outside MISSION_PLAY_ORDER.
+      // So bypass the onboarding+unlock gate for these ids alone; this cannot
+      // affect player progression.
+      if (ORIENTATION_LAB_IDS.includes(missionId)) return true;
       if (!studentName || !studentName.trim()) return false;
       return missionMapStatus(missionId) !== "locked";
     },

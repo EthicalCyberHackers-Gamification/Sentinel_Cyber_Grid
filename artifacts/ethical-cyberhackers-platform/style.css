@@ -11180,6 +11180,38 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 }
 .path-inspector::-webkit-scrollbar { width: 3px; }
 .path-inspector::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 99px; }
+
+/* Discreet orientation entry point — sits under the course path, low-key by
+   design so it never competes with the active campaign assignment. */
+.oc-orientation-link {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-decoration: none;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.oc-orientation-link:hover,
+.oc-orientation-link:focus-visible {
+  color: var(--color-green);
+  border-color: var(--color-green);
+  background: var(--color-bg-panel-alt);
+  outline: none;
+}
+.oc-orientation-link-icon { font-size: 12px; opacity: 0.8; }
+.oc-orientation-link-text { flex: 1; }
+.oc-orientation-link-arrow { transition: transform 0.15s ease; }
+.oc-orientation-link:hover .oc-orientation-link-arrow,
+.oc-orientation-link:focus-visible .oc-orientation-link-arrow { transform: translateX(3px); }
 .pi-kicker { font-family: var(--font-mono); font-size: 8px; letter-spacing: 1.5px; color: var(--color-green); text-transform: uppercase; margin-bottom: 3px; }
 .pi-title { font-size: 13px; font-weight: 600; color: var(--color-text-bright); line-height: 1.25; margin-bottom: 5px; }
 .pi-badges { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }

@@ -150,6 +150,16 @@
 
           <div class="path-inspector" id="pathInspector" aria-live="polite" aria-label="Path inspector"></div>
 
+          <!-- Discreet orientation entry point. Static link (plain reload) to the
+               orientation lab; it is intentionally NOT part of the campaign play
+               order, the alert queue, the ops map, or the "N TOTAL" count, and
+               carries no XP/persistence. New analysts can warm up here first. -->
+          <a class="oc-orientation-link" href="?lab=mission-000">
+            <span class="oc-orientation-link-icon" aria-hidden="true">✲</span>
+            <span class="oc-orientation-link-text">New here? Try the orientation</span>
+            <span class="oc-orientation-link-arrow" aria-hidden="true">→</span>
+          </a>
+
           <!-- Demoted monitoring: Alert Queue + Intel Updates, collapsed by default -->
           <div class="oc-collapsible oc-collapsible--collapsed" id="ocAlertSection">
             <button class="oc-collapsible-head" type="button" aria-expanded="false" data-collapse="ocAlertSection">

@@ -46,6 +46,7 @@ export function configureLab(hooks) { LAB_HOOKS = hooks || {}; }
  * (keeps each large dataset isolated and editable on its own). Adding a mission
  * = adding a dataset import here, not new engine code. */
 import LAB_M0 from './lab.missions/mission-000.js';
+import LAB_M0B from './lab.missions/mission-000b.js';
 import LAB_M3 from './lab.missions/mission-003.js';
 import LAB_M4 from './lab.missions/mission-004.js';
 import LAB_M5 from './lab.missions/mission-005.js';
@@ -1249,10 +1250,13 @@ const LAB_MISSIONS = {
     },
   },
 
-  // Assignment 000 — standalone beginner orientation. Reachable ONLY via the
-  // ?lab=mission-000 deep link (host canOpen has a surgical bypass); never on the
-  // mission list / Ops Center map / unlock chain, and awards no XP / never persists.
+  // Assignments 000 / 000b — standalone beginner ORIENTATION warm-ups. Reachable
+  // ONLY via the ?lab=mission-000 / ?lab=mission-000b deep links (host canOpen has
+  // a surgical bypass for the orientation ids); never on the mission list / Ops
+  // Center map / unlock chain, and they award no XP / never persist. 000's debrief
+  // chains to 000b via scorecard.nextWarmup (a plain deep-link, no state write).
   'mission-000': LAB_M0,
+  'mission-000b': LAB_M0B,
   'mission-003': LAB_M3,
   'mission-004': LAB_M4,
   'mission-005': LAB_M5,
@@ -3721,7 +3725,8 @@ function labShowOrientationScorecard(panel) {
       </div>
 ${debriefHtml}
       <div class="lab-card-actions">
-        <button class="lab-card-btn lab-card-btn--primary" type="button" data-lab-replay>↻ Replay the orientation</button>
+        ${sc.nextWarmup ? `<a class="lab-card-btn lab-card-btn--primary" href="?lab=${labEsc(sc.nextWarmup.lab)}">${labEsc(sc.nextWarmup.label || 'Next warm-up →')}</a>` : ''}
+        <button class="lab-card-btn ${sc.nextWarmup ? '' : 'lab-card-btn--primary'}" type="button" data-lab-replay>↻ Replay the orientation</button>
         <button class="lab-card-btn" type="button" data-lab-exit>Return to Operations Center</button>
       </div>
     </div>`;
