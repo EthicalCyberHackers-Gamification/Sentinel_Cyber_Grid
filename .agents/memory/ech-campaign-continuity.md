@@ -48,3 +48,19 @@ flags / evidence ids against the referenced ones before shipping.
 **How to apply:** when extending continuity to M5/M6 (or any mission), add the
 per-mission `def.*` data, wire only through the existing pure fns + the single
 companyHistory write, and run the flag/evidence-id resolution check.
+
+## Gotcha: companyHistory only surfaces keys that are real mission ids
+`companyTimeline()` iterates the mission `order` (`Object.keys(CAREER_MISSIONS)`)
+and renders only `history[id]` for those ids. So a non-mission key written to
+`companyHistory` (e.g. `'sideTrail:<id>'`) is **dead data** — it persists but
+never renders, and keying any record by a real missionId risks polluting that
+mission's timeline entry.
+
+**Why:** this is why "Optional Side-Trails v1" did NOT use companyHistory for its
+persistent record (the plan suggested it). A resolved side-trail instead persists
+via two flat `setMissionFlag` keys and surfaces as a Case-Board map node + the
+red-string timeline — never through companyHistory.
+
+**How to apply:** only put real-mission-id-keyed outcome records in
+companyHistory. For any other persistent presentation record, use flat
+`CAREER.missionFlags` flags and render from there.

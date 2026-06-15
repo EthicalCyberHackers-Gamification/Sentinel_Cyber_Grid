@@ -1688,10 +1688,186 @@ button.sim-discovery-opt:hover { border-color: var(--border-glow); color: var(--
 .sim-feed-row--next .sim-feed-tag { color: var(--yellow); }
 .sim-feed-row--next .sim-feed-text { color: var(--text-bright); font-style: normal; }
 
+/* ============================================================================
+   OPTIONAL SIDE-TRAILS (presentation-only). Earned-only curiosity threads shown
+   in the briefing panel. Never affect scoring or Investigation Confidence.
+   ============================================================================ */
+.sim-side-panel {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 209, 102, 0.04), rgba(255, 255, 255, 0.01));
+  padding: 12px 13px 13px;
+}
+.sim-side-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; margin-bottom: 4px;
+}
+.sim-side-head h4 {
+  margin: 0; font-size: 0.74rem; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--yellow);
+}
+.sim-side-count {
+  font-size: 0.66rem; letter-spacing: 0.08em; color: var(--text-dim);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.sim-side-intro {
+  margin: 0 0 10px; font-size: 0.72rem; line-height: 1.5; color: var(--text-dim);
+}
+.sim-side-list { display: flex; flex-direction: column; gap: 9px; }
+
+.sim-side-card {
+  border: 1px solid var(--border); border-radius: 9px;
+  background: rgba(255, 255, 255, 0.015); overflow: hidden;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.sim-side-card.is-open { border-color: rgba(255, 209, 102, 0.4); }
+.sim-side-card--resolved { border-color: rgba(0, 255, 136, 0.32); }
+
+.sim-side-cardhead {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px 12px; background: none; border: 0; cursor: pointer;
+  text-align: left; color: inherit; font: inherit;
+}
+.sim-side-cardhead:hover { background: rgba(255, 255, 255, 0.02); }
+.sim-side-cardhead:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
+.sim-side-glyph { font-size: 1rem; color: var(--yellow); flex: 0 0 auto; }
+.sim-side-card--resolved .sim-side-glyph { color: var(--green); }
+.sim-side-cardhead-main { display: flex; flex-direction: column; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.sim-side-title { font-size: 0.82rem; font-weight: 600; color: var(--text-bright); }
+.sim-side-teaser { font-size: 0.71rem; line-height: 1.4; color: var(--text-dim); }
+.sim-side-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: 0 0 auto; }
+.sim-side-tag {
+  font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--yellow); border: 1px solid rgba(255, 209, 102, 0.4);
+  border-radius: 4px; padding: 1px 5px; white-space: nowrap;
+}
+.sim-side-min { font-size: 0.6rem; color: var(--text-muted); white-space: nowrap; }
+
+.sim-side-body { padding: 0 12px 12px; border-top: 1px solid var(--border); }
+.sim-side-resolved {
+  margin: 11px 0 0; font-size: 0.74rem; line-height: 1.5; color: var(--text);
+}
+.sim-side-resolved-badge {
+  display: inline-block; margin-right: 7px; font-size: 0.58rem; letter-spacing: 0.1em;
+  color: var(--green); border: 1px solid rgba(0, 255, 136, 0.4); border-radius: 4px;
+  padding: 1px 5px; vertical-align: middle;
+}
+.sim-side-board-note {
+  margin-top: 9px; font-size: 0.71rem; line-height: 1.45; color: var(--green-dim);
+  background: rgba(0, 255, 136, 0.06); border: 1px solid rgba(0, 255, 136, 0.22);
+  border-radius: 6px; padding: 7px 9px;
+}
+
+.sim-side-artifacts { display: flex; flex-direction: column; gap: 8px; margin: 11px 0 12px; }
+.sim-side-artifact { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.sim-side-artifact-label {
+  font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-dim); background: rgba(255, 255, 255, 0.02);
+  padding: 5px 8px; border-bottom: 1px solid var(--border);
+}
+.sim-side-artifact-body {
+  margin: 0; padding: 8px; font-size: 0.7rem; line-height: 1.5;
+  color: var(--text); white-space: pre-wrap; word-break: break-word;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.sim-side-step { margin-top: 11px; }
+.sim-side-step--justification.is-locked { opacity: 0.5; pointer-events: none; }
+.sim-side-step-label {
+  font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 5px;
+}
+.sim-side-step-prompt { font-size: 0.76rem; line-height: 1.45; color: var(--text-bright); margin-bottom: 8px; }
+.sim-side-opts { display: flex; flex-direction: column; gap: 6px; }
+.sim-side-opt {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; text-align: left; font: inherit; font-size: 0.74rem; line-height: 1.4;
+  color: var(--text); padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 7px; background: rgba(255, 255, 255, 0.015); cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+button.sim-side-opt:hover { border-color: var(--cyan-dim); background: rgba(0, 229, 255, 0.05); }
+button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.sim-side-opt--locked { cursor: default; }
+.sim-side-opt--correct { border-color: rgba(0, 255, 136, 0.45); background: rgba(0, 255, 136, 0.08); color: var(--green); }
+.sim-side-opt--muted { opacity: 0.45; }
+.sim-side-opt--miss { border-color: rgba(255, 51, 68, 0.45); background: rgba(255, 51, 68, 0.06); }
+.sim-side-mark { font-size: 0.62rem; letter-spacing: 0.06em; color: var(--green); white-space: nowrap; }
+
+.sim-side-feedback {
+  margin-top: 8px; font-size: 0.72rem; line-height: 1.5; color: var(--text);
+  border-left: 2px solid var(--border); padding: 2px 0 2px 9px;
+}
+.sim-side-feedback--correct { border-left-color: var(--green); }
+.sim-side-feedback--wrong { border-left-color: var(--orange); }
+.sim-side-feedback-label {
+  display: block; font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-dim); margin-bottom: 3px;
+}
+.sim-side-retry { color: var(--orange); }
+
+/* --- Cross-case "red string": recurring-entity marker on a map node + its
+   timeline popover (reuses the floating intel card shell). --- */
+.sim-map-node--redstring .sim-map-node-dot {
+  box-shadow: 0 0 0 1px rgba(255, 51, 68, 0.5), 0 0 10px rgba(255, 51, 68, 0.3);
+}
+.sim-map-node--redstring.is-closed .sim-map-node-dot {
+  box-shadow: 0 0 0 1px rgba(0, 255, 136, 0.45);
+}
+.sim-map-redstring-btn {
+  margin-top: 4px; display: inline-flex; align-items: center; gap: 3px;
+  font: inherit; font-size: 0.54rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--red); background: rgba(255, 51, 68, 0.08);
+  border: 1px solid rgba(255, 51, 68, 0.4); border-radius: 4px;
+  padding: 1px 5px; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.sim-map-redstring-btn:hover { background: rgba(255, 51, 68, 0.16); }
+.sim-map-redstring-btn:focus-visible { outline: 2px solid var(--red); outline-offset: 1px; }
+.sim-map-redstring-btn.is-closed {
+  color: var(--green-dim); background: rgba(0, 255, 136, 0.06);
+  border-color: rgba(0, 255, 136, 0.35);
+}
+.sim-redstring-kind { color: var(--red) !important; border-color: rgba(255, 51, 68, 0.4) !important; }
+.sim-redstring-kind.is-closed { color: var(--green) !important; border-color: rgba(0, 255, 136, 0.4) !important; }
+.sim-redstring-note { font-size: 0.72rem; line-height: 1.45; color: var(--text-dim); margin: 6px 0 8px; }
+.sim-redstring-timeline { display: flex; flex-direction: column; gap: 7px; }
+.sim-redstring-row {
+  display: flex; flex-direction: column; gap: 2px;
+  border-left: 2px solid rgba(255, 51, 68, 0.5); padding-left: 9px;
+}
+.sim-redstring-op { font-size: 0.64rem; letter-spacing: 0.04em; color: var(--yellow); }
+.sim-redstring-where { font-size: 0.71rem; line-height: 1.4; color: var(--text); }
+
+/* --- End-of-mission foreshadowing card (presentation-only diegetic artifact) --- */
+.sim-foreshadow {
+  margin: 14px 0 0; border: 1px dashed rgba(0, 229, 255, 0.35);
+  border-radius: 10px; background: linear-gradient(180deg, rgba(0, 229, 255, 0.05), rgba(255, 255, 255, 0.01));
+  padding: 13px 14px;
+}
+.sim-foreshadow-stamp {
+  font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--cyan); margin-bottom: 7px;
+}
+.sim-foreshadow-title { font-size: 0.8rem; font-weight: 600; color: var(--text-bright); margin-bottom: 9px; }
+.sim-foreshadow-body {
+  display: flex; flex-direction: column; gap: 3px; padding: 9px 10px;
+  border: 1px solid var(--border); border-radius: 6px; background: rgba(0, 0, 0, 0.25);
+}
+.sim-foreshadow-line {
+  font-size: 0.7rem; line-height: 1.55; color: var(--text);
+  font-family: 'JetBrains Mono', ui-monospace, monospace; word-break: break-word;
+}
+.sim-foreshadow-prime {
+  margin-top: 10px; font-size: 0.73rem; line-height: 1.5; color: var(--cyan-dim);
+}
+
 /* Respect reduced-motion: keep the cue colours/badge, drop the animation. */
 @media (prefers-reduced-motion: reduce) {
   .sim-nb-alert,
   .sim-evidence-body--flash,
   .sim-confidence--flash,
   .sim-discovery--pending { animation: none; }
+  .sim-side-card { transition: none; }
 }

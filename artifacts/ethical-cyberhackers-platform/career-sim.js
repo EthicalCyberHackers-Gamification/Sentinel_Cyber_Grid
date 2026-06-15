@@ -390,6 +390,8 @@ function openCareerMission(missionId) {
   SIM.autoOpenedBoardEvents = new Set();  // board auto-open fires once per milestone evidence id
   SIM.nbEvidenceCount = 0;                // notebook attention: evidence count at last render
   SIM.nbConfidence = null;                // notebook attention: confidence at last render (meter flash)
+  SIM.sideTrailOpen = new Set();          // optional side-trails the analyst has expanded (transient)
+  SIM.sideTrailJudgments = {};            // {trailId:{observation,justification}} picks (transient)
 
   // Network-map overlay is review-only + transient: never carries across missions.
   SIM.mapOpen = false;
@@ -534,6 +536,7 @@ function renderBriefPanel() {
       ${memHtml}
       ${timelineHtml}
       ${continuityHtml}
+      ${renderSideTrailsPanel()}
     </div>`;
 }
 
@@ -565,6 +568,192 @@ function timelineItemHtml(t) {
       <div class="sim-timeline-decision">${decision}</div>
       ${impact}
     </li>`;
+}
+
+/* ================================================================== *
+ * OPTIONAL SIDE-TRAILS (presentation-only, additive, per-mission)
+ * ------------------------------------------------------------------ *
+ * Optional micro-mysteries offered in the Mission Brief. They NEVER gate
+ * progression and NEVER touch scoring, resources, or Investigation Confidence.
+ * Tracing one (a two-step judgment, same shape as the discovery cards) pins a
+ * permanent relationship node to the Case Board (network map) and is recorded
+ * as resolved. Data-gated on def.sideTrails, so missions without it are wholly
+ * unaffected. Persistence is idempotent via mission flags:
+ *   sideTrailResolved:<trailId>  — the trail is traced
+ *   sideTrailBoard:<boardKey>    — its Case Board node/link is revealed
+ * Transient picks live in SIM.sideTrailJudgments / SIM.sideTrailOpen and reset
+ * each mission open. Wrong picks are low-stakes: feedback shows and the option
+ * stays clickable (only the correct pick locks a step), since optional leads
+ * should reward curiosity, not punish a guess.
+ * ================================================================== */
+function simSideTrails() {
+  return (SIM.def && Array.isArray(SIM.def.sideTrails)) ? SIM.def.sideTrails : [];
+}
+function sideTrailById(id) {
+  return simSideTrails().find(t => t && t.id === id) || null;
+}
+function sideTrailResolved(id) {
+  return !!CAREER.missionFlags['sideTrailResolved:' + id];
+}
+function sideTrailBoardRevealed(key) {
+  return !!(key && CAREER.missionFlags['sideTrailBoard:' + key]);
+}
+function sideTrailJudg(id) {
+  return (SIM.sideTrailJudgments && SIM.sideTrailJudgments[id]) || {};
+}
+function sideTrailStepLocked(trail, step) {
+  const cfg = trail && trail[step];
+  if (!cfg) return false;
+  const pick = sideTrailJudg(trail.id)[step];
+  return !!pick && pick === cfg.correct;
+}
+/* A trail is offered once its trigger evidence has surfaced (or immediately if
+ * it declares none). Resolved trails always render — as a traced summary. */
+function sideTrailAvailable(trail) {
+  if (!trail) return false;
+  if (sideTrailResolved(trail.id)) return true;
+  if (!trail.trigger) return true;
+  return SIM.evidence.has(trail.trigger);
+}
+function visibleSideTrails() {
+  return simSideTrails().filter(sideTrailAvailable);
+}
+
+/* Toggle a trail's expanded state (transient). */
+function openSideTrail(id) {
+  if (!SIM.sideTrailOpen) SIM.sideTrailOpen = new Set();
+  if (SIM.sideTrailOpen.has(id)) SIM.sideTrailOpen.delete(id);
+  else SIM.sideTrailOpen.add(id);
+  renderBriefPanel();
+}
+
+/* Record a pick for one step. Validates the option BEFORE allocating. Only the
+ * correct pick locks a step; a wrong pick is overwritable (retry-friendly). */
+function setSideTrailJudgment(trailId, step, optionId) {
+  const trail = sideTrailById(trailId);
+  if (!trail) return;
+  if (sideTrailResolved(trailId)) return;                       // already traced — locked
+  if (!sideTrailAvailable(trail)) return;                       // not yet offered
+  if (step !== 'observation' && step !== 'justification') return;
+  const cfg = trail[step];
+  if (!cfg || !Array.isArray(cfg.options)) return;
+  if (step === 'justification' && !sideTrailStepLocked(trail, 'observation')) return; // observation first
+  if (sideTrailStepLocked(trail, step)) return;                 // correct pick is final
+  if (!cfg.options.some(o => o.id === optionId)) return;        // valid option only
+  if (!SIM.sideTrailJudgments) SIM.sideTrailJudgments = {};
+  const ans = SIM.sideTrailJudgments[trailId] || (SIM.sideTrailJudgments[trailId] = {});
+  ans[step] = optionId;
+  maybeResolveSideTrail(trail);
+  renderBriefPanel();
+}
+
+/* Resolve when BOTH steps are answered correctly: persist the resolved + board
+ * flags once, and live-refresh the map if it is open. Presentation-only beyond
+ * those two idempotent flags — no scoring, resources, or confidence touched. */
+function maybeResolveSideTrail(trail) {
+  if (!trail || sideTrailResolved(trail.id)) return;
+  if (!sideTrailStepLocked(trail, 'observation') || !sideTrailStepLocked(trail, 'justification')) return;
+  setMissionFlag('sideTrailResolved:' + trail.id, true);
+  const reward = trail.reward || {};
+  if (reward.board) setMissionFlag('sideTrailBoard:' + reward.board, true);
+  if (SIM.sideTrailOpen) SIM.sideTrailOpen.add(trail.id);       // keep it expanded to show the result
+  if (missionHasMap()) { updateMapButton(); if (SIM.mapOpen) renderSimMap(); }
+}
+
+/* ---- markup ---- */
+function renderSideTrailsPanel() {
+  const trails = visibleSideTrails();
+  if (!trails.length) return '';
+  const traced = trails.filter(t => sideTrailResolved(t.id)).length;
+  return `
+      <div class="sim-brief-divider"></div>
+      <div class="sim-side-head">
+        <span class="sim-brief-section-label">OPEN LEADS · OPTIONAL</span>
+        <span class="sim-side-count">${traced}/${trails.length} traced</span>
+      </div>
+      <p class="sim-side-intro">Curiosity threads — entirely optional and never part of your case verdict. Trace one to pin a permanent node to the Case Board.</p>
+      <div class="sim-side-list">${trails.map(sideTrailCardHtml).join('')}</div>`;
+}
+
+function sideTrailCardHtml(trail) {
+  const resolved = sideTrailResolved(trail.id);
+  const open = resolved || !!(SIM.sideTrailOpen && SIM.sideTrailOpen.has(trail.id));
+  const meta = `${trail.tag ? `<span class="sim-side-tag">${mapEsc(trail.tag)}</span>` : ''}${trail.minutes ? `<span class="sim-side-min">${mapEsc(trail.minutes)}</span>` : ''}`;
+  let html = `<div class="sim-side-card${resolved ? ' sim-side-card--resolved' : ''}${open ? ' is-open' : ''}">`;
+  html += `<button type="button" class="sim-side-cardhead" data-sidetrail-open="${trail.id}" aria-expanded="${open ? 'true' : 'false'}">
+      <span class="sim-side-glyph" aria-hidden="true">${resolved ? '▣' : '◌'}</span>
+      <span class="sim-side-cardhead-main">
+        <span class="sim-side-title">${mapEsc(trail.title || 'Open lead')}</span>
+        <span class="sim-side-teaser">${mapEsc(trail.teaser || '')}</span>
+      </span>
+      <span class="sim-side-meta">${meta}</span>
+    </button>`;
+  if (open) {
+    html += `<div class="sim-side-body">`;
+    if (resolved) {
+      html += `<div class="sim-side-resolved"><span class="sim-side-resolved-badge">LEAD TRACED</span>${mapEsc(trail.resolveNote || 'Lead resolved.')}</div>`;
+      const bn = (trail.reward && trail.reward.boardNote) || 'A new relationship node is pinned to your Case Board — open the Network Map to see it.';
+      html += `<div class="sim-side-board-note"><span aria-hidden="true">▣</span> ${mapEsc(bn)}</div>`;
+    } else {
+      if (Array.isArray(trail.artifacts) && trail.artifacts.length) {
+        html += `<div class="sim-side-artifacts">${trail.artifacts.map(a => `
+          <div class="sim-side-artifact">
+            <div class="sim-side-artifact-label">${mapEsc(a.label || '')}</div>
+            <pre class="sim-side-artifact-body">${(a.lines || []).map(mapEsc).join('\n')}</pre>
+          </div>`).join('')}</div>`;
+      }
+      html += sideTrailStepHtml(trail, 'observation', 'WHAT STANDS OUT?');
+      if (sideTrailStepLocked(trail, 'observation')) {
+        html += sideTrailStepHtml(trail, 'justification', 'WHY DOES IT MATTER?');
+      }
+    }
+    html += `</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function sideTrailStepHtml(trail, step, label) {
+  const cfg = trail[step];
+  if (!cfg || !Array.isArray(cfg.options)) return '';
+  const pick = sideTrailJudg(trail.id)[step];
+  const locked = !!pick && pick === cfg.correct;
+  const opts = cfg.options.map(o => {
+    if (locked) {
+      if (o.id === cfg.correct) return `<div class="sim-side-opt sim-side-opt--locked sim-side-opt--correct">${mapEsc(o.label)}<span class="sim-side-mark">✓ traced</span></div>`;
+      return `<div class="sim-side-opt sim-side-opt--locked sim-side-opt--muted">${mapEsc(o.label)}</div>`;
+    }
+    const isMiss = !!pick && pick === o.id;
+    return `<button type="button" class="sim-side-opt${isMiss ? ' sim-side-opt--miss' : ''}" data-sidetrail-judgment data-trail="${trail.id}" data-step="${step}" data-option="${o.id}">${mapEsc(o.label)}</button>`;
+  }).join('');
+  let feedback = '';
+  if (pick) {
+    const chosen = cfg.options.find(o => o.id === pick);
+    const correct = pick === cfg.correct;
+    feedback = `<div class="sim-side-feedback sim-side-feedback--${correct ? 'correct' : 'wrong'}">
+        <span class="sim-side-feedback-label">${mapEsc(trail.mentor || 'Field note')}</span>${mapEsc(chosen ? (chosen.feedback || '') : '')}${correct ? '' : ' <span class="sim-side-retry">Take another look.</span>'}</div>`;
+  }
+  return `
+      <div class="sim-side-step sim-side-step--${step}${locked ? ' is-locked' : ''}">
+        <div class="sim-side-step-label">${label}</div>
+        <div class="sim-side-step-prompt">${mapEsc(cfg.prompt || '')}</div>
+        <div class="sim-side-opts">${opts}</div>
+        ${feedback}
+      </div>`;
+}
+
+/* End-of-mission foreshadowing artifact (presentation-only) — rendered in the
+ * debrief when def.foreshadow is set. Reads nothing mutable, persists nothing. */
+function foreshadowCardHtml(fs) {
+  if (!fs) return '';
+  const lines = (fs.lines || []).map(l => `<div class="sim-foreshadow-line">${mapEsc(l)}</div>`).join('');
+  return `
+    <div class="sim-foreshadow">
+      <div class="sim-foreshadow-stamp">${mapEsc(fs.kind || 'RECOVERED ARTIFACT')}</div>
+      <div class="sim-foreshadow-title">${mapEsc(fs.title || '')}</div>
+      <div class="sim-foreshadow-body">${lines}</div>
+      ${fs.primes ? `<div class="sim-foreshadow-prime"><span aria-hidden="true">↗</span> ${mapEsc(fs.primes)}</div>` : ''}
+    </div>`;
 }
 
 /* ------------------------------------------------------------------ *
@@ -2411,6 +2600,10 @@ function renderDebrief(action, outcome, changes) {
   if (reveal) html += campaignRevealHtml(reveal);
   if (SIM.def && SIM.def.performanceReview) html += performanceReviewHtml();
 
+  // END-OF-MISSION FORESHADOWING (presentation-only) — a short diegetic artifact
+  // that seeds a question for the next assignment. Data-gated on def.foreshadow.
+  if (SIM.def && SIM.def.foreshadow) html += foreshadowCardHtml(SIM.def.foreshadow);
+
   html += reportSectionHtml();
   html += `</div>`; // .sim-feedback-body
   host.innerHTML = html;
@@ -3407,10 +3600,30 @@ const CAREER_MISSIONS = {
         unknown: {
           x: 86, y: 48, glyph: '❓', label: '192.168.1.57', sub: 'unidentified host',
           revealBy: 'ev_unknown_host', status: 'unknown', statusBy: { ev_not_in_inventory: 'suspicious' },
+          // Cross-case "red string": the same contractor (J. Demir) recurs across
+          // your cases. Presentation-only — the timeline is authored, not scored.
+          redString: {
+            entity: 'J. Demir — external contractor (ext-07)',
+            note: 'The same contractor keeps surfacing across your cases. The thread is still open.',
+            timeline: [
+              { op: 'OPS-2026-001 · Release Review', where: 'Contractor account read HR & Finance records outside its remit.' },
+              { op: 'OPS-2026-002 · Network Assets', where: 'Personal laptop (192.168.1.57) on the internal segment, reaching for Finance.' },
+            ],
+          },
           intel: {
             what: 'An extra host with no reverse name that is not on the approved inventory — later traced to contractor J. Demir\u2019s personal laptop.',
             technique: 'Cross-reference the scan against the inventory, then pivot through DHCP leases and contractor records to attribute it.',
             why: 'An unapproved, unmanaged device on the internal segment — reaching for finance shares — is the core of this incident.' },
+        },
+        // OPTIONAL SIDE-TRAIL node — pinned only after the player traces the
+        // "printer that wakes at 3 a.m." lead (board flag sideTrailBoard:st_m2_vlan).
+        vlan99: {
+          x: 16, y: 82, glyph: '🕳️', label: 'VLAN 99', sub: 'undocumented segment',
+          sideTrailReveal: 'st_m2_vlan', status: 'suspicious',
+          intel: {
+            what: 'A management VLAN (802.1q tag 99) that appears on no network diagram, surfaced by tracing a printer\u2019s overnight traffic.',
+            technique: 'Optional side-trail: cross-read the DHCP leases against the documented VLAN list.',
+            why: 'Undocumented segments are unmonitored. Even a printer quietly reaching one is a path worth knowing about.' },
         },
       },
       links: [
@@ -3444,7 +3657,80 @@ const CAREER_MISSIONS = {
             what: 'Repeated connection attempts from .57 to the finance laptop\u2019s file-sharing port (445), all denied.',
             technique: 'Read the network event log (tail network_events.log).',
             why: 'Reaching specifically for finance assets sharpens the device from "unapproved" to "concerning".' } },
+        // OPTIONAL SIDE-TRAIL link — appears with the VLAN 99 node once traced.
+        { a: 'gateway', b: 'vlan99', sideTrailReveal: 'st_m2_vlan',
+          intel: {
+            what: 'An 802.1q trunk carrying VLAN 99 traffic between the gateway and an undocumented segment.',
+            technique: 'Revealed by tracing the optional printer side-trail.',
+            why: 'Connects the documented network to a segment nobody is monitoring.' } },
       ],
+    },
+
+    // OPTIONAL SIDE-TRAILS (presentation-only). Never gate progression and never
+    // touch scoring or Investigation Confidence. Tracing one pins a permanent
+    // node to the Case Board (the VLAN 99 node + link above).
+    sideTrails: [
+      {
+        id: 'st_m2_vlan',
+        tag: 'OBSERVATION',
+        minutes: '~90 sec',
+        title: 'The printer that wakes at 3 a.m.',
+        teaser: 'A back-office printer keeps powering up overnight to talk to a VLAN that is on no network diagram.',
+        trigger: 'ev_subnet',
+        mentor: 'Field note',
+        artifacts: [
+          { label: 'dhcp_leases.txt — overnight fragment', lines: [
+            '03:02  192.168.1.40  MFP-APAC-03 (printer)   lease renew',
+            '03:02  request  vlan99.mgmt  (802.1q tag 99)',
+            '# no other office device tags VLAN 99',
+          ] },
+          { label: 'IT ticket #4471 (closed — "cannot reproduce")', lines: [
+            '"Printer drops off Wi-Fi at night, comes back by morning."',
+            'Resolution: closed, no fault found. No follow-up.',
+          ] },
+        ],
+        observation: {
+          prompt: 'A printer is tagging traffic for VLAN 99 — a segment no diagram documents. What stands out?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'An everyday device is quietly using an undocumented network segment',
+              feedback: 'Exactly — VLAN 99 is on no diagram, yet a printer reaches it nightly. Undocumented segments are where shadow IT hides.' },
+            { id: 'b', label: 'Printers are simply noisy on the network',
+              feedback: 'Noise alone is not the signal. The standout is that the segment it talks to does not officially exist.' },
+            { id: 'c', label: 'The lease renewed at an unusual hour',
+              feedback: 'Odd hours are a hint, not the point. What matters is the destination — a VLAN nobody documented.' },
+          ],
+        },
+        justification: {
+          prompt: 'Why does an undocumented VLAN tied to a forgotten device matter?',
+          correct: 'a',
+          options: [
+            { id: 'a', label: 'Undocumented segments escape monitoring and can quietly bridge trusted and untrusted zones',
+              feedback: 'Right — what is not on the map is not being watched. That is how a printer becomes a pivot. Logged to the Case Board.' },
+            { id: 'b', label: 'Printers waste toner when left on overnight',
+              feedback: 'Cost is not the security concern. The risk is an unmonitored path between segments.' },
+            { id: 'c', label: 'It breaches the printer\u2019s warranty terms',
+              feedback: 'Warranty is not our worry. An invisible network segment is.' },
+          ],
+        },
+        resolveNote: 'You traced MFP-APAC-03 to an undocumented management VLAN (99) — shadow IT left behind by a long-closed ticket. Not part of today\u2019s incident, but now it is on the board.',
+        reward: {
+          board: 'st_m2_vlan',
+          boardNote: 'A new node — VLAN 99 (undocumented) — is pinned to your Case Board, linked to the office gateway. Open the Network Map to see it.',
+        },
+      },
+    ],
+
+    // END-OF-MISSION FORESHADOWING (presentation-only) — a short diegetic artifact
+    // that seeds a question for the next assignment (Reconnaissance Detection).
+    foreshadow: {
+      kind: 'RECOVERED — INTERNAL CHAT FRAGMENT',
+      title: 'Two lines pulled from an archived #it-helpdesk thread',
+      lines: [
+        '08:14  j.demir(ext):  hey can you reset my CyberCorp login? locked out again',
+        '08:15  helpdesk:      sent a reset link to your personal email — check there',
+      ],
+      primes: 'Next case: when a reset link lands in a personal inbox, who really controls the account?',
     },
 
     intro: [
@@ -5904,6 +6190,8 @@ function mapEsc(s) {
 function mapNodeVisible(node) {
   if (!node) return false;
   if (node.seed) return true;
+  // Optional side-trail node: appears once its trail is traced (board flag set).
+  if (node.sideTrailReveal) return sideTrailBoardRevealed(node.sideTrailReveal);
   return !!(node.revealBy && SIM.evidence.has(node.revealBy));
 }
 
@@ -5923,6 +6211,7 @@ function mapNodeStatus(node) {
 // A link shows once both endpoints are visible and its evidence (if any) is up.
 function mapLinkVisible(link, nodes) {
   if (!mapNodeVisible(nodes[link.a]) || !mapNodeVisible(nodes[link.b])) return false;
+  if (link.sideTrailReveal && !sideTrailBoardRevealed(link.sideTrailReveal)) return false;
   if (link.revealBy && !SIM.evidence.has(link.revealBy)) return false;
   return true;
 }
@@ -5930,7 +6219,12 @@ function mapLinkVisible(link, nodes) {
 function mapVisibleNodeCount() {
   const nodes = (SIM.def && SIM.def.map && SIM.def.map.nodes) || {};
   let shown = 0, total = 0;
-  Object.keys(nodes).forEach(id => { total++; if (mapNodeVisible(nodes[id])) shown++; });
+  Object.keys(nodes).forEach(id => {
+    // Optional side-trail nodes are bonus pins, not core devices to map — they
+    // never count toward "all devices mapped" so the main progress stays honest.
+    if (nodes[id] && nodes[id].sideTrailReveal) return;
+    total++; if (mapNodeVisible(nodes[id])) shown++;
+  });
   return { shown, total };
 }
 
@@ -5966,7 +6260,14 @@ function simMapIntelShow(intel, title, kind, anchorEl) {
     ${simMapIntelRow('How an analyst surfaces it', intel.technique)}
     ${simMapIntelRow('Why it matters', intel.why)}`;
   el.hidden = false;
-  // Measure after layout, then clamp fully inside the viewport.
+  simMapFloatPosition(anchorEl);
+}
+
+/* Clamp the floating card fully inside the viewport, above the anchor when it
+ * fits. Shared by the intel card and the cross-case red-string timeline. */
+function simMapFloatPosition(anchorEl) {
+  const el = simMapIntelEl;
+  if (!el || !anchorEl) return;
   const a = anchorEl.getBoundingClientRect();
   const cw = el.offsetWidth, ch = el.offsetHeight, m = 10;
   const vw = window.innerWidth, vh = window.innerHeight;
@@ -5976,6 +6277,29 @@ function simMapIntelShow(intel, title, kind, anchorEl) {
   top = Math.max(m, Math.min(top, vh - ch - m));
   el.style.left = left + 'px';
   el.style.top = top + 'px';
+}
+
+/* Cross-case "red string" timeline — reuses the floating intel card to show
+ * where a recurring entity has appeared across cases. Presentation-only. */
+function simMapTimelineShow(rs, anchorEl) {
+  if (!rs || !anchorEl) return;
+  if (simMapIntelTimer) { clearTimeout(simMapIntelTimer); simMapIntelTimer = null; }
+  const el = simMapIntelEnsure();
+  const closed = !!(rs.closedBy && sideTrailResolved(rs.closedBy));
+  const rows = (rs.timeline || []).map(t => `
+    <div class="sim-redstring-row">
+      <span class="sim-redstring-op">${mapEsc(t.op || '')}</span>
+      <span class="sim-redstring-where">${mapEsc(t.where || '')}</span>
+    </div>`).join('');
+  el.innerHTML = `
+    <div class="sim-map-intel-head">
+      <span class="sim-map-intel-kind sim-redstring-kind${closed ? ' is-closed' : ''}">${closed ? '\u26d3 THREAD CLOSED' : '\u26d3 UNRESOLVED ACROSS CASES'}</span>
+      <span class="sim-map-intel-title">${mapEsc(rs.entity || '')}</span>
+    </div>
+    ${rs.note ? `<div class="sim-redstring-note">${mapEsc(rs.note)}</div>` : ''}
+    <div class="sim-redstring-timeline">${rows}</div>`;
+  el.hidden = false;
+  simMapFloatPosition(anchorEl);
 }
 function simMapIntelScheduleHide() {
   if (simMapIntelTimer) clearTimeout(simMapIntelTimer);
@@ -6103,7 +6427,9 @@ function renderSimMap() {
     if (!mapNodeVisible(n)) return;
     const status = mapNodeStatus(n);
     const div = document.createElement('div');
-    div.className = 'sim-map-node' + (status ? ' is-' + status : '');
+    const rsClosed = n.redString && n.redString.closedBy && sideTrailResolved(n.redString.closedBy);
+    div.className = 'sim-map-node' + (status ? ' is-' + status : '')
+      + (n.redString ? (rsClosed ? ' sim-map-node--redstring is-closed' : ' sim-map-node--redstring') : '');
     div.style.left = n.x + '%';
     div.style.top = n.y + '%';
     const tag = status && MAP_STATUS_TAG[status]
@@ -6118,6 +6444,19 @@ function renderSimMap() {
       div.setAttribute('role', 'button');
       div.setAttribute('aria-label', `${n.label}${n.sub ? ', ' + n.sub : ''} — analyst intel`);
       simMapIntelBind(div, n.intel, n.label, n.sub ? n.sub.toUpperCase() : '');
+    }
+    // Cross-case red string: a dedicated ⛓ affordance opens the recurring-entity
+    // timeline, leaving the node's own intel-on-click behaviour intact.
+    if (n.redString) {
+      const chain = document.createElement('button');
+      chain.type = 'button';
+      chain.className = 'sim-map-redstring-btn' + (rsClosed ? ' is-closed' : '');
+      chain.innerHTML = '<span aria-hidden="true">\u26d3</span> ACROSS CASES';
+      chain.setAttribute('aria-label', `${n.label} appears across multiple cases — view the timeline`);
+      const openTl = e => { e.preventDefault(); e.stopPropagation(); simMapTimelineShow(n.redString, chain); };
+      chain.addEventListener('click', openTl);
+      chain.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openTl(e); });
+      div.appendChild(chain);
     }
     host.appendChild(div);
   });
@@ -6192,6 +6531,11 @@ function simInit() {
       if (judg) { setJudgment(judg.dataset.judgment); return; }
       const disc = e.target.closest('[data-discovery-judgment]');
       if (disc) { setDiscoveryJudgment(disc.dataset.challenge, disc.dataset.step, disc.dataset.option); return; }
+      // Optional side-trails (presentation-only) — expand/collapse + two-step judgment.
+      const stOpen = e.target.closest('[data-sidetrail-open]');
+      if (stOpen) { openSideTrail(stOpen.dataset.sidetrailOpen); return; }
+      const stJ = e.target.closest('[data-sidetrail-judgment]');
+      if (stJ) { setSideTrailJudgment(stJ.dataset.trail, stJ.dataset.step, stJ.dataset.option); return; }
       const ident = e.target.closest('[data-identify]');
       if (ident) { setIdentification(ident.dataset.identify); return; }
 
