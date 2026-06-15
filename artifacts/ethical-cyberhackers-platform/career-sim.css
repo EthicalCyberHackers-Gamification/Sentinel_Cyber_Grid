@@ -350,6 +350,66 @@
 .sim-term-line--cue { color: var(--cyan); font-weight: 600; margin-top: 2px; }
 .sim-term-line--cue-next { color: var(--text-bright); }
 .sim-term-line--spacer { height: 8px; }
+
+/* ---- Notebook Phase 3: selectable file lines + inline mark-up ---- */
+.sim-term-line--fileline {
+  color: var(--text-bright);
+  display: flex; align-items: baseline; gap: 0;
+  border-radius: 3px; cursor: text;
+  transition: background var(--transition);
+}
+.sim-term-line--fileline:hover { background: rgba(255, 255, 255, 0.035); }
+.sim-term-line--fileline:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
+.sim-file-gutter { flex: 0 0 auto; color: var(--text-dim); user-select: none; white-space: pre; }
+.sim-file-text { flex: 1 1 auto; white-space: pre-wrap; word-break: break-word; }
+.sim-markup {
+  border-radius: 2px; padding: 0 1px; cursor: pointer;
+  border-bottom: 1.5px solid currentColor;
+  transition: filter var(--transition);
+}
+.sim-markup:hover { filter: brightness(1.25); }
+.sim-markup:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.sim-markup--fact { background: rgba(80, 200, 120, 0.16); color: var(--green); }
+.sim-markup--anomaly { background: rgba(240, 200, 90, 0.18); color: var(--yellow); }
+.sim-markup--unknown { background: rgba(170, 130, 230, 0.16); color: var(--purple); }
+
+/* The Fact / Anomaly / Unknown picker (fixed, anchored to the selection). */
+.sim-markup-pop {
+  position: fixed; z-index: 1200;
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 7px;
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
+  animation: simEvIn 140ms ease;
+}
+.sim-markup-pop[hidden] { display: none; }
+.sim-markup-pop-label {
+  font-family: var(--font-hud); font-size: 8px; letter-spacing: 1px;
+  color: var(--text-dim); padding-right: 2px;
+}
+.sim-markup-pop-btn {
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.6px;
+  color: var(--text-bright); background: var(--bg-panel-alt);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 4px 8px; cursor: pointer; transition: all var(--transition);
+}
+.sim-markup-pop-btn:hover { border-color: var(--cyan-dim); color: #fff; }
+.sim-markup-pop-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.sim-markup-pop-btn--fact:hover { border-color: var(--green); }
+.sim-markup-pop-btn--anomaly:hover { border-color: var(--yellow); }
+.sim-markup-pop-btn--unknown:hover { border-color: var(--purple); }
+.sim-markup-pop--cue { padding: 6px 10px; }
+.sim-markup-pop-cue {
+  font-family: var(--font-body); font-size: 10.5px; color: var(--cyan);
+}
+.sim-comms--summoned {
+  animation: simCommsSummon 1300ms ease;
+}
+@keyframes simCommsSummon {
+  0% { box-shadow: 0 0 0 0 rgba(240, 200, 90, 0.5); border-left-color: var(--yellow); }
+  100% { box-shadow: 0 0 0 8px rgba(240, 200, 90, 0); }
+}
 .sim-term-form {
   flex: 0 0 auto;
   display: flex;
@@ -2138,3 +2198,143 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
   .sim-power-fx { animation: none; }
   .sim-power-use { transition: none; }
 }
+
+/* ================================================================== *
+ * PHASE 4 — auto-composed FINDINGS (drafted from answered decisions)  *
+ * ================================================================== */
+.sim-notebook-head--findings { --nb-accent: var(--green);  --nb-icon: "\270E"; }
+.sim-notebook-section:has(.sim-notebook-head--findings) { padding-left: 0; border-left: none; }
+.sim-findings { display: flex; flex-direction: column; }
+.sim-finding {
+  margin-top: 8px; padding: 9px 10px;
+  border: 1px solid var(--border); border-left: 2px solid var(--green-dim, var(--green));
+  border-radius: var(--radius-sm); background: rgba(0, 255, 136, 0.035);
+}
+.sim-finding:first-of-type { margin-top: 0; }
+.sim-finding--committed { border-left-color: var(--green); background: rgba(0, 255, 136, 0.06); }
+.sim-finding-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.sim-finding-tag {
+  font-family: var(--font-hud); font-size: 8px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--green); flex: 0 0 auto;
+}
+.sim-finding-source {
+  font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 0.5px;
+  color: var(--text-dim); background: none; border: none; cursor: pointer;
+  padding: 0; margin-left: auto; text-transform: uppercase; transition: color var(--transition);
+}
+.sim-finding-source:hover { color: var(--cyan); }
+.sim-finding-source:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.sim-finding-text { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--text-bright); }
+.sim-finding-chip {
+  font: inherit; color: var(--cyan); background: rgba(45, 212, 255, 0.08);
+  border: none; border-bottom: 1px dashed var(--cyan-dim); border-radius: 2px;
+  padding: 0 2px; cursor: pointer; transition: background var(--transition);
+}
+.sim-finding-chip:hover { background: rgba(45, 212, 255, 0.18); }
+.sim-finding-chip:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.sim-finding-chip--edited {
+  color: var(--green); border-bottom-color: var(--green); background: rgba(0, 255, 136, 0.12);
+}
+.sim-finding-chip--fixed {
+  color: inherit; background: none; border: none; padding: 0; cursor: default;
+}
+.sim-finding-warn {
+  margin-top: 6px; padding: 5px 8px; font-size: 10.5px; line-height: 1.45;
+  color: var(--yellow); background: rgba(255, 170, 0, 0.06);
+  border-left: 2px solid var(--yellow); border-radius: var(--radius-sm);
+}
+.sim-finding-foot {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px;
+}
+.sim-finding-commit {
+  font-family: var(--font-hud); font-size: 9.5px; letter-spacing: 0.5px;
+  color: var(--bg); background: var(--green); border: 1px solid var(--green);
+  border-radius: var(--radius-sm); padding: 5px 10px; cursor: pointer;
+  transition: filter var(--transition);
+}
+.sim-finding-commit:hover { filter: brightness(1.12); }
+.sim-finding-commit:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.sim-finding-commit--update {
+  color: var(--bg); background: var(--yellow); border-color: var(--yellow);
+}
+.sim-finding-dirty {
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--yellow);
+}
+.sim-finding-logged {
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--green);
+}
+.sim-finding-hint { font-size: 10px; color: var(--text-dim); }
+
+/* The committed snapshots — the on-record case-file timeline. */
+.sim-finding-log {
+  margin-top: 12px; padding: 9px 10px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.sim-finding-log-head {
+  font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px;
+}
+.sim-finding-log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.sim-finding-log-item { display: flex; align-items: baseline; gap: 8px; }
+.sim-finding-log-num {
+  flex: 0 0 auto; font-family: var(--font-mono); font-size: 9.5px;
+  color: var(--green); width: 14px; text-align: right;
+}
+.sim-finding-log-body { font-size: 11.5px; line-height: 1.5; color: var(--text-muted); }
+.sim-finding-log-src {
+  font-family: var(--font-hud); font-size: 8px; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--text-dim); margin-right: 6px;
+}
+.sim-finding-log-tag {
+  font-family: var(--font-hud); font-size: 8px; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--green); margin-left: 6px;
+}
+
+/* ================================================================== *
+ * PHASE 5 — optional ANALYST'S BET (stake your read, never graded)    *
+ * ================================================================== */
+.sim-notebook-head--bet { --nb-accent: var(--orange); --nb-icon: "\25C8"; }
+.sim-bet-optional, .sim-bet-state {
+  margin-left: auto; font-family: var(--font-hud); font-size: 8.5px;
+  letter-spacing: 0.8px; text-transform: uppercase;
+}
+.sim-bet-optional { color: var(--text-dim); }
+.sim-bet-state { color: var(--orange); }
+.sim-bet-prompt { margin: 0 0 9px; font-size: 12px; line-height: 1.5; color: var(--text-bright); }
+.sim-bet-opts { display: flex; flex-direction: column; gap: 7px; }
+.sim-bet-opt {
+  text-align: left; font: inherit; font-size: 11.5px; line-height: 1.45;
+  color: var(--text-bright); background: var(--bg); cursor: pointer;
+  border: 1px solid var(--border); border-left: 2px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 10px;
+  transition: border-color var(--transition), background var(--transition);
+}
+.sim-bet-opt:hover { background: var(--bg-panel-alt); }
+.sim-bet-opt:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.sim-bet-opt--strong { border-left-color: var(--orange); }
+.sim-bet-opt--strong:hover { border-color: var(--orange); }
+.sim-bet-opt--hedge:hover { border-color: var(--cyan-dim); }
+.sim-bet-note { margin: 9px 0 0; font-size: 10px; line-height: 1.45; color: var(--text-dim); }
+.sim-bet-pick {
+  margin: 0; padding: 8px 10px; font-size: 12px; line-height: 1.5; color: var(--text-bright);
+  border: 1px solid var(--border); border-left: 2px solid var(--orange);
+  border-radius: var(--radius-sm); background: rgba(255, 140, 40, 0.05);
+}
+.sim-bet-recap {
+  margin-top: 8px; padding: 7px 10px; font-size: 10.5px; line-height: 1.5;
+  color: var(--text-muted); border: 1px solid var(--border);
+  border-left: 2px solid var(--cyan); background: rgba(45, 212, 255, 0.05);
+  border-radius: var(--radius-sm);
+}
+.sim-bet-recap-lab, .sim-bet-coach-lab {
+  display: block; font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-dim); margin-bottom: 3px;
+}
+.sim-bet-coach {
+  margin-top: 9px; padding-top: 8px; border-top: 1px dashed var(--border);
+  font-size: 11px; line-height: 1.5; color: var(--text-muted); font-style: italic;
+}
+.sim-bet-coach-lab { color: var(--cyan-dim); font-style: normal; }

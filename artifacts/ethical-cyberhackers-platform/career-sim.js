@@ -344,6 +344,14 @@ const SIM = {
   discoveryJudgments: {},   // challengeId -> { observation, justification } chosen option ids (two-step graded judgments; transient)
   autoOpenedBoardEvents: new Set(), // evidence ids that already auto-opened the board (once each)
   powers: null,             // Judgment-to-Power transient state (set in openCareerMission via freshPowersState)
+  // ---- Phases 3-5 notebook layer (ALL transient / view-state only; never persisted) ----
+  markup: [],               // P3 inline mark-up records {id,file,line,start,end,tag,text,challengeId}
+  pendingSelection: null,   // P3 selection awaiting a tag {file,line,start,end,text,challengeId}
+  markupSeq: 0,             // P3 monotonic id source for mark-up records
+  findingChips: {},         // P4 challengeId -> { chipKey: chosenValue } (display-only chip edits)
+  committedFindings: [],    // P4 snapshots committed to the on-screen case-file timeline
+  analystBet: null,         // P5 optional hypothesis-check state {done,pick,strong}
+  markupLog: [],            // P3-5 in-memory telemetry (console.debug mirror; never stored)
 };
 
 function careerMission() { return SIM.def; }
@@ -394,6 +402,15 @@ function openCareerMission(missionId) {
   SIM.sideTrailOpen = new Set();          // optional side-trails the analyst has expanded (transient)
   SIM.sideTrailJudgments = {};            // {trailId:{observation,justification}} picks (transient)
   SIM.powers = freshPowersState();        // Judgment-to-Power tools (transient, never persisted)
+  // Phases 3-5 notebook layer — all transient view-state, reset every open.
+  SIM.markup = [];                        // P3 inline evidence mark-up records
+  SIM.pendingSelection = null;            // P3 selection awaiting a Fact/Anomaly/Unknown tag
+  SIM.markupSeq = 0;                      // P3 mark-up id source
+  SIM.findingChips = {};                  // P4 display-only chip edits (never feed scoring)
+  SIM.committedFindings = [];             // P4 case-file timeline snapshots
+  SIM.analystBet = { done: false, pick: null, strong: false }; // P5 optional bet
+  SIM.markupLog = [];                     // P3-5 in-memory telemetry buffer
+  hideMarkupPopover();                    // clear any stray selection popover from a prior open
 
   // Network-map overlay is review-only + transient: never carries across missions.
   SIM.mapOpen = false;
@@ -799,7 +816,7 @@ function confidenceMeterHtml() {
   const spend = (SIM.powers && SIM.powers.confSpend) || 0;
   const tone = c >= 70 ? 'good' : c >= 40 ? 'warn' : 'low';
   const note = spend > 0
-    ? `\u2212${spend}% held for a calibration check \u00b7 recovers with your next sound judgment.`
+    ? `\u2212${spend}% ${(SIM.powers && SIM.powers.confSpendSource === 'bet') ? 'staked on your call' : 'held for a calibration check'} \u00b7 recovers with your next sound judgment.`
     : 'Climbs as your commands uncover evidence.';
   const breadth = evidenceBreadth();
   const dots = [0, 1, 2]
@@ -1030,6 +1047,8 @@ function renderEvidencePanel() {
         ${evSection}
         ${investigationFeedHtml()}
         ${analystJudgmentHtml()}
+        ${findingsHtml()}
+        ${analystBetHtml()}
         ${analystPowersHtml()}
         ${caseFileSummaryHtml()}
         ${classHtml}
@@ -1349,7 +1368,7 @@ function discoveryCardHtml(ch) {
     : '';
   const cardMod = full ? ' sim-comms--logged' : ' sim-comms--pending';
   return `
-    <div class="sim-comms${cardMod}" data-ev="${ch.evidenceId || ''}">
+    <div class="sim-comms${cardMod}" data-ev="${ch.evidenceId || ''}" data-challenge="${ch.id}">
       <div class="sim-comms-head">
         <span class="sim-comms-channel"><span class="sim-comms-dot" aria-hidden="true"></span>SARAH REYES · ${ch.short || ''}</span>
         ${statusPill}
@@ -1536,6 +1555,761 @@ function simPrint(text, cls) {
   line.textContent = text == null ? '' : text;
   out.appendChild(line);
   out.scrollTop = out.scrollHeight;
+}
+
+/* ================================================================== *
+ * NOTEBOOK PHASE 3 — inline evidence mark-up (file-model missions)
+ * ------------------------------------------------------------------ *
+ * Presentation / view-state ONLY. The player selects text in the file
+ * view and tags it Fact / Anomaly / Unknown. Anomaly routes attention to
+ * the matching discovery challenge's pending step in the Sarah comms
+ * thread — recording STILL flows only through setDiscoveryJudgment; no
+ * keyed answer is ever revealed. Highlights are canonical records on
+ * SIM.markup, re-derived on every render — never detached DOM / live Range.
+ * ================================================================== */
+
+/* Only file-model caseFileNotebook missions get mark-up (Mission 1 today).
+ * Command-model missions (def.commands[]) never print file lines, so they are
+ * unaffected; this guard keeps every entry point a no-op for them. */
+function markupEnabled() {
+  const d = SIM.def;
+  return !!(d && d.caseFileNotebook && Array.isArray(d.files) && d.files.length
+            && !(Array.isArray(d.commands) && d.commands.length));
+}
+
+/* In-memory telemetry mirror (console.debug + a capped ring buffer on SIM).
+ * Never persisted — same discipline as powerLog. */
+function nbLog(ev, detail) {
+  try {
+    const rec = Object.assign({ t: Date.now(), ev }, detail || {});
+    const buf = SIM.markupLog || (SIM.markupLog = []);
+    buf.push(rec);
+    if (buf.length > 200) buf.shift();
+    if (typeof console !== 'undefined' && console.debug) console.debug('[notebook]', ev, detail || '');
+  } catch (_) { /* telemetry must never throw */ }
+}
+
+function markupTagLabel(tag) {
+  return tag === 'fact' ? 'Fact' : tag === 'anomaly' ? 'Anomaly' : 'Unknown';
+}
+
+/* Map a source file to its discovery challenge via the shared evidence id. May
+ * be null — some files carry evidence with no challenge; those still mark up,
+ * they just do not route into comms. Never exposes any keyed answer. */
+function markupChallengeForFile(fileName) {
+  const d = SIM.def; if (!d) return null;
+  const file = (d.files || []).find(f => f.name === fileName);
+  if (!file || !Array.isArray(file.evidenceIds)) return null;
+  const chs = d.discoveryChallenges || [];
+  for (const evId of file.evidenceIds) {
+    const ch = chs.find(c => c.evidenceId === evId);
+    if (ch) return ch.id;
+  }
+  return null;
+}
+
+function markupMarksFor(fileName, lineIndex) {
+  return (SIM.markup || []).filter(m => m.file === fileName && m.line === lineIndex);
+}
+
+/* Escape + wrap each [start,end) range of a file-line's ORIGINAL text in a
+ * labeled highlight span. Idempotent: the original text is cached on
+ * span.dataset.raw so repeated decoration stays stable. */
+function decorateFileText(span, marks) {
+  if (!span) return;
+  const text = span.dataset.raw != null ? span.dataset.raw : (span.dataset.raw = span.textContent);
+  if (!marks || !marks.length) { span.textContent = text; return; }
+  const sorted = marks.slice().sort((a, b) => a.start - b.start);
+  let html = '', cursor = 0;
+  for (const m of sorted) {
+    const start = Math.max(cursor, Math.min(m.start, text.length));
+    const end = Math.max(start, Math.min(m.end, text.length));
+    if (start > cursor) html += mapEsc(text.slice(cursor, start));
+    if (end > start) {
+      const seg = text.slice(start, end);
+      html += `<span class="sim-markup sim-markup--${mapEsc(m.tag)}" data-markup-id="${mapEsc(m.id)}"`
+        + ` tabindex="0" role="button"`
+        + ` aria-label="${mapEsc(markupTagLabel(m.tag))} mark: ${mapEsc(seg)}${m.challengeId ? '. Press Enter to reopen in comms.' : ''}"`
+        + ` title="${mapEsc(markupTagLabel(m.tag))}${m.challengeId ? ' — reopen in comms' : ''}">${mapEsc(seg)}</span>`;
+      cursor = end;
+    }
+  }
+  if (cursor < text.length) html += mapEsc(text.slice(cursor));
+  span.innerHTML = html;
+}
+
+/* Apply current SIM.markup to one already-printed file line element. */
+function applyMarkupToLine(lineEl) {
+  if (!lineEl) return;
+  const span = lineEl.querySelector('.sim-file-text');
+  if (!span) return;
+  decorateFileText(span, markupMarksFor(lineEl.dataset.file, Number(lineEl.dataset.line)));
+}
+
+/* Re-decorate every printed line for a file (the terminal is append-only, so a
+ * file may appear multiple times from repeated reads — decorate all copies). */
+function refreshMarkupForFile(fileName) {
+  const out = document.getElementById('simTerminal');
+  if (!out) return;
+  out.querySelectorAll('.sim-term-line--fileline[data-file]').forEach(el => {
+    if (el.dataset.file === fileName) applyMarkupToLine(el);
+  });
+}
+
+/* Print one selectable, focusable file-content line (Phase 3). */
+function simPrintFileLine(fileName, lineIndex, text) {
+  const out = document.getElementById('simTerminal');
+  if (!out) return;
+  const line = document.createElement('div');
+  line.className = 'sim-term-line sim-term-line--file sim-term-line--fileline';
+  line.dataset.file = fileName;
+  line.dataset.line = String(lineIndex);
+  line.dataset.fileline = '1';
+  line.setAttribute('tabindex', '0');
+  line.setAttribute('role', 'button');
+  line.setAttribute('aria-label', 'Mark up line: ' + (text && text.trim() ? text : '(blank line)'));
+  const gutter = document.createElement('span');
+  gutter.className = 'sim-file-gutter';
+  gutter.setAttribute('aria-hidden', 'true');
+  gutter.textContent = '  ';
+  const span = document.createElement('span');
+  span.className = 'sim-file-text';
+  span.textContent = text == null ? '' : text;
+  span.dataset.raw = span.textContent;
+  line.appendChild(gutter);
+  line.appendChild(span);
+  out.appendChild(line);
+  out.scrollTop = out.scrollHeight;
+  applyMarkupToLine(line);
+}
+
+/* ----- selection capture (mouse) + whole-line capture (keyboard) ----- */
+function closestFileText(node) {
+  if (!node) return null;
+  const el = node.nodeType === 3 ? node.parentElement : node;
+  return el ? el.closest('.sim-file-text') : null;
+}
+
+/* Character offset of (container, offset) within a .sim-file-text's raw text,
+ * accumulating across any highlight child spans so offsets stay relative to the
+ * ORIGINAL content regardless of existing decoration. */
+function offsetWithinFileText(span, container, offset) {
+  let total = 0, done = false;
+  const textLen = node => {
+    if (node.nodeType === 3) return node.nodeValue.length;
+    let n = 0; node.childNodes.forEach(ch => { n += textLen(ch); }); return n;
+  };
+  const walk = node => {
+    if (done) return;
+    if (node === container) {
+      if (node.nodeType === 3) { total += offset; }
+      else { for (let i = 0; i < offset && i < node.childNodes.length; i++) total += textLen(node.childNodes[i]); }
+      done = true; return;
+    }
+    if (node.nodeType === 3) { total += node.nodeValue.length; return; }
+    node.childNodes.forEach(ch => { if (!done) walk(ch); });
+  };
+  walk(span);
+  return total;
+}
+
+function trimRange(raw, s, e) {
+  while (s < e && /\s/.test(raw[s])) s++;
+  while (e > s && /\s/.test(raw[e - 1])) e--;
+  return [s, e];
+}
+
+function onTerminalSelection() {
+  if (!markupEnabled()) return;
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount) { hideMarkupPopover(); return; }
+  const range = sel.getRangeAt(0);
+  const startSpan = closestFileText(range.startContainer);
+  const endSpan = closestFileText(range.endContainer);
+  if (!startSpan) { hideMarkupPopover(); return; }
+  if (startSpan !== endSpan) {   // cross-line / header / spacer — gentle cue, no mark
+    markupCue('Mark up one line at a time.', range.getBoundingClientRect());
+    SIM.pendingSelection = null;
+    return;
+  }
+  const lineEl = startSpan.closest('.sim-term-line--fileline');
+  if (!lineEl) { hideMarkupPopover(); return; }
+  const raw = startSpan.dataset.raw != null ? startSpan.dataset.raw : startSpan.textContent;
+  let s = offsetWithinFileText(startSpan, range.startContainer, range.startOffset);
+  let e = offsetWithinFileText(startSpan, range.endContainer, range.endOffset);
+  if (s > e) { const t = s; s = e; e = t; }
+  [s, e] = trimRange(raw, s, e);
+  if (e <= s) { hideMarkupPopover(); return; }
+  SIM.pendingSelection = { file: lineEl.dataset.file, line: Number(lineEl.dataset.line), start: s, end: e, text: raw.slice(s, e) };
+  showMarkupPopover(range.getBoundingClientRect());
+}
+
+/* Keyboard path: Enter/Space on a focused file line stages the WHOLE line. */
+function markupWholeLine(lineEl) {
+  if (!markupEnabled() || !lineEl) return;
+  const span = lineEl.querySelector('.sim-file-text');
+  const raw = span ? (span.dataset.raw != null ? span.dataset.raw : span.textContent) : '';
+  let [s, e] = trimRange(raw, 0, raw.length);
+  if (e <= s) return;
+  SIM.pendingSelection = { file: lineEl.dataset.file, line: Number(lineEl.dataset.line), start: s, end: e, text: raw.slice(s, e) };
+  showMarkupPopover(lineEl.getBoundingClientRect());
+}
+
+/* ----- the Fact / Anomaly / Unknown popover ----- */
+function markupPopoverEl() {
+  let el = document.getElementById('simMarkupPopover');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'simMarkupPopover';
+    el.className = 'sim-markup-pop';
+    el.hidden = true;
+    (document.getElementById('careerOps') || document.body).appendChild(el);
+  }
+  return el;
+}
+
+function positionMarkupPopover(el, rect) {
+  if (!rect) return;
+  el.style.position = 'fixed';
+  el.style.visibility = 'hidden';
+  el.hidden = false;
+  const w = el.offsetWidth || 240, h = el.offsetHeight || 34;
+  let left = rect.left + rect.width / 2 - w / 2;
+  let top = rect.top - h - 8;
+  if (top < 8) top = rect.bottom + 8;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
+  el.style.left = left + 'px';
+  el.style.top = top + 'px';
+  el.style.visibility = '';
+}
+
+function showMarkupPopover(rect) {
+  const el = markupPopoverEl();
+  clearTimeout(el._cueT);
+  el.classList.remove('sim-markup-pop--cue');
+  el.innerHTML =
+    '<span class="sim-markup-pop-label">Mark up</span>'
+    + '<button type="button" class="sim-markup-pop-btn sim-markup-pop-btn--fact" data-markup-tag="fact">Fact</button>'
+    + '<button type="button" class="sim-markup-pop-btn sim-markup-pop-btn--anomaly" data-markup-tag="anomaly">Anomaly</button>'
+    + '<button type="button" class="sim-markup-pop-btn sim-markup-pop-btn--unknown" data-markup-tag="unknown">Unknown</button>';
+  positionMarkupPopover(el, rect);
+  el.hidden = false;
+  const first = el.querySelector('.sim-markup-pop-btn');
+  if (first) setTimeout(() => { try { first.focus({ preventScroll: true }); } catch (_) { first.focus(); } }, 0);
+}
+
+/* Brief, auto-dismissing in-world hint reusing the popover shell. */
+function markupCue(text, rect) {
+  const el = markupPopoverEl();
+  el.classList.add('sim-markup-pop--cue');
+  el.innerHTML = '<span class="sim-markup-pop-cue">' + mapEsc(text) + '</span>';
+  positionMarkupPopover(el, rect);
+  el.hidden = false;
+  clearTimeout(el._cueT);
+  el._cueT = setTimeout(() => { el.hidden = true; el.classList.remove('sim-markup-pop--cue'); }, 1800);
+}
+
+function hideMarkupPopover() {
+  const el = document.getElementById('simMarkupPopover');
+  if (el) { clearTimeout(el._cueT); el.hidden = true; el.classList.remove('sim-markup-pop--cue'); }
+  SIM.pendingSelection = null;
+}
+
+/* Commit a pending selection as a labeled mark; Anomaly routes into comms. */
+function applyMarkupTag(tag) {
+  const s = SIM.pendingSelection;
+  const popRect = lineRect(s);
+  hideMarkupPopover();
+  if (!s) return;
+  const challengeId = markupChallengeForFile(s.file);
+  const mark = {
+    id: 'mk' + (++SIM.markupSeq), file: s.file, line: s.line,
+    start: s.start, end: s.end, tag, text: s.text, challengeId: challengeId || null,
+  };
+  SIM.markup.push(mark);
+  nbLog('markup-created', { tag, file: s.file, hasChallenge: !!challengeId });
+  refreshMarkupForFile(s.file);
+  if (tag === 'anomaly' && challengeId) {
+    nbLog('markup-routed', { challengeId });
+    openChallengeInComms(challengeId);
+  } else if (tag === 'anomaly') {
+    markupCue('Logged as an anomaly in your notes.', popRect);
+  }
+  try { const sel = window.getSelection(); if (sel) sel.removeAllRanges(); } catch (_) { /* ignore */ }
+}
+
+/* Reopen the decision a highlight is linked to (click or Enter on the mark). */
+function reopenMarkup(id) {
+  const m = (SIM.markup || []).find(x => x.id === id);
+  if (!m) return;
+  nbLog('markup-reopened', { id, challengeId: m.challengeId || null });
+  if (m.challengeId) openChallengeInComms(m.challengeId);
+}
+
+/* Bounding rect of the matching printed file line (cue anchor). */
+function lineRect(s) {
+  if (!s) return null;
+  const out = document.getElementById('simTerminal');
+  if (!out) return null;
+  let found = null;
+  out.querySelectorAll('.sim-term-line--fileline[data-file]').forEach(el => {
+    if (el.dataset.file === s.file && Number(el.dataset.line) === s.line) found = el;
+  });
+  return found ? found.getBoundingClientRect() : null;
+}
+
+/* Route attention to a challenge's pending comms step. NEVER reveals the keyed
+ * option — it only scrolls to and focuses the EXISTING pending reply (Phase 1
+ * renderer). If the challenge is already fully logged, it just scrolls there. */
+function openChallengeInComms(challengeId) {
+  const host = document.getElementById('simEvidence');
+  if (!host) return;
+  renderEvidencePanel(); // ensure the card exists (evidence may have just surfaced)
+  const body = document.getElementById('simEvidenceBody') || host;
+  const card = host.querySelector('.sim-comms[data-challenge="' + challengeId + '"]');
+  if (!card) return;
+  card.classList.add('sim-comms--summoned');
+  setTimeout(() => card.classList.remove('sim-comms--summoned'), 1400);
+  simScrollBodyTo(body, card);
+  const reply = card.querySelector('.sim-comms-reply');
+  if (reply) setTimeout(() => { try { reply.focus({ preventScroll: true }); } catch (_) { reply.focus(); } }, 80);
+  else { const head = card.querySelector('.sim-comms-head'); if (head) head.setAttribute('tabindex', '-1'); }
+}
+
+/* ================================================================== *
+ * PHASE 4 — AUTO-COMPOSED FINDINGS (presentation / view-state only)
+ * ------------------------------------------------------------------ *
+ * Once a discovery challenge is fully answered, the notebook auto-drafts
+ * a 1-2 sentence "finding" for the player: a template with a few editable
+ * {chips}. Chips offer alternative wordings the analyst can cycle through
+ * (their words, their call) and committing snapshots the sentence to an
+ * on-screen case-file timeline. EVERYTHING here is display-only:
+ *   - chip edits live on SIM.findingChips and NEVER touch
+ *     SIM.discoveryJudgments or any grading helper;
+ *   - committed findings live on SIM.committedFindings (transient, never
+ *     persisted / synced);
+ *   - findings derive from the challenge that surfaced, not from which
+ *     option the player picked, so no keyed answer is ever revealed.
+ * Templates are keyed by challenge id in a registry (not inlined into the
+ * mission defs) so a challenge with no entry simply yields no finding.
+ * ================================================================== */
+const FINDING_TEMPLATES = {
+  // ---- Mission 1 — Data Handling Review ----
+  ch_release_context: {
+    template: 'The release was assembled by {who} with {review}, so {risk}.',
+    chips: [
+      { key: 'who', value: 'an external contractor', alts: ['an outside vendor account', 'a non-employee account'] },
+      { key: 'review', value: 'no internal sign-off', alts: ['no data-owner approval', 'no internal review'] },
+      { key: 'risk', value: 'nobody inside vetted what is leaving the company', alts: ['the contents left the building unchecked', 'there is no accountable owner for the release'] },
+    ],
+  },
+  ch_public_safe: {
+    template: 'The product datasheet is {nature}, so it {risk}.',
+    chips: [
+      { key: 'nature', value: 'already-published marketing collateral', alts: ['public, marketing-cleared material', 'externally released content'] },
+      { key: 'risk', value: 'carries no new exposure if it ships', alts: ['is safe to include in the release', 'needs no further restriction'] },
+    ],
+  },
+  ch_pii_salary: {
+    template: 'The salary file {contains}, which makes it {tier} and {risk}.',
+    chips: [
+      { key: 'contains', value: 'ties named employees to their pay', alts: ['links individuals to their compensation', 'holds named salary records'] },
+      { key: 'tier', value: 'Restricted', alts: ['the top classification tier', 'the highest sensitivity'] },
+      { key: 'risk', value: 'must never leave the company', alts: ['cannot reach a partner', 'must stay strictly internal'] },
+    ],
+  },
+  ch_customer_pii: {
+    template: 'The package includes {data}, so sending it out {risk}.',
+    chips: [
+      { key: 'data', value: 'regulated cardholder records', alts: ['customer payment data', 'PCI card records'] },
+      { key: 'risk', value: 'would be a reportable data breach', alts: ['breaches regulated-data rules', 'creates real customer harm and fines'] },
+    ],
+  },
+  ch_contractor_access: {
+    template: 'A {actor} was {action}, which I am logging as {stance}.',
+    chips: [
+      { key: 'actor', value: 'contractor account (ext-contractor-07)', alts: ['vendor account', 'non-employee account'] },
+      { key: 'action', value: 'reading HR/Finance files at 02:00, outside its remit', alts: ['reaching data far outside its job at 2 AM', 'touching salaries and roadmaps overnight'] },
+      { key: 'stance', value: 'something to flag and escalate', alts: ['activity that warrants a closer look', { text: 'probably routine release prep', warn: 'That softer wording understates the off-hours, out-of-scope access you noted above.' }] },
+    ],
+  },
+  // ---- Mission 2 — Network Asset Investigation ----
+  ch_m2_device: {
+    template: 'The unknown laptop is {whose}, which {risk}.',
+    chips: [
+      { key: 'whose', value: 'a contractor\u2019s personal device', alts: ['an unmanaged personal laptop', 'a non-corporate device'] },
+      { key: 'risk', value: 'we cannot patch, monitor, or trust', alts: ['bypasses our security controls', 'sits entirely outside our management'] },
+    ],
+  },
+  ch_m2_segment: {
+    template: 'The device sits {where}, giving it {risk}.',
+    chips: [
+      { key: 'where', value: 'on the internal CORP segment beside Finance', alts: ['on the internal Finance network, not guest', 'inside the corporate segment'] },
+      { key: 'risk', value: 'a direct path to sensitive Finance systems', alts: ['line of sight to Finance data', 'reach into the crown jewels'] },
+    ],
+  },
+  ch_m2_probe: {
+    template: 'The device has {behaviour}, which I am logging as {stance}.',
+    chips: [
+      { key: 'behaviour', value: 'repeatedly tried to reach the Finance file share', alts: ['actively probed for Finance data', 'kept reaching for the Finance share'] },
+      { key: 'stance', value: 'enough to escalate and contain', alts: ['suspicious and worth containing', 'something to flag and isolate'] },
+    ],
+  },
+  // ---- Mission 3 — Authentication Activity ----
+  ch_m3_failures: {
+    template: 'The auth logs show {pattern}, which reads as {meaning}.',
+    chips: [
+      { key: 'pattern', value: '47 failed logins in 7 minutes from one external address', alts: ['a tight burst of failures from a single source', 'rapid repeated login failures'] },
+      { key: 'meaning', value: 'automated password guessing', alts: ['a brute-force credential attack', 'not a human simply mistyping'] },
+    ],
+  },
+  ch_m3_impossible: {
+    template: 'Two sessions appear {geography}, which means {meaning}.',
+    chips: [
+      { key: 'geography', value: 'thousands of km apart only minutes apart', alts: ['in two places too far to be one person', 'impossibly far apart in the time available'] },
+      { key: 'meaning', value: 'a second party is using the account', alts: ['someone else is logged in alongside the owner', 'the real owner is not the only one in'] },
+    ],
+  },
+  ch_m3_changes: {
+    template: 'Right after login, {actions}, which I am logging as {stance}.',
+    chips: [
+      { key: 'actions', value: 'MFA was disabled, mail forwarding added, and the password changed', alts: ['security controls were tampered with', 'MFA was switched off and forwarding added'] },
+      { key: 'stance', value: 'a confirmed takeover to act on now', alts: ['deliberate attacker entrenchment', 'a compromise past the point of monitoring'] },
+    ],
+  },
+  // ---- Mission 4 — Data Exfiltration ----
+  ch_m4_transfer: {
+    template: 'The customer archive was {movement}, so {meaning}.',
+    chips: [
+      { key: 'movement', value: 'uploaded to an address outside the company', alts: ['sent beyond our perimeter', 'transferred to an external endpoint'] },
+      { key: 'meaning', value: 'regulated data has left our control', alts: ['this is breach response, not prevention', 'customer data is already out'] },
+    ],
+  },
+  ch_m4_dest: {
+    template: 'The upload went to {dest}, which I am logging as {stance}.',
+    chips: [
+      { key: 'dest', value: 'an unknown external host, not a known partner', alts: ['an unrecognised external endpoint', 'attacker-controlled infrastructure'] },
+      { key: 'stance', value: 'a confirmed exfil to escalate to IR now', alts: ['an incident to hand to the IR team', 'a breach to act on immediately'] },
+    ],
+  },
+};
+
+/* The finding template for a challenge, or null when none is registered. */
+function findingDef(ch) {
+  return (ch && FINDING_TEMPLATES[ch.id]) ? FINDING_TEMPLATES[ch.id] : null;
+}
+/* Normalise a chip option (string OR {text,warn}) to {text,warn}. */
+function chipOption(opt) {
+  if (opt && typeof opt === 'object') return { text: String(opt.text || ''), warn: opt.warn || null };
+  return { text: String(opt == null ? '' : opt), warn: null };
+}
+/* The full ordered option list for one chip: default value first, then alts. */
+function chipOptions(chip) {
+  return [chip.value].concat(chip.alts || []).map(chipOption);
+}
+/* The currently-selected option index for a chip (0 = the auto-draft default). */
+function findingChipIndex(challengeId, chipKey) {
+  const sel = SIM.findingChips[challengeId];
+  const i = sel && sel[chipKey];
+  return Number.isInteger(i) ? i : 0;
+}
+/* The selected {text,warn} for a chip, clamped to its option range. */
+function findingChipValue(challengeId, chip) {
+  const opts = chipOptions(chip);
+  const idx = Math.min(Math.max(0, findingChipIndex(challengeId, chip.key)), opts.length - 1);
+  return opts[idx];
+}
+/* Compose the plain finding sentence from the selected chip wordings. */
+function composedFindingText(ch) {
+  const def = findingDef(ch);
+  if (!def) return '';
+  return def.template.replace(/\{(\w+)\}/g, (m, key) => {
+    const chip = (def.chips || []).find(c => c.key === key);
+    return chip ? findingChipValue(ch.id, chip).text : m;
+  });
+}
+/* True once the player has cycled any chip away from its auto-draft default. */
+function findingEdited(ch) {
+  const def = findingDef(ch);
+  return !!def && (def.chips || []).some(c => findingChipIndex(ch.id, c.key) > 0);
+}
+/* Gentle, display-only cautions for the currently-selected chip wordings. */
+function findingWarnings(ch) {
+  const def = findingDef(ch);
+  if (!def) return [];
+  const out = [];
+  (def.chips || []).forEach(c => { const o = findingChipValue(ch.id, c); if (o.warn) out.push(o.warn); });
+  return out;
+}
+/* Cycle a chip to its next wording (wraps). Display-only: writes SIM.findingChips
+ * ONLY, never SIM.discoveryJudgments, then re-renders. */
+function cycleFindingChip(challengeId, chipKey) {
+  const ch = discoveryChallengeById(challengeId);
+  const def = findingDef(ch);
+  if (!def) return;
+  const chip = (def.chips || []).find(c => c.key === chipKey);
+  if (!chip) return;
+  const opts = chipOptions(chip);
+  if (opts.length <= 1) return;
+  const next = (findingChipIndex(challengeId, chipKey) + 1) % opts.length;
+  const sel = SIM.findingChips[challengeId] || (SIM.findingChips[challengeId] = {});
+  sel[chipKey] = next;
+  nbLog('finding-chip-edit', { challengeId, chipKey, index: next });
+  renderEvidencePanel();
+}
+function findingCommitted(challengeId) {
+  return SIM.committedFindings.some(f => f.challengeId === challengeId);
+}
+/* The committed snapshot for a challenge, or null. */
+function committedFindingEntry(challengeId) {
+  return SIM.committedFindings.find(f => f.challengeId === challengeId) || null;
+}
+/* True when a logged finding's live draft has since been reworded (so the
+ * snapshot is stale and an "Update logged finding" action should appear). */
+function findingDirty(ch) {
+  const e = committedFindingEntry(ch.id);
+  return !!e && e.text !== composedFindingText(ch);
+}
+/* Snapshot the composed finding to the on-screen case-file timeline. Re-committing
+ * an already-logged finding refreshes its text (no grading, no persistence). */
+function commitFinding(challengeId) {
+  const ch = discoveryChallengeById(challengeId);
+  if (!ch || !challengeAnswered(ch)) return;
+  const text = composedFindingText(ch);
+  if (!text) return;
+  const edited = findingEdited(ch);
+  const existing = SIM.committedFindings.find(f => f.challengeId === challengeId);
+  if (existing) { existing.text = text; existing.edited = edited; existing.at = Date.now(); }
+  else SIM.committedFindings.push({ challengeId, text, edited, at: Date.now() });
+  nbLog('finding-commit', { challengeId, edited, total: SIM.committedFindings.length });
+  renderEvidencePanel();
+}
+
+/* The FINDINGS section — one auto-drafted card per fully-answered challenge that
+ * has a template. '' when nothing qualifies, so missions without challenges (or
+ * without templates) render nothing. Presentation-only. */
+function findingsHtml() {
+  const all = simDiscoveryChallenges();
+  const vis = visibleDiscoveryChallenges()
+    .filter(c => challengeValid(c) && challengeAnswered(c) && findingDef(c));
+  if (!vis.length) return '';
+  const committed = vis.filter(c => findingCommitted(c.id)).length;
+  const cards = vis.map(ch => {
+    const def = findingDef(ch);
+    const decisionN = all.indexOf(ch) + 1;
+    const isCommitted = findingCommitted(ch.id);
+    const warns = findingWarnings(ch);
+    const body = mapEsc(def.template).replace(/\{(\w+)\}/g, (m, key) => {
+      const chip = (def.chips || []).find(c => c.key === key);
+      if (!chip) return m;
+      const o = findingChipValue(ch.id, chip);
+      const edited = findingChipIndex(ch.id, chip.key) > 0;
+      const multi = chipOptions(chip).length > 1;
+      const cls = 'sim-finding-chip' + (edited ? ' sim-finding-chip--edited' : '') + (multi ? '' : ' sim-finding-chip--fixed');
+      const attrs = multi
+        ? ` data-finding-chip="${mapEsc(chip.key)}" data-challenge="${mapEsc(ch.id)}" title="Tap to reword" aria-label="Reword: ${mapEsc(o.text)}"`
+        : ' disabled aria-disabled="true"';
+      return `<button type="button" class="${cls}"${attrs}>${mapEsc(o.text)}</button>`;
+    });
+    const warnHtml = warns.length
+      ? `<div class="sim-finding-warn" role="note">${warns.map(mapEsc).join(' ')}</div>` : '';
+    const dirty = findingDirty(ch);
+    let foot;
+    if (!isCommitted) {
+      foot = `<button type="button" class="sim-finding-commit" data-finding-commit="${mapEsc(ch.id)}">Commit finding</button>`;
+    } else if (dirty) {
+      foot = `<button type="button" class="sim-finding-commit sim-finding-commit--update" data-finding-commit="${mapEsc(ch.id)}">Update logged finding</button><span class="sim-finding-dirty">Edited since you logged it</span>`;
+    } else {
+      foot = `<span class="sim-finding-logged">Logged to case file${findingEdited(ch) ? ' \u00b7 your wording' : ''}</span>`;
+    }
+    return `
+      <div class="sim-finding${isCommitted ? ' sim-finding--committed' : ''}">
+        <div class="sim-finding-head">
+          <span class="sim-finding-tag">AUTO-DRAFTED</span>
+          <button type="button" class="sim-finding-source" data-finding-reopen="${mapEsc(ch.id)}" title="Reopen this decision in comms">Decision ${decisionN} \u00b7 ${mapEsc(ch.short || '')}</button>
+        </div>
+        <p class="sim-finding-text">${body}</p>
+        ${warnHtml}
+        <div class="sim-finding-foot">${foot}<span class="sim-finding-hint">Tap a highlighted phrase to reword \u2014 your call, your words.</span></div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="sim-notebook-section sim-findings">
+      <div class="sim-notebook-head sim-notebook-head--findings">FINDINGS DRAFTED <span class="sim-notebook-count">${committed}/${vis.length} logged</span></div>
+      ${cards}
+      ${committedFindingsHtml()}
+    </div>`;
+}
+
+/* The committed case-file timeline — the actual logged snapshots, in the order
+ * they were first committed (re-commit refreshes text in place, keeping order).
+ * Distinct from the editable drafting cards above so the player can always see
+ * exactly what they put on the record. '' until something is committed. */
+function committedFindingsHtml() {
+  const log = SIM.committedFindings;
+  if (!log.length) return '';
+  const items = log.map((f, i) => {
+    const ch = discoveryChallengeById(f.challengeId);
+    const decisionN = simDiscoveryChallenges().indexOf(ch) + 1;
+    const src = (ch && decisionN > 0) ? `Decision ${decisionN}` : 'Decision';
+    const tag = f.edited ? '<span class="sim-finding-log-tag">your wording</span>' : '';
+    return `
+      <li class="sim-finding-log-item">
+        <span class="sim-finding-log-num">${i + 1}</span>
+        <span class="sim-finding-log-body"><span class="sim-finding-log-src">${mapEsc(src)}</span>${mapEsc(f.text)}${tag}</span>
+      </li>`;
+  }).join('');
+  return `
+    <div class="sim-finding-log">
+      <div class="sim-finding-log-head">LOGGED TO CASE FILE</div>
+      <ol class="sim-finding-log-list">${items}</ol>
+    </div>`;
+}
+
+/* ================================================================== *
+ * PHASE 5 — OPTIONAL ANALYST'S BET (presentation / view-state only)
+ * ------------------------------------------------------------------ *
+ * Before committing the recommendation, the analyst may OPTIONALLY stake
+ * their read. The bet is about CONFIDENCE / commitment, never the verdict:
+ * options reference the case domain but never state the answer, and the bet
+ * is never graded and never gates progress. A "strong" stake mirrors the
+ * Railguard mechanic — a recoverable DISPLAY-ONLY confidence dip (confSpend,
+ * tagged source:'bet') plus a Scope-Snapshot-style recap (P.active.betSnapshot)
+ * — WITHOUT consuming analyst standing or the real JP-002 power. It never
+ * touches investigationConfidence() or any grading path, and persists nothing.
+ * Bet copy is keyed by mission id; missions with no entry show no bet.
+ * ================================================================== */
+const BET_STAKE = 6;             // recoverable DISPLAY-only confidence staked on a strong bet
+const ANALYST_BETS = {
+  'mission-001': {
+    prompt: 'Before this release decision goes up the chain \u2014 how do you want to log your read?',
+    options: [
+      { id: 'm1-strong', stance: 'strong', label: 'I am ready to stake a firm recommendation on this release.',
+        coach: 'You have put your name on this call. Back it with one more sound judgment and the certainty you staked comes back.' },
+      { id: 'm1-working', stance: 'hedge', label: 'Log it as a working call I can still revise.',
+        coach: 'A working call is honest \u2014 just make sure the evidence you have supports where you have landed.' },
+      { id: 'm1-hold', stance: 'hedge', label: 'Hold \u2014 I want more before I commit either way.',
+        coach: 'Holding is fair when the picture is thin. Surface more evidence, then decide.' },
+    ],
+  },
+  'mission-002': {
+    prompt: 'Before you write up the unknown device \u2014 how confident is your read?',
+    options: [
+      { id: 'm2-strong', stance: 'strong', label: 'Confident enough to stake my read on this device.',
+        coach: 'Good \u2014 you have committed to a position. One more sound call and the certainty you staked is restored.' },
+      { id: 'm2-working', stance: 'hedge', label: 'Note it as a working assessment for now.',
+        coach: 'Sensible \u2014 keep the assessment tied to what the traffic actually shows.' },
+      { id: 'm2-hold', stance: 'hedge', label: 'Hold \u2014 keep watching before I commit.',
+        coach: 'Patience is fine here. Confirm the behaviour, then make the call.' },
+    ],
+  },
+  'mission-003': {
+    prompt: 'Before escalating this account activity \u2014 how do you want to stake your read?',
+    options: [
+      { id: 'm3-strong', stance: 'strong', label: 'Confident enough to stake my read before I escalate.',
+        coach: 'That is a firm stance. Reconfirm it with one more sound call and the staked certainty returns.' },
+      { id: 'm3-working', stance: 'hedge', label: 'Log a working read and hand it up for review.',
+        coach: 'Handing it up is reasonable \u2014 just be clear on what you have already established.' },
+      { id: 'm3-hold', stance: 'hedge', label: 'Hold \u2014 tie the sessions together before I commit.',
+        coach: 'Fair \u2014 nail the link first, then stake your read.' },
+    ],
+  },
+  'mission-004': {
+    prompt: 'This one goes to incident response \u2014 how do you want to log your read first?',
+    options: [
+      { id: 'm4-strong', stance: 'strong', label: 'Confident enough to stake my read before IR takes it.',
+        coach: 'You have put your name on it. One more sound call and the certainty you staked comes back.' },
+      { id: 'm4-working', stance: 'hedge', label: 'Flag it as a working read for IR to confirm.',
+        coach: 'Reasonable hand-off \u2014 give IR the evidence trail you have built.' },
+      { id: 'm4-hold', stance: 'hedge', label: 'Hold \u2014 verify the destination before I commit.',
+        coach: 'Fair \u2014 confirm the endpoint is truly unknown, then stake your read.' },
+    ],
+  },
+};
+/* The bet config for the current mission (def override wins), or null. */
+function simAnalystBet() {
+  return (SIM.def && SIM.def.analystBet) || ANALYST_BETS[SIM.missionId] || null;
+}
+/* Bet-owned activation: a recoverable DISPLAY-only confidence stake + a scope
+ * recap, on bet-owned keys so it never collides with the earned-tools system or
+ * consumes standing. Never stacks on an existing dip (e.g. an active Railguard).*/
+function activateScopeSnapshot(opts) {
+  const P = SIM.powers; if (!P) return;
+  const source = (opts && opts.source) || 'bet';
+  P.active['betSnapshot'] = { left: SNAPSHOT_WINDOW, counts: scopeCounts(), source };
+  if (P.confSpend === 0) { P.confSpend = BET_STAKE; P.confSpendSource = source; }
+  powerLog('bet-stake', 'BET', source);
+}
+/* Record the player's optional bet. Strong stakes display confidence; hedges only
+ * coach. Once per mission. Reuses SIM.powers; persists nothing; reveals nothing. */
+function takeAnalystBet(optId) {
+  const def = simAnalystBet();
+  if (!def || (SIM.analystBet && SIM.analystBet.done)) return;
+  const opt = (def.options || []).find(o => o.id === optId);
+  if (!opt) return;
+  const strong = opt.stance === 'strong';
+  const P = SIM.powers;
+  // A fresh confidence stake only lands when no dip is already in play — the bet
+  // never stacks a second dip on top of an active Railguard (single confSpend var).
+  const staked = strong && !!P && P.confSpend === 0;
+  SIM.analystBet = { done: true, pick: opt.id, strong, staked };
+  if (strong) activateScopeSnapshot({ source: 'bet' });
+  if (P) {
+    P.sarah = (strong && !staked)
+      ? 'Your read is on the record \u2014 a calibration check is already running, so no extra certainty was staked.'
+      : (opt.coach || (strong
+        ? 'You have staked your read \u2014 back it with another sound call.'
+        : 'A measured call \u2014 keep building the picture.'));
+  }
+  nbLog('bet-taken', { pick: opt.id, strong, staked });
+  powerLog('bet', 'BET', opt.stance);
+  renderEvidencePanel();
+}
+
+/* The optional ANALYST'S BET section. Appears once at least one challenge is
+ * answered (so there is something to stake on); after a bet it shows the chosen
+ * stance + any live recap. '' for missions with no bet config. */
+function analystBetHtml() {
+  const def = simAnalystBet();
+  if (!def) return '';
+  const taken = !!(SIM.analystBet && SIM.analystBet.done);
+  const answered = visibleDiscoveryChallenges().filter(challengeAnswered).length;
+  if (!answered && !taken) return '';
+  const P = SIM.powers;
+  if (taken) {
+    const pick = (def.options || []).find(o => o.id === SIM.analystBet.pick);
+    const stanceLabel = SIM.analystBet.strong ? (SIM.analystBet.staked ? 'Staked' : 'On record') : 'Working call';
+    let recap = '';
+    if (P && P.active['betSnapshot']) {
+      const c = P.active['betSnapshot'].counts;
+      const open = [];
+      if (c.toJudge) open.push(`${c.toJudge} finding${c.toJudge === 1 ? '' : 's'} to judge`);
+      if (c.toClassify) open.push(`${c.toClassify} file${c.toClassify === 1 ? '' : 's'} to classify`);
+      if (c.determinationOpen) open.push('determination pending');
+      const openTxt = open.length ? open.join(', ') : 'nothing outstanding';
+      recap = `<div class="sim-bet-recap"><span class="sim-bet-recap-lab">Scope at the stake</span>Settled: ${c.facts} fact${c.facts === 1 ? '' : 's'}, ${c.judged} judgment${c.judged === 1 ? '' : 's'}. Open: ${mapEsc(openTxt)}.</div>`;
+    }
+    const coach = P && P.sarah
+      ? `<div class="sim-bet-coach"><span class="sim-bet-coach-lab">Sarah Reyes</span>${mapEsc(P.sarah)}</div>` : '';
+    return `
+      <div class="sim-notebook-section sim-bet sim-bet--taken">
+        <div class="sim-notebook-head sim-notebook-head--bet">ANALYST'S BET <span class="sim-bet-state">${stanceLabel}</span></div>
+        <p class="sim-bet-pick">${mapEsc(pick ? pick.label : '')}</p>
+        ${recap}
+        ${coach}
+      </div>`;
+  }
+  const opts = (def.options || []).map(o =>
+    `<button type="button" class="sim-bet-opt sim-bet-opt--${o.stance === 'strong' ? 'strong' : 'hedge'}" data-analyst-bet="${mapEsc(o.id)}">${mapEsc(o.label)}</button>`
+  ).join('');
+  return `
+    <div class="sim-notebook-section sim-bet">
+      <div class="sim-notebook-head sim-notebook-head--bet">ANALYST'S BET <span class="sim-bet-optional">optional</span></div>
+      <p class="sim-bet-prompt">${mapEsc(def.prompt)}</p>
+      <div class="sim-bet-opts">${opts}</div>
+      <p class="sim-bet-note">Staking your read dips your displayed confidence until your next sound call \u2014 it never changes your score.</p>
+    </div>`;
 }
 
 /* ================================================================== *
@@ -1937,7 +2711,8 @@ const SNAPSHOT_WINDOW = 2;        // Scope Snapshot visible for the next N judgm
 function freshPowersState() {
   return {
     standingSpent: 0,             // standing already spent (standing = sound calls - this, clamped)
-    confSpend: 0,                 // recoverable Investigation Confidence DISPLAY dip (Railguard)
+    confSpend: 0,                 // recoverable Investigation Confidence DISPLAY dip (Railguard / bet)
+    confSpendSource: null,        // who staked the dip: 'railguard' | 'bet' (routes recovery)
     spent: {},                    // powerId -> true (once-per-mission guard)
     active: {},                   // powerId -> live effect payload (time-bound)
     announced: new Set(),         // powerId -> earn line already shown (once)
@@ -2075,7 +2850,7 @@ function useAnalystPower(id) {
   let railguarded = false;
   if (id === 'JP-001')      { P.active['JP-001'] = { pair: threadPair() }; }
   else if (id === 'JP-002') { P.active['JP-002'] = { left: SNAPSHOT_WINDOW, counts: scopeCounts() }; }
-  else if (id === 'JP-003') { P.confSpend = p.cost.confidence; P.active['JP-003'] = { calib: railguardMessage() }; railguarded = true; }
+  else if (id === 'JP-003') { P.confSpend = p.cost.confidence; P.confSpendSource = 'railguard'; P.active['JP-003'] = { calib: railguardMessage() }; railguarded = true; }
   P.sarah = p.sarahSpend;
   powerLog('spent', id);
   renderEvidencePanel();
@@ -2101,16 +2876,26 @@ function powersTick() {
   const sound = soundJudgmentCount();
   const newSound = sound > P.lastSoundCount;
 
-  // Recovery: a fresh sound call restores the Railguard confidence dip + closes it.
+  // Recovery: a fresh sound call restores the staked confidence dip + closes it.
+  // Route by who staked it so the bet stake never triggers the Railguard line.
   if (newSound && P.confSpend > 0) {
+    const src = P.confSpendSource;
     P.confSpend = 0;
-    if (P.active['JP-003']) expirePower('JP-003');
+    P.confSpendSource = null;
+    if (P.active['betSnapshot']) delete P.active['betSnapshot'];
+    if (src === 'bet') { P.sarah = 'Your read held \u2014 the certainty you staked is back.'; powerLog('recovered', 'BET'); }
+    else if (P.active['JP-003']) expirePower('JP-003');
     else { const rg = powerById('JP-003'); if (rg) { P.sarah = rg.sarahExpire; powerLog('recovered', 'JP-003'); } }
   }
   // Scope Snapshot counts down on each judgment step.
   if (P.active['JP-002']) {
     P.active['JP-002'].left -= 1;
     if (P.active['JP-002'].left <= 0) expirePower('JP-002');
+  }
+  // Bet-owned recap counts down the same way (separate key, no Sarah ceremony).
+  if (P.active['betSnapshot']) {
+    P.active['betSnapshot'].left -= 1;
+    if (P.active['betSnapshot'].left <= 0) delete P.active['betSnapshot'];
   }
   // Evidence Threader is a one-shot: it lasts until the NEXT judgment step.
   if (P.active['JP-001']) expirePower('JP-001');
@@ -2132,7 +2917,7 @@ function powersTick() {
 function analystPowersHtml() {
   const P = SIM.powers; if (!P) return '';
   const earned = ANALYST_POWERS.filter(p => P.announced.has(p.id));
-  const anyActive = Object.keys(P.active).length > 0;
+  const anyActive = ANALYST_POWERS.some(p => P.active[p.id]); // bet-owned keys never render here
   if (!earned.length && !anyActive) return '';
 
   const have = analystStanding();
@@ -2416,7 +3201,11 @@ function simCmdRead(arg, mode) {
   const firstRead = !SIM.read.has(file.name);
   SIM.read.add(file.name);
   simPrint(`── ${file.name} ──────────────────────────`, 'head');
-  (file.content || []).forEach(l => simPrint('  ' + l, 'file'));
+  if (markupEnabled()) {
+    (file.content || []).forEach((l, i) => simPrintFileLine(file.name, i, l));
+  } else {
+    (file.content || []).forEach(l => simPrint('  ' + l, 'file'));
+  }
   simPrint('', 'spacer');
   const evBefore = SIM.evidence.size;
   if (firstRead) (file.evidenceIds || []).forEach(surfaceEvidence);
@@ -6886,6 +7675,19 @@ function simInit() {
       // Judgment-to-Power tools (Task #117) — transient, presentation-only spend.
       const pwr = e.target.closest('[data-power]');
       if (pwr) { useAnalystPower(pwr.dataset.power); return; }
+      // Notebook Phase 3-5 — inline mark-up, derived findings, optional bet.
+      const mTag = e.target.closest('[data-markup-tag]');
+      if (mTag) { applyMarkupTag(mTag.dataset.markupTag); return; }
+      const mId = e.target.closest('[data-markup-id]');
+      if (mId) { reopenMarkup(mId.dataset.markupId); return; }
+      const chip = e.target.closest('[data-finding-chip]');
+      if (chip) { cycleFindingChip(chip.dataset.challenge, chip.dataset.findingChip); return; }
+      const commit = e.target.closest('[data-finding-commit]');
+      if (commit) { commitFinding(commit.dataset.findingCommit); return; }
+      const reopen = e.target.closest('[data-finding-reopen]');
+      if (reopen) { openChallengeInComms(reopen.dataset.findingReopen); return; }
+      const bet = e.target.closest('[data-analyst-bet]');
+      if (bet) { takeAnalystBet(bet.dataset.analystBet); return; }
       // Optional side-trails (presentation-only) — expand/collapse + two-step judgment.
       const stOpen = e.target.closest('[data-sidetrail-open]');
       if (stOpen) { openSideTrail(stOpen.dataset.sidetrailOpen); return; }
@@ -6904,7 +7706,32 @@ function simInit() {
       if (rec) { submitRecommendation(rec.dataset.rec); return; }
       if (e.target.closest('[data-done]')) { returnFromCareerMission(); return; }
     });
+
+    // Keyboard parity for Phase 3-5 controls that are not native <button>s:
+    // file lines (whole-line mark-up) and existing highlights (reopen in comms).
+    careerOps.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      const fl = e.target.closest('[data-fileline]');
+      if (fl) { e.preventDefault(); markupWholeLine(fl); return; }
+      const mk = e.target.closest('[data-markup-id]');
+      if (mk) { e.preventDefault(); reopenMarkup(mk.dataset.markupId); return; }
+    });
   }
+
+  // Phase 3 selection capture: surface the Fact/Anomaly/Unknown popover when the
+  // player selects text inside the file view (mouse) or finishes a shift-select
+  // (keyboard). Bound once to the stable terminal container.
+  const term = document.getElementById('simTerminal');
+  if (term) {
+    term.addEventListener('mouseup', () => setTimeout(onTerminalSelection, 0));
+    term.addEventListener('keyup', e => { if (e.shiftKey || e.key === 'Shift') setTimeout(onTerminalSelection, 0); });
+  }
+  // Dismiss the popover on any pointer-down outside it (but not on the controls
+  // it carries — those route through the delegated click handler first).
+  document.addEventListener('mousedown', e => {
+    const pop = document.getElementById('simMarkupPopover');
+    if (pop && !pop.hidden && !pop.contains(e.target)) hideMarkupPopover();
+  });
 
   // Own Escape handler for the career Operating Center. oc.js's handler is
   // harmless when #careerOps is open (its screen checks all fall through).

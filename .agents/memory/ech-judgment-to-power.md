@@ -51,3 +51,22 @@ Risk Railguard). Lives entirely on `SIM.powers` (transient, reset on
   paths all guard `SIM.powers` being null.
 - `analystPowersHtml()` returns `''` until the first tool is earned — no
   locked-power grind list (keeps it professional, not gamey).
+
+## Reusing the confSpend mechanic (e.g. the optional Analyst's Bet)
+
+- `confSpend` is a SINGLE shared variable, so any second confidence-dip feature
+  (the Bet's strong stake) CANNOT stack a second dip — only stake when
+  `confSpend === 0`, and tag `confSpendSource` ('railguard' | 'bet').
+  **Why:** `powersTick` recovery must run the RIGHT ceremony — a bet recovery must
+  not fire the Railguard expire line, and vice-versa. Route recovery by
+  `confSpendSource`, not by which `active` key exists.
+  **How to apply:** new dip → set `confSpendSource`; recovery branch reads it,
+  clears both `confSpend` + source, and tears down its own `active` key. Use
+  bet-OWNED active keys (`betSnapshot`) so `analystPowersHtml`'s "any tool active"
+  guard (`ANALYST_POWERS.some(p=>P.active[p.id])`) never spuriously renders an
+  empty EARNED TOOLS box for a non-power key.
+- Display-only state that is SNAPSHOTTED must also be RENDERED and stay mutable:
+  `SIM.committedFindings` was invisible until a timeline renderer existed, and the
+  commit action must remain reachable after first commit (dirty-state re-commit:
+  compare live composed text vs the stored snapshot) or the record silently
+  diverges from the editable draft.

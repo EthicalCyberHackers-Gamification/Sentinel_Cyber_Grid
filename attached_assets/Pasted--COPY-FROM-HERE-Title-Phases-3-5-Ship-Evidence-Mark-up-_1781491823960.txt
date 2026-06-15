@@ -1,0 +1,94 @@
+—— COPY FROM HERE ——
+
+Title: Phases 3–5 — Ship Evidence Mark‑up, Derived Findings, and Optional Analyst’s Bet (Preserve Single Write Path)
+
+Task
+Implement Phases 3–5 to deepen immersion while keeping the existing judgment engine, scoring, confidence, and persistence unchanged. All authoritative writes must continue to flow only through the existing setDiscoveryJudgment chokepoint. New features are presentation/view‑state only and must not reveal keyed answers.
+
+Goals
+• Phase 3: Inline evidence mark‑up in artifact viewers; implication handled via Sarah Comms.
+• Phase 4: Auto‑compose 1–2 sentence findings with chip edits (derived view only).
+• Phase 5: Optional “Analyst’s Bet” hypothesis check that can unlock a scoped context view.
+• Zero exam chrome; zero correctness reveal; zero new write endpoints.
+
+Global constraints
+• Do not modify backend schema or add new POST targets.
+• Do not display ✓/✗, “correct answer,” or “Partly right” anywhere.
+• Chip edits must never mutate the authoritative graded record.
+• Confidence/consequence updates must go through existing helpers; if currently display‑only, keep them that way.
+• A11y parity or better: keyboard flows for select → tag → commit.
+
+Inputs available (reuse existing)
+• Artifact viewers (logs, emails, file metadata) and their IDs.
+• Judgment prompts/options and outcome enums.
+• Existing confidence/consequence update helpers.
+• Sarah Comms panel from Phase 1.
+
+Deliverables
+
+Phase 3 — Inline evidence mark‑up
+• Add selection overlays to artifact viewers (logs/emails/filemeta).
+• On text selection, show a compact popover with: Fact | Anomaly | Unknown.
+• If Anomaly is chosen:
+  - Call setDiscoveryJudgment(context = { artifactId, selectionRange }), no new API.
+  - Immediately route the follow‑up “Why does it matter?” judgment to Sarah Comms (reuse Phase 1 renderer).
+• Persist highlights client‑side only (component/view state). Do not write highlights to backend.
+• Clicking a highlight: reopens the linked decision in Comms (no correctness reveal).
+• Keyboard: Shift+Arrow to select, Enter to open popover, arrows/Enter to tag, Enter to reopen.
+
+Acceptance (P3)
+• Highlight → tag → implication via Comms works.
+• Only existing write function is called; no answer reveal; backend schema untouched.
+
+Phase 4 — Auto‑composed findings (derived text with chip edits)
+• After a judgment resolves, render a 1–2 sentence finding with chips populated from the graded payload + artifact metadata.
+  - Template examples:
+    - “Anomaly: [actor] [action] [asset] without [control] during [timewindow] — risk [level].”
+    - “Interpretation: Evidence suggests [cause] impacting [businessarea].”
+• Provide mission‑supplied vocabularies for chip values; allow cycling via click/keyboard.
+• Chip edits update the displayed sentence only (derived view). Show a “Derived from Decision <id>” badge linking back to the source decision in Comms.
+• “Commit Finding” snapshots the derived sentence to the on‑screen timeline only. Authoritative persistence remains the record produced by setDiscoveryJudgment. No new backend writes.
+
+Acceptance (P4)
+• A clean textual finding with editable chips displays after decisions.
+• Chip edits do not change stored graded data; no new write endpoint exists.
+
+Phase 5 — Optional Analyst’s Bet (one per mission)
+• In Sarah Comms, offer a single optional prompt per mission:
+  - “If your current read is X, which disconfirming evidence would you expect first?”
+• Present 2–3 plausible hypotheses. None may contain literal keyed answers.
+• Strong hypothesis:
+  - Open a read‑only “Scope Snapshot” panel (curated artifact slice relevant to the hypothesis).
+  - Apply a small Confidence spend using the existing helper (display the subtle ▲ nudge).
+• Weak hypothesis:
+  - Show a brief coaching line; no unlock.
+• Log selection to telemetry only; do not alter the graded record or introduce a new write.
+
+Acceptance (P5)
+• Optional exchange functions; no gating of core flow.
+• No correctness leaks; confidence helper invoked safely.
+
+Telemetry to add
+• P3: highlights created/resolved, time from first highlight to decision, reopen count.
+• P4: chip edit events (field, from→to), flag when diverging from source; commit count.
+• P5: participation rate, hypothesis selection distribution, post‑Bet judgment accuracy deltas.
+
+Checks
+• node --check clean; typecheck clean.
+• No backend schema diffs; no added write endpoints.
+• A11y: keyboard ops verified for selection, tagging, chip cycling, commit.
+• Architect/evaluator PASS on invariants: single write path preserved; no answer/correctness reveals; presentation‑only changes.
+
+Implementation notes
+• Use existing Comms component for all follow‑ups; do not introduce a second judgment UI.
+• Keep highlight ranges normalized to artifact‑local indices to avoid cross‑paging ambiguity.
+• If a chip conflicts materially with the underlying source (e.g., asset mismatch), show a gentle warning and offer “Re‑open decision” (navigates to Comms) rather than mutating stored data.
+
+Content needed (minimal)
+• Mission vocabularies for chips: [actor], [action], [asset], [control], [timewindow], [level], [cause], [businessarea].
+• 12–18 Sarah one‑liners keyed to outcome enums (strong / near‑miss / miss).
+• 1–2 Scope Snapshot definitions (read‑only panels) per mission for the Analyst’s Bet unlock.
+
+Now build Phases 3–5 with these guardrails.
+
+—— COPY ENDS ——
