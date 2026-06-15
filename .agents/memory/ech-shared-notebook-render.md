@@ -78,3 +78,24 @@ attention layer bridges terminal→notebook. Two non-obvious invariants:
 - Auto-scroll is container-only (`.sim-evidence-body.scrollTo`, guarded) targeting the
   pending card for `newestEvidence()` (`data-ev` on the card), never the page; honour
   `prefers-reduced-motion` for scroll behaviour + pulse/flash animations.
+
+## Notebook content-type visual identity (presentation-only)
+
+Notebook type-identity/readability is driven by SHARED CSS modifier classes, not
+per-mission code: `.sim-notebook-head--{evidence|risks|facts|hyp|questions|recs|
+identify|response|judgment}` give each header a per-type accent + glyph
+(`content:var(--nb-icon)`) + divider, and evidence cards weight by tier via
+`.sim-ev-item--{key|notable|minor}` derived from the SAME `qualityWeight` expression
+that prints the KEY/NOTABLE/MINOR label (so card weight can't drift from the label).
+
+**Gotcha:** for the shipping Intern missions (all `caseFileNotebook`), the content
+types the player must distinguish — facts / assessment / reasoning / unknowns /
+recommendations — live INSIDE the CASE FILE block as `.sim-casefile-row--{fact|assess|
+reason|unknown|rec}` rows, NOT as the standard-path FACTS/HYP/QUESTIONS/RECS sections
+(those are dormant — see above). So readability/styling work on those content types
+must target the case-file rows; the `.sim-notebook-head--{facts,hyp,…}` header types
+only render on a (currently unused) standard-path mission.
+
+**How to apply:** keep type identity in shared classes so both notebook paths benefit;
+add no new animation in this layer (the reduced-motion media query precedes it); the
+section left-rule uses `:has()` purely as enhancement, with the base border as fallback.

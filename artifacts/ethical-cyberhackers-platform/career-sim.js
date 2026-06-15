@@ -796,7 +796,7 @@ function risksNotebookHtml() {
   }).join('');
   return `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head">POTENTIAL RISKS <span class="sim-notebook-count">${found}/${risks.length}</span></div>
+      <div class="sim-notebook-head sim-notebook-head--risks">POTENTIAL RISKS <span class="sim-notebook-count">${found}/${risks.length}</span></div>
       <ul class="sim-risks">${items}</ul>
     </div>`;
 }
@@ -826,7 +826,7 @@ function notebookExtrasHtml() {
     }).join('');
     html += `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head">FACTS <span class="sim-notebook-count">${count}/${facts.length} verified</span></div>
+      <div class="sim-notebook-head sim-notebook-head--facts">FACTS <span class="sim-notebook-count">${count}/${facts.length} verified</span></div>
       <ul class="sim-facts">${items}</ul>
     </div>`;
   }
@@ -841,7 +841,7 @@ function notebookExtrasHtml() {
     }).join('');
     html += `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head">WORKING HYPOTHESES <span class="sim-notebook-count">${count}/${hyp.length}</span></div>
+      <div class="sim-notebook-head sim-notebook-head--hyp">WORKING HYPOTHESES <span class="sim-notebook-count">${count}/${hyp.length}</span></div>
       <ul class="sim-hyps">${items}</ul>
     </div>`;
   }
@@ -855,7 +855,7 @@ function notebookExtrasHtml() {
     }).join('');
     html += `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head">OPEN QUESTIONS <span class="sim-notebook-count">${open} open</span></div>
+      <div class="sim-notebook-head sim-notebook-head--questions">OPEN QUESTIONS <span class="sim-notebook-count">${open} open</span></div>
       <ul class="sim-unknowns">${items}</ul>
     </div>`;
   }
@@ -873,7 +873,7 @@ function notebookExtrasHtml() {
     }).join('');
     html += `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head">RECOMMENDATIONS <span class="sim-notebook-count">${onCount}/${recs.length}</span></div>
+      <div class="sim-notebook-head sim-notebook-head--recs">RECOMMENDATIONS <span class="sim-notebook-count">${onCount}/${recs.length}</span></div>
       <ul class="sim-actions">${items}</ul>
     </div>`;
   }
@@ -896,7 +896,7 @@ function identifyNotebookHtml() {
     : '';
   return `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head">${idf.head || 'YOUR DETERMINATION'}</div>
+      <div class="sim-notebook-head sim-notebook-head--identify">${idf.head || 'YOUR DETERMINATION'}</div>
       <div class="sim-identify-prompt">${idf.prompt || ''}</div>
       <div class="sim-identify-opts">${opts}</div>
       ${note}
@@ -922,7 +922,7 @@ function responseStatusHtml() {
   const on = !!d;
   return `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head">RECOMMENDED RESPONSE</div>
+      <div class="sim-notebook-head sim-notebook-head--response">RECOMMENDED RESPONSE</div>
       <ul class="sim-risks">
         <li class="sim-risk${on ? ' sim-risk--on' : ''}"><span class="sim-risk-box" aria-hidden="true">${on ? '☑' : '☐'}</span><span>${label}</span></li>
       </ul>
@@ -953,7 +953,7 @@ function renderEvidencePanel() {
     'No evidence yet. Use the terminal to investigate — each command can surface new findings.';
   const evSection = `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head">EVIDENCE COLLECTED <span class="sim-notebook-count">${SIM.evidence.size}</span></div>
+      <div class="sim-notebook-head sim-notebook-head--evidence">EVIDENCE COLLECTED <span class="sim-notebook-count">${SIM.evidence.size}</span></div>
       ${evItems || `<p class="sim-empty">${emptyMsg}</p>`}
     </div>`;
 
@@ -1076,7 +1076,7 @@ function renderEvItem(e, mode) {
   }
 
   return `
-    <div class="sim-ev-item sim-ev-item--${mode}">
+    <div class="sim-ev-item sim-ev-item--${mode} sim-ev-item--${tier.toLowerCase()}">
       <div class="sim-ev-meta">
         <span class="sim-ev-quality">${tier} FINDING</span>
         <span class="sim-ev-src">${e.source || ''}</span>
@@ -1316,7 +1316,7 @@ function analystJudgmentHtml() {
   const cards = vis.map(discoveryCardHtml).join('');
   return `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head">ANALYST JUDGMENT <span class="sim-notebook-count">${answered}/${vis.length}</span></div>
+      <div class="sim-notebook-head sim-notebook-head--judgment">ANALYST JUDGMENT <span class="sim-notebook-count">${answered}/${vis.length}</span></div>
       ${cards}
     </div>`;
 }
@@ -1338,7 +1338,7 @@ function caseFileNextStep() {
 /* One labelled case-file row. */
 function caseFileRow(tag, mod, bodyHtml) {
   return `
-    <div class="sim-casefile-row">
+    <div class="sim-casefile-row sim-casefile-row--${mod}">
       <span class="sim-casefile-tag sim-casefile-tag--${mod}">${tag}</span>
       <div class="sim-casefile-body">${bodyHtml}</div>
     </div>`;

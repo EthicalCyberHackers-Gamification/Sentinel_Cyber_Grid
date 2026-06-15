@@ -1871,3 +1871,171 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
   .sim-discovery--pending { animation: none; }
   .sim-side-card { transition: none; }
 }
+
+/* ==================================================================
+ * ANALYST NOTEBOOK — readability / visual hierarchy
+ * ------------------------------------------------------------------
+ * Presentation-only legibility pass. Every notebook content type now
+ * advertises WHAT it is (accent colour + glyph + divider), evidence
+ * cards are weighted by importance (KEY > NOTABLE > MINOR), and
+ * sections read as distinct, scannable groups instead of one flat,
+ * uniform wall. No animation/transition is introduced here (attention
+ * cues live elsewhere), so the reduced-motion rules above still hold.
+ * Type accents: evidence=amber · questions/judgment=cyan · facts=green
+ * · hypotheses=purple · risks=red · recommendations/response=orange.
+ * ================================================================== */
+
+/* --- Type-coded section headers ------------------------------------- */
+.sim-notebook-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-hud);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--nb-accent, var(--cyan-dim));
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.sim-notebook-head::before {
+  content: var(--nb-icon, "\25B8");
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--nb-accent, var(--cyan-dim));
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+}
+.sim-notebook-head .sim-notebook-count { margin-left: auto; }
+
+/* Accent + glyph per content type (custom props inherit to ::before/color). */
+.sim-notebook-head--evidence  { --nb-accent: var(--yellow); --nb-icon: "\2756"; }
+.sim-notebook-head--questions { --nb-accent: var(--cyan);   --nb-icon: "?"; }
+.sim-notebook-head--judgment  { --nb-accent: var(--cyan);   --nb-icon: "?"; }
+.sim-notebook-head--identify  { --nb-accent: var(--cyan);   --nb-icon: "\25CE"; }
+.sim-notebook-head--facts     { --nb-accent: var(--green);  --nb-icon: "\2713"; }
+.sim-notebook-head--hyp       { --nb-accent: var(--purple); --nb-icon: "\25C7"; }
+.sim-notebook-head--risks     { --nb-accent: var(--red);    --nb-icon: "!"; }
+.sim-notebook-head--recs      { --nb-accent: var(--orange); --nb-icon: "\279C"; }
+.sim-notebook-head--response  { --nb-accent: var(--orange); --nb-icon: "\25B6"; }
+
+/* --- Section separation --------------------------------------------- *
+ * List-style sections get a faint accent rule down their left edge for
+ * at-a-glance grouping. Card-bearing sections (evidence, judgment) stay
+ * flush because their cards already carry strong per-item identity. */
+.sim-notebook-section {
+  margin-bottom: 16px;
+  padding-left: 11px;
+  border-left: 2px solid var(--border);
+}
+.sim-notebook-section:has(.sim-notebook-head--evidence),
+.sim-notebook-section:has(.sim-notebook-head--judgment) {
+  padding-left: 0;
+  border-left: 0;
+}
+.sim-notebook-section:has(.sim-notebook-head--questions),
+.sim-notebook-section:has(.sim-notebook-head--identify) { border-left-color: rgba(0, 229, 255, 0.32); }
+.sim-notebook-section:has(.sim-notebook-head--facts)     { border-left-color: rgba(0, 255, 136, 0.30); }
+.sim-notebook-section:has(.sim-notebook-head--hyp)       { border-left-color: rgba(168, 85, 247, 0.36); }
+.sim-notebook-section:has(.sim-notebook-head--risks)     { border-left-color: rgba(255, 51, 68, 0.36); }
+.sim-notebook-section:has(.sim-notebook-head--recs),
+.sim-notebook-section:has(.sim-notebook-head--response)  { border-left-color: rgba(255, 107, 0, 0.36); }
+
+/* --- Evidence cards weighted by importance -------------------------- *
+ * All stay in the amber "evidence" family so they still read as one
+ * type, but KEY findings command the eye and MINOR ones recede. */
+.sim-ev-item--key {
+  border-left-width: 4px;
+  border-left-color: var(--yellow);
+  background:
+    linear-gradient(90deg, rgba(255, 215, 0, 0.07), rgba(255, 215, 0, 0.012) 55%, transparent),
+    var(--bg-panel-alt);
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.10);
+}
+.sim-ev-item--notable {
+  border-left-width: 3px;
+  border-left-color: rgba(255, 215, 0, 0.55);
+}
+.sim-ev-item--minor {
+  border-left-width: 2px;
+  border-left-color: var(--text-muted);
+}
+
+/* Tier chip reads as a weighted badge rather than flat grey text. */
+.sim-ev-item--key .sim-ev-quality {
+  background: var(--yellow);
+  color: #1a1400;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+.sim-ev-item--notable .sim-ev-quality {
+  color: var(--yellow);
+  border: 1px solid rgba(255, 215, 0, 0.45);
+  padding: 0 5px;
+  border-radius: var(--radius-sm);
+}
+.sim-ev-item--minor .sim-ev-quality { color: var(--text-dim); }
+
+/* --- Reflection step reads as a "question" (cyan) ------------------- */
+.sim-reflect-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  color: var(--cyan);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.sim-reflect-head::before {
+  content: "?";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--cyan);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+}
+
+/* --- Case file rows: one accent per record type -------------------- *
+ * The case file packs FACT / ASSESSMENT / REASON / UNKNOWNS /
+ * RECOMMENDATIONS into one block; give each row a left accent + a
+ * stronger label so the five record types stop reading as one grey list. */
+.sim-casefile-row {
+  gap: 10px;
+  padding: 4px 0 4px 9px;
+  border-left: 2px solid var(--border);
+}
+.sim-casefile-row + .sim-casefile-row { margin-top: 2px; }
+.sim-casefile-tag {
+  flex-basis: 84px;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.sim-casefile-row--fact    { border-left-color: rgba(0, 255, 136, 0.40); }
+.sim-casefile-row--assess  { border-left-color: rgba(255, 215, 0, 0.45); }
+.sim-casefile-row--reason  { border-left-color: rgba(0, 229, 255, 0.40); }
+.sim-casefile-row--unknown { border-left-color: rgba(255, 107, 0, 0.45); }
+.sim-casefile-row--rec     { border-left-color: rgba(168, 85, 247, 0.45); }
+.sim-casefile-tag--fact    { color: var(--green); }
+.sim-casefile-tag--assess  { color: var(--yellow); }
+.sim-casefile-tag--reason  { color: var(--cyan); }
+.sim-casefile-tag--unknown { color: var(--orange); }
+.sim-casefile-tag--rec     { color: var(--purple); }
