@@ -1,0 +1,76 @@
+—— COPY FROM HERE ——
+
+Title: Replace Graded Notebook with Live Comms + Inline Evidence Mark‑up (Keep Scoring Intact)
+
+Task
+Redesign the right‑column “Analyst Notebook” so it feels like live investigation rather than a graded exam. Keep the existing judgment engine, scoring, confidence, and consequence logic untouched. Remove answer‑key UI (✓/✗, “correct answer”, “Partly right”). Route judgments through an in‑character Sarah Comms panel and inline evidence highlighting. Auto‑compose findings; avoid free‑form essay boxes.
+
+Goals
+• Preserve current correctness, confidence deltas, and persistence.
+• Eliminate test‑like visuals and flows.
+• Let players act on artifacts directly (highlight/mark), then state implications via live comms with Sarah.
+• Generate concise, editable findings automatically from player actions.
+
+Constraints
+• No changes to backend judgment APIs (e.g., setDiscoveryJudgment), scoring rules, or data schema.
+• No correctness reveal in UI (no ✓/✗, no “correct answer” text).
+• Tone: professional, in‑universe; mentorship over grading.
+
+Inputs (use existing sources)
+• Current judgment prompts and options.
+• Outcome enums mapping to confidence/consequence updates.
+• Artifact viewers (terminal/log/email/filemeta) content.
+
+Output (deliverables)
+1) Comms renderer
+• Present judgment prompts as Sarah messages.
+• Render options as first‑person response buttons the player “says”.
+• On select: call existing grading function; do not reveal correctness.
+• Map outcome to one short Sarah line (Coaching | Calibration | Context).
+
+2) Artifact inline mark‑up
+• Enable text selection in artifact viewers.
+• On selection: show a tag popover with Fact | Anomaly | Unknown.
+• Tagging Anomaly triggers the “What stands out?” judgment (context = selected snippet).
+• Immediately open the follow‑up “Why does it matter?” in Comms.
+• Persist a subtle, labeled highlight; clicking it reopens the related decision.
+
+3) Auto‑compose Finding blocks
+• After each interpret/justify step, generate a 1–2 sentence finding with editable chips:
+  - Template examples:
+    - “Anomaly: [actor] [action] [asset] without [control] during [timewindow] — risk [level].”
+    - “Interpretation: Evidence suggests [cause] impacting [businessarea].”
+• Commit writes to the existing notebook/record schema. No blank textarea.
+
+4) Diegetic feedback signals (replace grades)
+• Confidence micro‑nudge (+/‑) animation only.
+• Evidence Diversity dots (0–3) fill as distinct sources support a finding.
+• Optional Operational Friction micro‑bar rises on over‑escalation choices.
+• No “correct/incorrect/partly right” labels anywhere.
+
+5) Optional “Analyst’s Bet” (once per mission)
+• Sarah offers an optional hypothesis check: “If your read is X, which disconfirming evidence would you expect?”
+• Strong pick: reveal a scoped “Scope Snapshot” artifact at a small Confidence spend.
+• Weak pick: brief coaching line. Entirely optional, no gating.
+
+Acceptance criteria
+• Players can complete a finding with ≤15 typed words and never see an answer key.
+• Time from first highlight to committed finding ≤90 seconds once artifacts are present.
+• Confidence and consequence systems update exactly as before.
+• Qual feedback: players describe it as “working a case,” not “taking a test.”
+
+Implementation notes
+• Do not alter correctness logic or persistence; only change renderers and interactions.
+• Comms outcome mapping: provide 12–18 Sarah one‑liners keyed to existing outcome enums (strong/near‑miss/miss).
+• Chip vocab: supply mission‑specific values for [actor], [action], [asset], [control], [timewindow], [level], [cause], [businessarea].
+• Accessibility: keyboard navigation for highlight→tag→commit flows.
+
+Telemetry to log
+• Time to first committed finding after artifact availability.
+• Ratio of highlights leading to decisions vs. abandoned highlights.
+• Evidence source count per committed finding.
+• Confidence spends (if using Analyst’s Bet), and post‑spend accuracy.
+
+Now build.
+
+—— COPY ENDS ——

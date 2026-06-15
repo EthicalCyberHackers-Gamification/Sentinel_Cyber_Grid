@@ -782,6 +782,18 @@ function displayInvestigationConfidence() {
   return Math.max(10, base - spend);
 }
 
+/* Evidence breadth — how many distinct signal strengths (minor / notable / key)
+ * the player has surfaced so far. Diegetic progress cue: reads SIM.evidence,
+ * writes nothing, and never implies any judgment is right or wrong. 0..3. */
+function evidenceBreadth() {
+  const tiers = new Set();
+  simEvidenceDefs().forEach(e => {
+    if (!SIM.evidence.has(e.id)) return;
+    tiers.add(e.qualityWeight >= 3 ? 'key' : e.qualityWeight === 2 ? 'notable' : 'minor');
+  });
+  return tiers.size;
+}
+
 function confidenceMeterHtml() {
   const c = displayInvestigationConfidence();
   const spend = (SIM.powers && SIM.powers.confSpend) || 0;
@@ -789,11 +801,19 @@ function confidenceMeterHtml() {
   const note = spend > 0
     ? `\u2212${spend}% held for a calibration check \u00b7 recovers with your next sound judgment.`
     : 'Climbs as your commands uncover evidence.';
+  const breadth = evidenceBreadth();
+  const dots = [0, 1, 2]
+    .map(i => `<span class="sim-breadth-dot${i < breadth ? ' sim-breadth-dot--on' : ''}"></span>`)
+    .join('');
   return `
     <div class="sim-confidence sim-confidence--${tone}${spend > 0 ? ' sim-confidence--spent' : ''}">
-      <div class="sim-confidence-head"><span>INVESTIGATION CONFIDENCE</span><span class="sim-confidence-pct">${c}%</span></div>
+      <div class="sim-confidence-head"><span>INVESTIGATION CONFIDENCE</span><span class="sim-confidence-pct"><span class="sim-confidence-nudge" aria-hidden="true">\u25B2</span>${c}%</span></div>
       <div class="sim-confidence-meter"><span class="sim-confidence-fill" style="width:${c}%"></span></div>
       <div class="sim-confidence-note">${note}</div>
+      <div class="sim-confidence-breadth" role="img" aria-label="Evidence breadth: ${breadth} of 3 signal strengths gathered (minor, notable, key)">
+        <span class="sim-confidence-breadth-label">EVIDENCE BREADTH</span>
+        <span class="sim-breadth-dots" aria-hidden="true">${dots}</span>
+      </div>
     </div>`;
 }
 
@@ -996,11 +1016,12 @@ function renderEvidencePanel() {
     SIM.nbEvidenceCount = evCount;
     const conf = investigationConfidence();
     const confChanged = SIM.nbConfidence != null && conf !== SIM.nbConfidence;
+    const confRose = SIM.nbConfidence != null && conf > SIM.nbConfidence;
     SIM.nbConfidence = conf;
     const pending = visibleDiscoveryChallenges()
       .filter(c => challengeValid(c) && !challengeAnswered(c)).length;
     const alert = pending > 0
-      ? `<span class="sim-nb-alert">${pending} to judge</span>` : '';
+      ? `<span class="sim-nb-alert">${pending} on comms</span>` : '';
     host.innerHTML = `
       <div class="sim-panel-head">ANALYST NOTEBOOK${alert}</div>
       <div class="sim-evidence-body">
@@ -1018,8 +1039,8 @@ function renderEvidencePanel() {
     const body = host.querySelector('.sim-evidence-body');
     if (body && grew) {
       const newest = newestEvidence();
-      const target = (newest && body.querySelector(`.sim-discovery--pending[data-ev="${newest.id}"]`))
-        || body.querySelector('.sim-discovery--pending')
+      const target = (newest && body.querySelector(`.sim-comms--pending[data-ev="${newest.id}"]`))
+        || body.querySelector('.sim-comms--pending')
         || body.querySelector('.sim-feed');
       if (target) simScrollBodyTo(body, target);
       void body.offsetWidth;                 // restart the highlight animation
@@ -1027,7 +1048,11 @@ function renderEvidencePanel() {
     }
     if (body && confChanged) {
       const meter = body.querySelector('.sim-confidence');
-      if (meter) { void meter.offsetWidth; meter.classList.add('sim-confidence--flash'); }
+      if (meter) {
+        void meter.offsetWidth;                // restart the meter animations
+        meter.classList.add('sim-confidence--flash');
+        if (confRose) meter.classList.add('sim-confidence--rose');  // directional micro-nudge
+      }
     }
     return;
   }
@@ -1184,16 +1209,16 @@ function investigationFeedHtml() {
   let judgeBlock = '';
   if (pendingObs) {
     judgeBlock = `<div class="sim-feed-judge">
-      <span class="sim-feed-judge-label">Required judgment</span>
-      <span class="sim-feed-judge-value">What stands out about "${pendingObs.short}"? — make the call below.</span></div>`;
+      <span class="sim-feed-judge-label">On comms</span>
+      <span class="sim-feed-judge-value">Sarah's waiting on your read of "${pendingObs.short}" — answer her below.</span></div>`;
   } else if (pendingJust) {
     judgeBlock = `<div class="sim-feed-judge">
-      <span class="sim-feed-judge-label">Required judgment</span>
-      <span class="sim-feed-judge-value">Why does "${pendingJust.short}" matter? — explain below.</span></div>`;
+      <span class="sim-feed-judge-label">On comms</span>
+      <span class="sim-feed-judge-value">Sarah wants to know why "${pendingJust.short}" matters — tell her below.</span></div>`;
   } else if (vis.length) {
     judgeBlock = `<div class="sim-feed-judge sim-feed-judge--done">
-      <span class="sim-feed-judge-label">Judgment</span>
-      <span class="sim-feed-judge-value">Every surfaced finding has been judged.</span></div>`;
+      <span class="sim-feed-judge-label">Comms</span>
+      <span class="sim-feed-judge-value">You and Sarah are in sync on every finding so far.</span></div>`;
   }
 
   const next = caseFileNextStep();
@@ -1249,78 +1274,91 @@ function reflectionCardHtml(e) {
  * setDiscoveryJudgment (the sole writer, already gated). Missions without the
  * flag never reach any of this. */
 
-/* One step of a discovery card (observation or justification): a prompt + its
- * options. Unanswered → clickable. Answered → locks, marks your pick + the
- * correct answer, and shows contextual Sarah Reyes feedback (distinct for
- * correct vs incorrect — never a bare "Correct."). */
+/* Present an authored Sarah line as a chat bubble: strip the redundant
+ * "— Sarah Reyes" attribution and any wrapping quotes, since the bubble already
+ * shows who is speaking. Presentation-only; never alters the stored string. */
+function commsSpeech(raw) {
+  let s = (raw || '').trim();
+  s = s.replace(/\s*[—–-]\s*Sarah Reyes\s*$/i, '').trim();
+  s = s.replace(/^["'\u201c\u2018]\s*/, '').replace(/\s*["'\u201d\u2019]$/, '').trim();
+  return s;
+}
+
+/* One turn of the comms exchange (observation or justification): Sarah asks, then
+ * either the player's response options ("things you say") or — once recorded —
+ * the player's chosen line plus Sarah's reply. NEVER reveals which option is
+ * correct: unchosen options are not rendered after a reply, and no correctness
+ * styling is emitted. The reply buttons keep the data-discovery-judgment hooks so
+ * the sole writer (setDiscoveryJudgment) is unchanged. */
 function discoveryStepHtml(ch, step, label) {
   const cfg = challengeStep(ch, step);
   if (!cfg) return '';
   const ans = challengeAnswers(ch)[step];
   const answered = !!ans;
-  const correct = answered && ans === cfg.correct;
-  const opts = cfg.options.map(o => {
-    if (!answered) {
-      return `<button type="button" class="sim-discovery-opt" data-discovery-judgment data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}">${o.label}</button>`;
+  let html = `
+    <div class="sim-comms-turn sim-comms-turn--${step}">
+      <div class="sim-comms-msg sim-comms-msg--sarah">
+        <span class="sim-comms-avatar" aria-hidden="true">SR</span>
+        <div class="sim-comms-bubble"><span class="sim-comms-cue">${label}</span>${cfg.prompt || ''}</div>
+      </div>`;
+  if (!answered) {
+    const opts = cfg.options.map(o =>
+      `<button type="button" class="sim-comms-reply" data-discovery-judgment data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}">${o.label}</button>`
+    ).join('');
+    html += `
+      <div class="sim-comms-replies" role="group" aria-label="Your response to Sarah">
+        <span class="sim-comms-replies-label">Your read — say it to Sarah</span>
+        ${opts}
+      </div>`;
+  } else {
+    const chosen = cfg.options.find(o => o.id === ans);
+    html += `
+      <div class="sim-comms-msg sim-comms-msg--you">
+        <div class="sim-comms-bubble">${chosen ? chosen.label : ''}</div>
+        <span class="sim-comms-avatar sim-comms-avatar--you" aria-hidden="true">YOU</span>
+      </div>`;
+    if (chosen && chosen.feedback) {
+      html += `
+      <div class="sim-comms-msg sim-comms-msg--sarah">
+        <span class="sim-comms-avatar" aria-hidden="true">SR</span>
+        <div class="sim-comms-bubble sim-comms-bubble--reply">${commsSpeech(chosen.feedback)}</div>
+      </div>`;
     }
-    let cls = 'sim-discovery-opt sim-discovery-opt--locked';
-    let mark = '';
-    if (o.id === ans && correct)   { cls += ' sim-discovery-opt--correct'; mark = '<span class="sim-discovery-mark">✓ your answer</span>'; }
-    else if (o.id === ans)         { cls += ' sim-discovery-opt--wrong';   mark = '<span class="sim-discovery-mark">✗ your answer</span>'; }
-    else if (o.id === cfg.correct) { cls += ' sim-discovery-opt--key';     mark = '<span class="sim-discovery-mark">correct answer</span>'; }
-    else                           { cls += ' sim-discovery-opt--muted'; }
-    return `<div class="${cls}">${o.label}${mark}</div>`;
-  }).join('');
-  const chosen = answered ? cfg.options.find(o => o.id === ans) : null;
-  const feedback = chosen
-    ? `<div class="sim-discovery-feedback sim-discovery-feedback--${correct ? 'correct' : 'wrong'}">
-         <span class="sim-discovery-feedback-label">Sarah Reyes</span>${chosen.feedback || ''}</div>`
-    : '';
-  return `
-    <div class="sim-discovery-step sim-discovery-step--${step}${answered ? (correct ? ' sim-discovery-step--correct' : ' sim-discovery-step--wrong') : ''}">
-      <div class="sim-discovery-step-label">${label}</div>
-      <div class="sim-discovery-prompt">${cfg.prompt || ''}</div>
-      <div class="sim-discovery-opts">${opts}</div>
-      ${feedback}
+  }
+  html += `
     </div>`;
+  return html;
 }
 
-/* One graded discovery card = the two-step judgment loop. Step 1 ("what stands
- * out?") is shown as soon as the finding surfaces; step 2 ("why does it matter?")
- * unlocks only after step 1 is recorded. Once both are in, the card is the
- * reasoning entry: the fact, your two picks + Sarah's feedback, a status chip and
- * a qualitative confidence impact (never a fake +N%). */
+/* One finding worked as a live comms exchange with Sarah — the two-step loop in
+ * chat form. Step 1 ("what stands out?") opens as soon as the finding surfaces;
+ * step 2 ("why does it matter?") appears only after step 1 is recorded. The card
+ * border + status pill track pending vs logged ONLY — never right/wrong — and no
+ * grade label is ever shown. Recording still flows through setDiscoveryJudgment. */
 function discoveryCardHtml(ch) {
   if (!challengeValid(ch)) return '';
   const obsAnswered = stepAnswered(ch, 'observation');
   const full = challengeAnswered(ch);
-  const status = full ? challengeStatus(ch) : null;
   const obsHtml = discoveryStepHtml(ch, 'observation', 'What stands out?');
-  const justHtml = obsAnswered
-    ? discoveryStepHtml(ch, 'justification', 'Why does it matter?')
-    : `<div class="sim-discovery-step sim-discovery-step--locked">Record what stands out to unlock the next question.</div>`;
-  let footer = '';
-  if (full) {
-    const impact = status === 'correct' ? 'Strengthens your case'
-      : status === 'partial' ? 'Partial support — revisit the reasoning'
-      : 'Weakens your case';
-    const label = status === 'correct' ? 'Sound judgment'
-      : status === 'partial' ? 'Partly right' : 'Off the mark';
-    footer = `<div class="sim-discovery-footer">
-        <span class="sim-discovery-status sim-discovery-status--${status}">${label}</span>
-        <span class="sim-discovery-impact">Investigation confidence — ${impact}</span>
-      </div>`;
-  }
-  const cardMod = full
-    ? (status === 'correct' ? ' sim-discovery--correct'
-      : status === 'partial' ? ' sim-discovery--partial' : ' sim-discovery--wrong')
-    : ' sim-discovery--pending';
+  const justHtml = obsAnswered ? discoveryStepHtml(ch, 'justification', 'Why does it matter?') : '';
+  const statusPill = full
+    ? `<span class="sim-comms-state sim-comms-state--logged">Call logged</span>`
+    : `<span class="sim-comms-state sim-comms-state--live">On the line</span>`;
+  const foot = full
+    ? `<div class="sim-comms-foot">Logged with Sarah — she has your read on ${ch.short || 'this finding'}.</div>`
+    : '';
+  const cardMod = full ? ' sim-comms--logged' : ' sim-comms--pending';
   return `
-    <div class="sim-discovery${cardMod}" data-ev="${ch.evidenceId || ''}">
-      <div class="sim-discovery-card-head">ANALYST JUDGMENT · ${ch.short || ''}</div>
-      ${obsHtml}
-      ${justHtml}
-      ${footer}
+    <div class="sim-comms${cardMod}" data-ev="${ch.evidenceId || ''}">
+      <div class="sim-comms-head">
+        <span class="sim-comms-channel"><span class="sim-comms-dot" aria-hidden="true"></span>SARAH REYES · ${ch.short || ''}</span>
+        ${statusPill}
+      </div>
+      <div class="sim-comms-thread" aria-live="polite">
+        ${obsHtml}
+        ${justHtml}
+      </div>
+      ${foot}
     </div>`;
 }
 
@@ -1333,7 +1371,7 @@ function analystJudgmentHtml() {
   const cards = vis.map(discoveryCardHtml).join('');
   return `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head sim-notebook-head--judgment">ANALYST JUDGMENT <span class="sim-notebook-count">${answered}/${vis.length}</span></div>
+      <div class="sim-notebook-head sim-notebook-head--comms" tabindex="-1">LIVE COMMS — SARAH REYES <span class="sim-notebook-count">${answered}/${vis.length}</span></div>
       ${cards}
     </div>`;
 }
@@ -1375,16 +1413,14 @@ function caseFileSummaryHtml() {
     ? `<ul class="sim-casefile-list">${confirmed.map(r => `<li>${r.label}</li>`).join('')}</ul>`
     : `<span class="sim-casefile-empty">No facts established yet — review the files in the terminal.</span>`;
 
-  // ASSESSMENT — your graded judgments (status + what you said stood out).
+  // ASSESSMENT — the calls you made on comms (what you told Sarah stood out).
+  // Presentation-only: lists your recorded reads, never a correctness mark.
   const assessBody = answered.length
     ? `<ul class="sim-casefile-list">${answered.map(c => {
-        const status = challengeStatus(c);
         const obs = challengeStep(c, 'observation').options.find(o => o.id === challengeAnswers(c).observation);
-        const mk = status === 'correct' ? '✓' : status === 'partial' ? '~' : '✗';
-        const cls = status === 'correct' ? 'ok' : status === 'partial' ? 'mid' : 'bad';
-        return `<li class="sim-casefile-${cls}"><span class="sim-casefile-mk">${mk}</span>${c.short}: ${obs ? obs.label : ''}</li>`;
+        return `<li class="sim-casefile-call">${c.short}: ${obs ? obs.label : ''}</li>`;
       }).join('')}</ul>`
-    : `<span class="sim-casefile-empty">No analyst judgments recorded yet.</span>`;
+    : `<span class="sim-casefile-empty">No analyst calls recorded yet.</span>`;
 
   // REASON — the justification you chose, with Sarah Reyes' note on each.
   const reasonBody = answered.length
@@ -1860,6 +1896,25 @@ function setDiscoveryJudgment(challengeId, step, optionId) {
   ans[step] = optionId;
   powersTick();              // earn/expire/recover analyst tools (transient, no render)
   renderEvidencePanel();
+  focusNextComms(challengeId, step); // keep keyboard focus inside the comms flow (a11y)
+}
+
+/* After a comms reply is recorded and the panel re-renders, move keyboard focus
+ * to the next thing the player says: the justification reply for the same
+ * finding, the first pending reply anywhere, else the comms section heading so
+ * focus never falls back to <body>. Presentation / accessibility only. */
+function focusNextComms(challengeId, step) {
+  const host = document.getElementById('simEvidence');
+  if (!host) return;
+  let target = null;
+  if (step === 'observation') {
+    target = host.querySelector(`.sim-comms-reply[data-challenge="${challengeId}"][data-step="justification"]`);
+  }
+  if (!target) target = host.querySelector('.sim-comms-reply');
+  if (!target) target = host.querySelector('.sim-notebook-head--comms');
+  if (target && typeof target.focus === 'function') {
+    try { target.focus({ preventScroll: true }); } catch (_e) { target.focus(); }
+  }
 }
 
 /* ================================================================== *

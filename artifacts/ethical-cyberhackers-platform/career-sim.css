@@ -863,6 +863,57 @@
 .sim-confidence--good .sim-confidence-fill { background: var(--green); }
 .sim-confidence-note { font-size: 10px; color: var(--text-muted); margin-top: 6px; line-height: 1.45; }
 
+/* Directional "▲" micro-nudge: the arrow sits hidden beside the % and floats up
+ * for one beat when confidence RISES (.sim-confidence--rose added post-render).
+ * Presentation-only — no number/delta, reinforces progress, never a grade. */
+.sim-confidence-pct { display: inline-flex; align-items: baseline; }
+.sim-confidence-nudge {
+  display: inline-block;
+  font-size: 8px;
+  margin-right: 3px;
+  color: var(--cyan);
+  opacity: 0;
+  transform: translateY(2px);
+}
+.sim-confidence--rose .sim-confidence-nudge { animation: simConfNudge 1100ms ease; }
+@keyframes simConfNudge {
+  0%   { opacity: 0; transform: translateY(3px); }
+  30%  { opacity: 1; transform: translateY(0); }
+  70%  { opacity: 1; transform: translateY(-1px); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+
+/* Evidence breadth — 3 dots that fill as distinct signal strengths (minor /
+ * notable / key) surface. Diegetic, derived from surfaced evidence only. */
+.sim-confidence-breadth {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed var(--border);
+}
+.sim-confidence-breadth-label {
+  font-family: var(--font-hud);
+  font-size: 8px;
+  letter-spacing: 1.1px;
+  color: var(--text-dim);
+}
+.sim-breadth-dots { display: inline-flex; gap: 4px; }
+.sim-breadth-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  transition: background var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+.sim-breadth-dot--on {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  box-shadow: 0 0 5px rgba(45, 212, 255, 0.45);
+}
+
 .sim-notebook-section { margin-bottom: 14px; }
 .sim-notebook-head {
   display: flex;
@@ -1453,80 +1504,94 @@
 .sim-feed-judge-value { font-family: var(--font-mono); font-size: 12px; color: var(--green); font-weight: 600; }
 
 /* ------------------------------------------------------------------ *
- * INVESTIGATION-FIRST (Mission 1 pilot): graded discovery cards + case file
+ * INVESTIGATION-FIRST (Intern missions): live Sarah-Reyes comms + case file
  * ------------------------------------------------------------------ */
 
-/* Graded "ANALYST JUDGMENT" discovery card */
-.sim-discovery {
+/* A finding worked as a live comms exchange with your shift lead — replaces the
+ * old graded "ANALYST JUDGMENT" card. No correctness colours are EVER emitted:
+ * the border + status pill track pending vs logged only, never right/wrong. */
+.sim-comms {
   margin-top: 10px;
   border: 1px solid var(--border);
-  border-left: 3px solid var(--yellow);
+  border-left: 3px solid var(--cyan-dim);
   border-radius: var(--radius-sm);
   background: var(--bg-panel-alt);
   padding: 11px 12px;
   animation: simEvIn 280ms ease;
 }
-.sim-discovery + .sim-discovery { margin-top: 8px; }
-.sim-discovery--correct { border-left-color: var(--green-dim); }
-.sim-discovery--wrong { border-left-color: var(--red); }
-.sim-discovery-card-head {
-  font-family: var(--font-hud);
-  font-size: 9.5px;
-  letter-spacing: 1.3px;
-  color: var(--yellow);
-  margin-bottom: 6px;
+.sim-comms + .sim-comms { margin-top: 8px; }
+.sim-comms-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 10px;
 }
-.sim-discovery--correct .sim-discovery-card-head { color: var(--green); }
-.sim-discovery--wrong .sim-discovery-card-head { color: var(--red); }
-.sim-discovery-prompt { font-size: 12px; line-height: 1.5; color: var(--text-bright); margin-bottom: 9px; }
-.sim-discovery-opts { display: flex; flex-direction: column; gap: 6px; }
-.sim-discovery-opt {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  text-align: left;
-  font-family: var(--font-body);
-  font-size: 11.5px;
-  line-height: 1.45;
+.sim-comms-channel {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-hud); font-size: 9.5px; letter-spacing: 1.3px;
+  color: var(--cyan);
+}
+.sim-comms-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--cyan); box-shadow: 0 0 6px var(--cyan);
+}
+.sim-comms--logged .sim-comms-dot { background: var(--text-dim); box-shadow: none; }
+.sim-comms-state {
+  font-family: var(--font-hud); font-size: 8px; letter-spacing: 1px;
+  padding: 2px 7px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); color: var(--text-dim); white-space: nowrap;
+}
+.sim-comms-state--live { color: var(--cyan); border-color: var(--cyan-dim); }
+.sim-comms-state--logged { color: var(--text-dim); }
+
+.sim-comms-thread { display: flex; flex-direction: column; gap: 9px; }
+.sim-comms-turn { display: flex; flex-direction: column; gap: 7px; }
+
+.sim-comms-msg { display: flex; align-items: flex-end; gap: 7px; }
+.sim-comms-msg--you { justify-content: flex-end; }
+.sim-comms-avatar {
+  flex: 0 0 auto;
+  font-family: var(--font-hud); font-size: 7.5px; letter-spacing: 0.5px;
+  color: var(--bg-panel); background: var(--cyan);
+  border-radius: 5px; padding: 3px 4px; line-height: 1;
+}
+.sim-comms-avatar--you { background: var(--green-dim); }
+.sim-comms-bubble {
+  max-width: 84%;
+  font-family: var(--font-body); font-size: 11.5px; line-height: 1.5;
+  color: var(--text-bright);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px; border-bottom-left-radius: 3px;
+  padding: 8px 10px;
+}
+.sim-comms-msg--you .sim-comms-bubble {
+  border-bottom-left-radius: 10px; border-bottom-right-radius: 3px;
+  border-color: var(--green-dim);
+}
+.sim-comms-bubble--reply { color: var(--text); }
+.sim-comms-cue {
+  display: block;
+  font-family: var(--font-hud); font-size: 8px; letter-spacing: 1px;
+  color: var(--cyan-dim); margin-bottom: 4px;
+}
+.sim-comms-replies { display: flex; flex-direction: column; gap: 6px; padding-left: 26px; }
+.sim-comms-replies-label {
+  font-family: var(--font-hud); font-size: 8px; letter-spacing: 1px; color: var(--text-dim);
+}
+.sim-comms-reply {
+  text-align: left; width: 100%;
+  font-family: var(--font-body); font-size: 11.5px; line-height: 1.45;
   color: var(--text);
   background: var(--bg-panel);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 7px 9px;
+  border-radius: 10px; border-bottom-right-radius: 3px;
+  padding: 7px 10px; cursor: pointer; transition: all var(--transition);
 }
-button.sim-discovery-opt { cursor: pointer; transition: all var(--transition); width: 100%; }
-button.sim-discovery-opt:hover { border-color: var(--border-glow); color: var(--text-bright); }
-.sim-discovery-opt--locked { cursor: default; }
-.sim-discovery-opt--muted { color: var(--text-dim); opacity: 0.75; }
-.sim-discovery-opt--correct { border-color: var(--green-dim); background: rgba(0, 255, 136, 0.08); color: var(--green); }
-.sim-discovery-opt--wrong { border-color: var(--red); background: rgba(255, 51, 68, 0.08); color: var(--red); }
-.sim-discovery-opt--key { border-color: var(--green-dim); color: var(--green); border-style: dashed; }
-.sim-discovery-mark {
-  font-family: var(--font-hud);
-  font-size: 8px;
-  letter-spacing: 1px;
-  white-space: nowrap;
-  opacity: 0.9;
+.sim-comms-reply:hover { border-color: var(--green-dim); color: var(--text-bright); }
+.sim-comms-reply:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.sim-comms-foot {
+  margin-top: 9px; padding-top: 8px; border-top: 1px dashed var(--border);
+  font-size: 10.5px; line-height: 1.45; color: var(--text-dim); font-style: italic;
 }
-.sim-discovery-feedback {
-  margin-top: 10px;
-  font-size: 11px;
-  line-height: 1.55;
-  color: var(--text);
-  border-top: 1px dashed var(--border);
-  padding-top: 8px;
-}
-.sim-discovery-feedback-label {
-  display: block;
-  font-family: var(--font-hud);
-  font-size: 8.5px;
-  letter-spacing: 1.2px;
-  margin-bottom: 3px;
-  color: var(--cyan-dim);
-}
-.sim-discovery-feedback--correct .sim-discovery-feedback-label { color: var(--green); }
-.sim-discovery-feedback--wrong .sim-discovery-feedback-label { color: var(--red); }
 
 /* CASE FILE — FACT / ASSESSMENT / REASON / UNKNOWNS / RECOMMENDATIONS */
 .sim-casefile {
@@ -1565,77 +1630,13 @@ button.sim-discovery-opt:hover { border-color: var(--border-glow); color: var(--
 .sim-casefile-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .sim-casefile-list li { font-size: 11px; line-height: 1.5; color: var(--text); }
 .sim-casefile-empty { font-size: 11px; line-height: 1.5; color: var(--text-dim); font-style: italic; }
-.sim-casefile-ok { color: var(--text-bright); }
-.sim-casefile-bad { color: var(--text-bright); }
-.sim-casefile-mk { font-family: var(--font-mono); margin-right: 5px; }
-.sim-casefile-ok .sim-casefile-mk { color: var(--green); }
-.sim-casefile-bad .sim-casefile-mk { color: var(--red); }
+.sim-casefile-call { color: var(--text); }
 .sim-casefile-done { font-size: 11px; line-height: 1.5; color: var(--green); }
 .sim-casefile-next { font-size: 11px; line-height: 1.5; color: var(--text); font-style: italic; }
-.sim-casefile-mid { color: var(--text-bright); }
-.sim-casefile-mid .sim-casefile-mk { color: var(--orange); }
 
-/* TWO-STEP ANALYST JUDGMENT — observation → justification ------------------
- * Each discovery card now stacks two graded steps. The card border-left tracks
- * the OVERALL status (correct / partial / wrong); each step carries its own
- * label, options and inline Sarah Reyes feedback. */
-.sim-discovery--partial { border-left-color: var(--orange); }
-.sim-discovery--partial .sim-discovery-card-head { color: var(--orange); }
-
-.sim-discovery-step {
-  margin-top: 9px;
-  padding: 9px 10px;
-  border: 1px solid var(--border);
-  border-left: 2px solid var(--border-glow);
-  border-radius: var(--radius-sm);
-  background: var(--bg-panel);
-}
-.sim-discovery-step:first-of-type { margin-top: 8px; }
-.sim-discovery-step--correct { border-left-color: var(--green-dim); }
-.sim-discovery-step--wrong { border-left-color: var(--red); }
-.sim-discovery-step--locked {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--text-dim);
-  font-style: italic;
-  border-left-color: var(--border);
-}
-.sim-discovery-step-label {
-  font-family: var(--font-hud);
-  font-size: 8.5px;
-  letter-spacing: 1.2px;
-  color: var(--cyan-dim);
-  margin-bottom: 6px;
-}
-.sim-discovery-step--justification .sim-discovery-step-label { color: var(--yellow); }
-.sim-discovery-step--correct .sim-discovery-step-label { color: var(--green); }
-.sim-discovery-step--wrong .sim-discovery-step-label { color: var(--red); }
-.sim-discovery-step .sim-discovery-prompt { margin-bottom: 7px; }
-.sim-discovery-step .sim-discovery-feedback { margin-top: 8px; }
-
-/* Card footer — status chip + qualitative confidence impact (never a fake +N%) */
-.sim-discovery-footer {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border);
-}
-.sim-discovery-status {
-  font-family: var(--font-hud);
-  font-size: 8.5px;
-  letter-spacing: 1px;
-  padding: 3px 7px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  white-space: nowrap;
-}
-.sim-discovery-status--correct { color: var(--green); border-color: var(--green-dim); background: rgba(0, 255, 136, 0.08); }
-.sim-discovery-status--partial { color: var(--orange); border-color: var(--orange); background: rgba(255, 170, 0, 0.08); }
-.sim-discovery-status--incorrect { color: var(--red); border-color: var(--red); background: rgba(255, 51, 68, 0.08); }
-.sim-discovery-impact { font-size: 10.5px; line-height: 1.45; color: var(--text-dim); }
+/* (The two-step judgment now renders as a Sarah-Reyes comms thread — see the
+ * .sim-comms* rules above. The old graded step / footer / status styles were
+ * removed entirely so no correctness colour can leak into the redesign.) */
 
 /* ------------------------------------------------------------------ *
  * Analyst Notebook feedback loop — attention cues
@@ -1673,10 +1674,17 @@ button.sim-discovery-opt:hover { border-color: var(--border-glow); color: var(--
   0%   { border-color: var(--cyan); box-shadow: 0 0 11px rgba(45, 212, 255, 0.4); }
   100% { border-color: var(--border); box-shadow: none; }
 }
+/* On a rise, the fill briefly brightens alongside the floating "▲" nudge. */
+.sim-confidence--rose .sim-confidence-fill { animation: simConfRise 1100ms ease; }
+@keyframes simConfRise {
+  0%   { filter: none; }
+  35%  { filter: brightness(1.5); }
+  100% { filter: none; }
+}
 
-/* Gentle "action required" pulse on a discovery card awaiting judgment. */
-.sim-discovery--pending {
-  border-left-color: var(--yellow);
+/* Gentle "you're on comms" pulse on a finding awaiting your reply. */
+.sim-comms--pending {
+  border-left-color: var(--cyan);
   animation: simEvIn 280ms ease, simPendPulse 2s ease-in-out 0.3s infinite;
 }
 @keyframes simPendPulse {
@@ -1868,8 +1876,11 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
   .sim-nb-alert,
   .sim-evidence-body--flash,
   .sim-confidence--flash,
-  .sim-discovery--pending { animation: none; }
-  .sim-side-card { transition: none; }
+  .sim-confidence--rose .sim-confidence-nudge,
+  .sim-confidence--rose .sim-confidence-fill,
+  .sim-comms--pending { animation: none; }
+  .sim-side-card,
+  .sim-breadth-dot { transition: none; }
 }
 
 /* ==================================================================
@@ -1921,6 +1932,7 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
 .sim-notebook-head--evidence  { --nb-accent: var(--yellow); --nb-icon: "\2756"; }
 .sim-notebook-head--questions { --nb-accent: var(--cyan);   --nb-icon: "?"; }
 .sim-notebook-head--judgment  { --nb-accent: var(--cyan);   --nb-icon: "?"; }
+.sim-notebook-head--comms     { --nb-accent: var(--cyan);   --nb-icon: "\25C9"; }
 .sim-notebook-head--identify  { --nb-accent: var(--cyan);   --nb-icon: "\25CE"; }
 .sim-notebook-head--facts     { --nb-accent: var(--green);  --nb-icon: "\2713"; }
 .sim-notebook-head--hyp       { --nb-accent: var(--purple); --nb-icon: "\25C7"; }
@@ -1938,7 +1950,8 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
   border-left: 2px solid var(--border);
 }
 .sim-notebook-section:has(.sim-notebook-head--evidence),
-.sim-notebook-section:has(.sim-notebook-head--judgment) {
+.sim-notebook-section:has(.sim-notebook-head--judgment),
+.sim-notebook-section:has(.sim-notebook-head--comms) {
   padding-left: 0;
   border-left: 0;
 }
