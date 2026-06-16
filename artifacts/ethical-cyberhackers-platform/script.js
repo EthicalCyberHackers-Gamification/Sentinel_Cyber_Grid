@@ -8737,6 +8737,10 @@ function renderOperationsCenter() {
   if (typeof window !== "undefined" && typeof window.echCareerRenderResourceBar === "function") {
     window.echCareerRenderResourceBar();
   }
+  // #120 Consequence Emotion Loop — surface queued postcards + persistent scar memory.
+  if (typeof window !== "undefined" && typeof window.echCareerRenderHomeConsequences === "function") {
+    window.echCareerRenderHomeConsequences();
+  }
 
   const m1Done = !!missionComplete;
   const m2Done = !!mission2Complete;
@@ -14277,6 +14281,15 @@ function showEventToast(title, message, type, opts) {
   const duration = opts && typeof opts.duration === "number" ? opts.duration : 0;
   eventToastQueue.push({ title: title || "", message: message || "", type: t, extraClass, duration });
   pumpEventToasts();
+}
+
+// Cross-module toast bridge for the career-sim Consequence Emotion Loop (Task #120).
+// career-sim.js is its own ES module and cannot reach showEventToast directly, so we
+// expose it here. Friction reads "info", Exposure reads "warning". Best-effort only.
+if (typeof window !== "undefined") {
+  window.echShowToast = (title, message, type, opts) => {
+    try { showEventToast(title, message, type, opts); } catch (_) { /* never block a decision */ }
+  };
 }
 
 function pumpEventToasts() {

@@ -1,0 +1,129 @@
+Below is a copy-ready Replit prompt to design and implement “3) Tighten the Emotion Loop Around Consequences.” It focuses on concrete, diegetic feedback systems that make actions feel consequential without changing your core scoring/persistence.
+
+—— COPY FROM HERE ——
+
+Title: Tighten the Emotion Loop Around Consequences — CyberCorp
+
+Task
+Design and implement lightweight, in-world consequence systems that immediately reflect the player’s decisions during and after a mission. Preserve existing judgment engine, scoring, confidence, and persistence. Add only presentation/state that makes outcomes felt, not graded.
+
+Goals
+• Make cause → effect visible within 30–90 seconds of a meaningful decision.
+• Keep signals diegetic (organizational outcomes), not gamified points/badges.
+• Scope to minimal, safe additions: display/state only unless explicitly noted.
+
+Global constraints
+• Do not reveal keyed answers or add grade-like labels.
+• Do not change core write paths (keep setDiscoveryJudgment as sole authoritative write).
+• Confidence/Scoring math unchanged unless routed through existing helpers.
+• All new elements must be toggleable and accessible (keyboard + visible focus).
+
+Deliverables (4 systems)
+
+A) Company Health Dials (mission-scoped, visual only)
+Purpose
+Show local, mission-contained consequences in real time.
+
+Spec
+• Add two unobtrusive dials to the mission HUD:
+  - Operational Friction (OF): rises on heavy-handed recommendations (e.g., premature “isolate system now”), or repeated over-escalation.
+  - Latent Exposure (LE): rises on defer/ignore calls where evidence suggests emerging risk.
+• Behavior
+  - Each dial: 0–3 segments. Each segment change triggers a 1-line, in-world toast (e.g., “IT adds an approval checkpoint” for OF; “Finance flags anomalous access” for LE).
+  - Reset to baseline at mission end; no cross-mission carryover from dials themselves.
+• Integration
+  - Do not alter underlying logic; map existing judgment outcomes to OF/LE increments via a small, explicit router.
+  - Logs: record dial changes with timestamp and decision id.
+
+Acceptance
+• Dials appear, update with subtle toasts, and never gate progress.
+• No backend schema changes; only existing helpers called.
+
+B) Consequence Postcards (asynchronous narrative follow-up)
+Purpose
+Deliver short, human updates that make prior decisions matter.
+
+Spec
+• At next session start (or at mission end if configured):
+  - Show 1–2 “postcards”—2–3 sentence, department-stamped updates tied to the player’s prior choices.
+  - Examples:
+    - “Finance quietly re-baselined payroll approvals after your flag. HR added a second reviewer for contractor packages.”
+    - “Skipping isolation allowed traffic to continue; we traced the spike and corrected noisy monitoring thresholds.”
+• Implementation
+  - Use a small, parameterized template bank; fill fields from mission telemetry (dept, asset, action).
+  - Persist only a postcard id + params; render text on display.
+
+Acceptance
+• Postcards render at the next appropriate moment, linked to prior decisions; no replays needed; no answer reveals.
+
+C) Scar Notes (cross-mission organizational memory)
+Purpose
+Create lightweight, persistent “scars” when dials peak; visible continuity without punitive mechanics.
+
+Spec
+• If OF or LE hits max (3/3) during a mission:
+  - Add a small “Scar Note” to CyberCorp memory: title + one-liner impact + date (e.g., “Procurement added a manual approval step after repeated over-escalations last quarter”).
+• Display
+  - In the Ops Center or case history, show a compact list of Scar Notes with department tags.
+• Behavior
+  - Scar Notes are display-only. They do not alter gameplay parameters automatically.
+
+Acceptance
+• Scar Notes save and display across sessions; purely informational.
+
+D) Micro-Tradeoffs (same-mission texture, reversible)
+Purpose
+Let decisions create subtle, immediate frictions or conveniences that feel real but don’t punish.
+
+Spec
+• Examples (wire one or two to start):
+  - Over-escalation increases OF → Next artifact requires a brief “manager ack” click to view (1 extra click; shows a tiny “extra approval required” banner).
+  - Under-escalation increases LE → A later artifact’s convenient deep-link is hidden; user can still reach data via normal path (adds 10–15 seconds).
+• Constraints
+  - Always reversible or limited in count (max one or two occurrences per mission).
+  - Never block critical path; never hide essential evidence entirely.
+
+Acceptance
+• Players feel a small cost/benefit in the same mission tied to their calls, without new logic branches or hard gates.
+
+Implementation notes
+
+Routing table
+• Add a small, explicit router mapping judgment outcomes → {OFΔ, LEΔ, postcardTemplateIds, microTradeoffHooks}.
+• Keep it declarative (JSON/TS object) to avoid scattering logic.
+
+Telemetry
+• Log dial deltas, postcard ids emitted, micro-tradeoffs triggered, time-to-next-action after each signal (for tuning).
+
+UX guidelines
+• Toasts: single line, 3–4 seconds, no modal blocks.
+• Dials: monochrome with a department-colored accent on change.
+• Accessibility: toasts are aria-live polite; dials have accessible labels; tradeoffs show clear text explanations.
+
+Acceptance checklist (overall)
+• No answer/correctness reveals anywhere.
+• Single authoritative write path preserved; new systems use derived signals/display.
+• A11y: keyboard can navigate dials, toasts dismiss, tradeoff acks.
+• Regression: existing missions progress identically if all new systems are disabled.
+
+Out-of-scope (for this task)
+• Changing scoring math; cross-mission stat buffs/nerfs; narrative branches; new backend tables.
+
+Content to provide (minimal)
+• 8–12 postcard templates with parameters: {dept, asset, action/decision, effect}.
+• Router entries for 6–10 common outcomes (over/under escalation, accurate medium-risk calls, missed approval).
+• 2 micro-tradeoff hooks (one OF, one LE) with concise banner text.
+
+Now build with feature flags:
+• FLAGS.companyDials
+• FLAGS.postcards
+• FLAGS.scarNotes
+• FLAGS.microTradeoffs
+
+Ship order (safe increments)
+1) Dials + toasts (A).
+2) Postcards (B).
+3) Scar Notes (C).
+4) One Micro-Tradeoff (D) behind a flag.
+
+—— COPY ENDS ——

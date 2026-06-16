@@ -366,6 +366,11 @@
                deriveCareerState() + the mission play order. Presentation-only. -->
           <div class="oc-identity" id="ocIdentity"></div>
 
+          <!-- #120 Consequence Emotion Loop: field reports (postcards) + persistent
+               case scars from past decisions. Filled by renderHomeConsequences()
+               in career-sim.js via renderOperationsCenter(). Presentation-only. -->
+          <div class="oc-consequences" id="echConsequenceInbox" hidden></div>
+
           <div class="ocv2-panel-head">
             <div class="ocv2-phead-title">
               <span class="ocv2-phead-icon" aria-hidden="true">◈</span>
@@ -503,6 +508,10 @@
           <span class="career-sep" aria-hidden="true">—</span>
           <span class="career-title" id="careerTitle">Protect Sensitive Information</span>
         </div>
+        <!-- #120 (A) Company Health Dials — two mission-scoped 0/3 posture meters
+             (Operational Friction / Latent Exposure). Filled by renderConsequenceDials()
+             in career-sim.js. Transient per mission; presentation-only. -->
+        <div class="sim-dials" id="simDials" hidden></div>
         <button class="career-reset-btn" id="simResetBtn" type="button" title="Reset career progress">
           ⟲ RESET
         </button>

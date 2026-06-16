@@ -132,7 +132,7 @@ const RESOURCE_DEFS = [
   { key: 'businessContinuity', label: 'Business Continuity', kind: 'pct',   higherBetter: true  },
 ];
 
-const CAREER_SCHEMA_VERSION = 1;
+const CAREER_SCHEMA_VERSION = 2;
 
 const CAREER_DEFAULTS = {
   schemaVersion: CAREER_SCHEMA_VERSION,
@@ -148,6 +148,11 @@ const CAREER_DEFAULTS = {
   missionFlags: {},
   completedMissions: [],
   companyHistory: {},         // {missionId: outcome record} — the company timeline
+  // Consequence Emotion Loop (Task #120) — display/state-only diegetic layer.
+  // Both are append-style queues persisted through the save chokepoint; they
+  // never feed scoring/confidence and default empty (schema v1 blobs lack them).
+  consequencePostcards: [],   // [{id, kind, dept, missionId, of, le, text, ts, shown}]
+  scarNotes: [],              // [{id, dept, missionId, text, ts}] — persistent CyberCorp memory
   updatedAt: null,            // ms epoch of last persisted save (stamped on save)
 };
 
@@ -166,7 +171,7 @@ function clampResource(key, val) {
 }
 
 function loadCareerState() {
-  const base = { ...CAREER_DEFAULTS, missionFlags: {}, completedMissions: [], companyHistory: {} };
+  const base = { ...CAREER_DEFAULTS, missionFlags: {}, completedMissions: [], companyHistory: {}, consequencePostcards: [], scarNotes: [] };
   try {
     // Shipping integration: career state lives in ech.progress.v1 (progress.career),
     // read through the host bridge. Standalone (no host) falls back to its own key.
@@ -197,6 +202,14 @@ function loadCareerState() {
     if (saved.companyHistory && typeof saved.companyHistory === 'object') {
       base.companyHistory = { ...saved.companyHistory };
     }
+    // Consequence Emotion Loop (Task #120) — restore the persisted postcard queue
+    // + scar memory. Schema v1 blobs lack both keys, so they fall back to [].
+    if (Array.isArray(saved.consequencePostcards)) {
+      base.consequencePostcards = saved.consequencePostcards.filter(p => p && typeof p === 'object');
+    }
+    if (Array.isArray(saved.scarNotes)) {
+      base.scarNotes = saved.scarNotes.filter(s => s && typeof s === 'object');
+    }
     // schemaVersion stays at the current code version (any future migration would
     // branch on saved.schemaVersion here). Preserve the last-saved timestamp.
     if (typeof saved.updatedAt === 'number') base.updatedAt = saved.updatedAt;
@@ -224,7 +237,7 @@ function saveCareerState() {
 }
 
 function resetCareerStateInMemory() {
-  CAREER = { ...CAREER_DEFAULTS, missionFlags: {}, completedMissions: [], companyHistory: {} };
+  CAREER = { ...CAREER_DEFAULTS, missionFlags: {}, completedMissions: [], companyHistory: {}, consequencePostcards: [], scarNotes: [] };
   renderResourceBar();
 }
 function resetCareerState() {
@@ -256,6 +269,351 @@ function setMissionFlag(flag, value = true) {
   if (!flag) return;
   CAREER.missionFlags[flag] = value;
   saveCareerState();
+}
+
+/* ================================================================== *
+ * CONSEQUENCE EMOTION LOOP (Task #120) — diegetic, display/state-only
+ * ------------------------------------------------------------------ *
+ * Four cooperating systems, ALL additive and reversible, that turn the
+ * existing decision outcomes into felt organizational ripples:
+ *   (A) Company Health Dials  — two transient 0-3 HUD meters
+ *   (B) Consequence Postcards — short in-world notes surfaced next session
+ *   (C) Scar Notes            — persistent CyberCorp memory of extreme calls
+ *   (D) Micro-Tradeoffs       — one tiny reversible debrief texture
+ *
+ * HARD INVARIANTS (do not break):
+ *  - Nothing here changes scoring, confidence, or the judgment engine.
+ *    setDiscoveryJudgment stays the sole graded write. We only READ the
+ *    final decision id (present in all four missions).
+ *  - Dials react to the decision's OPERATIONAL POSTURE — the inherent
+ *    disruptiveness of the action — NEVER to whether the answer was keyed
+ *    correct. A decisive-but-correct containment raises Friction because it
+ *    genuinely disrupts ops; an under-reaction raises Exposure because it
+ *    genuinely leaves risk open. Verdict/correctness is deliberately NOT an
+ *    input to the dials, so the loop can never leak the answer.
+ *  - With every flag off the game plays IDENTICALLY (T7 regression).
+ * ================================================================== */
+
+// Master + per-system switches. All on by default (the feature ships live);
+// flipping `enabled` to false — or any sub-flag — removes that system's every
+// visible/persisted effect, leaving the base game untouched.
+const CONSEQUENCE_FLAGS = {
+  enabled: true,        // master switch
+  dials: true,          // (A) Company Health Dials + toasts
+  postcards: true,      // (B) Consequence Postcards
+  scars: true,          // (C) Scar Notes
+  microTradeoff: true,  // (D) Micro-Tradeoffs
+};
+function consequenceOn(sub) {
+  return !!(CONSEQUENCE_FLAGS.enabled && (sub ? CONSEQUENCE_FLAGS[sub] : true));
+}
+
+// Posture map: decision id -> {of, le} (Operational Friction / Latent Exposure),
+// each 0-3. Authored PURELY from the action's operational nature, with zero
+// reference to any mission's correct answer:
+//   - Containment / disruption (lock, isolate, disconnect, reset, lockdown,
+//     revoke, block, disable) raises FRICTION — broad/forced ones raise it more.
+//   - Under-reaction (ignore, monitor-only, keep investigating a live threat,
+//     downgrade, approve a risky release) raises EXPOSURE.
+//   - Process actions (escalate, recommend review/forensics/notify, file report)
+//     stay neutral.
+// Proportionate calls move a dial by at most 1; only extreme calls peak (->scar).
+const CONSEQUENCE_POSTURE = {
+  // Mission 1 — Protect Sensitive Information (data release)
+  approve_release:           { of: 0, le: 3 },
+  restrict_access:           { of: 1, le: 0 },
+  archive:                   { of: 0, le: 1 },
+  recommend_legal:           { of: 0, le: 0 },
+  escalate:                  { of: 0, le: 0 },
+  rec_policy_review:         { of: 0, le: 0 },
+  rec_escalate:              { of: 0, le: 0 },
+  // Mission 2 — Investigate Network Assets (rogue device)
+  recommend_disconnect:      { of: 1, le: 0 },
+  monitor:                   { of: 0, le: 1 },
+  continue_investigation:    { of: 0, le: 2 },
+  ignore:                    { of: 0, le: 3 },
+  rec_network_isolation:     { of: 1, le: 0 },
+  rec_device_review:         { of: 0, le: 0 },
+  // Mission 3 — Suspicious Authentication Activity (account compromise)
+  lock_account:              { of: 1, le: 0 },
+  recommend_reset:           { of: 1, le: 0 },
+  enforce_mfa:               { of: 0, le: 0 },
+  rec_orgwide_reset:         { of: 2, le: 0 },
+  rec_contractor_revoke:     { of: 1, le: 0 },
+  // Mission 4 — Data Exfiltration Investigation (capstone)
+  recommend_disable_account: { of: 1, le: 0 },
+  recommend_block_device:    { of: 1, le: 0 },
+  recommend_forensics:       { of: 0, le: 0 },
+  recommend_customer_notify: { of: 0, le: 0 },
+  submit_incident_report:    { of: 0, le: 0 },
+  downgrade:                 { of: 0, le: 3 },
+  rec_companywide_lockdown:  { of: 3, le: 0 },
+  rec_terminate_contractor:  { of: 1, le: 0 },
+};
+
+// Per-mission department flavor (presentation only). Drives which teams the
+// toasts / postcards / scars name, so ripples feel local to the case.
+const CONSEQUENCE_DEPTS = {
+  'mission-001': { of: 'Compliance', le: 'Legal' },
+  'mission-002': { of: 'IT / NetOps', le: 'Network Ops' },
+  'mission-003': { of: 'Identity & Access', le: 'Finance' },
+  'mission-004': { of: 'Forensics', le: 'Customer Trust' },
+};
+function consequenceDept(kind) {
+  const d = CONSEQUENCE_DEPTS[SIM.missionId] || { of: 'Operations', le: 'Risk' };
+  return (kind === 'of' ? d.of : d.le) || 'Operations';
+}
+
+// Heuristic fallback for any decision id not in the posture map: keyword scan of
+// the id keeps an un-mapped future action diegetically sane (never correctness).
+function posturefallback(actionId) {
+  const id = String(actionId || '').toLowerCase();
+  if (/lockdown|orgwide|companywide|terminate/.test(id)) return { of: 2, le: 0 };
+  if (/lock|isolat|disconnect|reset|revoke|block|disable|quarantine/.test(id)) return { of: 1, le: 0 };
+  if (/ignore|downgrade|dismiss|approve_release/.test(id)) return { of: 0, le: 3 };
+  if (/monitor|continue|defer|wait|archive/.test(id)) return { of: 0, le: 1 };
+  return { of: 0, le: 0 };
+}
+function routePosture(actionId) {
+  const m = CONSEQUENCE_POSTURE[actionId];
+  const p = m || posturefallback(actionId);
+  return { of: Math.max(0, Math.min(3, p.of | 0)), le: Math.max(0, Math.min(3, p.le | 0)) };
+}
+
+// Non-blocking telemetry — in-memory ring + console.debug mirror. Never persists,
+// never throws (mirrors the notebook markupLog pattern).
+const CONSEQUENCE_LOG = [];
+function consequenceLog(event, data) {
+  try {
+    CONSEQUENCE_LOG.push({ t: Date.now(), event, ...(data || {}) });
+    if (CONSEQUENCE_LOG.length > 100) CONSEQUENCE_LOG.shift();
+    if (typeof console !== 'undefined' && console.debug) console.debug('[consequence]', event, data || '');
+  } catch (_) { /* telemetry is best-effort */ }
+}
+
+/* ---- Toast bridge (cross-module) -------------------------------------------
+ * career-sim.js is its own ES module; the host (script.js) owns the event-toast
+ * system and exposes window.echShowToast. Friction reads "info" (operational),
+ * Exposure reads "warning" (risk). Standalone (no host) silently no-ops. */
+function consequenceToast(title, message, kind) {
+  if (!consequenceOn('dials')) return;
+  try {
+    if (typeof window !== 'undefined' && typeof window.echShowToast === 'function') {
+      window.echShowToast(title, message, kind === 'of' ? 'info' : 'warning', { duration: 6000 });
+    }
+  } catch (_) { /* toast is best-effort, never block the decision */ }
+}
+
+/* ---- (A) Company Health Dials --------------------------------------------- */
+// Two mission-scoped meters. SIM.consequence is transient (reset every open in
+// openCareerMission), so dials never carry across missions.
+const CONSEQUENCE_DIALS = [
+  { key: 'of', label: 'Operational Friction', short: 'FRICTION', toast: 'IT & operations absorbed disruption from this call.' },
+  { key: 'le', label: 'Latent Exposure',      short: 'EXPOSURE', toast: 'Risk was left open for someone else to chase down.' },
+];
+function freshConsequenceState() { return { of: 0, le: 0, tradeoffShown: false }; }
+
+function renderConsequenceDials() {
+  const host = document.getElementById('simDials');
+  if (!host) return;
+  if (!consequenceOn('dials')) { host.innerHTML = ''; host.hidden = true; return; }
+  host.hidden = false;
+  const s = SIM.consequence || freshConsequenceState();
+  host.innerHTML = CONSEQUENCE_DIALS.map(d => {
+    const v = Math.max(0, Math.min(3, s[d.key] | 0));
+    const segs = [0, 1, 2].map(i =>
+      `<span class="sim-dial-seg${i < v ? ' sim-dial-seg--on' : ''} sim-dial-seg--${d.key}" aria-hidden="true"></span>`
+    ).join('');
+    return `<div class="sim-dial sim-dial--${d.key}${v >= 3 ? ' sim-dial--peak' : ''}" role="img" aria-label="${d.label}: ${v} of 3">
+        <span class="sim-dial-name">${d.short}</span>
+        <span class="sim-dial-track">${segs}</span>
+        <span class="sim-dial-val" aria-hidden="true">${v}/3</span>
+      </div>`;
+  }).join('');
+}
+
+/* ---- (B) Consequence Postcards -------------------------------------------- */
+// Template bank (8-12). `pick` chooses by posture band; text is in-world and
+// describes organizational ripples — never the correctness of the answer.
+const POSTCARD_BANK = [
+  // Friction-leaning (the org felt the disruption of a forceful call)
+  { id: 'pc-of-helpdesk', band: 'of', min: 1, text: d => `${d} logged extra help-desk tickets this week — a few users were locked out after your call and needed re-verification.` },
+  { id: 'pc-of-approval', band: 'of', min: 1, text: d => `${d} has added a sign-off checkpoint to similar requests after the disruption your response caused.` },
+  { id: 'pc-of-scramble', band: 'of', min: 2, text: d => `${d} pulled an on-call engineer in overnight to restore access your action interrupted. They got it back online.` },
+  { id: 'pc-of-memo',     band: 'of', min: 2, text: d => `A short ${d} memo circulated: "decisive containment, but loop us in earlier next time so we can stage the rollback."` },
+  // Exposure-leaning (something was left open for others to chase)
+  { id: 'pc-le-followup', band: 'le', min: 1, text: d => `${d} opened a follow-up ticket on the thread you left active — they're keeping an eye on it for now.` },
+  { id: 'pc-le-watch',    band: 'le', min: 1, text: d => `${d} added the unresolved item to their watch-list. Nothing has escalated yet.` },
+  { id: 'pc-le-review',   band: 'le', min: 2, text: d => `${d} flagged an open exposure from the case for review — they'd like a second look before it ages.` },
+  { id: 'pc-le-handoff',  band: 'le', min: 2, text: d => `${d} inherited the loose end from your case and asked for your notes so they can close it out.` },
+  // Calm / balanced (a measured call — quiet acknowledgement)
+  { id: 'pc-calm-ack',    band: 'calm', min: 0, text: d => `${d} noted a clean, measured handling of the case. No follow-ups required on their side.` },
+  { id: 'pc-calm-thanks', band: 'calm', min: 0, text: d => `A quick note from ${d}: "balanced call — minimal disruption, nothing left hanging. Nice work."` },
+  { id: 'pc-calm-quiet',  band: 'calm', min: 0, text: d => `${d} reports a quiet shift after your decision. The queue stayed steady.` },
+];
+function pickPostcards(of, le) {
+  // Choose the dominant posture; ties / all-zero read "calm".
+  let band = 'calm';
+  if (of > le && of >= 1) band = 'of';
+  else if (le > of && le >= 1) band = 'le';
+  const level = band === 'of' ? of : band === 'le' ? le : 0;
+  const dept = consequenceDept(band === 'le' ? 'le' : 'of');
+  const pool = POSTCARD_BANK.filter(p => p.band === band && level >= p.min);
+  // Up to two, highest-min first (so a peak call gets its stronger note).
+  const sorted = pool.sort((a, b) => b.min - a.min);
+  const take = sorted.slice(0, Math.min(2, sorted.length));
+  return take.map((p, i) => ({
+    id: `${SIM.missionId}:${p.id}:${Date.now()}:${i}`,
+    kind: band, dept, missionId: SIM.missionId, of, le,
+    text: p.text(dept), ts: Date.now(), shown: false,
+  }));
+}
+function queuePostcards(of, le) {
+  if (!consequenceOn('postcards')) return false;
+  if (!Array.isArray(CAREER.consequencePostcards)) CAREER.consequencePostcards = [];
+  const cards = pickPostcards(of, le);
+  if (!cards.length) return false;
+  cards.forEach(c => CAREER.consequencePostcards.push(c));
+  // Bound the queue so replays never grow it without limit.
+  if (CAREER.consequencePostcards.length > 12) {
+    CAREER.consequencePostcards = CAREER.consequencePostcards.slice(-12);
+  }
+  consequenceLog('postcards.queued', { count: cards.length, of, le, mission: SIM.missionId });
+  return true;
+}
+
+/* ---- (C) Scar Notes ------------------------------------------------------- */
+// Persistent CyberCorp memory of an EXTREME call (a dial peaked at 3/3). Keyed
+// per mission+dial so a replay updates rather than duplicates. Display-only.
+const SCAR_TEXT = {
+  of: d => `Heavy-handed response on this case stretched ${d}. The team still references it when scoping containment.`,
+  le: d => `A loose end on this case sat open long enough that ${d} remembers having to chase it.`,
+};
+function appendScar(dial) {
+  if (!consequenceOn('scars')) return false;
+  if (!Array.isArray(CAREER.scarNotes)) CAREER.scarNotes = [];
+  const id = `${SIM.missionId}:${dial}`;
+  if (CAREER.scarNotes.some(s => s && s.id === id)) return false; // idempotent across replays
+  const dept = consequenceDept(dial);
+  CAREER.scarNotes.push({ id, dial, dept, missionId: SIM.missionId, text: SCAR_TEXT[dial](dept), ts: Date.now() });
+  if (CAREER.scarNotes.length > 20) CAREER.scarNotes = CAREER.scarNotes.slice(-20);
+  consequenceLog('scar.appended', { dial, mission: SIM.missionId });
+  return true;
+}
+
+/* ---- Router entry — called from chooseAction / submitRecommendation -------- *
+ * Reads the just-recorded decision id, maps it to posture, ticks the dials with
+ * per-segment toasts, queues postcards, records any peak scar, and arms the
+ * debrief micro-tradeoff. Persists through saveCareerState (also re-saved by
+ * finalizeMission). Never throws — wrapped so a fault can't break the decision. */
+function applyDecisionConsequence(actionId) {
+  if (!consequenceOn()) return;
+  try {
+    if (!SIM.consequence) SIM.consequence = freshConsequenceState();
+    const { of, le } = routePosture(actionId);
+    const before = { of: SIM.consequence.of | 0, le: SIM.consequence.le | 0 };
+    SIM.consequence.of = Math.max(0, Math.min(3, before.of + of));
+    SIM.consequence.le = Math.max(0, Math.min(3, before.le + le));
+    consequenceLog('decision', { actionId, of: SIM.consequence.of, le: SIM.consequence.le, mission: SIM.missionId });
+
+    // Dials + per-dial toast (one per dial that moved — concise, not spammy).
+    renderConsequenceDials();
+    let persistedChange = false;
+    CONSEQUENCE_DIALS.forEach(d => {
+      const now = SIM.consequence[d.key] | 0;
+      if (now > before[d.key]) {
+        const dept = consequenceDept(d.key);
+        consequenceToast(`${d.label} ↑ ${now}/3`, `${dept}: ${d.toast}`, d.key);
+        if (now >= 3 && appendScar(d.key)) persistedChange = true; // (C) extreme call -> persistent scar
+      }
+    });
+
+    // (B) postcards for the next session / Ops Center return.
+    if (queuePostcards(SIM.consequence.of, SIM.consequence.le)) persistedChange = true;
+    // Only persist when a postcard/scar actually mutated, so with those subfeatures
+    // off (or nothing queued) the stored blob stays byte-identical to baseline.
+    if (persistedChange) saveCareerState();
+  } catch (_) { /* consequence layer is best-effort; never break the decision */ }
+}
+
+/* ---- (D) Micro-Tradeoff (debrief texture) --------------------------------- *
+ * Exactly one tiny, reversible texture per mission, chosen by the dominant dial:
+ *   OF-dominant -> an additive "manager sign-off logged" banner (one Acknowledge
+ *     click; hides nothing; RETURN always works).
+ *   LE-dominant -> a convenience evidence-summary shortcut is WITHHELD and
+ *     replaced by a muted deferral note (full evidence stays in the Evidence
+ *     panel, always reachable). Never blocks the critical path or hides evidence.
+ * Returned as HTML appended into the debrief; the Ack button toggles via the
+ * #careerOps delegated click handler. */
+function consequenceTradeoffHtml() {
+  if (!consequenceOn('microTradeoff')) return '';
+  const s = SIM.consequence || freshConsequenceState();
+  const of = s.of | 0, le = s.le | 0;
+  if (of >= 2 && of >= le) {
+    const dept = consequenceDept('of');
+    return `<div class="sim-tradeoff sim-tradeoff--of" data-tradeoff>
+        <div class="sim-tradeoff-head">⚠ OPERATIONS IMPACT — ${dept} sign-off logged</div>
+        <p class="sim-tradeoff-body">Your response disrupted active operations, so ${dept} logged an approval checkpoint before changes proceeded. You can still return to the Operations Center at any time.</p>
+        <button type="button" class="sim-tradeoff-ack" data-consequence-ack="of" aria-pressed="false">Acknowledge sign-off</button>
+      </div>`;
+  }
+  if (le >= 2) {
+    const dept = consequenceDept('le');
+    return `<div class="sim-tradeoff sim-tradeoff--le" data-tradeoff>
+        <div class="sim-tradeoff-head">◷ EXPOSURE BACKLOG — quick summary deferred</div>
+        <p class="sim-tradeoff-body">An open exposure was left for follow-up, so ${dept} put the one-click evidence summary behind triage. The full evidence remains in the Evidence panel.</p>
+      </div>`;
+  }
+  // Calm / measured: a neutral convenience shortcut (no tradeoff). Focuses the
+  // always-present Evidence panel — purely an affordance.
+  return `<div class="sim-tradeoff sim-tradeoff--calm">
+      <button type="button" class="sim-tradeoff-chip" data-ev-focus>▸ Open evidence summary</button>
+    </div>`;
+}
+
+/* ---- Home surface — postcards (once) + scar memory (persistent) ------------ *
+ * Rendered into #echConsequenceInbox in the Operations Center right column.
+ * Called from the host's renderOperationsCenter (every home show, incl. boot).
+ * Postcards display up to two unshown notes then mark them shown; scars always
+ * list. Display-only — reading state, never writing scoring/confidence. */
+function renderHomeConsequences() {
+  const host = document.getElementById('echConsequenceInbox');
+  if (!host) return;
+  if (!consequenceOn()) { host.innerHTML = ''; host.hidden = true; return; }
+
+  let html = '';
+
+  // (B) Postcards — surface up to two unshown, then persist them as shown.
+  if (consequenceOn('postcards') && Array.isArray(CAREER.consequencePostcards)) {
+    const unshown = CAREER.consequencePostcards.filter(p => p && !p.shown);
+    const show = unshown.slice(0, 2);
+    if (show.length) {
+      html += `<div class="oc-conseq-block">
+        <div class="oc-conseq-head"><span class="oc-conseq-icon" aria-hidden="true">✉</span><span>FIELD REPORTS</span></div>
+        <ul class="oc-conseq-list" aria-label="Field reports from other teams">${
+          show.map(p => `<li class="oc-postcard oc-postcard--${p.kind}">
+            <span class="oc-postcard-dept">${p.dept}</span>
+            <span class="oc-postcard-text">${p.text}</span></li>`).join('')
+        }</ul></div>`;
+      show.forEach(p => { p.shown = true; });
+      saveCareerState();
+      consequenceLog('postcards.shown', { count: show.length });
+    }
+  }
+
+  // (C) Scar memory — persistent, always listed (compact, dept-tagged).
+  if (consequenceOn('scars') && Array.isArray(CAREER.scarNotes) && CAREER.scarNotes.length) {
+    html += `<div class="oc-conseq-block oc-conseq-block--scars">
+      <div class="oc-conseq-head"><span class="oc-conseq-icon" aria-hidden="true">⌖</span><span>CASE SCARS</span></div>
+      <ul class="oc-conseq-list" aria-label="Lasting marks from past cases">${
+        CAREER.scarNotes.slice(-5).map(s => `<li class="oc-scar oc-scar--${s.dial}">
+          <span class="oc-scar-dept">${s.dept}</span>
+          <span class="oc-scar-text">${s.text}</span></li>`).join('')
+      }</ul></div>`;
+  }
+
+  host.innerHTML = html;
+  host.hidden = !html;
 }
 
 function formatResource(key, val) {
@@ -302,6 +660,9 @@ function renderResourceBar() {
 // Host bridge: the shipping OCV2 home re-renders through renderOperationsCenter(),
 // which calls this to (re)fill the home's .sim-resbar host with current resources.
 if (typeof window !== 'undefined') window.echCareerRenderResourceBar = renderResourceBar;
+// #120 Consequence Emotion Loop — host (renderOperationsCenter) calls this on every
+// home show to surface queued postcards (B) + persistent scar memory (C).
+if (typeof window !== 'undefined') window.echCareerRenderHomeConsequences = renderHomeConsequences;
 
 /* Tone for color coding: pct resources use higherBetter to flip the scale;
  * money is neutral-to-warn as it depletes. Presentation only. */
@@ -352,6 +713,7 @@ const SIM = {
   committedFindings: [],    // P4 snapshots committed to the on-screen case-file timeline
   analystBet: null,         // P5 optional hypothesis-check state {done,pick,strong}
   markupLog: [],            // P3-5 in-memory telemetry (console.debug mirror; never stored)
+  consequence: null,        // #120 Company Health Dials {of,le,tradeoffShown} (transient, reset per mission)
 };
 
 function careerMission() { return SIM.def; }
@@ -402,6 +764,7 @@ function openCareerMission(missionId) {
   SIM.sideTrailOpen = new Set();          // optional side-trails the analyst has expanded (transient)
   SIM.sideTrailJudgments = {};            // {trailId:{observation,justification}} picks (transient)
   SIM.powers = freshPowersState();        // Judgment-to-Power tools (transient, never persisted)
+  SIM.consequence = freshConsequenceState(); // #120 Company Health Dials — reset every mission (never carries across)
   // Phases 3-5 notebook layer — all transient view-state, reset every open.
   SIM.markup = [];                        // P3 inline evidence mark-up records
   SIM.pendingSelection = null;            // P3 selection awaiting a Fact/Anomaly/Unknown tag
@@ -489,6 +852,7 @@ function renderCareerHeader() {
   if (sev) { sev.textContent = def.severity; sev.setAttribute('data-severity', def.severity); }
   if (region) region.textContent = def.region;
   if (title) title.textContent = def.title;
+  renderConsequenceDials(); // #120 (A) Company Health Dials — render at 0/0 on open, updated post-decision
 }
 
 /* ------------------------------------------------------------------ *
@@ -3384,6 +3748,7 @@ function chooseAction(actionId) {
   const dock = document.getElementById('simActions');
   if (dock) dock.innerHTML = `<p class="sim-empty">Decision recorded: <strong>${action.label}</strong>. See the debrief →</p>`;
   simPrint(`> Decision: ${action.label}${outcome ? ' — ' + outcome.verdict : ''}`, 'ok');
+  applyDecisionConsequence(actionId); // #120 — posture-driven ripples (dials/postcards/scars), before debrief reads SIM.consequence
   renderDebrief(action, outcome, changes);
   finalizeMission({ decisionLabel: action.label, decisionKind: action.type || 'direct', verdict: outcome ? outcome.verdict : null, changes });
 }
@@ -3423,6 +3788,7 @@ function submitRecommendation(recId) {
   const dock = document.getElementById('simActions');
   if (dock) dock.innerHTML = `<p class="sim-empty">Recommendation submitted: <strong>${rec.label}</strong>. See the debrief →</p>`;
   simPrint(`> Recommendation submitted: ${rec.label} — ${outcome.verdict}`, 'ok');
+  applyDecisionConsequence(recId); // #120 — posture-driven ripples, before debrief reads SIM.consequence
   renderDebrief(
     { label: 'Recommendation: ' + rec.label, consequence: rec.consequence, setFlags: rec.setFlags, deniedNote: rec.deniedNote, outcomeSub: 'Submitted to leadership for a decision.' },
     outcome, changes
@@ -3746,6 +4112,7 @@ function renderDebrief(action, outcome, changes) {
   if (SIM.def && SIM.def.foreshadow) html += foreshadowCardHtml(SIM.def.foreshadow);
 
   html += reportSectionHtml();
+  html += consequenceTradeoffHtml(); // #120 (D) one reversible micro-tradeoff texture (additive, never blocks RETURN)
   html += `</div>`; // .sim-feedback-body
   host.innerHTML = html;
 }
@@ -7704,6 +8071,21 @@ function simInit() {
       if (locked) { chooseLockedAction(locked.dataset.locked); return; }
       const rec = e.target.closest('[data-rec]');
       if (rec) { submitRecommendation(rec.dataset.rec); return; }
+      // #120 (D) micro-tradeoff ack — reversible toggle, hides nothing, never gates RETURN.
+      const ack = e.target.closest('[data-consequence-ack]');
+      if (ack) {
+        const done = ack.getAttribute('aria-pressed') === 'true';
+        ack.setAttribute('aria-pressed', done ? 'false' : 'true');
+        ack.textContent = done ? 'Acknowledge sign-off' : 'Acknowledged ✓';
+        return;
+      }
+      // #120 calm-state convenience chip — focus the always-present Evidence panel.
+      const evf = e.target.closest('[data-ev-focus]');
+      if (evf) {
+        const ev = document.getElementById('simEvidence');
+        if (ev) { ev.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); const f = ev.querySelector('button, [tabindex]'); if (f && f.focus) f.focus(); }
+        return;
+      }
       if (e.target.closest('[data-done]')) { returnFromCareerMission(); return; }
     });
 
