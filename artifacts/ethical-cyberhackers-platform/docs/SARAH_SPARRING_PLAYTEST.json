@@ -1,0 +1,690 @@
+{
+  "report": "Sarah Reyes as Sparring Partner — Playtest (deterministic core-model + static audit)",
+  "task": "#124",
+  "system": "Sarah comms thread, five presentation-only surfaces: (1) Analyst's Bet 2.0, (2) confidence calibration + later callback, (3) two-voice stakeholder moment, (4) mentor trails, (5) end-of-mission performance mirror + carry-over perk",
+  "app": "artifacts/ethical-cyberhackers-platform (CyberCorp career simulator)",
+  "scope": "This is a DETERMINISTIC CORE-MODEL playtest plus a static source audit, not a live in-browser click-through. Every surface runs through sarah-sparring-core.js — the same pure logic career-sim.js calls at runtime (extracted behavior-preservingly, mirroring consequence-core.js) — so the bet/calibration/two-voice/trail/recap MECHANICS are exercised exactly, but the production DOM render+delegation flow (renderEvidencePanel / renderDebrief / click handlers) is verified by reading career-sim.js, not by driving the UI. Interactive e2e is unavailable this session and the screenshot tool is static.",
+  "method": "Each surface is driven across ALL FOUR missions with the REAL authored SARAH_CONTENT. The performance mirror sweeps seven posture profiles covering every reinforced strength and every improvement nudge. A scoped static invariant audit of career-sim.js confirms no grade chrome in any generated string and that the sparring layer is presentation-only: no graded write, no direct localStorage write, NO new saveCareerState (perk is a session-scoped module var), and no confidence stacking.",
+  "bets": [
+    {
+      "missionId": "mission-001",
+      "prompt": "Before this release decision goes up the chain — suppose your read is wrong. What would you expect to find if it were?",
+      "rows": [
+        {
+          "id": "m1-h-strong",
+          "taggedStrong": true,
+          "resolvedStrong": true,
+          "found": true,
+          "spotlightId": "ev_customer_pii",
+          "hasCoach": true
+        },
+        {
+          "id": "m1-h-weak1",
+          "taggedStrong": false,
+          "resolvedStrong": false,
+          "found": true,
+          "spotlightId": null,
+          "hasCoach": true
+        },
+        {
+          "id": "m1-h-weak2",
+          "taggedStrong": false,
+          "resolvedStrong": false,
+          "found": true,
+          "spotlightId": null,
+          "hasCoach": true
+        }
+      ],
+      "strongCount": 1,
+      "oneStrongTest": true,
+      "strengthsResolveFaithfully": true,
+      "strongHasSpotlight": true,
+      "everyPickCoaches": true,
+      "unknownIsSafe": true
+    },
+    {
+      "missionId": "mission-002",
+      "prompt": "Before you write up the unknown device — suppose your read is wrong. What would you expect to see if it were?",
+      "rows": [
+        {
+          "id": "m2-h-strong",
+          "taggedStrong": true,
+          "resolvedStrong": true,
+          "found": true,
+          "spotlightId": "ev_not_in_inventory",
+          "hasCoach": true
+        },
+        {
+          "id": "m2-h-weak1",
+          "taggedStrong": false,
+          "resolvedStrong": false,
+          "found": true,
+          "spotlightId": null,
+          "hasCoach": true
+        },
+        {
+          "id": "m2-h-weak2",
+          "taggedStrong": false,
+          "resolvedStrong": false,
+          "found": true,
+          "spotlightId": null,
+          "hasCoach": true
+        }
+      ],
+      "strongCount": 1,
+      "oneStrongTest": true,
+      "strengthsResolveFaithfully": true,
+      "strongHasSpotlight": true,
+      "everyPickCoaches": true,
+      "unknownIsSafe": true
+    },
+    {
+      "missionId": "mission-003",
+      "prompt": "Before you escalate this account activity — suppose your read is wrong. What would you expect to see if it were?",
+      "rows": [
+        {
+          "id": "m3-h-strong",
+          "taggedStrong": true,
+          "resolvedStrong": true,
+          "found": true,
+          "spotlightId": "ev_impossible",
+          "hasCoach": true
+        },
+        {
+          "id": "m3-h-weak1",
+          "taggedStrong": false,
+          "resolvedStrong": false,
+          "found": true,
+          "spotlightId": null,
+          "hasCoach": true
+        },
+        {
+          "id": "m3-h-weak2",
+          "taggedStrong": false,
+          "resolvedStrong": false,
+          "found": true,
+          "spotlightId": null,
+          "hasCoach": true
+        }
+      ],
+      "strongCount": 1,
+      "oneStrongTest": true,
+      "strengthsResolveFaithfully": true,
+      "strongHasSpotlight": true,
+      "everyPickCoaches": true,
+      "unknownIsSafe": true
+    },
+    {
+      "missionId": "mission-004",
+      "prompt": "This one goes to incident response — suppose your read is wrong. What would you expect to see if it were?",
+      "rows": [
+        {
+          "id": "m4-h-strong",
+          "taggedStrong": true,
+          "resolvedStrong": true,
+          "found": true,
+          "spotlightId": "ev_external_dest",
+          "hasCoach": true
+        },
+        {
+          "id": "m4-h-weak1",
+          "taggedStrong": false,
+          "resolvedStrong": false,
+          "found": true,
+          "spotlightId": null,
+          "hasCoach": true
+        },
+        {
+          "id": "m4-h-weak2",
+          "taggedStrong": false,
+          "resolvedStrong": false,
+          "found": true,
+          "spotlightId": null,
+          "hasCoach": true
+        }
+      ],
+      "strongCount": 1,
+      "oneStrongTest": true,
+      "strengthsResolveFaithfully": true,
+      "strongHasSpotlight": true,
+      "everyPickCoaches": true,
+      "unknownIsSafe": true
+    }
+  ],
+  "calibration": [
+    {
+      "missionId": "mission-001",
+      "prompt": "Before you commit — how sure are you about this release call, and why?",
+      "validRows": [
+        {
+          "level": "low",
+          "label": "Low",
+          "valid": true
+        },
+        {
+          "level": "med",
+          "label": "Medium",
+          "valid": true
+        },
+        {
+          "level": "high",
+          "label": "High",
+          "valid": true
+        }
+      ],
+      "invalid": {
+        "noLevel": false,
+        "badLevel": false,
+        "emptyRationale": false,
+        "whitespaceRationale": false,
+        "overlongRationale": false
+      },
+      "callback": {
+        "beforeCommitEmpty": true,
+        "quotesRationale": true,
+        "quotesLabel": true,
+        "asksNotTells": true,
+        "withFinding": "Earlier you put your confidence at Medium — “two records look like live PII”. Now that the payment record is on the table, does that still hold?",
+        "withoutFinding": "Earlier you put your confidence at Medium — “two records look like live PII”. Does the latest finding change that?"
+      },
+      "allLevelsValid": true,
+      "allInvalidRejected": true
+    },
+    {
+      "missionId": "mission-002",
+      "prompt": "Before you commit — how confident is your read on this device, and why?",
+      "validRows": [
+        {
+          "level": "low",
+          "label": "Low",
+          "valid": true
+        },
+        {
+          "level": "med",
+          "label": "Medium",
+          "valid": true
+        },
+        {
+          "level": "high",
+          "label": "High",
+          "valid": true
+        }
+      ],
+      "invalid": {
+        "noLevel": false,
+        "badLevel": false,
+        "emptyRationale": false,
+        "whitespaceRationale": false,
+        "overlongRationale": false
+      },
+      "callback": {
+        "beforeCommitEmpty": true,
+        "quotesRationale": true,
+        "quotesLabel": true,
+        "asksNotTells": true,
+        "withFinding": "Earlier you put your confidence at Medium — “two records look like live PII”. Now that the payment record is on the table, does that still hold?",
+        "withoutFinding": "Earlier you put your confidence at Medium — “two records look like live PII”. Does the latest finding change that?"
+      },
+      "allLevelsValid": true,
+      "allInvalidRejected": true
+    },
+    {
+      "missionId": "mission-003",
+      "prompt": "Before you escalate — how sure are you about this compromise read, and why?",
+      "validRows": [
+        {
+          "level": "low",
+          "label": "Low",
+          "valid": true
+        },
+        {
+          "level": "med",
+          "label": "Medium",
+          "valid": true
+        },
+        {
+          "level": "high",
+          "label": "High",
+          "valid": true
+        }
+      ],
+      "invalid": {
+        "noLevel": false,
+        "badLevel": false,
+        "emptyRationale": false,
+        "whitespaceRationale": false,
+        "overlongRationale": false
+      },
+      "callback": {
+        "beforeCommitEmpty": true,
+        "quotesRationale": true,
+        "quotesLabel": true,
+        "asksNotTells": true,
+        "withFinding": "Earlier you put your confidence at Medium — “two records look like live PII”. Now that the payment record is on the table, does that still hold?",
+        "withoutFinding": "Earlier you put your confidence at Medium — “two records look like live PII”. Does the latest finding change that?"
+      },
+      "allLevelsValid": true,
+      "allInvalidRejected": true
+    },
+    {
+      "missionId": "mission-004",
+      "prompt": "Before IR takes it — how confident is your exfiltration read, and why?",
+      "validRows": [
+        {
+          "level": "low",
+          "label": "Low",
+          "valid": true
+        },
+        {
+          "level": "med",
+          "label": "Medium",
+          "valid": true
+        },
+        {
+          "level": "high",
+          "label": "High",
+          "valid": true
+        }
+      ],
+      "invalid": {
+        "noLevel": false,
+        "badLevel": false,
+        "emptyRationale": false,
+        "whitespaceRationale": false,
+        "overlongRationale": false
+      },
+      "callback": {
+        "beforeCommitEmpty": true,
+        "quotesRationale": true,
+        "quotesLabel": true,
+        "asksNotTells": true,
+        "withFinding": "Earlier you put your confidence at Medium — “two records look like live PII”. Now that the payment record is on the table, does that still hold?",
+        "withoutFinding": "Earlier you put your confidence at Medium — “two records look like live PII”. Does the latest finding change that?"
+      },
+      "allLevelsValid": true,
+      "allInvalidRejected": true
+    }
+  ],
+  "twoVoice": [
+    {
+      "missionId": "mission-001",
+      "who": {
+        "a": "Release Manager",
+        "b": "Compliance Lead"
+      },
+      "reconcile": "Both pressures are real, and neither is yours to settle. Your job is to put what the evidence shows in front of them so they can weigh it — name what you see, and let them own the call.",
+      "bothValid": true,
+      "junkRejected": true,
+      "choiceIndependent": true
+    },
+    {
+      "missionId": "mission-002",
+      "who": {
+        "a": "Network Ops",
+        "b": "Security Lead"
+      },
+      "reconcile": "Each is protecting something worth protecting — uptime and containment. You do not have to choose for them; lay out what the device is doing and let the evidence frame the trade-off.",
+      "bothValid": true,
+      "junkRejected": true,
+      "choiceIndependent": true
+    },
+    {
+      "missionId": "mission-003",
+      "who": {
+        "a": "Account Owner",
+        "b": "Incident Response"
+      },
+      "reconcile": "One voice fears disruption, the other fears a breach — both are reasonable from where they stand. Your role is to surface what the sessions actually show so the call is made on evidence, not on whoever is loudest.",
+      "bothValid": true,
+      "junkRejected": true,
+      "choiceIndependent": true
+    },
+    {
+      "missionId": "mission-004",
+      "who": {
+        "a": "Finance Director",
+        "b": "CISO"
+      },
+      "reconcile": "Continuity and containment are both real stakes, and the call above your pay grade. Give them the evidence trail you built — what moved, where it went, from which endpoint — and let them weigh it with eyes open.",
+      "bothValid": true,
+      "junkRejected": true,
+      "choiceIndependent": true
+    }
+  ],
+  "trails": [
+    {
+      "missionId": "mission-001",
+      "rows": [
+        {
+          "id": "m1-t-scope",
+          "action": "focusEvidence",
+          "actionValid": true,
+          "armsOnEmit": true,
+          "doesNotArmOnOther": true,
+          "surfacesWhenBoth": true,
+          "hiddenWithoutPattern": true,
+          "hiddenWithoutTarget": true
+        }
+      ],
+      "allArmFaithfully": true,
+      "allGatedOnVisibleAndAccessible": true,
+      "allActionsValid": true,
+      "bogusActionRejected": true
+    },
+    {
+      "missionId": "mission-002",
+      "rows": [
+        {
+          "id": "m2-t-behaviour",
+          "action": "focusEvidence",
+          "actionValid": true,
+          "armsOnEmit": true,
+          "doesNotArmOnOther": true,
+          "surfacesWhenBoth": true,
+          "hiddenWithoutPattern": true,
+          "hiddenWithoutTarget": true
+        }
+      ],
+      "allArmFaithfully": true,
+      "allGatedOnVisibleAndAccessible": true,
+      "allActionsValid": true,
+      "bogusActionRejected": true
+    },
+    {
+      "missionId": "mission-003",
+      "rows": [
+        {
+          "id": "m3-t-actions",
+          "action": "focusEvidence",
+          "actionValid": true,
+          "armsOnEmit": true,
+          "doesNotArmOnOther": true,
+          "surfacesWhenBoth": true,
+          "hiddenWithoutPattern": true,
+          "hiddenWithoutTarget": true
+        }
+      ],
+      "allArmFaithfully": true,
+      "allGatedOnVisibleAndAccessible": true,
+      "allActionsValid": true,
+      "bogusActionRejected": true
+    },
+    {
+      "missionId": "mission-004",
+      "rows": [
+        {
+          "id": "m4-t-dest",
+          "action": "focusEvidence",
+          "actionValid": true,
+          "armsOnEmit": true,
+          "doesNotArmOnOther": true,
+          "surfacesWhenBoth": true,
+          "hiddenWithoutPattern": true,
+          "hiddenWithoutTarget": true
+        }
+      ],
+      "allArmFaithfully": true,
+      "allGatedOnVisibleAndAccessible": true,
+      "allActionsValid": true,
+      "bogusActionRejected": true
+    }
+  ],
+  "mirror": [
+    {
+      "label": "all-strong",
+      "signals": {
+        "calibrationUsed": true,
+        "committedCalls": 3,
+        "breadth": 3,
+        "unknownsDeclared": 2,
+        "betStrong": true
+      },
+      "strengthId": "calibrated",
+      "nudgeId": "push-further",
+      "strength": "You put a number on your confidence and said why. Calibrating out loud is a senior habit — keep doing it.",
+      "nudge": "Push one finding past the point it feels necessary — the extra step is where the real story usually hides.",
+      "perk": null,
+      "oneStrengthOneNudge": true,
+      "strengthMatches": true,
+      "nudgeMatches": true,
+      "perkMatches": true,
+      "deterministic": true,
+      "ignoresScore": true
+    },
+    {
+      "label": "calibrated-but-no-unknowns",
+      "signals": {
+        "calibrationUsed": true,
+        "committedCalls": 1,
+        "breadth": 3,
+        "unknownsDeclared": 0,
+        "betStrong": false
+      },
+      "strengthId": "calibrated",
+      "nudgeId": "name-unknowns",
+      "strength": "You put a number on your confidence and said why. Calibrating out loud is a senior habit — keep doing it.",
+      "nudge": "Try naming what you DON'T know out loud — flag an Unknown. An explicit gap sharpens the whole team's focus.",
+      "perk": {
+        "id": "perk-unknowns",
+        "label": "Open-question carry-over",
+        "note": "Next case, the first Unknown you flag earns a quick Scope Snapshot recap.",
+        "from": null
+      },
+      "oneStrengthOneNudge": true,
+      "strengthMatches": true,
+      "nudgeMatches": true,
+      "perkMatches": true,
+      "deterministic": true,
+      "ignoresScore": true
+    },
+    {
+      "label": "calibrated-but-narrow",
+      "signals": {
+        "calibrationUsed": true,
+        "committedCalls": 5,
+        "breadth": 1,
+        "unknownsDeclared": 2,
+        "betStrong": false
+      },
+      "strengthId": "calibrated",
+      "nudgeId": "widen-net",
+      "strength": "You put a number on your confidence and said why. Calibrating out loud is a senior habit — keep doing it.",
+      "nudge": "Cast a wider net next time — pull from more than one tier of evidence before you commit your read.",
+      "perk": {
+        "id": "perk-widen",
+        "label": "Wide-net carry-over",
+        "note": "Next case, Sarah will nudge you to corroborate across tiers before the call.",
+        "from": null
+      },
+      "oneStrengthOneNudge": true,
+      "strengthMatches": true,
+      "nudgeMatches": true,
+      "perkMatches": true,
+      "deterministic": true,
+      "ignoresScore": true
+    },
+    {
+      "label": "consistent-no-calibration",
+      "signals": {
+        "calibrationUsed": false,
+        "committedCalls": 4,
+        "breadth": 1,
+        "unknownsDeclared": 1,
+        "betStrong": false
+      },
+      "strengthId": "consistent",
+      "nudgeId": "calibrate-next",
+      "strength": "You logged a clear call on finding after finding instead of hedging. That decisiveness on the record is exactly what I lean on in a partner.",
+      "nudge": "Next case, put a number on your confidence and say why. Calibrating early catches over-reach before it costs you.",
+      "perk": {
+        "id": "perk-calibrate",
+        "label": "Calibration carry-over",
+        "note": "Sarah will prompt you to calibrate the moment your read firms up next case.",
+        "from": null
+      },
+      "oneStrengthOneNudge": true,
+      "strengthMatches": true,
+      "nudgeMatches": true,
+      "perkMatches": true,
+      "deterministic": true,
+      "ignoresScore": true
+    },
+    {
+      "label": "broad-no-calibration",
+      "signals": {
+        "calibrationUsed": false,
+        "committedCalls": 0,
+        "breadth": 4,
+        "unknownsDeclared": 2,
+        "betStrong": false
+      },
+      "strengthId": "breadth",
+      "nudgeId": "calibrate-next",
+      "strength": "You pulled signal from every tier of the evidence, not just the loud parts. That breadth is how a lead reads a case.",
+      "nudge": "Next case, put a number on your confidence and say why. Calibrating early catches over-reach before it costs you.",
+      "perk": {
+        "id": "perk-calibrate",
+        "label": "Calibration carry-over",
+        "note": "Sarah will prompt you to calibrate the moment your read firms up next case.",
+        "from": null
+      },
+      "oneStrengthOneNudge": true,
+      "strengthMatches": true,
+      "nudgeMatches": true,
+      "perkMatches": true,
+      "deterministic": true,
+      "ignoresScore": true
+    },
+    {
+      "label": "falsifiable-bet-only",
+      "signals": {
+        "calibrationUsed": false,
+        "committedCalls": 0,
+        "breadth": 0,
+        "unknownsDeclared": 2,
+        "betStrong": true
+      },
+      "strengthId": "falsifiable",
+      "nudgeId": "calibrate-next",
+      "strength": "You committed to a read and named what would prove you wrong. Stating a falsifiable position takes real analyst nerve.",
+      "nudge": "Next case, put a number on your confidence and say why. Calibrating early catches over-reach before it costs you.",
+      "perk": {
+        "id": "perk-calibrate",
+        "label": "Calibration carry-over",
+        "note": "Sarah will prompt you to calibrate the moment your read firms up next case.",
+        "from": null
+      },
+      "oneStrengthOneNudge": true,
+      "strengthMatches": true,
+      "nudgeMatches": true,
+      "perkMatches": true,
+      "deterministic": true,
+      "ignoresScore": true
+    },
+    {
+      "label": "bare-engagement",
+      "signals": {
+        "calibrationUsed": false,
+        "committedCalls": 0,
+        "breadth": 0,
+        "unknownsDeclared": 0,
+        "betStrong": false
+      },
+      "strengthId": "evidence-first",
+      "nudgeId": "calibrate-next",
+      "strength": "You worked the evidence before you called it. Leading with what you can see is the whole job — nicely done.",
+      "nudge": "Next case, put a number on your confidence and say why. Calibrating early catches over-reach before it costs you.",
+      "perk": {
+        "id": "perk-calibrate",
+        "label": "Calibration carry-over",
+        "note": "Sarah will prompt you to calibrate the moment your read firms up next case.",
+        "from": null
+      },
+      "oneStrengthOneNudge": true,
+      "strengthMatches": true,
+      "nudgeMatches": true,
+      "perkMatches": true,
+      "deterministic": true,
+      "ignoresScore": true
+    }
+  ],
+  "invariants": {
+    "noGradeChromeInSparringLayer": {
+      "pass": true,
+      "checkedStrings": 90,
+      "offenders": [],
+      "note": "Audited every player-facing string the sparring layer produces or ships across all four missions: bet prompts/labels/coaching, calibration prompts + generated callbacks, two-voice who/stance/reconcile, mentor-trail lines, and recap strength/nudge/perk copy. No ✓/✗, no correct/incorrect/right/wrong verdict language. The bet label never states the verdict; naming a disconfirming criterion is not the answer."
+    },
+    "presentationOnlyNoNewWrites": {
+      "pass": true,
+      "sparringCoreIsPure": true,
+      "sparringLayerSliceFound": true,
+      "sparringCallsGradedWriter": false,
+      "sparringWritesLocalStorageDirectly": false,
+      "sparringPersistsViaSaveCareerState": false,
+      "sparringStacksConfidence": false,
+      "sparringReadsCorrectness": false,
+      "perkIsSessionScopedVar": true,
+      "perkNeverPersisted": true,
+      "gradedJudgmentWriterStillExists": true,
+      "trailArmWiredInGradedWriter": true,
+      "note": "sarah-sparring-core.js is pure (no DOM/storage/window/grading). The sparring layer in career-sim.js never calls setDiscoveryJudgment (the SOLE graded writer), never writes localStorage directly, and adds NO new saveCareerState — the carry-over perk lives in a session-scoped module var (SARAH_SESSION_PERK) that is consumed in openCareerMission, never serialized. It also never touches confSpend / activateScopeSnapshot / BET_STAKE, so the trail's scope recap cannot double-charge confidence, and it reads NO keyed-correctness helper (the performance mirror keys on posture: committed calls, breadth, calibration, unknowns, falsifiable bet) so the debrief can never become a hidden grade. Trails arm inside setDiscoveryJudgment behind try/catch (best-effort)."
+    }
+  },
+  "references": {
+    "strengths": [
+      "calibrated",
+      "consistent",
+      "breadth",
+      "falsifiable",
+      "evidence-first"
+    ],
+    "nudges": [
+      "calibrate-next",
+      "name-unknowns",
+      "widen-net",
+      "push-further"
+    ],
+    "trailActions": [
+      "focusEvidence",
+      "openScopedRecap"
+    ],
+    "calibLevels": [
+      "low",
+      "med",
+      "high"
+    ],
+    "missionsCovered": [
+      "mission-001",
+      "mission-002",
+      "mission-003",
+      "mission-004"
+    ],
+    "contentMissions": [
+      "mission-001",
+      "mission-002",
+      "mission-003",
+      "mission-004"
+    ]
+  },
+  "screenshots": {
+    "note": "Per-surface interactive screenshots require a live click-through, which is unavailable this session. An in-mission Analyst Notebook view was captured statically and reviewed for a clean boot; the sparring sections render from the same renderEvidencePanel path exercised here."
+  },
+  "notes": [
+    {
+      "severity": "info",
+      "area": "reconciliation / no-grade guarantee",
+      "observation": "The two-voice reconciliation is choice-INDEPENDENT by construction (twoVoiceReconcile ignores choiceId), so neither stakeholder can read as the 'right' pick. The performance mirror reads posture only and ignores an injected score, so it cannot become a hidden grade.",
+      "impact": "None — this is the intended design and is asserted directly."
+    }
+  ],
+  "verdict": "PASS",
+  "verdictBreakdown": {
+    "analystBet": "PASS",
+    "calibration": "PASS",
+    "twoVoice": "PASS",
+    "mentorTrails": "PASS",
+    "performanceMirror": "PASS",
+    "invariants": "PASS"
+  }
+}

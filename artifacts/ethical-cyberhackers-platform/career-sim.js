@@ -1584,6 +1584,7 @@ function renderEvidencePanel() {
       <div class="sim-evidence-body">
         ${confidenceMeterHtml()}
         ${objectiveTrackHtml()}
+        ${sparringCarryHtml()}
         ${viewbar}
         ${evSection}
         ${inventoryBoardHtml()}
@@ -1591,6 +1592,9 @@ function renderEvidencePanel() {
         ${analystJudgmentHtml()}
         ${findingsHtml()}
         ${analystBetHtml()}
+        ${calibrationHtml()}
+        ${twoVoiceHtml()}
+        ${mentorTrailHtml()}
         ${analystPowersHtml()}
         ${caseFileSummaryHtml()}
         ${classHtml}
@@ -1798,7 +1802,7 @@ function renderEvItem(e, mode) {
   }
 
   return `
-    <div class="sim-ev-item sim-ev-item--${mode} sim-ev-item--${tier.toLowerCase()}">
+    <div class="sim-ev-item sim-ev-item--${mode} sim-ev-item--${tier.toLowerCase()}" data-ev-id="${e.id}">
       <div class="sim-ev-meta">
         <span class="sim-ev-quality">${tier} FINDING</span>
         <span class="sim-ev-src">${e.source || ''}</span>
@@ -3043,6 +3047,328 @@ function analystBetHtml() {
 }
 
 /* ================================================================== *
+ * #124 SARAH-SPARRING — features (2)-(5) DOM/state wrappers.
+ * ------------------------------------------------------------------ *
+ * PRESENTATION-ONLY by construction: every surface is gated on sarahOn(sub)
+ * AND on per-mission content (def.sarah override first, then SARAH_CONTENT),
+ * reacts to POSTURE never correctness, never calls setDiscoveryJudgment, and
+ * persists NOTHING (the only carry-over \u2014 the perk \u2014 is a session-scoped
+ * module var, never saveCareerState). With the flags off none of this renders
+ * and the game writes byte-identical state. Pure logic lives in
+ * ./sarah-sparring-core.js; these are the DOM/state wrappers around it.
+ * ================================================================== */
+
+/* Per-mission content resolvers \u2014 a def.sarah override wins for reshaped missions. */
+function simSarahCalibration() {
+  return (SIM.def && SIM.def.sarah && SIM.def.sarah.calibration) || sarahCalibration(SIM.missionId) || null;
+}
+function simSarahTwoVoice() {
+  return (SIM.def && SIM.def.sarah && SIM.def.sarah.twoVoice) || sarahTwoVoice(SIM.missionId) || null;
+}
+function simSarahTrails() {
+  const def = SIM.def && SIM.def.sarah && SIM.def.sarah.trails;
+  return (Array.isArray(def) && def.length) ? def : (sarahTrails(SIM.missionId) || []);
+}
+/* The shared "a read is forming" signal \u2014 how many visible threads are answered. */
+function answeredChallengeCount() {
+  return visibleDiscoveryChallenges().filter(challengeAnswered).length;
+}
+/* A short, safe label for the most recently surfaced finding (calibration callback). */
+function evShortLabel(e) {
+  if (!e) return '';
+  const raw = e.label || (e.layers && e.layers.beginner && e.layers.beginner.summary) || '';
+  const s = String(raw).replace(/\s+/g, ' ').trim();
+  return s.length > 64 ? (s.slice(0, 61).trimEnd() + '\u2026') : s;
+}
+
+/* ---- (2) CONFIDENCE CALIBRATION CHECK + later callback --------------- */
+function ensureCalibrationState() {
+  if (!SIM.sparring) SIM.sparring = freshSparringState();
+  if (!SIM.sparring.calibration) {
+    SIM.sparring.calibration = { draftLevel: null, draftRationale: '', committed: false, error: '' };
+  }
+  return SIM.sparring.calibration;
+}
+/* Chip pick: toggle the active level WITHOUT a full re-render so the rationale
+ * textarea keeps its text + focus (the notebook rebuilds its whole innerHTML). */
+function setCalibrationLevel(level) {
+  if (!sarahOn('calibration')) return;
+  const cal = ensureCalibrationState();
+  if (cal.committed) return;
+  cal.draftLevel = level;
+  cal.error = '';
+  const host = document.getElementById('simEvidence');
+  if (host) {
+    host.querySelectorAll('.sim-calib-chip').forEach(btn => {
+      const on = btn.dataset.calibLevel === level;
+      btn.classList.toggle('sim-calib-chip--on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    const commit = host.querySelector('.sim-calib-commit');
+    if (commit) commit.disabled = false;
+  }
+  sparringLog('calib-level', { level });
+}
+/* Lock in the calibration: read the live level + rationale, validate via the
+ * pure core, store transient view-state, and stamp the evidence count so the
+ * later callback can only fire once a NEW finding has surfaced. */
+function commitCalibration() {
+  if (!sarahOn('calibration')) return;
+  const cal = SIM.sparring && SIM.sparring.calibration;
+  if (!cal || cal.committed) return;
+  const host = document.getElementById('simEvidence');
+  const input = host && host.querySelector('.sim-calib-input');
+  const rationale = input ? String(input.value || '') : String(cal.draftRationale || '');
+  cal.draftRationale = rationale.slice(0, CALIB_MAX_RATIONALE);
+  if (!calibrationValid(cal.draftLevel, cal.draftRationale)) {
+    cal.error = !cal.draftLevel
+      ? 'Pick a confidence level first.'
+      : 'Add a short one-line reason (1\u2013140 characters).';
+    renderEvidencePanel();
+    return;
+  }
+  cal.committed = true;
+  cal.level = cal.draftLevel;
+  cal.rationale = cal.draftRationale.trim();
+  cal.atEvidence = SIM.evidence.size;
+  cal.error = '';
+  sparringLog('calib-commit', { level: cal.level });
+  renderEvidencePanel();
+}
+function calibrationHtml() {
+  if (!sarahOn('calibration')) return '';
+  const cfg = simSarahCalibration();
+  if (!cfg) return '';
+  const cal = SIM.sparring && SIM.sparring.calibration;
+  const committed = !!(cal && cal.committed);
+  if (!committed && !answeredChallengeCount()) return '';   // appears once a read is forming
+  if (committed) {
+    const lvl = calibrationLabel(cal.level);
+    let callback = '';
+    if (SIM.evidence.size > (cal.atEvidence || 0)) {
+      const short = evShortLabel(newestEvidence());
+      const line = calibrationCallback({ committed: true, level: cal.level, rationale: cal.rationale }, short);
+      if (line) {
+        callback = `<div class="sim-calib-callback"><span class="sim-calib-callback-lab">Sarah Reyes</span>${mapEsc(line)}</div>`;
+      }
+    }
+    return `
+      <div class="sim-notebook-section sim-calib sim-calib--committed">
+        <div class="sim-notebook-head sim-notebook-head--calib">CONFIDENCE CHECK <span class="sim-calib-state">${mapEsc(lvl)} \u00b7 logged</span></div>
+        <p class="sim-calib-recorded"><span class="sim-calib-recorded-lab">Your call</span>\u201c${mapEsc(cal.rationale)}\u201d</p>
+        ${callback}
+      </div>`;
+  }
+  const draft = (cal && cal.draftLevel) || null;
+  const draftText = (cal && cal.draftRationale) || '';
+  const chips = [['low', 'Low'], ['med', 'Medium'], ['high', 'High']].map(([v, label]) =>
+    `<button type="button" class="sim-calib-chip${draft === v ? ' sim-calib-chip--on' : ''}" data-calib-level="${v}" aria-pressed="${draft === v ? 'true' : 'false'}">${label}</button>`
+  ).join('');
+  const err = (cal && cal.error)
+    ? `<p class="sim-calib-error" role="alert">${mapEsc(cal.error)}</p>` : '';
+  return `
+    <div class="sim-notebook-section sim-calib">
+      <div class="sim-notebook-head sim-notebook-head--calib">CONFIDENCE CHECK <span class="sim-calib-optional">optional</span></div>
+      <p class="sim-calib-prompt">${mapEsc(cfg.prompt)}</p>
+      <div class="sim-calib-levels" role="group" aria-label="How confident is your read?">${chips}</div>
+      <label class="sim-calib-field"><span class="sim-calib-field-lab">In one line \u2014 why?</span>
+        <textarea class="sim-calib-input" maxlength="${CALIB_MAX_RATIONALE}" rows="2" aria-label="Why you are this confident, one line"
+          placeholder="e.g. the evidence points one way, but one record is still ambiguous">${mapEsc(draftText)}</textarea>
+      </label>
+      ${err}
+      <button type="button" class="sim-calib-commit" data-calib-commit="1"${draft ? '' : ' disabled'}>Lock in my confidence</button>
+      <p class="sim-calib-note">Putting a number on your confidence \u2014 and saying why \u2014 is a senior habit. It never changes your score.</p>
+    </div>`;
+}
+
+/* ---- (3) TWO-VOICE STAKEHOLDER MOMENT ------------------------------- */
+/* A real crossroad: at least two threads judged, or every visible thread judged. */
+function twoVoiceReached() {
+  const vis = visibleDiscoveryChallenges().filter(challengeValid);
+  if (!vis.length) return false;
+  const ans = vis.filter(challengeAnswered).length;
+  return ans >= 2 || ans === vis.length;
+}
+function chooseTwoVoice(choiceId) {
+  if (!sarahOn('twoVoice')) return;
+  const pair = simSarahTwoVoice();
+  if (!pair) return;
+  if (!SIM.sparring) SIM.sparring = freshSparringState();
+  if (SIM.sparring.twoVoice && SIM.sparring.twoVoice.choice) return;  // locked after first pick
+  if (!twoVoiceValidChoice(pair, choiceId)) return;
+  SIM.sparring.twoVoice = { choice: choiceId, at: Date.now() };
+  sparringLog('twovoice', { choice: choiceId });
+  renderEvidencePanel();
+}
+function twoVoiceHtml() {
+  if (!sarahOn('twoVoice')) return '';
+  const pair = simSarahTwoVoice();
+  if (!pair || !pair.a || !pair.b) return '';
+  const tv = SIM.sparring && SIM.sparring.twoVoice;
+  if (!tv || !tv.choice) {
+    if (!twoVoiceReached()) return '';
+    const opt = (v, side) => `
+      <button type="button" class="sim-tv-opt sim-tv-opt--${side}" data-twovoice="${mapEsc(v.id)}">
+        <span class="sim-tv-who">${mapEsc(v.who)}</span>
+        <span class="sim-tv-stance">${mapEsc(v.stance)}</span>
+      </button>`;
+    return `
+      <div class="sim-notebook-section sim-tv">
+        <div class="sim-notebook-head sim-notebook-head--tv">TWO VOICES IN THE ROOM</div>
+        <p class="sim-tv-prompt">Two people are leaning on you with different priorities. Whose framing best fits what the evidence actually shows?</p>
+        <div class="sim-tv-opts">${opt(pair.a, 'a')}${opt(pair.b, 'b')}</div>
+        <p class="sim-tv-note">There is no right voice to side with \u2014 your job is to put the evidence in front of both. This never changes your score.</p>
+      </div>`;
+  }
+  const chosen = [pair.a, pair.b].find(v => v && v.id === tv.choice) || null;
+  const reconcile = twoVoiceReconcile(pair);
+  return `
+    <div class="sim-notebook-section sim-tv sim-tv--chosen">
+      <div class="sim-notebook-head sim-notebook-head--tv">TWO VOICES IN THE ROOM <span class="sim-tv-state">weighed</span></div>
+      ${chosen ? `<div class="sim-tv-pick"><span class="sim-tv-who">${mapEsc(chosen.who)}</span><span class="sim-tv-stance">${mapEsc(chosen.stance)}</span></div>` : ''}
+      <div class="sim-tv-reconcile"><span class="sim-tv-reconcile-lab">Sarah Reyes</span>${mapEsc(reconcile)}</div>
+    </div>`;
+}
+
+/* ---- (4) MENTOR TRAILS \u2014 "what I'd check next" -------------------- */
+/* Arm trails whose `emitOn` thread was just committed (idempotent). Gated +
+ * best-effort; called from the sole discovery-judgment chokepoint. */
+function sparringArmTrails(committedKey) {
+  if (!sarahOn('mentorTrails')) return;
+  const defs = simSarahTrails();
+  if (!defs.length) return;
+  const armed = trailEmit(defs, committedKey);
+  if (!armed.length) return;
+  if (!SIM.sparring) SIM.sparring = freshSparringState();
+  const have = SIM.sparring.trails || (SIM.sparring.trails = []);
+  armed.forEach(t => {
+    if (!t || have.some(x => x.id === t.id)) return;   // idempotent
+    have.push({
+      id: t.id, label: t.label, target: t.target || null,
+      action: t.action, matchOn: t.matchOn, armedAt: Date.now(), consumedAt: null,
+    });
+    sparringLog('trail-arm', { id: t.id });
+  });
+}
+/* Trails surface only when their later pattern is visible AND their target is an
+ * already-surfaced finding \u2014 they can never point at anything unearned. */
+function mentorTrailCtx() {
+  const visiblePatternKeys = new Set(visibleDiscoveryChallenges().filter(challengeValid).map(c => c.id));
+  return { visiblePatternKeys, accessibleTargets: SIM.evidence };
+}
+function mentorTrailHtml() {
+  if (!sarahOn('mentorTrails')) return '';
+  const trails = (SIM.sparring && SIM.sparring.trails) || [];
+  if (!trails.length) return '';
+  const ctx = mentorTrailCtx();
+  const live = trails.filter(t => trailMatches(t, ctx));
+  if (!live.length) return '';
+  const items = live.map(t => {
+    const done = !!t.consumedAt;
+    const cta = t.action === 'openScopedRecap' ? 'Open a quick scope recap' : 'Show me that finding';
+    return `
+      <div class="sim-trail-item${done ? ' sim-trail-item--done' : ''}">
+        <p class="sim-trail-line"><span class="sim-trail-from">Sarah Reyes</span>${mapEsc(t.label)}</p>
+        <button type="button" class="sim-trail-act" data-trail-run="${mapEsc(t.id)}"${done ? ' aria-pressed="true"' : ''}>${done ? 'Reviewed \u2713' : cta}</button>
+      </div>`;
+  }).join('');
+  return `
+    <div class="sim-notebook-section sim-trail">
+      <div class="sim-notebook-head sim-notebook-head--trail">WHAT I\u2019D CHECK NEXT</div>
+      ${items}
+    </div>`;
+}
+/* Run a trail action \u2014 read-only navigation. focusEvidence scrolls/flashes the
+ * already-surfaced target finding; openScopedRecap opens a display-only scope
+ * recap WITHOUT staking confidence (never touches confSpend). */
+function runMentorTrail(id) {
+  if (!sarahOn('mentorTrails')) return;
+  const trails = (SIM.sparring && SIM.sparring.trails) || [];
+  const t = trails.find(x => x.id === id);
+  if (!t || !trailActionValid(t.action)) return;
+  t.consumedAt = Date.now();
+  sparringLog('trail-run', { id, action: t.action });
+  if (t.action === 'openScopedRecap') {
+    const P = SIM.powers;
+    if (P) P.active['betSnapshot'] = { left: SNAPSHOT_WINDOW, counts: scopeCounts(), source: 'trail' };
+    renderEvidencePanel();
+    return;
+  }
+  renderEvidencePanel();
+  if (t.target && /^[\w-]+$/.test(t.target)) {
+    const host = document.getElementById('simEvidence');
+    const body = host && host.querySelector('.sim-evidence-body');
+    const el = body && body.querySelector(`.sim-ev-item[data-ev-id="${t.target}"]`);
+    if (body && el) {
+      simScrollBodyTo(body, el);
+      try { void el.offsetWidth; el.classList.add('sim-ev-item--flash'); } catch (_) { /* flash is cosmetic */ }
+    }
+  }
+}
+
+/* ---- (5) END-OF-MISSION PERFORMANCE MIRROR + PERK ------------------- */
+/* Posture signals ONLY \u2014 never correctness, never a score. Every input reflects
+ * HOW the analyst engaged, not whether a keyed answer was right: did they
+ * calibrate, how many calls did they commit to the record, how wide did they pull
+ * evidence, did they flag unknowns, did they stake a falsifiable bet. */
+function performanceMirrorSignals() {
+  const cal = SIM.sparring && SIM.sparring.calibration;
+  const unknownsDeclared = (SIM.markup || []).filter(m => m && m.tag === 'unknown').length;
+  // Decisiveness posture: how many findings the player committed to the record.
+  // Independent of whether the call was correct (NO scoring/correctness helper).
+  const committedCalls = (SIM.committedFindings || []).length;
+  return {
+    calibrationUsed: !!(cal && cal.committed),
+    committedCalls,
+    breadth: evidenceBreadth(),
+    unknownsDeclared,
+    betStrong: !!(SIM.analystBet && SIM.analystBet.strong),
+  };
+}
+/* Sarah's end-of-mission read: exactly one reinforced strength + one nudge, with
+ * an optional session-scoped carry-over perk. Computed once and cached for
+ * display; the perk lives at module scope (NON-persisted) so it survives into the
+ * next openCareerMission and is consumed there. Persists nothing. */
+function performanceMirrorHtml() {
+  if (!sarahOn('performanceMirror')) return '';
+  if (!SIM.sparring) SIM.sparring = freshSparringState();
+  let recap = SIM.sparring.recap;
+  if (!recap) {
+    recap = selectRecap(performanceMirrorSignals());
+    SIM.sparring.recap = recap;
+    if (recap.perk) {
+      try {
+        SARAH_SESSION_PERK = { id: recap.perk.id, label: recap.perk.label, note: recap.perk.note, fromMission: SIM.missionId };
+      } catch (_) { /* perk arming is best-effort */ }
+      sparringLog('mirror-perk', { id: recap.perk.id });
+    }
+    sparringLog('mirror', { strength: recap.strengthId, nudge: recap.nudgeId });
+  }
+  const perk = recap.perk
+    ? `<div class="sim-mirror-perk"><span class="sim-mirror-perk-lab">Carry-over \u2014 ${mapEsc(recap.perk.label)}</span>${mapEsc(recap.perk.note)}</div>` : '';
+  return `
+    <div class="sim-mirror">
+      <div class="sim-mirror-head">SARAH\u2019S READ ON YOU</div>
+      <div class="sim-mirror-row sim-mirror-row--strength"><span class="sim-mirror-tag">What worked</span><p class="sim-mirror-line">${mapEsc(recap.strength)}</p></div>
+      <div class="sim-mirror-row sim-mirror-row--nudge"><span class="sim-mirror-tag">For next time</span><p class="sim-mirror-line">${mapEsc(recap.nudge)}</p></div>
+      ${perk}
+    </div>`;
+}
+/* The carry-over banner from the PREVIOUS mission's debrief perk (display-only).
+ * SIM.sparring.carry is set in openCareerMission from the session perk var. */
+function sparringCarryHtml() {
+  if (!sarahOn('performanceMirror')) return '';
+  const carry = SIM.sparring && SIM.sparring.carry;
+  if (!carry) return '';
+  return `
+    <div class="sim-notebook-section sim-carry">
+      <div class="sim-notebook-head sim-notebook-head--carry">FROM YOUR LAST DEBRIEF</div>
+      <p class="sim-carry-line"><span class="sim-carry-lab">${mapEsc(carry.label)}</span>${mapEsc(carry.note)}</p>
+    </div>`;
+}
+/* --- end #124 sarah-sparring layer --- */
+
+/* ================================================================== *
  * INVESTIGATION ENGINE (P2) — terminal (ls/cat/less), evidence,
  * file classification. Reward is investigation QUALITY (weighted
  * evidence surfaced + files classified correctly), never command count.
@@ -3398,6 +3724,8 @@ function setDiscoveryJudgment(challengeId, step, optionId) {
   if (!cfg.options.some(o => o.id === optionId)) return;       // valid option only — validate BEFORE allocating
   const ans = SIM.discoveryJudgments[challengeId] || (SIM.discoveryJudgments[challengeId] = {});
   ans[step] = optionId;
+  // #124 arm any mentor trail whose thread was just committed (gated, best-effort).
+  try { sparringArmTrails(challengeId); } catch (_) { /* mentor trails are best-effort */ }
   powersTick();              // earn/expire/recover analyst tools (transient, no render)
   renderEvidencePanel();
   focusNextComms(challengeId, step); // keep keyboard focus inside the comms flow (a11y)
@@ -4575,6 +4903,8 @@ function renderDebrief(action, outcome, changes) {
   // that seeds a question for the next assignment. Data-gated on def.foreshadow.
   if (SIM.def && SIM.def.foreshadow) html += foreshadowCardHtml(SIM.def.foreshadow);
 
+  // #124 Sarah's end-of-mission read on the player (presentation-only; no score).
+  html += performanceMirrorHtml();
   html += reportSectionHtml();
   html += consequenceTradeoffHtml(); // #120 (D) one reversible micro-tradeoff texture (additive, never blocks RETURN)
   html += `</div>`; // .sim-feedback-body
@@ -8587,6 +8917,15 @@ function simInit() {
       if (reopen) { openChallengeInComms(reopen.dataset.findingReopen); return; }
       const bet = e.target.closest('[data-analyst-bet]');
       if (bet) { takeAnalystBet(bet.dataset.analystBet); return; }
+      // #124 Sarah-sparring — calibration / two-voice / mentor trails (presentation-only).
+      const calLvl = e.target.closest('[data-calib-level]');
+      if (calLvl) { setCalibrationLevel(calLvl.dataset.calibLevel); return; }
+      const calCommit = e.target.closest('[data-calib-commit]');
+      if (calCommit) { commitCalibration(); return; }
+      const twoVoice = e.target.closest('[data-twovoice]');
+      if (twoVoice) { chooseTwoVoice(twoVoice.dataset.twovoice); return; }
+      const trailRun = e.target.closest('[data-trail-run]');
+      if (trailRun) { runMentorTrail(trailRun.dataset.trailRun); return; }
       // Optional side-trails (presentation-only) — expand/collapse + two-step judgment.
       const stOpen = e.target.closest('[data-sidetrail-open]');
       if (stOpen) { openSideTrail(stOpen.dataset.sidetrailOpen); return; }
@@ -8619,6 +8958,16 @@ function simInit() {
         return;
       }
       if (e.target.closest('[data-done]')) { returnFromCareerMission(); return; }
+    });
+
+    // #124 keep the calibration rationale in transient view-state on every
+    // keystroke so an unrelated notebook re-render never wipes what was typed.
+    careerOps.addEventListener('input', e => {
+      const ta = e.target.closest('.sim-calib-input');
+      if (!ta || !sarahOn('calibration')) return;
+      const cal = ensureCalibrationState();
+      if (cal.committed) return;
+      cal.draftRationale = String(ta.value || '').slice(0, CALIB_MAX_RATIONALE);
     });
 
     // Keyboard parity for Phase 3-5 controls that are not native <button>s:

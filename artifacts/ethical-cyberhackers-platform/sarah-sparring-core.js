@@ -126,10 +126,11 @@ export function trailActionValid(action) {
 /* ================================================================== *
  * (5) PERFORMANCE MIRROR — end recap (one strength + one nudge + perk)
  * ------------------------------------------------------------------ *
- * Derived from POSTURE signals the player generated (breadth of evidence, sound
- * judgment steps, explicit Unknowns, whether they calibrated, whether they
- * staked a falsifiable read). Never from a score. selectRecap always returns
- * exactly one reinforced strength and one improvement nudge.
+ * Derived from POSTURE signals the player generated (breadth of evidence, how
+ * many calls they committed to the record, explicit Unknowns, whether they
+ * calibrated, whether they staked a falsifiable read). NEVER from correctness or
+ * a score. selectRecap always returns exactly one reinforced strength and one
+ * improvement nudge.
  * ================================================================== */
 export const RECAP_STRENGTHS = [
   {
@@ -139,8 +140,8 @@ export const RECAP_STRENGTHS = [
   },
   {
     id: 'consistent',
-    when: (s) => (s.soundJudgments | 0) >= 3,
-    line: 'Your reasoning held up call after call. That consistency is exactly what I lean on in a partner.',
+    when: (s) => (s.committedCalls | 0) >= 3,
+    line: 'You logged a clear call on finding after finding instead of hedging. That decisiveness on the record is exactly what I lean on in a partner.',
   },
   {
     id: 'breadth',

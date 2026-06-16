@@ -2977,3 +2977,192 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
   .sim-nb-status--new { animation: none; }
   .career--nb-focus #simEvidence { animation: none; }
 }
+
+/* ================================================================== *
+ * SARAH-SPARRING (Task #124) — presentation-only styling
+ * ------------------------------------------------------------------ *
+ * Five surfaces on the Analyst Notebook / debrief: (2) confidence
+ * calibration check + later callback, (3) two-voice stakeholder moment,
+ * (4) mentor trails ("what I'd check next"), (5) end-of-mission
+ * performance mirror + carry-over perk, plus the carry-in banner. All
+ * additive: with the sparring flags off none of these render, so these
+ * rules style nothing and change no existing layout. Sarah's voice reads
+ * cyan (mentor accent); the perk/strength reads green (reinforcement);
+ * nudges read orange (a forward push). No new motion beyond a single
+ * one-shot evidence flash, which the reduced-motion block below disables.
+ * ================================================================== */
+
+/* ---- (2) Confidence calibration check ---- */
+.sim-notebook-head--calib { --nb-accent: var(--cyan); --nb-icon: "\25D1"; }
+.sim-calib-optional, .sim-calib-state {
+  margin-left: auto; font-family: var(--font-hud); font-size: 8.5px;
+  letter-spacing: 0.8px; text-transform: uppercase;
+}
+.sim-calib-optional { color: var(--text-dim); }
+.sim-calib-state { color: var(--cyan-dim); }
+.sim-calib-prompt { margin: 0 0 9px; font-size: 12px; line-height: 1.5; color: var(--text-bright); }
+.sim-calib-levels { display: flex; gap: 7px; margin-bottom: 9px; }
+.sim-calib-chip {
+  flex: 1; text-align: center; font: inherit; font-size: 11px; cursor: pointer;
+  color: var(--text-muted); background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 8px;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.sim-calib-chip:hover { background: var(--bg-panel-alt); }
+.sim-calib-chip:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.sim-calib-chip--on { color: var(--text-bright); border-color: var(--cyan); background: rgba(45, 212, 255, 0.07); }
+.sim-calib-field { display: block; margin-bottom: 9px; }
+.sim-calib-field-lab {
+  display: block; font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px;
+}
+.sim-calib-input {
+  width: 100%; box-sizing: border-box; resize: vertical; font: inherit; font-size: 11.5px;
+  line-height: 1.45; color: var(--text-bright); background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 7px 9px;
+}
+.sim-calib-input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.sim-calib-error { margin: 0 0 8px; font-size: 10.5px; line-height: 1.4; color: var(--red); }
+.sim-calib-commit {
+  font: inherit; font-size: 11px; cursor: pointer; color: var(--bg);
+  background: var(--cyan); border: 1px solid var(--cyan); border-radius: var(--radius-sm);
+  padding: 7px 12px; transition: opacity var(--transition);
+}
+.sim-calib-commit:hover { opacity: 0.9; }
+.sim-calib-commit:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.sim-calib-commit:disabled { opacity: 0.4; cursor: not-allowed; }
+.sim-calib-note { margin: 9px 0 0; font-size: 10px; line-height: 1.45; color: var(--text-dim); }
+.sim-calib-recorded {
+  margin: 0; padding: 8px 10px; font-size: 12px; line-height: 1.5; color: var(--text-bright);
+  border: 1px solid var(--border); border-left: 2px solid var(--cyan);
+  border-radius: var(--radius-sm); background: rgba(45, 212, 255, 0.05);
+}
+.sim-calib-recorded-lab {
+  display: block; font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-dim); margin-bottom: 3px;
+}
+.sim-calib-callback {
+  margin-top: 8px; padding: 7px 10px; font-size: 11px; line-height: 1.5;
+  color: var(--text-muted); border: 1px solid var(--border);
+  border-left: 2px solid var(--cyan); background: rgba(45, 212, 255, 0.05);
+  border-radius: var(--radius-sm); font-style: italic;
+}
+.sim-calib-callback-lab {
+  display: block; font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--cyan-dim); margin-bottom: 3px; font-style: normal;
+}
+
+/* ---- (3) Two-voice stakeholder moment ---- */
+.sim-notebook-head--tv { --nb-accent: var(--purple); --nb-icon: "\25C9"; }
+.sim-tv-state {
+  margin-left: auto; font-family: var(--font-hud); font-size: 8.5px;
+  letter-spacing: 0.8px; text-transform: uppercase; color: var(--purple);
+}
+.sim-tv-prompt { margin: 0 0 9px; font-size: 12px; line-height: 1.5; color: var(--text-bright); }
+.sim-tv-opts { display: flex; flex-direction: column; gap: 7px; }
+.sim-tv-opt {
+  display: block; text-align: left; font: inherit; cursor: pointer; width: 100%;
+  color: var(--text-bright); background: var(--bg);
+  border: 1px solid var(--border); border-left: 2px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 10px;
+  transition: border-color var(--transition), background var(--transition);
+}
+.sim-tv-opt:hover { background: var(--bg-panel-alt); border-color: var(--purple); }
+.sim-tv-opt:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+.sim-tv-who {
+  display: block; font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--purple); margin-bottom: 3px;
+}
+.sim-tv-stance { display: block; font-size: 11.5px; line-height: 1.45; color: var(--text-bright); }
+.sim-tv-note { margin: 9px 0 0; font-size: 10px; line-height: 1.45; color: var(--text-dim); }
+.sim-tv-pick {
+  margin-bottom: 8px; padding: 8px 10px;
+  border: 1px solid var(--border); border-left: 2px solid var(--purple);
+  border-radius: var(--radius-sm); background: rgba(168, 85, 247, 0.06);
+}
+.sim-tv-reconcile {
+  padding: 7px 10px; font-size: 11px; line-height: 1.5; color: var(--text-muted);
+  border: 1px solid var(--border); border-left: 2px solid var(--cyan);
+  background: rgba(45, 212, 255, 0.05); border-radius: var(--radius-sm); font-style: italic;
+}
+.sim-tv-reconcile-lab {
+  display: block; font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--cyan-dim); margin-bottom: 3px; font-style: normal;
+}
+
+/* ---- (4) Mentor trails ---- */
+.sim-notebook-head--trail { --nb-accent: var(--cyan); --nb-icon: "\279C"; }
+.sim-trail-item {
+  padding: 8px 10px; margin-bottom: 7px;
+  border: 1px solid var(--border); border-left: 2px solid var(--cyan);
+  border-radius: var(--radius-sm); background: rgba(45, 212, 255, 0.04);
+}
+.sim-trail-item:last-child { margin-bottom: 0; }
+.sim-trail-item--done { border-left-color: var(--green); background: rgba(0, 255, 136, 0.04); }
+.sim-trail-line { margin: 0 0 7px; font-size: 11.5px; line-height: 1.5; color: var(--text-bright); }
+.sim-trail-from {
+  display: block; font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--cyan-dim); margin-bottom: 3px;
+}
+.sim-trail-act {
+  font: inherit; font-size: 10.5px; cursor: pointer; color: var(--cyan);
+  background: var(--bg); border: 1px solid var(--cyan); border-radius: var(--radius-sm);
+  padding: 5px 10px; transition: background var(--transition), color var(--transition);
+}
+.sim-trail-act:hover { background: rgba(45, 212, 255, 0.12); }
+.sim-trail-act:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.sim-trail-item--done .sim-trail-act { color: var(--green); border-color: var(--green); cursor: default; }
+
+/* Target-finding spotlight when a focusEvidence trail is run. */
+.sim-ev-item--flash { animation: simEvFlash 1100ms ease; }
+@keyframes simEvFlash {
+  0%   { box-shadow: 0 0 0 2px var(--cyan), 0 0 14px rgba(45, 212, 255, 0.5); }
+  100% { box-shadow: none; }
+}
+
+/* ---- carry-in banner (from the previous debrief perk) ---- */
+.sim-notebook-head--carry { --nb-accent: var(--green); --nb-icon: "\2713"; }
+.sim-carry-line {
+  margin: 0; padding: 8px 10px; font-size: 11.5px; line-height: 1.5; color: var(--text-bright);
+  border: 1px solid var(--border); border-left: 2px solid var(--green);
+  border-radius: var(--radius-sm); background: rgba(0, 255, 136, 0.05);
+}
+.sim-carry-lab {
+  display: block; font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--green); margin-bottom: 3px;
+}
+
+/* ---- (5) Performance mirror (debrief) ---- */
+.sim-mirror {
+  margin: 14px 0; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: rgba(45, 212, 255, 0.04);
+}
+.sim-mirror-head {
+  font-family: var(--font-hud); font-size: 10px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--cyan-dim); margin-bottom: 10px;
+}
+.sim-mirror-row { margin-bottom: 9px; }
+.sim-mirror-row:last-child { margin-bottom: 0; }
+.sim-mirror-tag {
+  display: block; font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; margin-bottom: 3px;
+}
+.sim-mirror-row--strength .sim-mirror-tag { color: var(--green); }
+.sim-mirror-row--nudge .sim-mirror-tag { color: var(--orange); }
+.sim-mirror-line { margin: 0; font-size: 12px; line-height: 1.55; color: var(--text-bright); }
+.sim-mirror-perk {
+  margin-top: 11px; padding: 8px 10px; font-size: 11px; line-height: 1.5; color: var(--text-muted);
+  border: 1px solid var(--border); border-left: 2px solid var(--green);
+  border-radius: var(--radius-sm); background: rgba(0, 255, 136, 0.05);
+}
+.sim-mirror-perk-lab {
+  display: block; font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--green); margin-bottom: 3px;
+}
+
+/* Respect reduced-motion: keep the spotlight colour, drop the animation. */
+@media (prefers-reduced-motion: reduce) {
+  .sim-ev-item--flash { animation: none; }
+  .sim-calib-chip, .sim-calib-commit, .sim-tv-opt, .sim-trail-act { transition: none; }
+}
