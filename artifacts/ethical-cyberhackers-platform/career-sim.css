@@ -268,7 +268,7 @@
   color: var(--cyan-dim);
   margin-bottom: 6px;
 }
-.sim-brief-text, .sim-brief-note { line-height: 1.65; color: var(--text); margin-bottom: 12px; }
+.sim-brief-text, .sim-brief-note { line-height: 1.65; color: var(--text); margin-bottom: 12px; max-width: 64ch; }
 .sim-brief-note { color: var(--text-dim); font-style: italic; border-left: 2px solid var(--border); padding-left: 10px; }
 .sim-brief-objs { list-style: none; margin: 0 0 12px; padding: 0; }
 .sim-brief-obj { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; line-height: 1.45; }
@@ -1686,7 +1686,7 @@
 .sim-casefile-tag--reason { color: var(--text-dim); }
 .sim-casefile-tag--unknown { color: var(--orange); }
 .sim-casefile-tag--rec { color: var(--green); }
-.sim-casefile-body { flex: 1 1 auto; min-width: 0; }
+.sim-casefile-body { flex: 1 1 auto; min-width: 0; max-width: 62ch; }
 .sim-casefile-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .sim-casefile-list li { font-size: 11px; line-height: 1.5; color: var(--text); }
 .sim-casefile-empty { font-size: 11px; line-height: 1.5; color: var(--text-dim); font-style: italic; }
@@ -2224,7 +2224,7 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
 }
 .sim-finding-source:hover { color: var(--cyan); }
 .sim-finding-source:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
-.sim-finding-text { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--text-bright); }
+.sim-finding-text { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--text-bright); max-width: 62ch; }
 .sim-finding-chip {
   font: inherit; color: var(--cyan); background: rgba(45, 212, 255, 0.08);
   border: none; border-bottom: 1px dashed var(--cyan-dim); border-radius: 2px;

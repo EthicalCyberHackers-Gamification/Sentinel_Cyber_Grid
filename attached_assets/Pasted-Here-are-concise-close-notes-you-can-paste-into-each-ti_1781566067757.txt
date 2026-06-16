@@ -1,0 +1,111 @@
+Here are concise close notes you can paste into each ticket, plus a one-screen acceptance checklist for #116.
+
+Close notes — copy-ready
+
+#112 — Analyst Judgment Engine across all Intern missions
+Status: Ready → Merged
+Notes:
+• Implemented judgment flow across all Intern missions with unified write chokepoint (setDiscoveryJudgment).
+• Integrated Live Comms rendering, confidence updates, and consequence hooks.
+• Verified: node/type checks clean; Architect review PASS; no answer-key exposure.
+Action:
+• Merge completed. Mark as Closed/Done.
+
+#44 — Automated walkthrough check for the training lab
+Status: Ready → Merged
+Notes:
+• Added automated walkthrough verification for training lab start-to-finish flow.
+• Test suite integrated (npm test). Clean run alongside existing tests.
+• No runtime changes; CI green.
+Action:
+• Merge completed. Mark as Closed/Done.
+
+#115 — Analyst Notebook feedback loop
+Status: Active → Completed
+Notes:
+• Implemented post-action attention loop: flashes the relevant evidence card and shows directional confidence nudge (no numeric grades).
+• Behavior confirmed in live build; zero changes to scoring logic or persistence.
+• a11y preserved.
+Action:
+• Close ticket as the behavior is shipped.
+
+#117 — Judgment-to-Power system
+Status: Active → Completed
+Notes:
+• Live: powers earned from demonstrated judgment patterns; time-bound; mapped to existing Investigation Confidence and Sarah interactions.
+• No leaderboard/points; identity-preserving; no changes to grading core.
+• Telemetry in place for tuning.
+Action:
+• Close ticket as shipped.
+
+#118 — Turn the Notebook into a live case, not a quiz
+Status: Active → Completed
+Notes:
+• Replaced MCQ/grade chrome with Sarah Reyes Live Comms.
+• Options render as first‑person analyst lines; immediate in‑character feedback; no ✓/✗ or answer reveals.
+• Writes still route only through setDiscoveryJudgment; scoring unchanged.
+Action:
+• Close ticket as shipped.
+
+#119 — Evidence mark-up, auto-written findings & optional Analyst’s Bet
+Status: Active → Completed
+Notes:
+• Phase 3: Inline evidence highlighting/tagging in artifact viewers; implication handled via Live Comms; highlights are view-state only.
+• Phase 4: Auto-composed, chip‑editable findings (derived view); authoritative record remains the graded payload; no new write path.
+• Phase 5: Optional Analyst’s Bet (one per mission) unlocking read‑only Scope Snapshot with small Confidence spend; no answer leaks.
+• All tests pass; Architect review PASS.
+Action:
+• Close ticket as shipped.
+
+Backlog hygiene (older items surfaced as done/obsolete)
+• #45 / #46 — Lab routing across missions: Confirmed implemented (launchMissionFromMap → openLab()).
+• #22 — Retire legacy map: Implemented (redirects to Ops Center).
+• #24 — Persist comms: Implemented (OCV2COMMSLOG_KEY, ocv2LoadCommsLog()).
+• #34 — Back-button label test: Present in tests/back-button-labels.test.js.
+• #19 / #20 — Radar sweeps (prototype sandbox): Obsolete per current product direction.
+
+One-screen acceptance checklist — #116 Analyst Notebook readability redesign
+
+Objective
+Ensure the right-column investigation pane is clear, scannable, and consistent post-redesign (Live Comms + Mark‑up + Findings).
+
+Acceptance criteria (all must pass)
+1) Visual hierarchy
+• Each finding/thread has a clear title style distinct from meta text.
+• Consistent spacing between findings/threads (at least 12–16px vertical rhythm).
+• Section dividers or subtle rules visually group related content without clutter.
+
+2) Typography and affordances
+• Type scale: titles > body > meta/chips; no collisions or cramped lines.
+• Chips (actor/action/asset/risk) are visually distinct, tappable/clickable, and have visible focus states.
+• Link-like elements (e.g., “Derived from Decision …”) are styled as actions and discoverable.
+
+3) Empty and edge states
+• Empty notebook/first finding: displays a short, in-world prompt (no quiz/test language) that points to the next action (e.g., “Highlight what stands out in the artifact to start your case thread.”).
+• No-data states avoid red error chrome; use calm explanatory copy.
+• Overflow handling: long artifact titles or chip values truncate gracefully with tooltips.
+
+4) Feedback and guidance (readability, not grading)
+• Confidence nudge and Evidence Breadth dots are visible but unobtrusive; no numeric grades.
+• Sarah Comms is visually anchored and does not scroll out of context during short interactions.
+
+5) Accessibility
+• Keyboard: tab order reaches findings, chips, and “Commit” in a logical sequence.
+• Visible focus ring on interactive elements (chips, links, highlights).
+• Screen-reader labels exist for chips and “Derived from Decision …” links (role + name).
+
+6) Responsiveness
+• At 900–1024px widths, layout maintains hierarchy without overlap.
+• At 1280px+, line lengths remain readable; no ultra-wide paragraphs.
+
+Verification steps (10 minutes)
+• Create one finding via highlight → Comms → auto-write; inspect spacing, focus states, and chips.
+• Trigger an empty state (new mission) and confirm copy and CTA.
+• Navigate purely via keyboard to commit a finding; observe focus order and ring.
+• Resize to 900px and 1280px; verify all criteria.
+
+Sign-off
+• If all criteria pass, close #116 as Completed.
+• If any fail, keep #116 open with the failing bullets listed verbatim and a one-line fix per bullet (e.g., “Increase vertical spacing between findings from 8px to 16px in .finding + .finding”).
+
+This should let you tidy the queue and align tickets with what’s actually live without more back-and-forth.
