@@ -1,0 +1,97 @@
+—— COPY FROM HERE ——
+
+Title: Design Upgrade #4 — Elevate Sarah Reyes from Mentor to Sparring Partner
+
+Objective
+Evolve Sarah from primarily instructional guidance to an active sparring partner who challenges, calibrates, and sharpens the player’s judgment — without introducing grades or new write paths. All interactions must run through the existing Comms panel and preserve the current judgment engine and persistence.
+
+Scope (feature flags; all default ON in dev)
+• FLAGS.sarahSparring
+• FLAGS.sarahCalibration
+• FLAGS.twoVoice
+• FLAGS.mentorTrails
+• FLAGS.performanceMirror
+
+Hard constraints
+• No ✓/✗, no “correct answer,” no graded badges.
+• Keep setDiscoveryJudgment as the sole authoritative write.
+• Confidence/scoring math unchanged; any nudges must use existing helpers.
+• A11y parity or better; keyboard flows for all new prompts.
+
+Features to build
+
+1) Analyst’s Bet 2.0 (sparring exchange)
+• Trigger: Once per mission, when the player is about to escalate/dismiss a thread with medium+ conviction.
+• Comms prompt (Sarah): “Before we commit, what disconfirming evidence would you expect if your read were wrong?”
+• UI: 2–3 hypothesis choices (plausible, no answer leaks). Optional “Skip for now.”
+• Outcome:
+  - Strong hypothesis → unlock a scoped, read-only “Spotlight Artifact” panel; apply a small Confidence spend via existing helper.
+  - Weak hypothesis or Skip → short coaching line; no unlock.
+• Logging: {threadId, chosenHypothesisId, unlockGranted, confidenceDelta}.
+
+2) Confidence calibration checks
+• Trigger: On strong claims (e.g., high-risk call, assertive dismissal).
+• Comms prompt: “Your confidence and why?” with:
+  - Slider or discrete chips: Low / Medium / High.
+  - One-line rationale entry (max 140 chars).
+• Storage: Save rationale as view-state attached to the decision; do not mutate graded record.
+• Later reference: Sarah may cite it (“Earlier you were High because X — does Y change that?”).
+
+3) Two-voice moments (cross-functional tension)
+• Trigger: 0–1 times per mission at a consequential crossroad.
+• Comms: Introduce a second stakeholder (e.g., IT Ops Lead vs. Finance Owner) with concise, conflicting priorities (performance vs. compliance).
+• UI: Player selects whose framing best fits current evidence.
+• Outcome: Sarah models reconciliation in 1–2 lines; no grades; optionally adjust which Micro‑Tradeoff is eligible later (display-only).
+
+4) Mentor trails (actionable follow-ups)
+• When a thread is committed, Sarah may drop a short “what I’d check next” trail item that appears as a clickable quick-action chip the next time a similar pattern is detected in the same mission.
+• Clicking runs an allowed, pre-defined lookup or opens a scoped view (no new commands revealed).
+
+5) Performance mirror (30-second recap)
+• At mission end, Sarah delivers:
+  - One reinforced strength (e.g., “good evidence diversity”).
+  - One improvement nudge (e.g., “declare unknowns earlier”).
+• Optional perk: If FLAGS.sarahSparring is ON, attach a tiny time-bound perk tied to the nudge (e.g., “Next mission: first Unknown you resolve grants a Scope Snapshot.”). Do not alter core scoring.
+
+Content to provide (minimal, structured)
+• 12–18 Sarah lines keyed to outcomes:
+  - Coaching, Calibration, Context.
+• Hypothesis bank (per mission): 3 entries with id, label, and the Spotlight Artifact id to unlock when “strong”.
+• Two-voice pairs per mission: stakeholder names, 1-line stance each, and a 1–2 line reconciliation from Sarah.
+• Mentor trail definitions: pattern key → quick-action descriptor → target view/lookup.
+
+Data model (view-state only additions; no new writes)
+• sparring: { threadId, offeredAt, chosenHypothesisId, unlockGranted, confidenceDelta }
+• calibration: { decisionId, confidence: "low|med|high", rationale: string }
+• twoVoice: { eventId, choice: "stakeholderA|stakeholderB" }
+• mentorTrails: { patternKey, emittedAt, consumedAt? }
+All persisted graded data continues through setDiscoveryJudgment only.
+
+Acceptance criteria
+• At least one optional sparring exchange can occur per mission; skipping does not block progress.
+• On a strong claim, a confidence+rationale prompt appears and is later referenced by Sarah in-character.
+• One two-voice moment presents contrasting priorities and a reconciliation line; no grades shown.
+• A mentor trail chip appears on a subsequent, similar pattern and runs a safe, predefined action.
+• A 30-second end recap names one strength and one improvement, optionally attaching a tiny time-bound perk.
+• Invariants: no answer keys/grades; single write path; a11y maintained.
+
+Telemetry to log (for tuning)
+• Sparring offer rate, accept rate, unlock rate, post-unlock accuracy deltas.
+• Calibration usage (how often, confidence distribution), and whether rationale gets referenced later.
+• Two-voice selection split and subsequent decision latency.
+• Mentor trail click-through and impact on evidence diversity/time-to-commit.
+
+Playtest script (quick)
+• Trigger sparring once; choose a strong hypothesis → verify Spotlight Artifact unlock + small confidence spend visual nudge.
+• Make a high-confidence call; provide a rationale; later see Sarah reference it.
+• Hit the two-voice moment; pick either side; observe Sarah’s reconciliation (no grades).
+• Complete mission; see end recap + optional tiny perk tied to the improvement nudge.
+
+Artifacts to return
+• Comms transcript snippets for sparring, calibration, and two-voice events.
+• Screenshot IDs for Spotlight Artifact, mentor trail chip, and recap.
+• JSON play report summarizing events and invariants booleans.
+
+Now implement under the listed flags, run the playtest, and return the artifacts and JSON report.
+
+—— COPY ENDS ——
