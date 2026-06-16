@@ -1,0 +1,128 @@
+—— COPY FROM HERE ——
+
+Title: Playtest — Consequence Loop (Postcards, Scar Notes, Micro‑Tradeoffs)
+
+Objective
+Run an end‑to‑end playtest that exercises the new consequence systems and reports what a player actually sees and feels. The test must simulate both over‑escalation and under‑escalation paths, confirm no grading chrome appears, and capture concrete observations (screenshots/DOM checks/logs) with pass/fail verdicts.
+
+Scope under test
+• Company Health Dials: Operational Friction (OF), Latent Exposure (LE) — visual updates + toasts.
+• Consequence Postcards — next‑session updates tied to prior decisions.
+• Scar Notes — persistent, display‑only memory when a dial peaks.
+• Micro‑Tradeoffs — small, reversible frictions or conveniences in‑mission.
+• Invariants — no ✓/✗, no “correct answer” reveals; single write path preserved.
+
+Setup
+• Ensure feature flags are ON:
+  - FLAGS.companyDials = true
+  - FLAGS.postcards = true
+  - FLAGS.scarNotes = true
+  - FLAGS.microTradeoffs = true
+• Use an Intern mission with approval/escalation decisions (mission‑001..004 all acceptable).
+• Start with a clean local profile/state; capture test run id.
+
+Test paths (automated or scripted manual with assertions)
+Path A — Over‑escalation (trigger OF)
+1) Launch mission from Ops Center.
+2) Make a heavy‑handed recommendation at first meaningful branch (e.g., “isolate now” before evidence is diverse).
+3) Assertions:
+   - Live Comms shows only your line + Sarah’s in‑character response (no ✓/✗, no “correct answer”).
+   - OF dial increments by 1 segment within 30–90 seconds.
+   - A toast displays one in‑world line (e.g., “IT adds an approval checkpoint.”).
+   - Micro‑Tradeoff triggers exactly once: a banner “Manager approval required” and one extra click to view a later artifact.
+   - Evidence Breadth dots and ▲ confidence nudge remain visible, numeric‑free.
+4) Drive OF to max (3/3) by repeating over‑escalations spaced across the mission.
+5) Assertions:
+   - On first transition to 3/3, log entry recorded and Scar Note is queued (do not display yet).
+6) Complete mission.
+7) Next‑session check (reload or re‑enter app):
+   - One postcard appears, department‑stamped, 2–3 sentences referencing your earlier call.
+   - Ops Center now lists a Scar Note summarizing the peak OF consequence (display‑only).
+
+Path B — Under‑escalation (trigger LE)
+1) Relaunch mission with clean state.
+2) Defer escalation twice where evidence suggests emerging risk (accurate benign reads still OK).
+3) Assertions:
+   - LE dial increments as decisions land; in‑world toast references the effect (e.g., “Finance flags anomalous access.”).
+   - Convenience removal Micro‑Tradeoff triggers once: a deep‑link is hidden; normal path still works (adds ~10–15s).
+4) Drive LE to 3/3; verify Scar Note queued.
+5) Complete mission; on next session load, verify a different postcard template renders, tied to LE.
+
+Negative controls (must NOT happen)
+• No ✓/✗ icons, no “correct answer”/“Partly right” labels anywhere.
+• No additional write endpoints hit besides the existing judgment write (assert via spy/log).
+• Micro‑Tradeoffs never block progress; max once per type per mission.
+
+Data to collect per path
+• Timestamps: decision time → dial change → toast appearance (ms).
+• DOM snapshots:
+  - Comms panel after a decision (no grade chrome).
+  - Dial state before/after increment (aria‑labels ok).
+  - Toast text content.
+  - Micro‑Tradeoff banner and the extra‑click element.
+  - Postcard text + department tag on next session.
+  - Scar Notes list entry in Ops Center.
+• Log lines:
+  - Router mapping fired with {decisionId, OFΔ|LEΔ}.
+  - Postcard emission (template id + params).
+  - Scar Note persisted (id + dept + date).
+• Counters:
+  - Dial increments count, toasts shown count, tradeoffs triggered count.
+
+Pass/Fail criteria
+Pass if ALL are true:
+• Consequences are visible within 30–90 seconds: dial segment + toast for each mapped decision.
+• Exactly one Micro‑Tradeoff of each type can trigger per mission; never blocks progress.
+• Postcard appears at next session with correct department/asset fields.
+• Scar Note appears in Ops Center after a dial maxed out in prior mission.
+• No grading chrome (✓/✗/“correct answer”/“Partly right”) anywhere.
+• Only the single authoritative write path is used (asserted via spy on setDiscoveryJudgment and absence of new POSTs).
+
+Report format (JSON)
+Produce a single JSON object summarizing both paths:
+
+{
+  "runid": "string",
+  "env": { "flags": { "companyDials": true, "postcards": true, "scarNotes": true, "microTradeoffs": true } },
+  "paths": {
+    "overescalation": {
+      "decisions": [
+        { "t": 12345, "router": {"OFdelta": 1}, "dialbefore": 0, "dialafter": 1, "toast": "string", "tradeoff": {"type": "managerack", "triggered": true} }
+      ],
+      "postcard": { "shown": true, "dept": "string", "text": "string" },
+      "scarnote": { "created": true, "dept": "string", "title": "string" },
+      "invariants": { "nogradechrome": true, "singlewritepath": true }
+    },
+    "underescalation": {
+      "decisions": [
+        { "t": 23456, "router": {"LEdelta": 1}, "dialbefore": 0, "dialafter": 1, "toast": "string", "tradeoff": {"type": "linkhidden", "triggered": true} }
+      ],
+      "postcard": { "shown": true, "dept": "string", "text": "string" },
+      "scarnote": { "created": true, "dept": "string", "title": "string" },
+      "invariants": { "nogradechrome": true, "singlewritepath": true }
+    }
+  },
+  "timingsms": {
+    "decisiontodial": { "avg": 0, "p95": 0 },
+    "dialtotoast": { "avg": 0, "p95": 0 }
+  },
+  "screenshots": {
+    "commsafterdecision": "path-or-id",
+    "dialsstate": "path-or-id",
+    "toastexample": "path-or-id",
+    "tradeoffbanner": "path-or-id",
+    "postcard": "path-or-id",
+    "scarnotes": "path-or-id"
+  },
+  "verdict": "PASS | FAIL",
+  "notes": "brief free text; list any deviations or UX snags"
+}
+
+Implementation notes
+• Instrument with DOM queries + spies on setDiscoveryJudgment and network layer.
+• For “next session”, reload the app with the same profile; ensure postcards queue persists.
+• Keep all assertions tolerant to copy tweaks (regex on department stamps; non‑strict toast text).
+
+Now run the playtest for Path A and Path B and return the JSON report.
+
+—— COPY ENDS ——

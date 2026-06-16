@@ -1403,6 +1403,13 @@ function renderEvidencePanel() {
       .filter(c => challengeValid(c) && !challengeAnswered(c)).length;
     const alert = pending > 0
       ? `<span class="sim-nb-alert">${pending} on comms</span>` : '';
+    // Preserve the player's reading position across the full innerHTML rebuild.
+    // The notebook re-renders on every submit; without capturing/restoring the
+    // scroll container's offset, the freshly-built .sim-evidence-body starts at
+    // top and the panel snaps to the top each time a comms reply is logged. When
+    // evidence GREW we deliberately scroll to the newest finding instead.
+    const prevBody = host.querySelector('.sim-evidence-body');
+    const prevScroll = prevBody ? prevBody.scrollTop : 0;
     host.innerHTML = `
       <div class="sim-panel-head">ANALYST NOTEBOOK${alert}</div>
       <div class="sim-evidence-body">
@@ -1428,6 +1435,8 @@ function renderEvidencePanel() {
       if (target) simScrollBodyTo(body, target);
       void body.offsetWidth;                 // restart the highlight animation
       body.classList.add('sim-evidence-body--flash');
+    } else if (body) {
+      body.scrollTop = prevScroll;           // keep the player where they were
     }
     if (body && confChanged) {
       const meter = body.querySelector('.sim-confidence');
@@ -2230,7 +2239,9 @@ function openChallengeInComms(challengeId) {
   const host = document.getElementById('simEvidence');
   if (!host) return;
   renderEvidencePanel(); // ensure the card exists (evidence may have just surfaced)
-  const body = document.getElementById('simEvidenceBody') || host;
+  // The scroll container is the inner .sim-evidence-body (no #simEvidenceBody id
+  // exists); target it so routed comms actually scroll into view, not the host.
+  const body = host.querySelector('.sim-evidence-body') || host;
   const card = host.querySelector('.sim-comms[data-challenge="' + challengeId + '"]');
   if (!card) return;
   card.classList.add('sim-comms--summoned');
