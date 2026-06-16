@@ -742,6 +742,8 @@ function openCareerMission(missionId) {
   SIM.reflection = { concerns: new Set(), judgment: null };
   SIM.discoveryJudgments = {};            // graded discovery challenges (caseFileNotebook missions)
   SIM.autoOpenedBoardEvents = new Set();  // board auto-open fires once per milestone evidence id
+  SIM.conceptsSeen = new Set();           // just-in-time concept cards already shown (transient)
+  SIM.conceptOpen = false;                // concept-card overlay visibility (transient)
   SIM.nbEvidenceCount = 0;                // notebook attention: evidence count at last render
   SIM.nbConfidence = null;                // notebook attention: confidence at last render (meter flash)
   SIM.sideTrailOpen = new Set();          // optional side-trails the analyst has expanded (transient)
@@ -770,6 +772,7 @@ function openCareerMission(missionId) {
   // Network-map overlay is review-only + transient: never carries across missions.
   SIM.mapOpen = false;
   if (simMapEl) simMapEl.hidden = true;
+  if (simConceptEl) simConceptEl.hidden = true; // concept card never carries across missions
   simMapIntelHide();
   updateMapButton();
 
@@ -1406,8 +1409,10 @@ function renderEvidencePanel() {
       <div class="sim-panel-head">ANALYST NOTEBOOK${alert}</div>
       <div class="sim-evidence-body">
         ${confidenceMeterHtml()}
+        ${objectiveTrackHtml()}
         ${viewbar}
         ${evSection}
+        ${inventoryBoardHtml()}
         ${investigationFeedHtml()}
         ${analystJudgmentHtml()}
         ${findingsHtml()}
@@ -1461,6 +1466,121 @@ function renderEvidencePanel() {
       ${classHtml}
       ${identifyHtml}
       ${responseHtml}
+    </div>`;
+}
+
+/* ================================================================== *
+ * PROGRESSIVE OBJECTIVES + APPROVED-vs-OBSERVED BOARD (presentation-only)
+ * ------------------------------------------------------------------ *
+ * Both are additive, data-gated notebook sections. They READ SIM state and
+ * mission data only — no scoring, no setDiscoveryJudgment, no persistence.
+ * Missions without def.objectiveTrack / def.inventory render '' (unchanged). */
+
+/* Is one objective predicate currently satisfied? Predicates are strings:
+ *   ev:<id>        a finding has surfaced
+ *   flag:<key>     a mission flag is raised
+ *   challenge:<id> a two-step discovery judgment is fully answered
+ *   identify       an identification has been recorded (NOT "is correct")
+ *   decision       a response has been recorded / the mission reached report
+ * Fails closed on any unknown predicate so a typo can never falsely complete. */
+function objectivePredicateMet(pred) {
+  if (typeof pred !== 'string') return false;
+  const i = pred.indexOf(':');
+  const kind = i >= 0 ? pred.slice(0, i) : pred;
+  const arg = i >= 0 ? pred.slice(i + 1) : '';
+  switch (kind) {
+    case 'ev':    return SIM.evidence.has(arg);
+    case 'flag':  return !!(CAREER.missionFlags && CAREER.missionFlags[arg]);
+    case 'challenge': {
+      const ch = ((SIM.def && SIM.def.discoveryChallenges) || []).find(c => c.id === arg);
+      return !!ch && challengeAnswered(ch);
+    }
+    case 'identify': return SIM.identified != null;
+    case 'decision': return SIM.decision != null || SIM.stage === 'report';
+    default:         return false;
+  }
+}
+
+/* Compute each tracked objective's state. An objective is DONE only when ALL of
+ * its doneBy predicates are met; the first not-done objective is ACTIVE. Returns
+ * null when the mission opts out (no def.objectiveTrack). */
+function objectiveTrackState() {
+  const track = (SIM.def && SIM.def.objectiveTrack) || null;
+  if (!Array.isArray(track) || !track.length) return null;
+  const rows = track.map(o => {
+    const conds = Array.isArray(o.doneBy) ? o.doneBy : (o.doneBy ? [o.doneBy] : []);
+    return { label: o.label || '', done: conds.length > 0 && conds.every(objectivePredicateMet), active: false };
+  });
+  const firstOpen = rows.find(r => !r.done);
+  if (firstOpen) firstOpen.active = true;
+  return rows;
+}
+
+/* The live OBJECTIVES section: ticks as evidence/flags/judgments resolve. */
+function objectiveTrackHtml() {
+  let rows = null;
+  try { rows = objectiveTrackState(); } catch (_) { rows = null; }
+  if (!rows) return '';
+  const doneN = rows.filter(r => r.done).length;
+  const items = rows.map(r => {
+    const cls = r.done ? 'done' : r.active ? 'active' : 'todo';
+    const icon = r.done ? '\u2713' : r.active ? '\u25B8' : '\u25CB';
+    const status = r.done ? 'Done' : r.active ? 'In progress' : 'Not started';
+    return `<li class="sim-obj sim-obj--${cls}">
+        <span class="sim-obj-icon" aria-hidden="true">${icon}</span>
+        <span class="sim-obj-text">${mapEsc(r.label)}</span>
+        <span class="sim-sr-only">${status}</span>
+      </li>`;
+  }).join('');
+  return `
+    <div class="sim-notebook-section sim-obj-track">
+      <div class="sim-notebook-head sim-notebook-head--obj">OBJECTIVES <span class="sim-notebook-count">${doneN}/${rows.length}</span></div>
+      <ul class="sim-obj-list">${items}</ul>
+    </div>`;
+}
+
+/* APPROVED vs OBSERVED comparison board — a two-column diff that makes the
+ * "what should be here" vs "what is actually here" reasoning explicit. Hidden
+ * until its revealBy finding surfaces. Data-gated on def.inventory. */
+function inventoryBoardHtml() {
+  const inv = SIM.def && SIM.def.inventory;
+  if (!inv || !inv.revealBy || !SIM.evidence.has(inv.revealBy)) return '';
+  const approved = Array.isArray(inv.approved) ? inv.approved : [];
+  const observed = Array.isArray(inv.observed) ? inv.observed : [];
+  const apRows = approved.map(a => `
+        <li class="sim-inv-row">
+          <span class="sim-inv-ip">${mapEsc(a.ip || '')}</span>
+          <span class="sim-inv-label">${mapEsc(a.label || '')}</span>
+        </li>`).join('');
+  const obRows = observed.map(o => {
+    const bad = o.approved === false;
+    const mark = bad
+      ? '<span class="sim-inv-tag">NOT APPROVED</span>'
+      : '<span class="sim-inv-ok" aria-hidden="true">\u2713</span>';
+    return `
+        <li class="sim-inv-row${bad ? ' sim-inv-row--flag' : ''}">
+          <span class="sim-inv-ip">${mapEsc(o.ip || '')}</span>
+          <span class="sim-inv-label">${mapEsc(o.label || '')}</span>
+          ${mark}
+        </li>`;
+  }).join('');
+  const flagged = observed.filter(o => o.approved === false).length;
+  const note = inv.note || (flagged
+    ? `${flagged} observed device${flagged === 1 ? '' : 's'} not on the approved list.` : '');
+  return `
+    <div class="sim-notebook-section sim-inv">
+      <div class="sim-notebook-head sim-notebook-head--inv">${mapEsc(inv.title || 'APPROVED vs OBSERVED')}</div>
+      <div class="sim-inv-cols">
+        <div class="sim-inv-col">
+          <div class="sim-inv-coltitle">${mapEsc(inv.approvedLabel || 'Approved')}</div>
+          <ul class="sim-inv-list">${apRows}</ul>
+        </div>
+        <div class="sim-inv-col sim-inv-col--observed">
+          <div class="sim-inv-coltitle">${mapEsc(inv.observedLabel || 'Observed')}</div>
+          <ul class="sim-inv-list">${obRows}</ul>
+        </div>
+      </div>
+      ${note ? `<p class="sim-inv-note">${mapEsc(note)}</p>` : ''}
     </div>`;
 }
 
@@ -3662,7 +3782,10 @@ function surfaceEvidence(evId) {
     updateMapButton();
     if (SIM.mapOpen) renderSimMap();
   }
-  maybeAutoOpenSimMap(evId);
+  // A just-in-time concept card fires first; if it claims this reveal, defer the
+  // map auto-open so two body-level overlays never stack. Triggers are authored
+  // disjoint from boardMilestones, so in practice only one of these ever fires.
+  if (!maybeShowConceptCard(evId)) maybeAutoOpenSimMap(evId);
 }
 
 /* Smoothly bring an element into view WITHIN the notebook scroll container (never
@@ -3704,6 +3827,101 @@ function maybeAutoOpenSimMap(evId) {
   SIM.autoOpenedBoardEvents.add(evId);
   if (SIM.mapOpen) return; // already showing — the live render above covers it
   openSimMap();
+}
+
+/* ================================================================== *
+ * JUST-IN-TIME CONCEPT CARDS (presentation-only)
+ * ------------------------------------------------------------------ *
+ * A one-time "new concept" overlay shown the first time a concept becomes
+ * relevant (keyed to a finding via def.conceptCards[].triggerEv). Reuses
+ * SIM_GLOSSARY copy via glossaryKey. Writes only SIM.conceptsSeen /
+ * SIM.conceptOpen (transient, reset each mission). Never scores or persists.
+ * Triggers are authored DISJOINT from def.boardMilestones, and surfaceEvidence
+ * defers the map auto-open whenever a card claims the reveal, so the concept
+ * overlay and the network-map overlay never stack. */
+function conceptCardContent(card) {
+  const g = card && card.glossaryKey ? glossaryEntry(card.glossaryKey) : null;
+  return {
+    term: (card && card.term) || (g && g.term) || 'New concept',
+    definition: (card && card.definition) || (g && g.definition) || '',
+    why: (card && card.why) || (g && g.why) || '',
+    examples: Array.isArray(card && card.examples) ? card.examples : [],
+  };
+}
+
+/* Show a concept card for this finding if one is configured and unseen. Returns
+ * true when a card was shown (so the caller can defer the map auto-open). */
+function maybeShowConceptCard(evId) {
+  try {
+    const cards = (SIM.def && SIM.def.conceptCards) || null;
+    if (!cards) return false;
+    if (SIM.mapOpen || SIM.conceptOpen) return false;   // never stack overlays
+    const card = cards.find(c => c && c.triggerEv === evId);
+    if (!card || !card.id) return false;
+    if (SIM.conceptsSeen.has(card.id)) return false;
+    SIM.conceptsSeen.add(card.id);
+    openConceptCard(card);
+    return true;
+  } catch (_) { return false; }
+}
+
+let simConceptEl = null;
+function simConceptEnsure() {
+  if (simConceptEl) return simConceptEl;
+  const ov = document.createElement('div');
+  ov.className = 'sim-concept-overlay';
+  ov.id = 'simConceptOverlay';
+  ov.hidden = true;
+  ov.innerHTML = `
+    <div class="sim-concept-card" role="dialog" aria-modal="true" aria-labelledby="simConceptTerm">
+      <div class="sim-concept-head">
+        <span class="sim-concept-kicker">\u25C8 NEW CONCEPT</span>
+        <button type="button" class="sim-concept-close" data-concept-close aria-label="Close concept card">\u2715</button>
+      </div>
+      <h3 class="sim-concept-term" id="simConceptTerm"></h3>
+      <p class="sim-concept-def" id="simConceptDef"></p>
+      <div class="sim-concept-why" id="simConceptWhyWrap">
+        <span class="sim-concept-why-label">Why it matters</span>
+        <span class="sim-concept-why-text" id="simConceptWhy"></span>
+      </div>
+      <ul class="sim-concept-examples" id="simConceptExamples"></ul>
+      <div class="sim-concept-foot">
+        <button type="button" class="sim-concept-gotit" data-concept-close>Got it \u2014 continue</button>
+      </div>
+    </div>`;
+  ov.addEventListener('click', e => {
+    if (e.target === ov || e.target.closest('[data-concept-close]')) closeConceptCard();
+  });
+  document.body.appendChild(ov);
+  simConceptEl = ov;
+  return ov;
+}
+
+function openConceptCard(card) {
+  const ov = simConceptEnsure();
+  const c = conceptCardContent(card);
+  ov.querySelector('#simConceptTerm').textContent = c.term;
+  ov.querySelector('#simConceptDef').textContent = c.definition;
+  const whyWrap = ov.querySelector('#simConceptWhyWrap');
+  if (c.why) { ov.querySelector('#simConceptWhy').textContent = c.why; whyWrap.hidden = false; }
+  else whyWrap.hidden = true;
+  const exHost = ov.querySelector('#simConceptExamples');
+  exHost.innerHTML = c.examples.map(x => `<li>${mapEsc(x)}</li>`).join('');
+  exHost.hidden = c.examples.length === 0;
+  ov.hidden = false;
+  SIM.conceptOpen = true;
+  const gotit = ov.querySelector('.sim-concept-gotit');
+  if (gotit) gotit.focus();
+}
+
+function closeConceptCard() {
+  const wasOpen = SIM.conceptOpen;
+  SIM.conceptOpen = false;
+  if (simConceptEl) simConceptEl.hidden = true;
+  if (wasOpen) {
+    const input = document.getElementById('simTermInput');
+    if (input) { try { input.focus(); } catch (_) { /* focus is best-effort */ } }
+  }
 }
 
 function setClassification(fileName, value) {
@@ -4479,6 +4697,24 @@ const CAREER_MISSIONS = {
     caseFileNotebook: true,
     investigationFeed: true,
     boardMilestones: ['ev_pii_salary', 'ev_customer_pii', 'ev_contractor_access'],
+    // Progressive objectives (engine-level) — Mission 1 benefits too. Tick live
+    // off findings + the recorded decision; presentation-only, never scored.
+    objectiveTrack: [
+      { id: 'm1_review',    label: 'Review the files queued in the outbound release', doneBy: ['ev:ev_public_safe'] },
+      { id: 'm1_sensitive', label: 'Flag the sensitive data that must not leave', doneBy: ['ev:ev_pii_salary', 'ev:ev_customer_pii'] },
+      { id: 'm1_access',    label: 'Investigate the suspicious contractor access', doneBy: ['ev:ev_contractor_access'] },
+      { id: 'm1_decide',    label: 'Decide how to handle the release', doneBy: ['decision'] },
+    ],
+    // Just-in-time concept cards — classification basics, triggered on findings
+    // DISJOINT from boardMilestones so they never collide with the map auto-open.
+    conceptCards: [
+      { id: 'm1_cc_public', triggerEv: 'ev_public_safe', glossaryKey: 'public',
+        examples: ['product_datasheet.txt is cleared for public release', 'Already-public material is safe to share'] },
+      { id: 'm1_cc_confidential', triggerEv: 'ev_confidential_pricing', glossaryKey: 'confidential',
+        examples: ['partner_pricing_2026.csv holds negotiated rates', 'One partner must never see another\u2019s pricing'] },
+      { id: 'm1_cc_mnpi', triggerEv: 'ev_confidential_roadmap', glossaryKey: 'materialNonPublic',
+        examples: ['acquisition_roadmap.txt is an unannounced deal plan', 'Releasing it early is a leak with legal risk'] },
+    ],
     discoveryChallenges: [
       {
         id: 'ch_release_context', evidenceId: 'ev_release_context', short: 'Release ownership', weight: 1,
@@ -4982,6 +5218,50 @@ const CAREER_MISSIONS = {
      * existing evidence ids; boardMilestones auto-open the network map once each. */
     caseFileNotebook: true,
     boardMilestones: ['ev_contractor_device', 'ev_segment', 'ev_probe'],
+    // Progressive objectives (engine-level) — tick live as findings/judgments
+    // resolve. Presentation-only; computed read-only by objectiveTrackState().
+    objectiveTrack: [
+      { id: 'm2_discover', label: 'Discover the devices active on the office subnet', doneBy: ['ev:ev_unknown_host'] },
+      { id: 'm2_compare',  label: 'Compare them against the approved asset inventory', doneBy: ['ev:ev_not_in_inventory'] },
+      { id: 'm2_identify', label: 'Identify the device that is not authorized', doneBy: ['identify'] },
+      { id: 'm2_respond',  label: 'Work out what it is, then recommend a response', doneBy: ['decision'] },
+    ],
+    // APPROVED vs OBSERVED comparison board — revealed once the inventory is read.
+    // Presentation-only diff rendered by inventoryBoardHtml(); never scored.
+    inventory: {
+      title: 'ASSET CHECK \u2014 APPROVED vs OBSERVED',
+      revealBy: 'ev_not_in_inventory',
+      approvedLabel: 'Approved inventory (asset_inventory.txt)',
+      observedLabel: 'Live on subnet (nmap)',
+      approved: [
+        { ip: '192.168.1.1',  label: 'gateway/router' },
+        { ip: '192.168.1.10', label: 'fileserver-apac' },
+        { ip: '192.168.1.20', label: 'finance-laptop-apac' },
+        { ip: '192.168.1.34', label: 'intern-workstation (you)' },
+      ],
+      observed: [
+        { ip: '192.168.1.1',  label: 'gateway/router',      approved: true },
+        { ip: '192.168.1.10', label: 'fileserver-apac',     approved: true },
+        { ip: '192.168.1.20', label: 'finance-laptop-apac', approved: true },
+        { ip: '192.168.1.34', label: 'your-workstation',    approved: true },
+        { ip: '192.168.1.57', label: '(no reverse name)',   approved: false },
+      ],
+      note: 'Every approved device is live \u2014 plus one extra. 192.168.1.57 is on the network but on no approved list.',
+    },
+    // Just-in-time concept cards. Triggers are DISJOINT from boardMilestones so a
+    // card and the map auto-open never stack. Copy reused from SIM_GLOSSARY.
+    conceptCards: [
+      { id: 'm2_cc_ip', triggerEv: 'ev_subnet', glossaryKey: 'ipAddress',
+        examples: ['Your workstation is 192.168.1.34', 'The "/24" means 192.168.1.0\u2013.255 share this subnet'] },
+      { id: 'm2_cc_subnet', triggerEv: 'ev_unknown_host', glossaryKey: 'subnet',
+        examples: ['All five hosts answered on 192.168.1.0/24', 'Same subnet \u2192 they can reach each other directly'] },
+      { id: 'm2_cc_inventory', triggerEv: 'ev_not_in_inventory', term: 'Asset inventory',
+        definition: 'The approved list of every device allowed on the network \u2014 each with its address and owner.',
+        why: 'A live device that is not on the inventory is one nobody signed off on. That gap is the first sign of an unmanaged or rogue device.',
+        examples: ['asset_inventory.txt lists 4 approved devices', '192.168.1.57 is live but missing from the list'] },
+      { id: 'm2_cc_service', triggerEv: 'ev_open_services', glossaryKey: 'service',
+        examples: ['22/tcp ssh \u2192 remote login', '445/tcp smb \u2192 file sharing'] },
+    ],
     discoveryChallenges: [
       {
         id: 'ch_m2_device', evidenceId: 'ev_contractor_device', short: 'Device ownership', weight: 1,
@@ -8186,6 +8466,7 @@ function simInit() {
     if (careerScreenOpen()) {
       // The network-map overlay takes Escape first, so it closes without
       // also exiting the mission underneath it.
+      if (SIM.conceptOpen) { closeConceptCard(); return; }
       if (SIM.mapOpen) { closeSimMap(); return; }
       returnFromCareerMission();
     }
