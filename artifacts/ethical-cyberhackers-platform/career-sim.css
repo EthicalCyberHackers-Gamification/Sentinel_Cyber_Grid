@@ -2352,36 +2352,58 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
 
 /* ---- (A) Company Health Dials ---- */
 .sim-dials {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  margin-left: auto; padding: 0 14px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-left: auto; padding: 5px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.015);
 }
 .sim-dials[hidden] { display: none; }
+.sim-dials-label {
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--text-muted);
+  padding-right: 10px; margin-right: 2px; border-right: 1px solid var(--border);
+  cursor: help;
+}
 .sim-dial {
-  display: inline-flex; align-items: center; gap: 7px;
-  font-family: var(--font-hud);
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-hud); cursor: help;
 }
 .sim-dial-name {
-  font-size: 8.5px; letter-spacing: 1.2px; text-transform: uppercase;
-  color: var(--text-dim);
+  font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--text-muted);
 }
 .sim-dial-track { display: inline-flex; gap: 3px; }
 .sim-dial-seg {
-  width: 14px; height: 6px; border-radius: 2px;
+  width: 16px; height: 8px; border-radius: 2px;
   background: var(--bg-hover); border: 1px solid var(--border);
   transition: background var(--transition), box-shadow var(--transition);
 }
 .sim-dial-seg--on.sim-dial-seg--of { background: var(--orange); border-color: var(--orange); }
 .sim-dial-seg--on.sim-dial-seg--le { background: var(--red); border-color: var(--red); }
 .sim-dial-val {
-  font-size: 9.5px; font-variant-numeric: tabular-nums;
-  color: var(--text-muted); min-width: 22px;
+  font-size: 10px; font-variant-numeric: tabular-nums; font-weight: 600;
+  color: var(--text-muted); min-width: 24px;
 }
 .sim-dial--of .sim-dial-val { color: var(--orange); }
 .sim-dial--le .sim-dial-val { color: var(--red); }
 .sim-dial--peak .sim-dial-name { color: var(--text-bright); }
 .sim-dial--peak .sim-dial-seg--on { box-shadow: 0 0 6px currentColor; }
+/* Pulse the meter that just moved so the change is impossible to miss. */
+.sim-dial--pulse .sim-dial-name { color: var(--text-bright); }
+.sim-dial--pulse.sim-dial--of .sim-dial-seg--on { animation: sim-dial-pulse-of 0.55s ease-out 2; }
+.sim-dial--pulse.sim-dial--le .sim-dial-seg--on { animation: sim-dial-pulse-le 0.55s ease-out 2; }
+@keyframes sim-dial-pulse-of {
+  30% { box-shadow: 0 0 10px var(--orange); transform: translateY(-1px); }
+}
+@keyframes sim-dial-pulse-le {
+  30% { box-shadow: 0 0 10px var(--red); transform: translateY(-1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sim-dial--pulse.sim-dial--of .sim-dial-seg--on,
+  .sim-dial--pulse.sim-dial--le .sim-dial-seg--on { animation: none; }
+}
 @media (max-width: 720px) {
-  .sim-dials { width: 100%; margin: 6px 0 0; padding: 0; order: 3; }
+  .sim-dials { width: 100%; margin: 6px 0 0; padding: 5px 10px; order: 3; }
 }
 
 /* ---- (D) Micro-Tradeoff (debrief texture) ---- */
@@ -2392,7 +2414,8 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
 }
 .sim-tradeoff--of { border-left: 3px solid var(--orange); background: rgba(255, 140, 40, 0.05); }
 .sim-tradeoff--le { border-left: 3px solid var(--red); background: rgba(239, 68, 68, 0.05); }
-.sim-tradeoff--calm { padding: 6px 0; border: 0; background: transparent; }
+.sim-tradeoff--calm { border-left: 3px solid var(--cyan); background: rgba(78, 168, 255, 0.05); }
+.sim-tradeoff--calm .sim-tradeoff-head { color: var(--cyan); }
 .sim-tradeoff-head {
   font-family: var(--font-hud); font-size: 10px; letter-spacing: 0.8px;
   text-transform: uppercase; color: var(--text-bright); margin-bottom: 5px;
@@ -2411,12 +2434,14 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
 }
 .sim-tradeoff-ack:hover, .sim-tradeoff-chip:hover { background: var(--bg-hover); border-color: var(--orange); }
 .sim-tradeoff-ack[aria-pressed="true"] { color: var(--green); border-color: var(--green); }
-.sim-tradeoff-chip { margin-top: 0; color: var(--cyan); }
+.sim-tradeoff-chip { margin-top: 9px; color: var(--cyan); }
 .sim-tradeoff-chip:hover { border-color: var(--cyan); }
 
 /* ---- (B) Postcards + (C) Scars — Ops Center right column ---- */
 .oc-consequences { margin: 10px 0 0; }
 .oc-consequences[hidden] { display: none; }
+.oc-conseq-empty { margin: 0; font-size: 11px; line-height: 1.55; color: var(--text-dim); font-style: italic; }
+.oc-conseq-block--empty { opacity: 0.85; }
 .oc-conseq-block { margin-bottom: 12px; }
 .oc-conseq-head {
   display: flex; align-items: center; gap: 6px; margin-bottom: 7px;

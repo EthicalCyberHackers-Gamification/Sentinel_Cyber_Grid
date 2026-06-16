@@ -20,6 +20,7 @@ import {
   collectPlayerStrings,
   auditInvariants,
 } from "./consequence-loop.harness.js";
+import { CONSEQUENCE_POSTURE } from "../consequence-core.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ART = join(HERE, "..");
@@ -100,6 +101,33 @@ console.log("Single-decision extreme calls (realistic one-recommendation flow)")
   });
 }
 
+console.log("Always-on reaction coverage (Task #122)");
+{
+  const cov = report.everyDecisionReacts;
+  check("every routed decision id yields a visible cue (no silent decision)", cov.everyDecisionHasCue === true);
+  check("both cue kinds occur (moved-dial ripple toasts AND calm measured-call toasts)", cov.bothCueKindsOccur === true);
+  check("a non-trivial number of decisions covered", cov.total >= 20);
+  check("at least one calm {0,0} decision exists (the always-on calm cue genuinely fires)", cov.calmCues >= 1);
+  // Orphan guard: every PRIMARY mission action id (the `id` + `type` action
+  // objects the player picks) has a posture entry, so the live action surface
+  // never silently relies on the keyword fallback.
+  const actionIds = [...careerSrc.matchAll(/id:\s*'([a-z_]+)',\s*\n\s*type:\s*'(?:direct|recommendation)'/g)].map((m) => m[1]);
+  const uniqueActionIds = [...new Set(actionIds)];
+  const orphans = uniqueActionIds.filter((id) => !(id in CONSEQUENCE_POSTURE));
+  check("mission action ids extracted from source", uniqueActionIds.length >= 15);
+  check(`no mission action id is missing a posture entry (orphans: ${orphans.join(", ") || "none"})`, orphans.length === 0);
+}
+
+console.log("Saturated-dial cue (posture, not movement)");
+{
+  const sat = report.saturatedDialCues;
+  check("saturated-dial cases were exercised", sat.cases.length >= 2);
+  check("a forceful call at a capped dial is NOT misclassified as calm", sat.noneMisclassifiedAsCalm === true);
+  sat.cases.forEach((c) => {
+    check(`'${c.decisionId}' at ${JSON.stringify(c.baseline)} fires the sustained cue, not calm`, c.cue === "sustained-toast");
+  });
+}
+
 console.log("Invariants (scoped)");
 {
   const i = report.invariants;
@@ -119,6 +147,7 @@ console.log("Verdict");
   check("Path A verdict PASS", report.verdictBreakdown.pathA_overescalation === "PASS");
   check("Path B verdict PASS", report.verdictBreakdown.pathB_underescalation === "PASS");
   check("Single-decision peaks verdict PASS", report.verdictBreakdown.singleDecisionPeaks === "PASS");
+  check("Every-decision-reacts verdict PASS (incl. saturated-dial guard)", report.verdictBreakdown.everyDecisionReacts === "PASS");
   check("Invariants verdict PASS", report.verdictBreakdown.invariants === "PASS");
   check("overall verdict PASS", report.verdict === "PASS");
 }

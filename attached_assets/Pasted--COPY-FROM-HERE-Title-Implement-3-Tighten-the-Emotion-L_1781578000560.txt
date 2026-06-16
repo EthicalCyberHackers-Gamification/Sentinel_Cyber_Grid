@@ -1,0 +1,70 @@
+—— COPY FROM HERE ——
+
+Title: Implement “3) Tighten the Emotion Loop Around Consequences” — Not Present in Current Gameplay
+
+Context
+The latest gameplay (see attached screenshots) shows the redesigned Notebook/comms flow, but no visible consequence systems. Specifically, I did not see:
+• Company Health Dials (Operational Friction, Latent Exposure)
+• In‑mission toasts tied to dial changes
+• Next‑session Consequence Postcards
+• Ops Center Scar Notes
+• One‑time Micro‑Tradeoffs (e.g., manager‑ack banner or hidden deep‑link)
+
+Request
+Please implement and verify the full “Emotion Loop Around Consequences” package. Treat all four features as pending. Use the flags below and the acceptance criteria to confirm they are live and visible.
+
+Features to ship (behind flags)
+• FLAGS.companyDials — add OF/LE dials (0–3) to the mission HUD and trigger a 1‑line toast on change.
+• FLAGS.postcards — queue and display 2–3 sentence department‑stamped postcards on next session based on prior decisions.
+• FLAGS.scarNotes — persist a small “scar note” when OF or LE first reaches 3/3; display in Ops Center/case history.
+• FLAGS.microTradeoffs — trigger exactly one small, reversible friction per type per mission:
+  - OF example: show a “Manager approval required” banner that adds one click to open the next key artifact.
+  - LE example: hide a convenience deep‑link once; normal navigation still works (adds ~10–15 seconds).
+
+Hard constraints
+• Do not alter judgment scoring or persistence; keep setDiscoveryJudgment as the sole write path.
+• No grade chrome (no ✓/✗, no “correct answer/Partly right” labels).
+• Confidence/scoring math unchanged; any nudges must use existing helpers.
+• A11y: keyboard reachable; visible focus on new UI.
+
+Routing table
+Create a single declarative router mapping judgment outcomes → { OFΔ, LEΔ, toastId, optionalTradeoff }.
+Example entries:
+• overescalatepremature → { OFΔ: +1, toastId: "itapprovalcheckpoint", tradeoff: "managerackonce" }
+• deferwithevidenceofrisk → { LEΔ: +1, toastId: "financeflagsanomaly", tradeoff: "hidedeeplinkonce" }
+
+Acceptance checklist
+In one test mission, intentionally:
+• Over‑escalate twice:
+  - See OF dial segment increase within 30–90s and a single‑line toast.
+  - Experience the one‑time “manager ack” tradeoff (banner + extra click), never blocking progress.
+• Under‑escalate twice:
+  - See LE dial segment increase and a relevant toast.
+  - Experience the one‑time hidden deep‑link tradeoff (normal path still works).
+• Drive either dial to 3/3:
+  - Scar Note is created and appears in Ops Center/case history (display‑only).
+• End mission, reload session:
+  - Receive at least one postcard with department tag and 2–3 sentence outcome tied to the prior decision.
+• Invariants hold:
+  - No ✓/✗ or answer reveals anywhere.
+  - Only the existing write path is exercised (assert via spy/log).
+  - Keyboard can reach dials, dismiss toasts, and activate tradeoff acks.
+
+Artifacts to return
+• The router object (JSON/TS) with at least 6 mapped outcomes.
+• 8–12 postcard templates (id + parameterized string with {dept, asset, action, effect}).
+• Screenshots/DOM captures:
+  - Dials before/after increment
+  - Example toast
+  - Manager‑ack banner (OF tradeoff)
+  - Hidden deep‑link case (LE tradeoff)
+  - Postcard rendering
+  - Scar Notes list in Ops Center
+• One JSON playtest report (as in our prior prompt) showing Path A (over‑escalation) and Path B (under‑escalation) with timings and PASS/FAIL on invariants.
+
+Notes
+• The screenshots provided show only the Notebook sections (Fact/Assessment/Reason/Unknowns/Recommendations) and classification — no evidence of dials, toasts, postcards, scar notes, or tradeoffs — so treat all four features as not present in this build.
+
+Now implement with all four flags ON, run the playtest, and attach the router, templates, screenshots, and JSON report with a clear PASS/FAIL verdict.
+
+—— COPY ENDS ——

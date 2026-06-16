@@ -351,6 +351,292 @@
       }
     ]
   },
+  "everyDecisionReacts": {
+    "note": "Every routed decision id, driven from a fresh {of:0,le:0} baseline (a single real recommendation). A moved meter fires a per-dial ripple toast; a measured {0,0} call fires the calm 'Measured call' toast. No decision is silent.",
+    "rows": [
+      {
+        "decisionId": "approve_release",
+        "posture": {
+          "of": 0,
+          "le": 3
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "restrict_access",
+        "posture": {
+          "of": 1,
+          "le": 0
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "archive",
+        "posture": {
+          "of": 0,
+          "le": 1
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "recommend_legal",
+        "posture": {
+          "of": 0,
+          "le": 0
+        },
+        "cue": "calm-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "escalate",
+        "posture": {
+          "of": 0,
+          "le": 0
+        },
+        "cue": "calm-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "rec_policy_review",
+        "posture": {
+          "of": 0,
+          "le": 0
+        },
+        "cue": "calm-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "rec_escalate",
+        "posture": {
+          "of": 0,
+          "le": 0
+        },
+        "cue": "calm-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "recommend_disconnect",
+        "posture": {
+          "of": 1,
+          "le": 0
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "monitor",
+        "posture": {
+          "of": 0,
+          "le": 1
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "continue_investigation",
+        "posture": {
+          "of": 0,
+          "le": 2
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "ignore",
+        "posture": {
+          "of": 0,
+          "le": 3
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "rec_network_isolation",
+        "posture": {
+          "of": 1,
+          "le": 0
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "rec_device_review",
+        "posture": {
+          "of": 0,
+          "le": 0
+        },
+        "cue": "calm-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "lock_account",
+        "posture": {
+          "of": 1,
+          "le": 0
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "recommend_reset",
+        "posture": {
+          "of": 1,
+          "le": 0
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "enforce_mfa",
+        "posture": {
+          "of": 0,
+          "le": 0
+        },
+        "cue": "calm-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "rec_orgwide_reset",
+        "posture": {
+          "of": 2,
+          "le": 0
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "rec_contractor_revoke",
+        "posture": {
+          "of": 1,
+          "le": 0
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "recommend_disable_account",
+        "posture": {
+          "of": 1,
+          "le": 0
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "recommend_block_device",
+        "posture": {
+          "of": 1,
+          "le": 0
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "recommend_forensics",
+        "posture": {
+          "of": 0,
+          "le": 0
+        },
+        "cue": "calm-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "recommend_customer_notify",
+        "posture": {
+          "of": 0,
+          "le": 0
+        },
+        "cue": "calm-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "submit_incident_report",
+        "posture": {
+          "of": 0,
+          "le": 0
+        },
+        "cue": "calm-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "downgrade",
+        "posture": {
+          "of": 0,
+          "le": 3
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "rec_companywide_lockdown",
+        "posture": {
+          "of": 3,
+          "le": 0
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      },
+      {
+        "decisionId": "rec_terminate_contractor",
+        "posture": {
+          "of": 1,
+          "le": 0
+        },
+        "cue": "dial-toast",
+        "hasCue": true
+      }
+    ],
+    "total": 26,
+    "dialCues": 17,
+    "calmCues": 9,
+    "everyDecisionHasCue": true,
+    "bothCueKindsOccur": true
+  },
+  "saturatedDialCues": {
+    "note": "A forceful/risky call made when its dial is ALREADY saturated at 3/3 moves no meter, but its posture is nonzero — so it must NOT borrow the calm 'Measured call' copy. It fires a posture-keyed 'sustained at cap' cue instead.",
+    "cases": [
+      {
+        "decisionId": "restrict_access",
+        "baseline": {
+          "of": 3,
+          "le": 0
+        },
+        "delta": {
+          "of": 1,
+          "le": 0
+        },
+        "after": {
+          "of": 3,
+          "le": 0
+        },
+        "moved": false,
+        "measured": false,
+        "cue": "sustained-toast"
+      },
+      {
+        "decisionId": "approve_release",
+        "baseline": {
+          "of": 0,
+          "le": 3
+        },
+        "delta": {
+          "of": 0,
+          "le": 3
+        },
+        "after": {
+          "of": 0,
+          "le": 3
+        },
+        "moved": false,
+        "measured": false,
+        "cue": "sustained-toast"
+      }
+    ],
+    "noneMisclassifiedAsCalm": true
+  },
   "invariants": {
     "noGradeChromeInConsequenceLayer": {
       "pass": true,
@@ -420,6 +706,7 @@
     "pathA_overescalation": "PASS",
     "pathB_underescalation": "PASS",
     "singleDecisionPeaks": "PASS",
+    "everyDecisionReacts": "PASS",
     "invariants": "PASS"
   }
 }

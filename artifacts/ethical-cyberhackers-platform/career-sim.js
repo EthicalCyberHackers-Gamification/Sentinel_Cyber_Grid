@@ -347,7 +347,11 @@ function consequenceToast(title, message, kind) {
   if (!consequenceOn('dials')) return;
   try {
     if (typeof window !== 'undefined' && typeof window.echShowToast === 'function') {
-      window.echShowToast(title, message, kind === 'of' ? 'info' : 'warning', { duration: 6000 });
+      // Posture tone (never correctness): friction = info (operational), exposure =
+      // warning (risk), measured/calm = blueteam (steady, neutral — never red, and
+      // never a "correct"-implying green).
+      const tone = kind === 'of' ? 'info' : kind === 'le' ? 'warning' : 'blueteam';
+      window.echShowToast(title, message, tone, { duration: 6000 });
     }
   } catch (_) { /* toast is best-effort, never block the decision */ }
 }
@@ -356,24 +360,36 @@ function consequenceToast(title, message, kind) {
 // Two mission-scoped meters (CONSEQUENCE_DIALS) + freshConsequenceState live in
 // consequence-core.js. SIM.consequence is transient (reset every open in
 // openCareerMission), so dials never carry across missions.
+// Plain-language tooltips so a player understands the HUD even at 0/0
+// (presentation only — the core stays pure).
+const DIAL_HELP = {
+  of: 'Operational Friction — how much disruption your calls created for IT & operations.',
+  le: 'Latent Exposure — how much risk your calls left open for other teams to chase.',
+};
 
-function renderConsequenceDials() {
+function renderConsequenceDials(opts) {
   const host = document.getElementById('simDials');
   if (!host) return;
   if (!consequenceOn('dials')) { host.innerHTML = ''; host.hidden = true; return; }
   host.hidden = false;
+  const pulse = (opts && Array.isArray(opts.pulse)) ? opts.pulse : [];
   const s = SIM.consequence || freshConsequenceState();
-  host.innerHTML = CONSEQUENCE_DIALS.map(d => {
+  const dials = CONSEQUENCE_DIALS.map(d => {
     const v = Math.max(0, Math.min(3, s[d.key] | 0));
     const segs = [0, 1, 2].map(i =>
       `<span class="sim-dial-seg${i < v ? ' sim-dial-seg--on' : ''} sim-dial-seg--${d.key}" aria-hidden="true"></span>`
     ).join('');
-    return `<div class="sim-dial sim-dial--${d.key}${v >= 3 ? ' sim-dial--peak' : ''}" role="img" aria-label="${d.label}: ${v} of 3">
+    const help = DIAL_HELP[d.key] || d.label;
+    const isPulse = pulse.indexOf(d.key) !== -1;
+    return `<div class="sim-dial sim-dial--${d.key}${v >= 3 ? ' sim-dial--peak' : ''}${isPulse ? ' sim-dial--pulse' : ''}" role="img" aria-label="${d.label}: ${v} of 3" title="${help}">
         <span class="sim-dial-name">${d.short}</span>
         <span class="sim-dial-track">${segs}</span>
         <span class="sim-dial-val" aria-hidden="true">${v}/3</span>
       </div>`;
   }).join('');
+  // A leading group label makes the meters legible/labelled even at 0/0, so the
+  // loop reads as a system the player is part of — not an unexplained widget.
+  host.innerHTML = `<span class="sim-dials-label" title="How your decisions ripple through CyberCorp. These reflect the impact of your calls — not a score.">COMPANY HEALTH</span>${dials}`;
 }
 
 /* ---- (B) Consequence Postcards -------------------------------------------- */
@@ -420,22 +436,46 @@ function applyDecisionConsequence(actionId) {
   try {
     if (!SIM.consequence) SIM.consequence = freshConsequenceState();
     const before = { of: SIM.consequence.of | 0, le: SIM.consequence.le | 0 };
-    const { after } = accrueDecision(before, actionId);
+    const { delta, after } = accrueDecision(before, actionId);
     SIM.consequence.of = after.of;
     SIM.consequence.le = after.le;
     consequenceLog('decision', { actionId, of: SIM.consequence.of, le: SIM.consequence.le, mission: SIM.missionId });
 
     // Dials + per-dial toast (one per dial that moved — concise, not spammy).
-    renderConsequenceDials();
     let persistedChange = false;
+    const moved = [];
     CONSEQUENCE_DIALS.forEach(d => {
       const now = SIM.consequence[d.key] | 0;
       if (now > before[d.key]) {
+        moved.push(d.key);
         const dept = consequenceDept(d.key);
         consequenceToast(`${d.label} ↑ ${now}/3`, `${dept}: ${d.toast}`, d.key);
         if (now >= 3 && appendScar(d.key)) persistedChange = true; // (C) extreme call -> persistent scar
       }
     });
+    // Classify the decision by its POSTURE (never correctness). A zero-posture call
+    // is a genuinely measured response. A NONZERO posture that moved no meter means
+    // its dial is already saturated at 3/3 — that is sustained strain, not "measured",
+    // so it must NOT borrow the calm copy. Either way EVERY decision produces a cue.
+    const measured = (delta.of | 0) === 0 && (delta.le | 0) === 0;
+    const pulse = moved.slice();
+    if (!moved.length && !measured) {
+      // Forceful/risky call against an already-capped dial: surface the dominant
+      // posture dial as sustained pressure (posture-keyed colour, not the calm one).
+      const k = (delta.of | 0) >= (delta.le | 0) ? 'of' : 'le';
+      const d = CONSEQUENCE_DIALS.find(x => x.key === k) || CONSEQUENCE_DIALS[0];
+      pulse.push(k);
+      consequenceToast(`${d.label} sustained at 3/3`, `${consequenceDept(k)}: already at the ceiling — this call keeps the pressure on, with no room left to climb.`, k);
+    }
+    // Render the meters, pulsing those that moved (or the saturated one) so the
+    // change is impossible to miss (pulse is presentation-only — no state in core).
+    renderConsequenceDials({ pulse });
+    // A measured call that shifts neither meter still earns a visible, posture-based
+    // acknowledgement (derived ONLY from zero posture — never from correctness), so
+    // EVERY decision produces a felt ripple, not just forceful/neglectful ones.
+    if (!moved.length && measured) {
+      consequenceToast('Measured call — minimal ripple', 'A balanced response: no operational friction added, and nothing left open for other teams.', 'calm');
+    }
 
     // (B) postcards for the next session / Ops Center return.
     if (queuePostcards(SIM.consequence.of, SIM.consequence.le)) persistedChange = true;
@@ -474,9 +514,13 @@ function consequenceTradeoffHtml() {
         <p class="sim-tradeoff-body">An open exposure was left for follow-up, so ${dept} put the one-click evidence summary behind triage. The full evidence remains in the Evidence panel.</p>
       </div>`;
   }
-  // Calm / measured: a neutral convenience shortcut (no tradeoff). Focuses the
-  // always-present Evidence panel — purely an affordance.
-  return `<div class="sim-tradeoff sim-tradeoff--calm">
+  // Calm / measured: not a tradeoff, but still a visible, in-world consequence — a
+  // quiet, steady shift (posture-derived: neither meter moved, never correctness).
+  // The always-present Evidence shortcut stays as a secondary affordance.
+  const calmDept = consequenceDept('of');
+  return `<div class="sim-tradeoff sim-tradeoff--calm" data-tradeoff>
+      <div class="sim-tradeoff-head">▪ MEASURED RESPONSE — a quiet shift</div>
+      <p class="sim-tradeoff-body">Your call added no operational friction and left nothing open for follow-up. ${calmDept} reports a steady queue — no ripples logged this round.</p>
       <button type="button" class="sim-tradeoff-chip" data-ev-focus>▸ Open evidence summary</button>
     </div>`;
 }
@@ -520,6 +564,16 @@ function renderHomeConsequences() {
           <span class="oc-scar-dept">${s.dept}</span>
           <span class="oc-scar-text">${s.text}</span></li>`).join('')
       }</ul></div>`;
+  }
+
+  // Discoverability: a new analyst (or one between cases) should still see that
+  // decisions echo here. Render-only placeholder — NO persisted state and NO
+  // saveCareerState(), so the stored blob stays byte-identical to baseline.
+  if (!html) {
+    html = `<div class="oc-conseq-block oc-conseq-block--empty">
+      <div class="oc-conseq-head"><span class="oc-conseq-icon" aria-hidden="true">✉</span><span>FIELD REPORTS</span></div>
+      <p class="oc-conseq-empty">Field reports and case scars from your decisions surface here — other teams react to the calls you make in the field.</p>
+    </div>`;
   }
 
   host.innerHTML = html;

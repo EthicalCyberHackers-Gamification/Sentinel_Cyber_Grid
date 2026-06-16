@@ -17,6 +17,7 @@
 
 import {
   CONSEQUENCE_DIALS,
+  CONSEQUENCE_POSTURE,
   SCAR_TEXT,
   routePosture,
   accrueDecision,
@@ -273,6 +274,70 @@ export function runSingleDecisionPeaks(now = 0) {
   });
 }
 
+/* ---- Always-on reaction coverage (Task #122) ------------------------------ *
+ * The visibility upgrade's core promise: EVERY decision the player submits now
+ * produces a visible cue. A decision that moves a meter fires a per-dial "ripple"
+ * toast; a measured decision that moves NEITHER meter ({of:0,le:0}) fires the
+ * calm "Measured call" toast (derived ONLY from zero posture — never from
+ * correctness). This drives every routed decision id from a fresh {0,0} baseline
+ * (the realistic one-recommendation submit) and proves each yields exactly one
+ * cue, and that BOTH cue kinds genuinely occur across the real id set. */
+/* Single source of truth mirroring applyDecisionConsequence's cue classification:
+ *   - any meter moved             -> "dial-toast" (per-dial ripple)
+ *   - no move, ZERO posture        -> "calm-toast" (genuine "Measured call")
+ *   - no move, NONZERO posture     -> "sustained-toast" (dial already at 3/3 cap;
+ *                                     forceful/risky call -> sustained strain, NOT calm)
+ * Classification keys on POSTURE, never correctness. */
+export function classifyDecisionCue(before, actionId) {
+  const b = { of: (before && before.of) | 0, le: (before && before.le) | 0 };
+  const { delta, after } = accrueDecision(b, actionId);
+  const moved = after.of > b.of || after.le > b.le;
+  const measured = (delta.of | 0) === 0 && (delta.le | 0) === 0;
+  const cue = moved ? "dial-toast" : measured ? "calm-toast" : "sustained-toast";
+  return { delta, after, moved, measured, cue };
+}
+
+export function runEveryDecisionCue() {
+  const rows = Object.keys(CONSEQUENCE_POSTURE).map((id) => {
+    const { delta, cue } = classifyDecisionCue({ of: 0, le: 0 }, id);
+    return { decisionId: id, posture: delta, cue, hasCue: !!cue };
+  });
+  const dialCues = rows.filter((r) => r.cue === "dial-toast").length;
+  const calmCues = rows.filter((r) => r.cue === "calm-toast").length;
+  return {
+    note: "Every routed decision id, driven from a fresh {of:0,le:0} baseline (a single real recommendation). A moved meter fires a per-dial ripple toast; a measured {0,0} call fires the calm 'Measured call' toast. No decision is silent.",
+    rows,
+    total: rows.length,
+    dialCues,
+    calmCues,
+    everyDecisionHasCue: rows.every((r) => r.hasCue),
+    bothCueKindsOccur: dialCues > 0 && calmCues > 0,
+  };
+}
+
+/* Saturated-dial guard: a forceful/risky call made when its dial is ALREADY at
+ * 3/3 moves no meter, but its posture is nonzero — so it must NOT read as the
+ * calm "Measured call". It must classify as the posture-keyed "sustained-toast". */
+export function runSaturatedDialCues() {
+  const entries = Object.entries(CONSEQUENCE_POSTURE);
+  const ofAction = entries.find(([, p]) => (p.of | 0) > 0 && (p.le | 0) === 0);
+  const leAction = entries.find(([, p]) => (p.le | 0) > 0 && (p.of | 0) === 0);
+  const cases = [];
+  if (ofAction) {
+    const baseline = { of: 3, le: 0 };
+    cases.push({ decisionId: ofAction[0], baseline, ...classifyDecisionCue(baseline, ofAction[0]) });
+  }
+  if (leAction) {
+    const baseline = { of: 0, le: 3 };
+    cases.push({ decisionId: leAction[0], baseline, ...classifyDecisionCue(baseline, leAction[0]) });
+  }
+  return {
+    note: "A forceful/risky call made when its dial is ALREADY saturated at 3/3 moves no meter, but its posture is nonzero — so it must NOT borrow the calm 'Measured call' copy. It fires a posture-keyed 'sustained at cap' cue instead.",
+    cases,
+    noneMisclassifiedAsCalm: cases.length > 0 && cases.every((c) => c.cue === "sustained-toast"),
+  };
+}
+
 /* Scoped invariant audit (pure, takes file text + the generated player strings).
  *   (a) no grade chrome in any consequence-layer player-facing output
  *   (b) the consequence layer never calls the graded judgment writer and adds no
@@ -377,6 +442,15 @@ export function buildPlaytestReport({ now = 0, invariants } = {}) {
     (c) => c.peaksInOneDecision === true && c.scarRecorded === true && c.scarDept === c.expectDept,
   );
 
+  // Task #122 — always-on reaction: every routed decision yields a visible cue,
+  // and a forceful call at a saturated dial does not get misread as calm.
+  const everyDecisionReacts = runEveryDecisionCue();
+  const saturatedDialCues = runSaturatedDialCues();
+  const coverageOk =
+    everyDecisionReacts.everyDecisionHasCue &&
+    everyDecisionReacts.bothCueKindsOccur &&
+    saturatedDialCues.noneMisclassifiedAsCalm;
+
   return {
     report: "Consequence Emotion Loop — Playtest (deterministic core-model + static audit)",
     task: "#121",
@@ -391,6 +465,8 @@ export function buildPlaytestReport({ now = 0, invariants } = {}) {
       note: "Realistic single-recommendation flow: one extreme call peaks the dial in a single decision (file-model missions submit one recommendation). Bridges the multi-decision model paths to real play.",
       cases: singleDecisionPeaks,
     },
+    everyDecisionReacts,
+    saturatedDialCues,
     invariants: invariants || { note: "computed by the test runner with file text" },
     timings: {
       dialToToast: {
@@ -425,11 +501,12 @@ export function buildPlaytestReport({ now = 0, invariants } = {}) {
         impact: "None — behaves as designed.",
       },
     ],
-    verdict: aOk && bOk && invOk && singleOk ? "PASS" : "FAIL",
+    verdict: aOk && bOk && invOk && singleOk && coverageOk ? "PASS" : "FAIL",
     verdictBreakdown: {
       pathA_overescalation: aOk ? "PASS" : "FAIL",
       pathB_underescalation: bOk ? "PASS" : "FAIL",
       singleDecisionPeaks: singleOk ? "PASS" : "FAIL",
+      everyDecisionReacts: coverageOk ? "PASS" : "FAIL",
       invariants: invOk ? "PASS" : "FAIL",
     },
   };

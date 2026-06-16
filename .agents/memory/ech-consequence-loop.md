@@ -56,3 +56,21 @@ script.js/career-sim.js do DOM init on import.
   re-surfaces and the queue eventually drains — model repeated home views, not one.
 **How to apply:** see `tests/consequence-loop.{harness,test,report}.js` and the
 `docs/CONSEQUENCE_LOOP_PLAYTEST.json` report builder.
+
+## Rule 4 — "always-on" cues key on POSTURE delta, not visual dial movement
+When making every decision produce a felt cue, the "measured / calm" branch must
+test the decision's **posture delta** (`delta.of===0 && delta.le===0`), NOT
+"did a dial visually move" (`!moved.length`). A forceful/risky call made when its
+dial is already saturated at 3/3 moves no meter yet has nonzero posture — gating
+calm on movement makes that forceful call read as a calm "measured" response,
+which both misleads and (because calm copy is reassuring) leaks a soft "you're
+fine" signal. Split into three cues: meter moved → per-dial ripple; no move +
+zero posture → calm; no move + nonzero posture → a posture-keyed "sustained at
+cap" cue (uses the dial's own of/le colour, never the calm/blue one).
+**Why:** posture is the thing we react to (Rule 1); "no movement" is a rendering
+side effect of the 0–3 clamp, not a measure of how forceful the call was.
+**How to apply:** in `applyDecisionConsequence` destructure `delta` from
+`accrueDecision` (not just `after`). Mirror the exact 3-way classification in the
+test harness (`classifyDecisionCue`) and exercise the saturated case from a
+pre-capped baseline (`runSaturatedDialCues`) — a `{0,0}`-only sweep can't catch it
+because from zero every nonzero posture always moves a dial.
