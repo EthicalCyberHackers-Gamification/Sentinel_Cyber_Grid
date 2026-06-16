@@ -65,6 +65,24 @@ import {
   tradeoffBand,
 } from './consequence-core.js';
 
+import {
+  evaluateHypothesis,
+  calibrationValid,
+  calibrationLabel,
+  calibrationCallback,
+  CALIB_MAX_RATIONALE,
+  twoVoiceValidChoice,
+  twoVoiceReconcile,
+  trailEmit,
+  trailMatches,
+  trailActionValid,
+  selectRecap,
+  sarahBet,
+  sarahCalibration,
+  sarahTwoVoice,
+  sarahTrails,
+} from './sarah-sparring-core.js';
+
 const CAREER_ROLES = [
   {
     id: 'cybersecurity_intern',
@@ -678,6 +696,7 @@ const SIM = {
   analystBet: null,         // P5 optional hypothesis-check state {done,pick,strong}
   markupLog: [],            // P3-5 in-memory telemetry (console.debug mirror; never stored)
   consequence: null,        // #120 Company Health Dials {of,le,tradeoffShown} (transient, reset per mission)
+  sparring: null,           // #124 Sarah-sparring view-state {calibration,twoVoice,trails,carry,recap} (transient; set in openCareerMission)
 };
 
 function careerMission() { return SIM.def; }
@@ -736,6 +755,15 @@ function openCareerMission(missionId) {
   SIM.findingChips = {};                  // P4 display-only chip edits (never feed scoring)
   SIM.committedFindings = [];             // P4 case-file timeline snapshots
   SIM.analystBet = { done: false, pick: null, strong: false }; // P5 optional bet
+  SIM.sparring = freshSparringState();    // #124 Sarah-sparring layer (transient view-state)
+  // Performance-mirror PERK: a session-scoped, NON-persisted carry-over note from
+  // the PREVIOUS mission's debrief. Surfaced once here, then cleared. Never saved.
+  try {
+    if (SARAH_SESSION_PERK && SARAH_SESSION_PERK.fromMission !== missionId) {
+      SIM.sparring.carry = SARAH_SESSION_PERK;
+      SARAH_SESSION_PERK = null;
+    }
+  } catch (_) { /* perk carry-over is best-effort */ }
   SIM.markupLog = [];                     // P3-5 in-memory telemetry buffer
   hideMarkupPopover();                    // clear any stray selection popover from a prior open
 
@@ -2507,6 +2535,64 @@ function committedFindingsHtml() {
 }
 
 /* ================================================================== *
+ * #124 — SARAH REYES AS SPARRING PARTNER (presentation / view-state only)
+ * ------------------------------------------------------------------ *
+ * Five optional career-sim surfaces that turn Sarah from a narrator into a
+ * sparring partner: (1) Analyst's Bet 2.0 (disconfirming-evidence), (2) a
+ * confidence calibration check she cites back, (3) a two-voice stakeholder
+ * moment, (4) mentor trails ("what I'd check next"), and (5) an end-of-mission
+ * performance mirror. ALL react to POSTURE (how the player engaged), never
+ * correctness: they never grade, never reveal a keyed answer, never touch
+ * investigationConfidence() or the scoring path. The sole graded writer
+ * (setDiscoveryJudgment) is untouched.
+ *
+ * Master + per-feature switches, all on by default. Flipping `enabled` — or any
+ * sub-flag — removes that surface's every visible effect; with all off the game
+ * plays exactly as before and writes nothing new (no saveCareerState drift). The
+ * PURE logic + per-mission content live in ./sarah-sparring-core.js (node-
+ * testable); this file keeps the DOM/state wrappers and calls into that core.
+ * ================================================================== */
+const SARAH_FLAGS = {
+  enabled: true,            // master switch
+  sparring: true,           // (1) Analyst's Bet 2.0 — disconfirming-evidence exchange
+  calibration: true,        // (2) confidence calibration check + later callback
+  twoVoice: true,           // (3) two-voice stakeholder moment
+  mentorTrails: true,       // (4) mentor trails
+  performanceMirror: true,  // (5) end-of-mission performance mirror + perk
+};
+function sarahOn(sub) {
+  return !!(SARAH_FLAGS.enabled && (sub ? SARAH_FLAGS[sub] : true));
+}
+
+// Non-blocking telemetry — in-memory ring + console.debug mirror. Never persists,
+// never throws (mirrors consequenceLog / markupLog).
+const SARAH_LOG = [];
+function sparringLog(event, data) {
+  try {
+    SARAH_LOG.push({ t: Date.now(), event, ...(data || {}) });
+    if (SARAH_LOG.length > 100) SARAH_LOG.shift();
+    if (typeof console !== 'undefined' && console.debug) console.debug('[sparring]', event, data || '');
+  } catch (_) { /* telemetry is best-effort */ }
+}
+
+// (5) Performance-mirror PERK — session-scoped and NON-persisted by design. It
+// must survive closing one mission and opening the next (to carry over), so it
+// lives at module scope, NOT on SIM (which resets per mission). It is never
+// written to localStorage / saveCareerState; openCareerMission consumes it once.
+let SARAH_SESSION_PERK = null;   // { id, label, note, fromMission } | null
+
+/* Fresh transient sparring view-state, reset every openCareerMission. */
+function freshSparringState() {
+  return {
+    calibration: null,  // { draftLevel, draftRationale, committed, level, rationale, atSound, citedAtSound }
+    twoVoice: null,     // { choice, at }
+    trails: [],         // [{ id, label, target, action, matchOn, armedAt, consumedAt }]
+    carry: null,        // perk carried over from the previous mission's debrief (display-only)
+    recap: null,        // last computed debrief recap (display cache; never persisted)
+  };
+}
+
+/* ================================================================== *
  * PHASE 5 — OPTIONAL ANALYST'S BET (presentation / view-state only)
  * ------------------------------------------------------------------ *
  * Before committing the recommendation, the analyst may OPTIONALLY stake
@@ -2520,55 +2606,19 @@ function committedFindingsHtml() {
  * Bet copy is keyed by mission id; missions with no entry show no bet.
  * ================================================================== */
 const BET_STAKE = 6;             // recoverable DISPLAY-only confidence staked on a strong bet
-const ANALYST_BETS = {
-  'mission-001': {
-    prompt: 'Before this release decision goes up the chain \u2014 how do you want to log your read?',
-    options: [
-      { id: 'm1-strong', stance: 'strong', label: 'I am ready to stake a firm recommendation on this release.',
-        coach: 'You have put your name on this call. Back it with one more sound judgment and the certainty you staked comes back.' },
-      { id: 'm1-working', stance: 'hedge', label: 'Log it as a working call I can still revise.',
-        coach: 'A working call is honest \u2014 just make sure the evidence you have supports where you have landed.' },
-      { id: 'm1-hold', stance: 'hedge', label: 'Hold \u2014 I want more before I commit either way.',
-        coach: 'Holding is fair when the picture is thin. Surface more evidence, then decide.' },
-    ],
-  },
-  'mission-002': {
-    prompt: 'Before you write up the unknown device \u2014 how confident is your read?',
-    options: [
-      { id: 'm2-strong', stance: 'strong', label: 'Confident enough to stake my read on this device.',
-        coach: 'Good \u2014 you have committed to a position. One more sound call and the certainty you staked is restored.' },
-      { id: 'm2-working', stance: 'hedge', label: 'Note it as a working assessment for now.',
-        coach: 'Sensible \u2014 keep the assessment tied to what the traffic actually shows.' },
-      { id: 'm2-hold', stance: 'hedge', label: 'Hold \u2014 keep watching before I commit.',
-        coach: 'Patience is fine here. Confirm the behaviour, then make the call.' },
-    ],
-  },
-  'mission-003': {
-    prompt: 'Before escalating this account activity \u2014 how do you want to stake your read?',
-    options: [
-      { id: 'm3-strong', stance: 'strong', label: 'Confident enough to stake my read before I escalate.',
-        coach: 'That is a firm stance. Reconfirm it with one more sound call and the staked certainty returns.' },
-      { id: 'm3-working', stance: 'hedge', label: 'Log a working read and hand it up for review.',
-        coach: 'Handing it up is reasonable \u2014 just be clear on what you have already established.' },
-      { id: 'm3-hold', stance: 'hedge', label: 'Hold \u2014 tie the sessions together before I commit.',
-        coach: 'Fair \u2014 nail the link first, then stake your read.' },
-    ],
-  },
-  'mission-004': {
-    prompt: 'This one goes to incident response \u2014 how do you want to log your read first?',
-    options: [
-      { id: 'm4-strong', stance: 'strong', label: 'Confident enough to stake my read before IR takes it.',
-        coach: 'You have put your name on it. One more sound call and the certainty you staked comes back.' },
-      { id: 'm4-working', stance: 'hedge', label: 'Flag it as a working read for IR to confirm.',
-        coach: 'Reasonable hand-off \u2014 give IR the evidence trail you have built.' },
-      { id: 'm4-hold', stance: 'hedge', label: 'Hold \u2014 verify the destination before I commit.',
-        coach: 'Fair \u2014 confirm the endpoint is truly unknown, then stake your read.' },
-    ],
-  },
-};
-/* The bet config for the current mission (def override wins), or null. */
+/* The bet config for the current mission. Content lives in ./sarah-sparring-core
+ * (SARAH_CONTENT[mission].bet) so the tests audit the real strings; a per-mission
+ * `def.sarah.bet` override still wins for dynamically-reshaped missions. */
 function simAnalystBet() {
-  return (SIM.def && SIM.def.analystBet) || ANALYST_BETS[SIM.missionId] || null;
+  return (SIM.def && SIM.def.sarah && SIM.def.sarah.bet) || sarahBet(SIM.missionId) || null;
+}
+/* The read-only bet Spotlight may only re-surface an evidence item the analyst
+ * has ALREADY surfaced — returns its label, or '' if the id is unknown or not yet
+ * earned. This is the guard that keeps the Spotlight from revealing anything new. */
+function surfacedEvidenceLabel(id) {
+  if (!id || !SIM.evidence || !SIM.evidence.has(id)) return '';
+  const ev = ((SIM.def && SIM.def.evidence) || []).find(e => e && e.id === id);
+  return ev ? (ev.label || '') : '';
 }
 /* Bet-owned activation: a recoverable DISPLAY-only confidence stake + a scope
  * recap, on bet-owned keys so it never collides with the earned-tools system or
@@ -2580,45 +2630,82 @@ function activateScopeSnapshot(opts) {
   if (P.confSpend === 0) { P.confSpend = BET_STAKE; P.confSpendSource = source; }
   powerLog('bet-stake', 'BET', source);
 }
-/* Record the player's optional bet. Strong stakes display confidence; hedges only
- * coach. Once per mission. Reuses SIM.powers; persists nothing; reveals nothing. */
-function takeAnalystBet(optId) {
-  const def = simAnalystBet();
-  if (!def || (SIM.analystBet && SIM.analystBet.done)) return;
-  const opt = (def.options || []).find(o => o.id === optId);
-  if (!opt) return;
-  const strong = opt.stance === 'strong';
+/* Record the player's optional bet — now a DISCONFIRMING-EVIDENCE test. A 'strong'
+ * hypothesis names a real falsification criterion and unlocks a read-only Spotlight
+ * on evidence the analyst HAS ALREADY surfaced, plus the recoverable display dip;
+ * a 'weak' pick or Skip only coaches. POSTURE-driven (strength of the test), never
+ * correctness — the label never states the verdict. Once per mission. Reuses
+ * SIM.powers; persists nothing; reveals nothing new. */
+function takeAnalystBet(hypId) {
+  if (!sarahOn('sparring')) return;
+  const bank = simAnalystBet();
+  if (!bank || (SIM.analystBet && SIM.analystBet.done)) return;
+
+  // Skip is a first-class, no-cost choice: nothing staked, gentle coaching only.
+  if (hypId === '__skip__') {
+    SIM.analystBet = { done: true, pick: '__skip__', strong: false, staked: false, spotlightId: null };
+    const P0 = SIM.powers;
+    if (P0) P0.sarah = 'No stake \u2014 fair when the picture is still forming. Keep working the evidence and we will revisit.';
+    nbLog('bet-skipped', {});
+    sparringLog('bet-skip', {});
+    renderEvidencePanel();
+    return;
+  }
+
+  const res = evaluateHypothesis(bank, hypId);
+  if (!res.found) return;
+  const strong = res.strong;
   const P = SIM.powers;
   // A fresh confidence stake only lands when no dip is already in play — the bet
   // never stacks a second dip on top of an active Railguard (single confSpend var).
   const staked = strong && !!P && P.confSpend === 0;
-  SIM.analystBet = { done: true, pick: opt.id, strong, staked };
+  // Spotlight only when the cited evidence is real AND already surfaced.
+  const spotlightId = (strong && res.spotlightId && surfacedEvidenceLabel(res.spotlightId))
+    ? res.spotlightId : null;
+  SIM.analystBet = { done: true, pick: hypId, strong, staked, spotlightId };
   if (strong) activateScopeSnapshot({ source: 'bet' });
   if (P) {
-    P.sarah = (strong && !staked)
-      ? 'Your read is on the record \u2014 a calibration check is already running, so no extra certainty was staked.'
-      : (opt.coach || (strong
-        ? 'You have staked your read \u2014 back it with another sound call.'
-        : 'A measured call \u2014 keep building the picture.'));
+    P.sarah = res.coach || (strong
+      ? 'You named what would prove you wrong \u2014 that is the test. Back it with another sound call.'
+      : 'That leans on hope more than evidence. Anchor your next check to something you can verify.');
+    if (strong && !staked) {
+      P.sarah += ' (Your read is on the record \u2014 a calibration check is already running, so no extra certainty was staked.)';
+    }
   }
-  nbLog('bet-taken', { pick: opt.id, strong, staked });
-  powerLog('bet', 'BET', opt.stance);
+  nbLog('bet-taken', { pick: hypId, strong, staked });
+  sparringLog('bet', { pick: hypId, strong, staked, spotlight: !!spotlightId });
+  powerLog('bet', 'BET', strong ? 'strong' : 'weak');
   renderEvidencePanel();
 }
 
-/* The optional ANALYST'S BET section. Appears once at least one challenge is
- * answered (so there is something to stake on); after a bet it shows the chosen
- * stance + any live recap. '' for missions with no bet config. */
+/* The optional ANALYST'S BET section — a disconfirming-evidence exchange. Appears
+ * once at least one challenge is answered (so there is a read to test); after a
+ * bet it shows the chosen hypothesis, any read-only Spotlight, and the live recap.
+ * Gated on sarahOn('sparring'); '' for missions with no bet config. */
 function analystBetHtml() {
-  const def = simAnalystBet();
-  if (!def) return '';
+  if (!sarahOn('sparring')) return '';
+  const bank = simAnalystBet();
+  if (!bank) return '';
+  const hyps = bank.hypotheses || [];
   const taken = !!(SIM.analystBet && SIM.analystBet.done);
   const answered = visibleDiscoveryChallenges().filter(challengeAnswered).length;
   if (!answered && !taken) return '';
   const P = SIM.powers;
   if (taken) {
-    const pick = (def.options || []).find(o => o.id === SIM.analystBet.pick);
-    const stanceLabel = SIM.analystBet.strong ? (SIM.analystBet.staked ? 'Staked' : 'On record') : 'Working call';
+    const skipped = SIM.analystBet.pick === '__skip__';
+    const pick = hyps.find(h => h.id === SIM.analystBet.pick);
+    const stanceLabel = skipped ? 'No stake'
+      : SIM.analystBet.strong ? (SIM.analystBet.staked ? 'Staked' : 'On record') : 'Working read';
+    const pickLine = skipped ? 'You held off on staking a test for now.' : (pick ? pick.label : '');
+    // Read-only Spotlight: re-surfaces an evidence item the analyst already has,
+    // to weigh against the disconfirming test. Never reveals anything new.
+    let spotlight = '';
+    if (SIM.analystBet.spotlightId) {
+      const lab = surfacedEvidenceLabel(SIM.analystBet.spotlightId);
+      if (lab) {
+        spotlight = `<div class="sim-bet-spotlight"><span class="sim-bet-spotlight-lab">Spotlight \u2014 weigh this against your test</span>${mapEsc(lab)}</div>`;
+      }
+    }
     let recap = '';
     if (P && P.active['betSnapshot']) {
       const c = P.active['betSnapshot'].counts;
@@ -2634,20 +2721,22 @@ function analystBetHtml() {
     return `
       <div class="sim-notebook-section sim-bet sim-bet--taken">
         <div class="sim-notebook-head sim-notebook-head--bet">ANALYST'S BET <span class="sim-bet-state">${stanceLabel}</span></div>
-        <p class="sim-bet-pick">${mapEsc(pick ? pick.label : '')}</p>
+        <p class="sim-bet-pick">${mapEsc(pickLine)}</p>
+        ${spotlight}
         ${recap}
         ${coach}
       </div>`;
   }
-  const opts = (def.options || []).map(o =>
-    `<button type="button" class="sim-bet-opt sim-bet-opt--${o.stance === 'strong' ? 'strong' : 'hedge'}" data-analyst-bet="${mapEsc(o.id)}">${mapEsc(o.label)}</button>`
+  const opts = hyps.map(h =>
+    `<button type="button" class="sim-bet-opt sim-bet-opt--${h.strength === 'strong' ? 'strong' : 'hedge'}" data-analyst-bet="${mapEsc(h.id)}">${mapEsc(h.label)}</button>`
   ).join('');
+  const skip = `<button type="button" class="sim-bet-opt sim-bet-opt--skip" data-analyst-bet="__skip__">Skip \u2014 I\u2019m not ready to stake a test yet.</button>`;
   return `
     <div class="sim-notebook-section sim-bet">
       <div class="sim-notebook-head sim-notebook-head--bet">ANALYST'S BET <span class="sim-bet-optional">optional</span></div>
-      <p class="sim-bet-prompt">${mapEsc(def.prompt)}</p>
-      <div class="sim-bet-opts">${opts}</div>
-      <p class="sim-bet-note">Staking your read dips your displayed confidence until your next sound call \u2014 it never changes your score.</p>
+      <p class="sim-bet-prompt">${mapEsc(bank.prompt)}</p>
+      <div class="sim-bet-opts">${opts}${skip}</div>
+      <p class="sim-bet-note">Naming what would prove you wrong is a disconfirming test \u2014 it sharpens your read and never changes your score.</p>
     </div>`;
 }
 
