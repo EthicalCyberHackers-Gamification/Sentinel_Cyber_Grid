@@ -758,6 +758,9 @@ function openCareerMission(missionId) {
   SIM.committedFindings = [];             // P4 case-file timeline snapshots
   SIM.analystBet = { done: false, pick: null, strong: false }; // P5 optional bet
   SIM.sparring = freshSparringState();    // #124 Sarah-sparring layer (transient view-state)
+  SIM.nbCollapsed = {};                   // notebook section collapse state (transient, keyed by kind)
+  SIM.focusNotebook = false;              // notebook focus/expand overlay (transient)
+  { const _ops = document.getElementById('careerOps'); if (_ops) _ops.classList.remove('career--nb-focus'); }
   // Performance-mirror PERK: a session-scoped, NON-persisted carry-over note from
   // the PREVIOUS mission's debrief. Surfaced once here, then cleared. Never saved.
   try {
@@ -1341,6 +1344,177 @@ function responseStatusHtml() {
     </div>`;
 }
 
+/* ================================================================== *
+ * ANALYST NOTEBOOK NAVIGATION CHROME (presentation-only)
+ * ------------------------------------------------------------------ *
+ * A thin, additive layer over the existing notebook render: a case-file
+ * identity bar with Focus / Expand-all / Collapse-all tools, collapsible
+ * sections with smart defaults, and uniform status tags. Every function
+ * here touches ONLY transient SIM view-state (SIM.focusNotebook,
+ * SIM.nbCollapsed) and the DOM — never scoring, persistence, or the
+ * reducer. The collapse/focus toggles never call renderEvidencePanel(),
+ * so the reading position is preserved. */
+
+/* Sections collapsed by default (recap / optional / background). Everything
+ * else — active or interactive — starts expanded so no required action is
+ * ever hidden on first reveal. Keyed by section "kind". */
+const NB_DEFAULT_COLLAPSED = { facts: 1, casefile: 1, hyp: 1, reflect: 1 };
+const NB_SECTION_SEL = ':scope > .sim-notebook-section, :scope > .sim-feed, :scope > .sim-casefile, :scope > .sim-reflect';
+const NB_HEAD_SEL = '.sim-notebook-head, .sim-feed-head, .sim-casefile-head, .sim-reflect-head';
+
+/* Immersive case-file id derived from the active mission number (flavor only). */
+function notebookCaseId() {
+  try {
+    const m = String(SIM.missionId || '').match(/(\d+)/);
+    if (m) return 'CASE #' + m[1].padStart(4, '0');
+  } catch (_) { /* flavor is best-effort */ }
+  return '';
+}
+
+/* The notebook panel head: case-file identity + navigation tools. Re-emitted
+ * on every render so the Focus button always mirrors SIM.focusNotebook; the
+ * overlay class itself lives on #careerOps (which is never rebuilt). */
+function notebookPanelHeadHtml(alert) {
+  const focusOn = !!SIM.focusNotebook;
+  const caseId = notebookCaseId();
+  return `
+    <div class="sim-panel-head sim-nb-panelhead">
+      <span class="sim-nb-headline">
+        <span class="sim-nb-title">ANALYST NOTEBOOK</span>
+        ${caseId ? `<span class="sim-nb-caseid">${mapEsc(caseId)}</span>` : ''}
+        ${alert || ''}
+      </span>
+      <span class="sim-nb-tools">
+        <button type="button" class="sim-nb-tool" data-nb-expand-all title="Expand all sections" aria-label="Expand all sections"><span aria-hidden="true">⊕</span></button>
+        <button type="button" class="sim-nb-tool" data-nb-collapse-all title="Collapse all sections" aria-label="Collapse all sections"><span aria-hidden="true">⊖</span></button>
+        <button type="button" class="sim-nb-tool sim-nb-tool--focus${focusOn ? ' sim-nb-tool--on' : ''}" data-nb-focus aria-pressed="${focusOn}" title="${focusOn ? 'Exit focus mode' : 'Focus mode — expand the notebook'}">${focusOn ? '⤡ Exit' : '⤢ Focus'}</button>
+      </span>
+    </div>`;
+}
+
+/* Stable per-section key: the uniform head's --KIND suffix, the custom-section
+ * class, else a positional fallback so two unkeyed blocks can't collide. */
+function nbSectionKey(section, head, idx) {
+  const m = (head.className || '').match(/sim-notebook-head--([a-z]+)/);
+  if (m) return m[1];
+  if (section.classList.contains('sim-feed')) return 'feed';
+  if (section.classList.contains('sim-casefile')) return 'casefile';
+  if (section.classList.contains('sim-reflect')) return 'reflect';
+  return 'sec' + idx;
+}
+
+/* Conservative status tag derived only from existing DOM/state. Returns
+ * {label, tone} or null (no chip). Never reveals correctness. */
+function nbSectionStatus(key, section, grew) {
+  const countEl = section.querySelector('.sim-notebook-count');
+  const txt = countEl ? countEl.textContent.trim() : '';
+  const ratio = txt.match(/(\d+)\s*\/\s*(\d+)/);
+  const openM = txt.match(/(\d+)\s*open/i);
+  switch (key) {
+    case 'evidence': return grew ? { label: 'NEW', tone: 'new' } : { label: 'LIVE', tone: 'live' };
+    case 'feed': return { label: 'LIVE', tone: 'live' };
+    case 'comms':
+      if (ratio) return (+ratio[1] < +ratio[2]) ? { label: 'ON COMMS', tone: 'active' }
+                                                 : (+ratio[2] > 0 ? { label: 'IN SYNC', tone: 'done' } : null);
+      return { label: 'ON COMMS', tone: 'active' };
+    case 'obj':
+      if (ratio) return (+ratio[1] >= +ratio[2] && +ratio[2] > 0) ? { label: 'COMPLETE', tone: 'done' }
+                                                                   : { label: 'ACTIVE', tone: 'active' };
+      return { label: 'ACTIVE', tone: 'active' };
+    case 'questions':
+      if (openM) return (+openM[1] > 0) ? { label: 'OPEN', tone: 'active' } : { label: 'RESOLVED', tone: 'done' };
+      return null;
+    case 'inv': return section.querySelector('.sim-inv-row--flag') ? { label: 'FLAGGED', tone: 'flag' } : { label: 'CLEAR', tone: 'done' };
+    case 'identify': return (SIM.identified != null) ? { label: 'RECORDED', tone: 'done' } : { label: 'ACTION', tone: 'active' };
+    case 'response': return (SIM.decision != null) ? { label: 'RECORDED', tone: 'done' } : { label: 'ACTION', tone: 'active' };
+    case 'risks': return { label: 'WATCH', tone: 'flag' };
+    case 'facts': return { label: 'LOGGED', tone: 'done' };
+    case 'casefile': return { label: 'SUMMARY', tone: 'muted' };
+    case 'bet': return { label: 'OPTIONAL', tone: 'muted' };
+    case 'hyp': return { label: 'OPTIONAL', tone: 'muted' };
+    case 'reflect': return { label: 'OPTIONAL', tone: 'muted' };
+    default: return null;
+  }
+}
+
+/* Post-render augmentation pass: turn each section head into a collapse toggle
+ * and stamp a status tag. Runs after innerHTML is set (and BEFORE scroll
+ * restoration, since collapsing changes layout). Idempotent per render — the
+ * panel is rebuilt fresh each time, so heads are never double-decorated. */
+function applyNotebookChrome(body, grew) {
+  if (!body) return;
+  const blocks = body.querySelectorAll(NB_SECTION_SEL);
+  if (!SIM.nbCollapsed) SIM.nbCollapsed = {};
+  blocks.forEach((section, idx) => {
+    const head = section.querySelector(NB_HEAD_SEL);
+    if (!head || head.dataset.nbToggle) return;
+    const key = nbSectionKey(section, head, idx);
+    section.classList.add('sim-nb-section');
+    head.classList.add('sim-nb-head');
+
+    const collapsed = (key in SIM.nbCollapsed) ? !!SIM.nbCollapsed[key] : !!NB_DEFAULT_COLLAPSED[key];
+    section.classList.toggle('sim-nb-collapsed', collapsed);
+
+    head.setAttribute('role', 'button');
+    head.setAttribute('tabindex', '0');
+    head.setAttribute('aria-expanded', String(!collapsed));
+    head.dataset.nbToggle = key;
+
+    const status = nbSectionStatus(key, section, grew);
+    if (status) {
+      const chip = document.createElement('span');
+      chip.className = 'sim-nb-status sim-nb-status--' + status.tone;
+      chip.textContent = status.label;
+      head.appendChild(chip);
+    }
+    const chev = document.createElement('span');
+    chev.className = 'sim-nb-chevron';
+    chev.setAttribute('aria-hidden', 'true');
+    head.appendChild(chev);
+  });
+}
+
+/* Collapse/expand a single section by toggling a DOM class — no re-render, so
+ * the reading position never jumps. Persists into transient SIM.nbCollapsed. */
+function toggleNotebookSection(head) {
+  const section = head.closest('.sim-nb-section');
+  if (!section) return;
+  const collapsed = !section.classList.contains('sim-nb-collapsed');
+  section.classList.toggle('sim-nb-collapsed', collapsed);
+  head.setAttribute('aria-expanded', String(!collapsed));
+  if (!SIM.nbCollapsed) SIM.nbCollapsed = {};
+  if (head.dataset.nbToggle) SIM.nbCollapsed[head.dataset.nbToggle] = collapsed;
+}
+
+/* Expand-all / Collapse-all across the visible notebook. */
+function setAllNotebookCollapsed(collapsed) {
+  const body = document.querySelector('#simEvidence .sim-evidence-body');
+  if (!body) return;
+  if (!SIM.nbCollapsed) SIM.nbCollapsed = {};
+  body.querySelectorAll('.sim-nb-section').forEach(section => {
+    const head = section.querySelector('.sim-nb-head');
+    section.classList.toggle('sim-nb-collapsed', collapsed);
+    if (head) {
+      head.setAttribute('aria-expanded', String(!collapsed));
+      if (head.dataset.nbToggle) SIM.nbCollapsed[head.dataset.nbToggle] = collapsed;
+    }
+  });
+}
+
+/* Toggle the notebook focus/expand overlay (presentation-only). */
+function setNotebookFocus(on) {
+  SIM.focusNotebook = !!on;
+  const ops = document.getElementById('careerOps');
+  if (ops) ops.classList.toggle('career--nb-focus', SIM.focusNotebook);
+  const btn = document.querySelector('#simEvidence [data-nb-focus]');
+  if (btn) {
+    btn.classList.toggle('sim-nb-tool--on', SIM.focusNotebook);
+    btn.setAttribute('aria-pressed', String(SIM.focusNotebook));
+    btn.innerHTML = SIM.focusNotebook ? '⤡ Exit' : '⤢ Focus';
+    btn.title = SIM.focusNotebook ? 'Exit focus mode' : 'Focus mode — expand the notebook';
+  }
+}
+
 function renderEvidencePanel() {
   const host = document.getElementById('simEvidence');
   if (!host) return;
@@ -1406,7 +1580,7 @@ function renderEvidencePanel() {
     const prevBody = host.querySelector('.sim-evidence-body');
     const prevScroll = prevBody ? prevBody.scrollTop : 0;
     host.innerHTML = `
-      <div class="sim-panel-head">ANALYST NOTEBOOK${alert}</div>
+      ${notebookPanelHeadHtml(alert)}
       <div class="sim-evidence-body">
         ${confidenceMeterHtml()}
         ${objectiveTrackHtml()}
@@ -1424,6 +1598,7 @@ function renderEvidencePanel() {
         ${responseHtml}
       </div>`;
     const body = host.querySelector('.sim-evidence-body');
+    applyNotebookChrome(body, grew);  // collapse toggles + status tags (presentation-only)
     if (body && grew) {
       const newest = newestEvidence();
       const target = (newest && body.querySelector(`.sim-comms--pending[data-ev="${newest.id}"]`))
@@ -1454,7 +1629,7 @@ function renderEvidencePanel() {
   });
 
   host.innerHTML = `
-    <div class="sim-panel-head">ANALYST NOTEBOOK</div>
+    ${notebookPanelHeadHtml('')}
     <div class="sim-evidence-body">
       ${confidenceMeterHtml()}
       ${viewbar}
@@ -1467,6 +1642,7 @@ function renderEvidencePanel() {
       ${identifyHtml}
       ${responseHtml}
     </div>`;
+  applyNotebookChrome(host.querySelector('.sim-evidence-body'), false);  // collapse toggles + status tags
 }
 
 /* ================================================================== *
@@ -8367,6 +8543,12 @@ function simInit() {
   const careerOps = document.getElementById('careerOps');
   if (careerOps) {
     careerOps.addEventListener('click', e => {
+      // Analyst Notebook navigation chrome — presentation-only view-state.
+      if (e.target.closest('[data-nb-focus]')) { setNotebookFocus(!SIM.focusNotebook); return; }
+      if (e.target.closest('[data-nb-expand-all]')) { setAllNotebookCollapsed(false); return; }
+      if (e.target.closest('[data-nb-collapse-all]')) { setAllNotebookCollapsed(true); return; }
+      const nbToggle = e.target.closest('[data-nb-toggle]');
+      if (nbToggle) { toggleNotebookSection(nbToggle); return; }
       // Network map (Task #94) — review-only overlay, opens on demand.
       const mapOpen = e.target.closest('[data-map-open]');
       if (mapOpen) { openSimMap(); return; }
@@ -8437,6 +8619,8 @@ function simInit() {
     // file lines (whole-line mark-up) and existing highlights (reopen in comms).
     careerOps.addEventListener('keydown', e => {
       if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      const nbToggle = e.target.closest('[data-nb-toggle]');
+      if (nbToggle) { e.preventDefault(); toggleNotebookSection(nbToggle); return; }
       const fl = e.target.closest('[data-fileline]');
       if (fl) { e.preventDefault(); markupWholeLine(fl); return; }
       const mk = e.target.closest('[data-markup-id]');
@@ -8468,6 +8652,8 @@ function simInit() {
       // also exiting the mission underneath it.
       if (SIM.conceptOpen) { closeConceptCard(); return; }
       if (SIM.mapOpen) { closeSimMap(); return; }
+      // Notebook focus overlay exits next, before leaving the mission itself.
+      if (SIM.focusNotebook) { setNotebookFocus(false); return; }
       returnFromCareerMission();
     }
   });

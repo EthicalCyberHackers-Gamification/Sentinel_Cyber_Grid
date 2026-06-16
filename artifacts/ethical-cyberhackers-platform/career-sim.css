@@ -2688,3 +2688,213 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
   outline: none;
   box-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
 }
+
+/* ==================================================================
+ * ANALYST NOTEBOOK — NAVIGATION CHROME + CASE-FILE IMMERSION
+ * ------------------------------------------------------------------
+ * Presentation-only layer (paired with applyNotebookChrome / the
+ * notebook panel head in career-sim.js): a case-file identity bar with
+ * Focus / Expand-all / Collapse-all tools, collapsible sections with
+ * status tags, and a roomy Focus overlay that frees the notebook from
+ * its half-height slot in the stacked right column. No scoring/state.
+ * Palette reuses the shared --cyan/--green/--orange/--red/--purple
+ * tokens; new motion is gated under prefers-reduced-motion at the end.
+ * ================================================================== */
+
+/* --- Case-file panel head (identity + tools) ----------------------- */
+.sim-nb-panelhead {
+  gap: 8px;
+  background:
+    linear-gradient(180deg, rgba(0, 229, 255, 0.07), transparent),
+    repeating-linear-gradient(0deg, rgba(0, 229, 255, 0.05) 0 1px, transparent 1px 3px);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.22);
+}
+.sim-nb-headline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+.sim-nb-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.35);
+}
+.sim-nb-caseid {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--cyan);
+  padding: 1px 6px;
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(0, 229, 255, 0.08);
+}
+.sim-nb-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.sim-nb-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-hud);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.sim-nb-tool:hover,
+.sim-nb-tool:focus-visible {
+  color: var(--cyan);
+  border-color: rgba(0, 229, 255, 0.5);
+  background: rgba(0, 229, 255, 0.1);
+  outline: none;
+}
+.sim-nb-tool--focus.sim-nb-tool--on {
+  color: var(--cyan);
+  border-color: var(--cyan);
+  background: rgba(0, 229, 255, 0.16);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
+}
+
+/* --- Collapsible section heads ------------------------------------- */
+.sim-nb-head {
+  cursor: pointer;
+  user-select: none;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+.sim-nb-head:hover { background: rgba(0, 229, 255, 0.06); }
+.sim-nb-head:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.55);
+}
+/* Custom heads (feed / casefile / reflect) get flex alignment so the
+ * appended status chip + chevron line up like the uniform heads do. */
+.sim-feed-head.sim-nb-head,
+.sim-casefile-head.sim-nb-head,
+.sim-reflect-head.sim-nb-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Chevron: rotates between expanded (open) and collapsed. */
+.sim-nb-chevron {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  position: relative;
+  transition: transform 0.18s ease;
+  transform: rotate(90deg);            /* expanded → points down */
+}
+.sim-nb-chevron::before {
+  content: "\276F";                    /* heavy right angle quote */
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-dim);
+}
+/* Push chevron to the far right when nothing else is auto-margined. */
+.sim-nb-head:not(:has(.sim-notebook-count)):not(:has(.sim-nb-status)) .sim-nb-chevron {
+  margin-left: auto;
+}
+
+/* Collapsed: hide everything except the head itself. */
+.sim-nb-collapsed > :not(.sim-nb-head) { display: none !important; }
+.sim-nb-collapsed > .sim-nb-head { margin-bottom: 0; }
+.sim-nb-collapsed .sim-nb-chevron { transform: rotate(0deg); }   /* points right */
+
+/* --- Uniform status tags ------------------------------------------ */
+.sim-nb-status {
+  flex: 0 0 auto;
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+/* When a head has no count, float the status (and trailing chevron) right. */
+.sim-nb-head:not(:has(.sim-notebook-count)) .sim-nb-status { margin-left: auto; }
+.sim-nb-head:not(:has(.sim-notebook-count)) .sim-nb-status ~ .sim-nb-chevron { margin-left: 8px; }
+
+.sim-nb-status--live   { color: var(--cyan);   background: rgba(0, 229, 255, 0.1); }
+.sim-nb-status--active { color: var(--orange); background: rgba(255, 107, 0, 0.12); }
+.sim-nb-status--done   { color: var(--green);  background: rgba(0, 255, 136, 0.1); }
+.sim-nb-status--flag   { color: var(--red);    background: rgba(255, 51, 68, 0.12); }
+.sim-nb-status--muted  { color: var(--text-dim); background: rgba(255, 255, 255, 0.04); border-color: var(--border); }
+.sim-nb-status--new {
+  color: #04121a;
+  background: var(--cyan);
+  border-color: var(--cyan);
+  animation: nbStatusPulse 1.4s ease-in-out 3;
+}
+@keyframes nbStatusPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.55); }
+  50%      { box-shadow: 0 0 8px 2px rgba(0, 229, 255, 0.65); }
+}
+
+/* --- Focus / expand overlay --------------------------------------- *
+ * The right column stacks the notebook over the feedback panel
+ * (1fr / 1fr), so the notebook is permanently cramped. Focus mode lifts
+ * #simEvidence into a centered, full-height reading surface above the
+ * grid, while the underlying panels stay mounted (and their delegated
+ * handlers keep working once focus is dismissed). */
+.career-main { position: relative; }
+#careerOps.career--nb-focus::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 8, 12, 0.66);
+  backdrop-filter: blur(2px);
+  z-index: 44;
+}
+.career--nb-focus #simEvidence {
+  position: fixed;
+  top: 4vh;
+  bottom: 4vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1040px, 94vw);
+  z-index: 45;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 229, 255, 0.3);
+  animation: nbFocusIn 0.2s ease;
+}
+@keyframes nbFocusIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.99); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0)   scale(1); }
+}
+/* In focus mode give the content room to breathe. */
+.career--nb-focus #simEvidence .sim-evidence-body { padding: 16px 20px; }
+.career--nb-focus #simEvidence .sim-notebook-section { margin-bottom: 20px; }
+
+/* --- Reduced motion ------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .sim-nb-chevron { transition: none; }
+  .sim-nb-status--new { animation: none; }
+  .career--nb-focus #simEvidence { animation: none; }
+}
