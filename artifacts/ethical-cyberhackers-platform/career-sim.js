@@ -55,6 +55,16 @@ import {
   promotionDecision,
 } from './career-dynamic.js';
 
+import {
+  CONSEQUENCE_DIALS,
+  SCAR_TEXT,
+  freshConsequenceState,
+  deptFor,
+  accrueDecision,
+  pickPostcards as pickPostcardsCore,
+  tradeoffBand,
+} from './consequence-core.js';
+
 const CAREER_ROLES = [
   {
     id: 'cybersecurity_intern',
@@ -308,76 +318,14 @@ function consequenceOn(sub) {
   return !!(CONSEQUENCE_FLAGS.enabled && (sub ? CONSEQUENCE_FLAGS[sub] : true));
 }
 
-// Posture map: decision id -> {of, le} (Operational Friction / Latent Exposure),
-// each 0-3. Authored PURELY from the action's operational nature, with zero
-// reference to any mission's correct answer:
-//   - Containment / disruption (lock, isolate, disconnect, reset, lockdown,
-//     revoke, block, disable) raises FRICTION — broad/forced ones raise it more.
-//   - Under-reaction (ignore, monitor-only, keep investigating a live threat,
-//     downgrade, approve a risky release) raises EXPOSURE.
-//   - Process actions (escalate, recommend review/forensics/notify, file report)
-//     stay neutral.
-// Proportionate calls move a dial by at most 1; only extreme calls peak (->scar).
-const CONSEQUENCE_POSTURE = {
-  // Mission 1 — Protect Sensitive Information (data release)
-  approve_release:           { of: 0, le: 3 },
-  restrict_access:           { of: 1, le: 0 },
-  archive:                   { of: 0, le: 1 },
-  recommend_legal:           { of: 0, le: 0 },
-  escalate:                  { of: 0, le: 0 },
-  rec_policy_review:         { of: 0, le: 0 },
-  rec_escalate:              { of: 0, le: 0 },
-  // Mission 2 — Investigate Network Assets (rogue device)
-  recommend_disconnect:      { of: 1, le: 0 },
-  monitor:                   { of: 0, le: 1 },
-  continue_investigation:    { of: 0, le: 2 },
-  ignore:                    { of: 0, le: 3 },
-  rec_network_isolation:     { of: 1, le: 0 },
-  rec_device_review:         { of: 0, le: 0 },
-  // Mission 3 — Suspicious Authentication Activity (account compromise)
-  lock_account:              { of: 1, le: 0 },
-  recommend_reset:           { of: 1, le: 0 },
-  enforce_mfa:               { of: 0, le: 0 },
-  rec_orgwide_reset:         { of: 2, le: 0 },
-  rec_contractor_revoke:     { of: 1, le: 0 },
-  // Mission 4 — Data Exfiltration Investigation (capstone)
-  recommend_disable_account: { of: 1, le: 0 },
-  recommend_block_device:    { of: 1, le: 0 },
-  recommend_forensics:       { of: 0, le: 0 },
-  recommend_customer_notify: { of: 0, le: 0 },
-  submit_incident_report:    { of: 0, le: 0 },
-  downgrade:                 { of: 0, le: 3 },
-  rec_companywide_lockdown:  { of: 3, le: 0 },
-  rec_terminate_contractor:  { of: 1, le: 0 },
-};
-
-// Per-mission department flavor (presentation only). Drives which teams the
-// toasts / postcards / scars name, so ripples feel local to the case.
-const CONSEQUENCE_DEPTS = {
-  'mission-001': { of: 'Compliance', le: 'Legal' },
-  'mission-002': { of: 'IT / NetOps', le: 'Network Ops' },
-  'mission-003': { of: 'Identity & Access', le: 'Finance' },
-  'mission-004': { of: 'Forensics', le: 'Customer Trust' },
-};
+// The posture map, keyword fallback, clamping router (routePosture), the
+// department-flavor map, the dial-accumulation step (accrueDecision), the dial
+// definitions, the postcard bank + picker, the scar copy, and the tradeoff-band
+// selector are PURE and live in ./consequence-core.js so they can run under node
+// (mirroring career-dynamic.js). career-sim.js keeps all DOM/state here and calls
+// into that core. `consequenceDept` is a thin SIM-bound wrapper over `deptFor`.
 function consequenceDept(kind) {
-  const d = CONSEQUENCE_DEPTS[SIM.missionId] || { of: 'Operations', le: 'Risk' };
-  return (kind === 'of' ? d.of : d.le) || 'Operations';
-}
-
-// Heuristic fallback for any decision id not in the posture map: keyword scan of
-// the id keeps an un-mapped future action diegetically sane (never correctness).
-function posturefallback(actionId) {
-  const id = String(actionId || '').toLowerCase();
-  if (/lockdown|orgwide|companywide|terminate/.test(id)) return { of: 2, le: 0 };
-  if (/lock|isolat|disconnect|reset|revoke|block|disable|quarantine/.test(id)) return { of: 1, le: 0 };
-  if (/ignore|downgrade|dismiss|approve_release/.test(id)) return { of: 0, le: 3 };
-  if (/monitor|continue|defer|wait|archive/.test(id)) return { of: 0, le: 1 };
-  return { of: 0, le: 0 };
-}
-function routePosture(actionId) {
-  const m = CONSEQUENCE_POSTURE[actionId];
-  const p = m || posturefallback(actionId);
-  return { of: Math.max(0, Math.min(3, p.of | 0)), le: Math.max(0, Math.min(3, p.le | 0)) };
+  return deptFor(SIM.missionId, kind);
 }
 
 // Non-blocking telemetry — in-memory ring + console.debug mirror. Never persists,
@@ -405,13 +353,9 @@ function consequenceToast(title, message, kind) {
 }
 
 /* ---- (A) Company Health Dials --------------------------------------------- */
-// Two mission-scoped meters. SIM.consequence is transient (reset every open in
+// Two mission-scoped meters (CONSEQUENCE_DIALS) + freshConsequenceState live in
+// consequence-core.js. SIM.consequence is transient (reset every open in
 // openCareerMission), so dials never carry across missions.
-const CONSEQUENCE_DIALS = [
-  { key: 'of', label: 'Operational Friction', short: 'FRICTION', toast: 'IT & operations absorbed disruption from this call.' },
-  { key: 'le', label: 'Latent Exposure',      short: 'EXPOSURE', toast: 'Risk was left open for someone else to chase down.' },
-];
-function freshConsequenceState() { return { of: 0, le: 0, tradeoffShown: false }; }
 
 function renderConsequenceDials() {
   const host = document.getElementById('simDials');
@@ -433,45 +377,13 @@ function renderConsequenceDials() {
 }
 
 /* ---- (B) Consequence Postcards -------------------------------------------- */
-// Template bank (8-12). `pick` chooses by posture band; text is in-world and
-// describes organizational ripples — never the correctness of the answer.
-const POSTCARD_BANK = [
-  // Friction-leaning (the org felt the disruption of a forceful call)
-  { id: 'pc-of-helpdesk', band: 'of', min: 1, text: d => `${d} logged extra help-desk tickets this week — a few users were locked out after your call and needed re-verification.` },
-  { id: 'pc-of-approval', band: 'of', min: 1, text: d => `${d} has added a sign-off checkpoint to similar requests after the disruption your response caused.` },
-  { id: 'pc-of-scramble', band: 'of', min: 2, text: d => `${d} pulled an on-call engineer in overnight to restore access your action interrupted. They got it back online.` },
-  { id: 'pc-of-memo',     band: 'of', min: 2, text: d => `A short ${d} memo circulated: "decisive containment, but loop us in earlier next time so we can stage the rollback."` },
-  // Exposure-leaning (something was left open for others to chase)
-  { id: 'pc-le-followup', band: 'le', min: 1, text: d => `${d} opened a follow-up ticket on the thread you left active — they're keeping an eye on it for now.` },
-  { id: 'pc-le-watch',    band: 'le', min: 1, text: d => `${d} added the unresolved item to their watch-list. Nothing has escalated yet.` },
-  { id: 'pc-le-review',   band: 'le', min: 2, text: d => `${d} flagged an open exposure from the case for review — they'd like a second look before it ages.` },
-  { id: 'pc-le-handoff',  band: 'le', min: 2, text: d => `${d} inherited the loose end from your case and asked for your notes so they can close it out.` },
-  // Calm / balanced (a measured call — quiet acknowledgement)
-  { id: 'pc-calm-ack',    band: 'calm', min: 0, text: d => `${d} noted a clean, measured handling of the case. No follow-ups required on their side.` },
-  { id: 'pc-calm-thanks', band: 'calm', min: 0, text: d => `A quick note from ${d}: "balanced call — minimal disruption, nothing left hanging. Nice work."` },
-  { id: 'pc-calm-quiet',  band: 'calm', min: 0, text: d => `${d} reports a quiet shift after your decision. The queue stayed steady.` },
-];
-function pickPostcards(of, le) {
-  // Choose the dominant posture; ties / all-zero read "calm".
-  let band = 'calm';
-  if (of > le && of >= 1) band = 'of';
-  else if (le > of && le >= 1) band = 'le';
-  const level = band === 'of' ? of : band === 'le' ? le : 0;
-  const dept = consequenceDept(band === 'le' ? 'le' : 'of');
-  const pool = POSTCARD_BANK.filter(p => p.band === band && level >= p.min);
-  // Up to two, highest-min first (so a peak call gets its stronger note).
-  const sorted = pool.sort((a, b) => b.min - a.min);
-  const take = sorted.slice(0, Math.min(2, sorted.length));
-  return take.map((p, i) => ({
-    id: `${SIM.missionId}:${p.id}:${Date.now()}:${i}`,
-    kind: band, dept, missionId: SIM.missionId, of, le,
-    text: p.text(dept), ts: Date.now(), shown: false,
-  }));
-}
+// The template bank (POSTCARD_BANK) + band picker (pickPostcards) live in
+// consequence-core.js; they choose by posture band and describe organizational
+// ripples — never the correctness of the answer. queuePostcards persists them.
 function queuePostcards(of, le) {
   if (!consequenceOn('postcards')) return false;
   if (!Array.isArray(CAREER.consequencePostcards)) CAREER.consequencePostcards = [];
-  const cards = pickPostcards(of, le);
+  const cards = pickPostcardsCore(SIM.missionId, of, le);
   if (!cards.length) return false;
   cards.forEach(c => CAREER.consequencePostcards.push(c));
   // Bound the queue so replays never grow it without limit.
@@ -485,10 +397,7 @@ function queuePostcards(of, le) {
 /* ---- (C) Scar Notes ------------------------------------------------------- */
 // Persistent CyberCorp memory of an EXTREME call (a dial peaked at 3/3). Keyed
 // per mission+dial so a replay updates rather than duplicates. Display-only.
-const SCAR_TEXT = {
-  of: d => `Heavy-handed response on this case stretched ${d}. The team still references it when scoping containment.`,
-  le: d => `A loose end on this case sat open long enough that ${d} remembers having to chase it.`,
-};
+// SCAR_TEXT (the per-dial copy) lives in consequence-core.js.
 function appendScar(dial) {
   if (!consequenceOn('scars')) return false;
   if (!Array.isArray(CAREER.scarNotes)) CAREER.scarNotes = [];
@@ -510,10 +419,10 @@ function applyDecisionConsequence(actionId) {
   if (!consequenceOn()) return;
   try {
     if (!SIM.consequence) SIM.consequence = freshConsequenceState();
-    const { of, le } = routePosture(actionId);
     const before = { of: SIM.consequence.of | 0, le: SIM.consequence.le | 0 };
-    SIM.consequence.of = Math.max(0, Math.min(3, before.of + of));
-    SIM.consequence.le = Math.max(0, Math.min(3, before.le + le));
+    const { after } = accrueDecision(before, actionId);
+    SIM.consequence.of = after.of;
+    SIM.consequence.le = after.le;
     consequenceLog('decision', { actionId, of: SIM.consequence.of, le: SIM.consequence.le, mission: SIM.missionId });
 
     // Dials + per-dial toast (one per dial that moved — concise, not spammy).
@@ -549,7 +458,8 @@ function consequenceTradeoffHtml() {
   if (!consequenceOn('microTradeoff')) return '';
   const s = SIM.consequence || freshConsequenceState();
   const of = s.of | 0, le = s.le | 0;
-  if (of >= 2 && of >= le) {
+  const band = tradeoffBand(of, le);
+  if (band === 'of') {
     const dept = consequenceDept('of');
     return `<div class="sim-tradeoff sim-tradeoff--of" data-tradeoff>
         <div class="sim-tradeoff-head">⚠ OPERATIONS IMPACT — ${dept} sign-off logged</div>
@@ -557,7 +467,7 @@ function consequenceTradeoffHtml() {
         <button type="button" class="sim-tradeoff-ack" data-consequence-ack="of" aria-pressed="false">Acknowledge sign-off</button>
       </div>`;
   }
-  if (le >= 2) {
+  if (band === 'le') {
     const dept = consequenceDept('le');
     return `<div class="sim-tradeoff sim-tradeoff--le" data-tradeoff>
         <div class="sim-tradeoff-head">◷ EXPOSURE BACKLOG — quick summary deferred</div>

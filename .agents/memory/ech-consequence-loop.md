@@ -38,3 +38,21 @@ so it never needs persistence at all.
 **How to apply:** master + per-system flags via one `consequenceOn(sub)` gate
 that fronts EVERY visible/persisted effect; cross-module UI (toasts) reaches the
 host only through a `window.ech*` bridge, best-effort/no-op when absent.
+
+## Rule 3 — playtest/unit-test this layer through the extracted pure core
+The dial/postcard/scar/tradeoff math lives in `consequence-core.js` (pure,
+DOM-free, mirrors `career-dynamic.js`); `career-sim.js` keeps thin SIM-bound
+wrappers. Drive that core from node tests — interactive e2e is unavailable and
+script.js/career-sim.js do DOM init on import.
+**Why:** two framing traps make a "faithful" test wrong otherwise:
+- *Multi-decision accumulation is a STRESS model, not real play.* A file-model
+  mission submits ONE recommendation, so a single extreme call peaks its dial in
+  one decision via clamp (e.g. `rec_companywide_lockdown` `{of:3}`,
+  `ignore`/`downgrade`/`approve_release` `{le:3}`). Don't assume gradual 1→2→3
+  reflects a real playthrough — assert the single-decision peak too.
+- *Postcard "show-once" ≠ whole-queue-drain.* The home inbox surfaces TWO unshown
+  cards per return (FIFO), marks them `shown` + persists, so a multi-decision run
+  drips ~2 cards/decision across several returns. "Show-once" means no card
+  re-surfaces and the queue eventually drains — model repeated home views, not one.
+**How to apply:** see `tests/consequence-loop.{harness,test,report}.js` and the
+`docs/CONSEQUENCE_LOOP_PLAYTEST.json` report builder.

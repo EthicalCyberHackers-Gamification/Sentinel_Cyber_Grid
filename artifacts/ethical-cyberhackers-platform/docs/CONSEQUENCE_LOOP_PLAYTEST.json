@@ -1,0 +1,425 @@
+{
+  "report": "Consequence Emotion Loop — Playtest (deterministic core-model + static audit)",
+  "task": "#121",
+  "system": "Task #120 — Company Health Dials, Consequence Postcards, Scar Notes, Micro-Tradeoffs",
+  "app": "artifacts/ethical-cyberhackers-platform (CyberCorp career simulator)",
+  "scope": "This is a DETERMINISTIC CORE-MODEL playtest plus a static source audit, not a live in-browser click-through. Both paths run through consequence-core.js — the same pure logic career-sim.js calls at runtime (extracted behavior-preservingly, mirroring career-dynamic.js) — so the dial/postcard/scar/tradeoff MECHANICS are exercised exactly, but the production DOM click flow (chooseAction/submitRecommendation -> render) is verified by reading career-sim.js, not by driving the UI. Interactive e2e is unavailable this session and the screenshot tool is static.",
+  "method": "Each path drives the real extracted logic with ACTUAL per-mission decision ids. The two main paths intentionally drive MULTIPLE decisions to exercise dial accumulation/clamp/idempotency — a stress/model flow, richer than a single file-model recommendation; the `singleDecisionPeaks` section corroborates the realistic flow by confirming a single extreme call peaks its dial in one decision (as a real one-recommendation mission would). A scoped static invariant audit of career-sim.js covers grade-chrome absence and the single graded-write path. Fields that genuinely require a live browser (true in-browser ms timings, per-state interactive screenshots) are code-derived and annotated.",
+  "paths": {
+    "overescalation": {
+      "label": "Path A — over-escalation -> Operational Friction",
+      "missionId": "mission-004",
+      "decisionSequence": [
+        "recommend_disable_account",
+        "recommend_block_device",
+        "rec_companywide_lockdown",
+        "rec_terminate_contractor"
+      ],
+      "decisions": [
+        {
+          "decisionId": "recommend_disable_account",
+          "posture": {
+            "of": 1,
+            "le": 0
+          },
+          "dialBefore": {
+            "of": 0,
+            "le": 0
+          },
+          "dialAfter": {
+            "of": 1,
+            "le": 0
+          },
+          "moved": [
+            "of"
+          ],
+          "toasts": [
+            {
+              "dial": "of",
+              "title": "Operational Friction ↑ 1/3",
+              "message": "Forensics: IT & operations absorbed disruption from this call.",
+              "kind": "info"
+            }
+          ],
+          "tradeoffBandNow": "calm",
+          "scarAtThisStep": false
+        },
+        {
+          "decisionId": "recommend_block_device",
+          "posture": {
+            "of": 1,
+            "le": 0
+          },
+          "dialBefore": {
+            "of": 1,
+            "le": 0
+          },
+          "dialAfter": {
+            "of": 2,
+            "le": 0
+          },
+          "moved": [
+            "of"
+          ],
+          "toasts": [
+            {
+              "dial": "of",
+              "title": "Operational Friction ↑ 2/3",
+              "message": "Forensics: IT & operations absorbed disruption from this call.",
+              "kind": "info"
+            }
+          ],
+          "tradeoffBandNow": "of",
+          "scarAtThisStep": false
+        },
+        {
+          "decisionId": "rec_companywide_lockdown",
+          "posture": {
+            "of": 3,
+            "le": 0
+          },
+          "dialBefore": {
+            "of": 2,
+            "le": 0
+          },
+          "dialAfter": {
+            "of": 3,
+            "le": 0
+          },
+          "moved": [
+            "of"
+          ],
+          "toasts": [
+            {
+              "dial": "of",
+              "title": "Operational Friction ↑ 3/3",
+              "message": "Forensics: IT & operations absorbed disruption from this call.",
+              "kind": "info"
+            }
+          ],
+          "tradeoffBandNow": "of",
+          "scarAtThisStep": true
+        },
+        {
+          "decisionId": "rec_terminate_contractor",
+          "posture": {
+            "of": 1,
+            "le": 0
+          },
+          "dialBefore": {
+            "of": 3,
+            "le": 0
+          },
+          "dialAfter": {
+            "of": 3,
+            "le": 0
+          },
+          "moved": [],
+          "toasts": [],
+          "tradeoffBandNow": "of",
+          "scarAtThisStep": false
+        }
+      ],
+      "finalDials": {
+        "of": 3,
+        "le": 0
+      },
+      "tradeoff": {
+        "band": "of",
+        "triggered": true,
+        "head": "OPERATIONS IMPACT — sign-off logged",
+        "behavior": "Additive sign-off banner with one Acknowledge button; hides nothing; RETURN to the Operations Center always works.",
+        "blocksReturn": false,
+        "hidesEvidence": false
+      },
+      "scar": {
+        "recorded": true,
+        "dial": "of",
+        "dept": "Forensics",
+        "title": "Heavy-handed response on this case stretched Forensics. The team still references it when scoping containment.",
+        "idempotent": true
+      },
+      "nextSessionPostcard": {
+        "dept": "Forensics",
+        "kind": "of",
+        "texts": [
+          "Forensics logged extra help-desk tickets this week — a few users were locked out after your call and needed re-verification.",
+          "Forensics has added a sign-off checkpoint to similar requests after the disruption your response caused."
+        ],
+        "showOnce": true,
+        "surfaceModel": "two unshown per home view, marked shown + persisted (drips across returns)",
+        "homeReturnsToDrain": 4,
+        "totalSurfaced": 8,
+        "anyRepeated": false
+      },
+      "counters": {
+        "decisions": 4,
+        "dialToToastEvents": 3,
+        "dialPeaks": 1,
+        "postcardsQueued": 8,
+        "postcardsShownFirstView": 2,
+        "postcardsHomeReturnsToDrain": 4,
+        "scarsRecorded": 1
+      }
+    },
+    "underescalation": {
+      "label": "Path B — under-escalation -> Latent Exposure",
+      "missionId": "mission-002",
+      "decisionSequence": [
+        "monitor",
+        "continue_investigation",
+        "ignore"
+      ],
+      "decisions": [
+        {
+          "decisionId": "monitor",
+          "posture": {
+            "of": 0,
+            "le": 1
+          },
+          "dialBefore": {
+            "of": 0,
+            "le": 0
+          },
+          "dialAfter": {
+            "of": 0,
+            "le": 1
+          },
+          "moved": [
+            "le"
+          ],
+          "toasts": [
+            {
+              "dial": "le",
+              "title": "Latent Exposure ↑ 1/3",
+              "message": "Network Ops: Risk was left open for someone else to chase down.",
+              "kind": "warning"
+            }
+          ],
+          "tradeoffBandNow": "calm",
+          "scarAtThisStep": false
+        },
+        {
+          "decisionId": "continue_investigation",
+          "posture": {
+            "of": 0,
+            "le": 2
+          },
+          "dialBefore": {
+            "of": 0,
+            "le": 1
+          },
+          "dialAfter": {
+            "of": 0,
+            "le": 3
+          },
+          "moved": [
+            "le"
+          ],
+          "toasts": [
+            {
+              "dial": "le",
+              "title": "Latent Exposure ↑ 3/3",
+              "message": "Network Ops: Risk was left open for someone else to chase down.",
+              "kind": "warning"
+            }
+          ],
+          "tradeoffBandNow": "le",
+          "scarAtThisStep": true
+        },
+        {
+          "decisionId": "ignore",
+          "posture": {
+            "of": 0,
+            "le": 3
+          },
+          "dialBefore": {
+            "of": 0,
+            "le": 3
+          },
+          "dialAfter": {
+            "of": 0,
+            "le": 3
+          },
+          "moved": [],
+          "toasts": [],
+          "tradeoffBandNow": "le",
+          "scarAtThisStep": false
+        }
+      ],
+      "finalDials": {
+        "of": 0,
+        "le": 3
+      },
+      "tradeoff": {
+        "band": "le",
+        "triggered": true,
+        "head": "EXPOSURE BACKLOG — quick summary deferred",
+        "behavior": "The one-click evidence summary is deferred behind triage; the FULL evidence stays reachable in the Evidence panel.",
+        "blocksReturn": false,
+        "hidesEvidence": false
+      },
+      "scar": {
+        "recorded": true,
+        "dial": "le",
+        "dept": "Network Ops",
+        "title": "A loose end on this case sat open long enough that Network Ops remembers having to chase it.",
+        "idempotent": true
+      },
+      "nextSessionPostcard": {
+        "dept": "Network Ops",
+        "kind": "le",
+        "texts": [
+          "Network Ops opened a follow-up ticket on the thread you left active — they're keeping an eye on it for now.",
+          "Network Ops added the unresolved item to their watch-list. Nothing has escalated yet."
+        ],
+        "showOnce": true,
+        "surfaceModel": "two unshown per home view, marked shown + persisted (drips across returns)",
+        "homeReturnsToDrain": 3,
+        "totalSurfaced": 6,
+        "anyRepeated": false
+      },
+      "counters": {
+        "decisions": 3,
+        "dialToToastEvents": 2,
+        "dialPeaks": 1,
+        "postcardsQueued": 6,
+        "postcardsShownFirstView": 2,
+        "postcardsHomeReturnsToDrain": 3,
+        "scarsRecorded": 1
+      }
+    }
+  },
+  "singleDecisionPeaks": {
+    "note": "Realistic single-recommendation flow: one extreme call peaks the dial in a single decision (file-model missions submit one recommendation). Bridges the multi-decision model paths to real play.",
+    "cases": [
+      {
+        "decisionId": "rec_companywide_lockdown",
+        "missionId": "mission-004",
+        "dial": "of",
+        "dialAfter": {
+          "of": 3,
+          "le": 0
+        },
+        "peaksInOneDecision": true,
+        "scarRecorded": true,
+        "scarDept": "Forensics",
+        "expectDept": "Forensics",
+        "tradeoffBand": "of"
+      },
+      {
+        "decisionId": "ignore",
+        "missionId": "mission-002",
+        "dial": "le",
+        "dialAfter": {
+          "of": 0,
+          "le": 3
+        },
+        "peaksInOneDecision": true,
+        "scarRecorded": true,
+        "scarDept": "Network Ops",
+        "expectDept": "Network Ops",
+        "tradeoffBand": "le"
+      },
+      {
+        "decisionId": "downgrade",
+        "missionId": "mission-004",
+        "dial": "le",
+        "dialAfter": {
+          "of": 0,
+          "le": 3
+        },
+        "peaksInOneDecision": true,
+        "scarRecorded": true,
+        "scarDept": "Customer Trust",
+        "expectDept": "Customer Trust",
+        "tradeoffBand": "le"
+      },
+      {
+        "decisionId": "approve_release",
+        "missionId": "mission-001",
+        "dial": "le",
+        "dialAfter": {
+          "of": 0,
+          "le": 3
+        },
+        "peaksInOneDecision": true,
+        "scarRecorded": true,
+        "scarDept": "Legal",
+        "expectDept": "Legal",
+        "tradeoffBand": "le"
+      }
+    ]
+  },
+  "invariants": {
+    "noGradeChromeInConsequenceLayer": {
+      "pass": true,
+      "checkedStrings": 26,
+      "offenders": [],
+      "note": "Audited every player-facing string the consequence layer GENERATED across both paths (dial toasts, postcards, scar copy, tradeoff banner head+body+button). The post-acknowledgement 'Acknowledged ✓' button state and the pre-existing post-mission CLASSIFICATION/IDENTIFICATION scorecard ✓/✗ are out of #120 scope (a confirmation affordance and a legitimate graded review surface) and are not part of the consequence layer's output."
+    },
+    "singleGradedWritePath": {
+      "pass": true,
+      "consequenceCoreIsPure": true,
+      "consequenceLayerSliceFound": true,
+      "consequenceCallsGradedWriter": false,
+      "consequenceWritesLocalStorageDirectly": false,
+      "consequencePersistsViaSaveCareerState": true,
+      "gradedJudgmentWriterStillExists": true,
+      "note": "consequence-core.js is pure (no DOM/storage/window/grading). The consequence layer in career-sim.js persists ONLY through saveCareerState() and never calls setDiscoveryJudgment (the sole graded judgment writer). This app is localStorage-only — there are no grading network POSTs."
+    }
+  },
+  "timings": {
+    "dialToToast": {
+      "model": "synchronous",
+      "note": "applyDecisionConsequence renders the dial and fires the toast inline in the same call that records the decision — there is no async delay. The 30–90s window in the spec is an UPPER bound for 'the player should feel the ripple soon after deciding'; an immediate (~0s) reaction is comfortably inside it.",
+      "withinBound_30_90s": true
+    },
+    "toastDurationMs": 6000
+  },
+  "screenshots": {
+    "note": "Per-decision interactive screenshots require a live click-through, which is unavailable this session. The home Operations Center (where postcards + scars surface) was captured statically and reviewed for a clean boot; the consequence inbox renders from the same render path exercised here."
+  },
+  "counters": {
+    "pathA": {
+      "decisions": 4,
+      "dialToToastEvents": 3,
+      "dialPeaks": 1,
+      "postcardsQueued": 8,
+      "postcardsShownFirstView": 2,
+      "postcardsHomeReturnsToDrain": 4,
+      "scarsRecorded": 1
+    },
+    "pathB": {
+      "decisions": 3,
+      "dialToToastEvents": 2,
+      "dialPeaks": 1,
+      "postcardsQueued": 6,
+      "postcardsShownFirstView": 2,
+      "postcardsHomeReturnsToDrain": 3,
+      "scarsRecorded": 1
+    }
+  },
+  "notes": [
+    {
+      "severity": "info",
+      "area": "postcards / FIFO ordering",
+      "observation": "Postcards surface in queue (FIFO) order, two per home return. A multi-decision path queues ~2 cards per decision (Path A queued 8 across 4 home returns; Path B queued 6 across 3). Because earlier, milder calls are queued first, the FIRST postcard a player reads on return can be the mildest one (e.g. \"extra help-desk tickets\"), with the strongest peak-call note (\"pulled an on-call engineer in overnight\") surfacing on a later return rather than leading.",
+      "impact": "Non-blocking. The emotional 'peak' postcard still arrives and the show-once invariant holds; only the lead-card ordering is muted. A real single-recommendation mission queues just one decision's cards, so this only manifests across multi-decision/replay play.",
+      "suggestion": "Optional follow-up: order the surfaced batch strongest-min-first (or cap to the latest posture's cards) so the lead postcard matches the intensity of the call."
+    },
+    {
+      "severity": "info",
+      "area": "scars / home cap",
+      "observation": "Scar notes are idempotent per mission+dial and the home list shows the last 5 (bounded). Across both paths exactly one scar each was recorded at the dial peak and a replay added none.",
+      "impact": "None — behaves as designed."
+    }
+  ],
+  "verdict": "PASS",
+  "verdictBreakdown": {
+    "pathA_overescalation": "PASS",
+    "pathB_underescalation": "PASS",
+    "singleDecisionPeaks": "PASS",
+    "invariants": "PASS"
+  }
+}

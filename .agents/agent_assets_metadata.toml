@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "IoJPuA_0geO8noJ3aes8F"
+uri = "file://artifacts/ethical-cyberhackers-platform/docs/CONSEQUENCE_LOOP_PLAYTEST.json"
+type = "unspecified"
+title = "Consequence Loop Playtest Report (PASS)"
