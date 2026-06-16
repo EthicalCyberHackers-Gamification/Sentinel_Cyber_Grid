@@ -1602,54 +1602,131 @@
 .sim-comms-state--live { color: var(--cyan); border-color: var(--cyan-dim); }
 .sim-comms-state--logged { color: var(--text-dim); }
 
-.sim-comms-thread { display: flex; flex-direction: column; gap: 9px; }
-.sim-comms-turn { display: flex; flex-direction: column; gap: 7px; }
+.sim-comms-thread { display: flex; flex-direction: column; gap: 10px; }
+.sim-comms-turn { display: flex; flex-direction: column; gap: 8px; }
+/* Clear break between the two question steps (Q1 -> Q2) so the player can
+ * see where one question ends and the next begins. */
+.sim-comms-turn + .sim-comms-turn {
+  margin-top: 4px; padding-top: 11px;
+  border-top: 1px dashed var(--border);
+}
 
+/* --- Question divider: tells the player exactly where a question starts --- */
+.sim-comms-cuebar { display: flex; align-items: center; gap: 8px; }
+.sim-comms-cuebar::after {
+  content: ""; flex: 1 1 auto; height: 1px;
+  background: linear-gradient(90deg, var(--cyan-dim), transparent);
+  opacity: 0.55;
+}
+.sim-comms-cuebar-step {
+  flex: 0 0 auto;
+  font-family: var(--font-hud); font-size: 8.5px; font-weight: 700; letter-spacing: 0.6px;
+  color: var(--bg-panel); background: var(--cyan);
+  padding: 2px 6px; border-radius: 999px; line-height: 1;
+}
+.sim-comms-cuebar-text {
+  flex: 0 0 auto;
+  font-family: var(--font-hud); font-size: 9.5px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--cyan);
+}
+.sim-comms-cuebar-done { flex: 0 0 auto; color: var(--green); font-size: 11px; line-height: 1; }
+.sim-comms-turn--done .sim-comms-cuebar-step { background: var(--text-dim); }
+.sim-comms-turn--done .sim-comms-cuebar-text { color: var(--text-dim); }
+.sim-comms-turn--done .sim-comms-cuebar::after { background: linear-gradient(90deg, var(--border), transparent); }
+
+/* --- Speaker rows: Sarah on the left (cyan), you on the right (green) --- */
 .sim-comms-msg { display: flex; align-items: flex-end; gap: 7px; }
 .sim-comms-msg--you { justify-content: flex-end; }
 .sim-comms-avatar {
   flex: 0 0 auto;
-  font-family: var(--font-hud); font-size: 7.5px; letter-spacing: 0.5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 18px; padding: 0 4px;
+  font-family: var(--font-hud); font-size: 7.5px; font-weight: 700; letter-spacing: 0.5px;
   color: var(--bg-panel); background: var(--cyan);
-  border-radius: 5px; padding: 3px 4px; line-height: 1;
+  border-radius: 5px; line-height: 1;
 }
-.sim-comms-avatar--you { background: var(--green-dim); }
+.sim-comms-avatar--you { background: var(--green); }
 .sim-comms-bubble {
   max-width: 84%;
-  font-family: var(--font-body); font-size: 11.5px; line-height: 1.5;
+  font-family: var(--font-body); font-size: 12px; line-height: 1.55;
   color: var(--text-bright);
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 10px; border-bottom-left-radius: 3px;
-  padding: 8px 10px;
+  padding: 9px 11px;
 }
+/* Sarah's QUESTION reads as an incoming prompt (cyan-tinted, accent edge). */
+.sim-comms-bubble--ask {
+  background: linear-gradient(180deg, rgba(0, 229, 255, 0.09), rgba(0, 229, 255, 0.02));
+  border-color: var(--cyan-dim);
+  border-left: 2px solid var(--cyan);
+}
+/* Sarah's REPLY reads as a follow-up (recessed, with a return tick). */
+.sim-comms-bubble--reply {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid var(--cyan-dim);
+}
+.sim-comms-bubble--reply::before {
+  content: "\21B3\00a0"; color: var(--cyan-dim); font-family: var(--font-mono);
+}
+/* The player's locked-in line sits on the right in green. */
 .sim-comms-msg--you .sim-comms-bubble {
   border-bottom-left-radius: 10px; border-bottom-right-radius: 3px;
   border-color: var(--green-dim);
+  background: linear-gradient(180deg, rgba(0, 255, 136, 0.08), rgba(0, 255, 136, 0.02));
+  color: var(--text-bright);
 }
-.sim-comms-bubble--reply { color: var(--text); }
-.sim-comms-cue {
-  display: block;
-  font-family: var(--font-hud); font-size: 8px; letter-spacing: 1px;
-  color: var(--cyan-dim); margin-bottom: 4px;
+
+/* --- Response console: the interactive choice menu (clearly clickable) --- */
+.sim-comms-replies {
+  display: flex; flex-direction: column; gap: 7px;
+  margin: 2px 0 0 26px; padding: 9px 10px 10px;
+  background: rgba(0, 255, 136, 0.03);
+  border: 1px dashed var(--green-dim);
+  border-radius: var(--radius-sm);
 }
-.sim-comms-replies { display: flex; flex-direction: column; gap: 6px; padding-left: 26px; }
 .sim-comms-replies-label {
-  font-family: var(--font-hud); font-size: 8px; letter-spacing: 1px; color: var(--text-dim);
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-hud); font-size: 8.5px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--green);
 }
+.sim-comms-replies-label::before { content: "\25B8"; }
 .sim-comms-reply {
+  display: flex; align-items: center; gap: 9px;
   text-align: left; width: 100%;
-  font-family: var(--font-body); font-size: 11.5px; line-height: 1.45;
+  font-family: var(--font-body); font-size: 12px; line-height: 1.45;
   color: var(--text);
   background: var(--bg-panel);
   border: 1px solid var(--border);
-  border-radius: 10px; border-bottom-right-radius: 3px;
-  padding: 7px 10px; cursor: pointer; transition: all var(--transition);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px; cursor: pointer;
+  transition: all var(--transition);
 }
-.sim-comms-reply:hover { border-color: var(--green-dim); color: var(--text-bright); }
-.sim-comms-reply:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.sim-comms-reply-key {
+  flex: 0 0 auto;
+  width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-hud); font-size: 10px; font-weight: 700;
+  color: var(--green); background: rgba(0, 255, 136, 0.08);
+  border: 1px solid var(--green-dim); border-radius: 5px; line-height: 1;
+  transition: all var(--transition);
+}
+.sim-comms-reply-text { flex: 1 1 auto; min-width: 0; }
+.sim-comms-reply:hover, .sim-comms-reply:focus-visible {
+  border-color: var(--green);
+  background: rgba(0, 255, 136, 0.06);
+  color: var(--text-bright);
+  transform: translateX(3px);
+  box-shadow: -3px 0 0 0 var(--green), 0 2px 12px rgba(0, 0, 0, 0.35);
+  outline: none;
+}
+.sim-comms-reply:hover .sim-comms-reply-key,
+.sim-comms-reply:focus-visible .sim-comms-reply-key {
+  color: var(--bg-panel); background: var(--green); border-color: var(--green);
+}
 .sim-comms-foot {
-  margin-top: 9px; padding-top: 8px; border-top: 1px dashed var(--border);
+  margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border);
   font-size: 10.5px; line-height: 1.45; color: var(--text-dim); font-style: italic;
 }
 
@@ -1941,6 +2018,8 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
   .sim-comms--pending { animation: none; }
   .sim-side-card,
   .sim-breadth-dot { transition: none; }
+  .sim-comms-reply:hover,
+  .sim-comms-reply:focus-visible { transform: none; }
 }
 
 /* ==================================================================

@@ -1975,19 +1975,25 @@ function discoveryStepHtml(ch, step, label) {
   if (!cfg) return '';
   const ans = challengeAnswers(ch)[step];
   const answered = !!ans;
+  const stepNo = step === 'justification' ? 2 : 1;
   let html = `
-    <div class="sim-comms-turn sim-comms-turn--${step}">
+    <div class="sim-comms-turn sim-comms-turn--${step} ${answered ? 'sim-comms-turn--done' : 'sim-comms-turn--open'}">
+      <div class="sim-comms-cuebar">
+        <span class="sim-comms-cuebar-step">Q${stepNo}</span>
+        <span class="sim-comms-cuebar-text">${label}</span>
+        ${answered ? '<span class="sim-comms-cuebar-done" aria-hidden="true">\u2713</span>' : ''}
+      </div>
       <div class="sim-comms-msg sim-comms-msg--sarah">
         <span class="sim-comms-avatar" aria-hidden="true">SR</span>
-        <div class="sim-comms-bubble"><span class="sim-comms-cue">${label}</span>${cfg.prompt || ''}</div>
+        <div class="sim-comms-bubble sim-comms-bubble--ask">${cfg.prompt || ''}</div>
       </div>`;
   if (!answered) {
-    const opts = cfg.options.map(o =>
-      `<button type="button" class="sim-comms-reply" data-discovery-judgment data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}">${o.label}</button>`
+    const opts = cfg.options.map((o, i) =>
+      `<button type="button" class="sim-comms-reply" data-discovery-judgment data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}"><span class="sim-comms-reply-key" aria-hidden="true">${String.fromCharCode(65 + i)}</span><span class="sim-comms-reply-text">${o.label}</span></button>`
     ).join('');
     html += `
       <div class="sim-comms-replies" role="group" aria-label="Your response to Sarah">
-        <span class="sim-comms-replies-label">Your read — say it to Sarah</span>
+        <span class="sim-comms-replies-label">Choose your reply to Sarah</span>
         ${opts}
       </div>`;
   } else {
