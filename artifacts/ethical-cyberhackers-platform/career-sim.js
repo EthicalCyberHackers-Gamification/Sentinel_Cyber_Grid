@@ -2807,54 +2807,87 @@ function commitFinding(challengeId) {
   renderEvidencePanel();
 }
 
-/* The FINDINGS section — one auto-drafted card per fully-answered challenge that
- * has a template. '' when nothing qualifies, so missions without challenges (or
- * without templates) render nothing. Presentation-only. */
+/* One auto-drafted finding card: the editable sentence (tap-to-reword chips) plus
+ * the commit / update / logged footer. Used in BOTH the notebook (for committed
+ * findings — the on-record copy, still editable to update) AND the Decision Dock
+ * (for the active un-logged draft), so the markup is identical wherever it sits.
+ * Presentation-only — writes flow through cycleFindingChip / commitFinding. */
+function findingCardHtml(ch) {
+  const def = findingDef(ch);
+  if (!def) return '';
+  const decisionN = simDiscoveryChallenges().indexOf(ch) + 1;
+  const isCommitted = findingCommitted(ch.id);
+  const warns = findingWarnings(ch);
+  const body = mapEsc(def.template).replace(/\{(\w+)\}/g, (m, key) => {
+    const chip = (def.chips || []).find(c => c.key === key);
+    if (!chip) return m;
+    const o = findingChipValue(ch.id, chip);
+    const edited = findingChipIndex(ch.id, chip.key) > 0;
+    const multi = chipOptions(chip).length > 1;
+    const cls = 'sim-finding-chip' + (edited ? ' sim-finding-chip--edited' : '') + (multi ? '' : ' sim-finding-chip--fixed');
+    const attrs = multi
+      ? ` data-finding-chip="${mapEsc(chip.key)}" data-challenge="${mapEsc(ch.id)}" title="Tap to reword" aria-label="Reword: ${mapEsc(o.text)}"`
+      : ' disabled aria-disabled="true"';
+    return `<button type="button" class="${cls}"${attrs}>${mapEsc(o.text)}</button>`;
+  });
+  const warnHtml = warns.length
+    ? `<div class="sim-finding-warn" role="note">${warns.map(mapEsc).join(' ')}</div>` : '';
+  const dirty = findingDirty(ch);
+  let foot;
+  if (!isCommitted) {
+    foot = `<button type="button" class="sim-finding-commit" data-finding-commit="${mapEsc(ch.id)}">Commit finding</button>`;
+  } else if (dirty) {
+    foot = `<button type="button" class="sim-finding-commit sim-finding-commit--update" data-finding-commit="${mapEsc(ch.id)}">Update logged finding</button><span class="sim-finding-dirty">Edited since you logged it</span>`;
+  } else {
+    foot = `<span class="sim-finding-logged">Logged to case file${findingEdited(ch) ? ' \u00b7 your wording' : ''}</span>`;
+  }
+  return `
+    <div class="sim-finding${isCommitted ? ' sim-finding--committed' : ''}">
+      <div class="sim-finding-head">
+        <span class="sim-finding-tag">AUTO-DRAFTED</span>
+        <button type="button" class="sim-finding-source" data-finding-reopen="${mapEsc(ch.id)}" title="Reopen this decision in comms">Decision ${decisionN} \u00b7 ${mapEsc(ch.short || '')}</button>
+      </div>
+      <p class="sim-finding-text">${body}</p>
+      ${warnHtml}
+      <div class="sim-finding-foot">${foot}<span class="sim-finding-hint">Tap a highlighted phrase to reword \u2014 your call, your words.</span></div>
+    </div>`;
+}
+
+/* Compact, NON-editable pointer shown in the notebook for a finding the player
+ * hasn't logged yet — its editable card lives in the Decision Dock, so this keeps
+ * the FINDINGS DRAFTED list complete without a confusing second editable copy. */
+function findingPendingRefHtml(ch, isActive) {
+  const decisionN = simDiscoveryChallenges().indexOf(ch) + 1;
+  const note = isActive
+    ? 'Drafting now in the Decision Dock, under the terminal.'
+    : 'Queued — log it in the Decision Dock, under the terminal.';
+  return `
+    <div class="sim-finding sim-finding--pending${isActive ? ' sim-finding--pending-active' : ''}">
+      <div class="sim-finding-head">
+        <span class="sim-finding-tag sim-finding-tag--pending">READY TO LOG</span>
+        <button type="button" class="sim-finding-source" data-finding-reopen="${mapEsc(ch.id)}" title="Reopen this decision in comms">Decision ${decisionN} \u00b7 ${mapEsc(ch.short || '')}</button>
+      </div>
+      <p class="sim-finding-pending-note">${note}</p>
+    </div>`;
+}
+
+/* The FINDINGS section — the notebook's running record. Committed findings render
+ * as full (still-editable) cards; findings not yet logged render as compact
+ * pointers to the Decision Dock, where their editable draft now lives. '' when
+ * nothing qualifies, so missions without challenges/templates render nothing. */
 function findingsHtml() {
-  const all = simDiscoveryChallenges();
   const vis = visibleDiscoveryChallenges()
     .filter(c => challengeValid(c) && challengeAnswered(c) && findingDef(c));
   if (!vis.length) return '';
   const committed = vis.filter(c => findingCommitted(c.id)).length;
-  const cards = vis.map(ch => {
-    const def = findingDef(ch);
-    const decisionN = all.indexOf(ch) + 1;
-    const isCommitted = findingCommitted(ch.id);
-    const warns = findingWarnings(ch);
-    const body = mapEsc(def.template).replace(/\{(\w+)\}/g, (m, key) => {
-      const chip = (def.chips || []).find(c => c.key === key);
-      if (!chip) return m;
-      const o = findingChipValue(ch.id, chip);
-      const edited = findingChipIndex(ch.id, chip.key) > 0;
-      const multi = chipOptions(chip).length > 1;
-      const cls = 'sim-finding-chip' + (edited ? ' sim-finding-chip--edited' : '') + (multi ? '' : ' sim-finding-chip--fixed');
-      const attrs = multi
-        ? ` data-finding-chip="${mapEsc(chip.key)}" data-challenge="${mapEsc(ch.id)}" title="Tap to reword" aria-label="Reword: ${mapEsc(o.text)}"`
-        : ' disabled aria-disabled="true"';
-      return `<button type="button" class="${cls}"${attrs}>${mapEsc(o.text)}</button>`;
-    });
-    const warnHtml = warns.length
-      ? `<div class="sim-finding-warn" role="note">${warns.map(mapEsc).join(' ')}</div>` : '';
-    const dirty = findingDirty(ch);
-    let foot;
-    if (!isCommitted) {
-      foot = `<button type="button" class="sim-finding-commit" data-finding-commit="${mapEsc(ch.id)}">Commit finding</button>`;
-    } else if (dirty) {
-      foot = `<button type="button" class="sim-finding-commit sim-finding-commit--update" data-finding-commit="${mapEsc(ch.id)}">Update logged finding</button><span class="sim-finding-dirty">Edited since you logged it</span>`;
-    } else {
-      foot = `<span class="sim-finding-logged">Logged to case file${findingEdited(ch) ? ' \u00b7 your wording' : ''}</span>`;
-    }
-    return `
-      <div class="sim-finding${isCommitted ? ' sim-finding--committed' : ''}">
-        <div class="sim-finding-head">
-          <span class="sim-finding-tag">AUTO-DRAFTED</span>
-          <button type="button" class="sim-finding-source" data-finding-reopen="${mapEsc(ch.id)}" title="Reopen this decision in comms">Decision ${decisionN} \u00b7 ${mapEsc(ch.short || '')}</button>
-        </div>
-        <p class="sim-finding-text">${body}</p>
-        ${warnHtml}
-        <div class="sim-finding-foot">${foot}<span class="sim-finding-hint">Tap a highlighted phrase to reword \u2014 your call, your words.</span></div>
-      </div>`;
-  }).join('');
+  const active = activeDraftFinding();
+  // Only the finding the dock is ACTUALLY showing reads as "drafting now" — when a
+  // graded call or reconsideration is occupying the dock, every draft is "queued".
+  const dockShowingFinding = !!active && !activeDecisionChallenge() && !activeReconsideration();
+  const cards = vis.map(ch => findingCommitted(ch.id)
+    ? findingCardHtml(ch)
+    : findingPendingRefHtml(ch, dockShowingFinding && ch.id === active.id)
+  ).join('');
   return `
     <div class="sim-notebook-section sim-findings">
       <div class="sim-notebook-head sim-notebook-head--findings">FINDINGS DRAFTED <span class="sim-notebook-count">${committed}/${vis.length} logged</span></div>
@@ -3731,6 +3764,19 @@ function loggedDiscoveryChallenges() {
 function activeDecisionChallenge() {
   return pendingDiscoveryChallenges()[0] || null;
 }
+/* Answered findings the player has NOT yet logged — the dock's optional draft
+ * queue (oldest first). Logging is presentation-only and NEVER locks the terminal
+ * (so these are deliberately absent from caseFileDecisionPending); they only
+ * surface in the dock once no graded call or reconsideration is pending. */
+function draftableFindings() {
+  if (!(SIM.def && SIM.def.caseFileNotebook)) return [];
+  return visibleDiscoveryChallenges()
+    .filter(c => challengeValid(c) && challengeAnswered(c) && findingDef(c) && !findingCommitted(c.id));
+}
+/* The single finding the dock invites the player to log (oldest un-logged). */
+function activeDraftFinding() {
+  return draftableFindings()[0] || null;
+}
 /* A case-file Sarah call is awaiting the player's answer. This blocks acting on
  * the mission regardless of stage (the only exception is 'report', once the
  * decision is finalized): during investigation it holds the terminal lock; at
@@ -3942,7 +3988,33 @@ function decisionDockHtml() {
   }
   const rc = activeReconsideration();
   if (rc) return reconsiderDockHtml(rc);
+  // Lowest priority: once nothing graded is pending, invite the player to LOG the
+  // finding they just drafted, right where they decided. Optional + non-blocking.
+  const fd = activeDraftFinding();
+  if (fd) return findingDockHtml(fd);
   return '';
+}
+
+/* The finding-draft dock variant — a distinct CYAN accent so "log your finding"
+ * never reads like a graded yellow call or an orange reconsideration. This mode is
+ * OPTIONAL and NON-BLOCKING: it surfaces the just-drafted finding so the player can
+ * log it in their own words next to where they decided, but it NEVER locks the
+ * terminal (the host chrome is softened to match). Reuses the exact notebook card;
+ * presentation-only — commit/reword flow through the existing delegated handlers. */
+function findingDockHtml(ch) {
+  const more = draftableFindings().length - 1;
+  const queue = more > 0
+    ? `<span class="sim-dock-queue sim-dock-queue--finding">${more} more to log</span>`
+    : '';
+  return `
+    <div class="sim-dock-head sim-dock-head--finding">
+      <span class="sim-dock-title"><span class="sim-dock-pulse" aria-hidden="true"></span>Log your finding</span>
+      ${queue}
+    </div>
+    <div class="sim-dock-body">
+      ${findingCardHtml(ch)}
+    </div>
+    <p class="sim-dock-foot sim-dock-foot--finding">Optional — put your call on the record in your own words. The terminal stays open; keep investigating any time.</p>`;
 }
 
 /* The reconsideration card — a distinct dock variant. Same Sarah-comms chrome and
@@ -3987,9 +4059,17 @@ function renderDecisionDock(flash) {
   const dock = document.getElementById('simDecisionDock');
   if (!dock) return;
   const html = (SIM.def && SIM.def.caseFileNotebook) ? decisionDockHtml() : '';
-  if (!html) { dock.hidden = true; dock.innerHTML = ''; return; }
+  if (!html) {
+    dock.hidden = true; dock.innerHTML = '';
+    dock.classList.remove('sim-decision-dock--finding');
+    return;
+  }
   dock.hidden = false;
   dock.innerHTML = html;
+  // Soften the dock's "locked/urgent" yellow chrome to a calm cyan when it is only
+  // inviting an OPTIONAL finding log (derived from the tracked active-mode id).
+  const isFinding = typeof SIM._dockActiveId === 'string' && SIM._dockActiveId.indexOf('finding:') === 0;
+  dock.classList.toggle('sim-decision-dock--finding', isFinding);
   if (flash) {
     dock.classList.remove('sim-decision-dock--enter');
     void dock.offsetWidth;                  // restart the entrance animation
@@ -4034,6 +4114,13 @@ function syncDecisionDock() {
     else {
       const rc = activeReconsideration();
       if (rc) newId = 'reconsider:' + rc.id;
+      else {
+        // No graded call or reconsideration pending — surface the oldest un-logged
+        // finding so logging it is discoverable. Distinct prefix so the swap from a
+        // just-answered call into the draft still flashes/announces.
+        const fd = activeDraftFinding();
+        if (fd) newId = 'finding:' + fd.id;
+      }
     }
   }
   const changed = newId !== SIM._dockActiveId;
@@ -4042,8 +4129,10 @@ function syncDecisionDock() {
   updateDecisionLock();
   // When a NEW decision surfaces (e.g. a command just revealed evidence and the
   // terminal locked), pull focus into the dock — but never yank it away while the
-  // player is already on a reply or otherwise inside the dock.
-  if (changed && newId) {
+  // player is already on a reply or otherwise inside the dock. The finding-draft
+  // mode is OPTIONAL and never locks, so it flashes for attention but must NOT
+  // steal focus from the command line the player may still be typing in.
+  if (changed && newId && decisionLocked()) {
     const ae = document.activeElement;
     const inDock = !!(ae && ae.closest && ae.closest('#simDecisionDock'));
     const onReply = !!(ae && ae.closest && ae.closest('.sim-comms-reply'));

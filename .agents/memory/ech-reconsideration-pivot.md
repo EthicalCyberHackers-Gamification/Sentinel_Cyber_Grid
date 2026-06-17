@@ -1,7 +1,36 @@
 ---
-name: Reconsideration / pivot beat (career-sim)
-description: The presentation-only NON-graded "does this change an earlier call?" beat that shares the Decision Dock — invariants so it never grades, soft-locks, or leaks.
+name: Decision Dock modes (career-sim) — reconsideration + finding draft
+description: The shared Decision Dock has 3 prioritized modes (graded call → reconsideration → finding draft); invariants for blocking vs NON-blocking add-ons so they never grade, soft-lock, leak, or steal focus.
 ---
+
+# Decision Dock modes — blocking vs non-blocking add-ons
+
+The ONE Decision Dock host (`#simDecisionDock`, in the always-present terminal
+column) renders prioritized modes via `decisionDockHtml()` and `syncDecisionDock()`:
+**graded call (`activeDecisionChallenge`) → reconsideration (`activeReconsideration`)
+→ finding draft (`activeDraftFinding`)**. Each mode prefixes `_dockActiveId`
+(`judgment:` / `reconsider:` / `finding:`) so a swap still flashes/announces.
+
+Two classes of add-on with OPPOSITE lock behavior:
+
+- **Blocking** (reconsideration): MUST be in `caseFileDecisionPending()` so the
+  terminal locks until it's resolved (see reconsideration section below).
+- **Non-blocking / OPTIONAL** (finding draft — surface the auto-drafted finding so
+  players log it where they decided): MUST stay OUT of `caseFileDecisionPending()`
+  (terminal never locks), AND the focus-pull in `syncDecisionDock()` MUST be gated
+  on `decisionLocked()` so the mode flashes for attention but never steals
+  keyboard focus from the command line. Reuse the EXACT notebook card markup
+  (`findingCardHtml`) so the dock is covered by the already-delegated
+  `data-finding-chip/-commit/-reopen` handlers — no new bindings. To avoid a
+  duplicate editable card, the un-logged draft renders editable IN THE DOCK and as
+  a compact non-editable pointer (`findingPendingRefHtml`) in the notebook;
+  "drafting now" copy must check the dock is ACTUALLY in finding mode (no graded
+  call / reconsideration pending), else label it "queued".
+
+**Why:** the dock is shared, lockable, and graded; a non-blocking mode that
+accidentally enters the lock predicate or pulls focus would break the "keep
+investigating any time" promise. Finding commit/reword is presentation-only
+(`SIM.committedFindings`/chip state) — never scoring/persistence.
 
 # Reconsideration / pivot beat (career simulator)
 

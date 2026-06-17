@@ -561,6 +561,32 @@
   .sim-reconsider-glyph { animation: none; }
 }
 
+/* ---- Finding-draft dock variant — a distinct CYAN accent so "log your finding"
+ * never reads like a graded yellow call or an orange reconsideration. This mode is
+ * OPTIONAL and never locks the terminal, so the whole host chrome is softened from
+ * the urgent yellow lock styling to a calm cyan. Presentation-only. */
+.sim-decision-dock--finding {
+  border-top-color: var(--cyan);
+  background:
+    linear-gradient(180deg, rgba(45, 212, 255, 0.08), rgba(45, 212, 255, 0.02) 60%, transparent),
+    var(--bg-panel);
+  box-shadow: inset 0 1px 0 rgba(45, 212, 255, 0.22);
+}
+.sim-dock-head--finding .sim-dock-title { color: var(--cyan); }
+.sim-dock-head--finding .sim-dock-pulse {
+  background: var(--cyan);
+  animation: simFindingPulse 1.8s ease-out infinite;
+}
+@keyframes simFindingPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(45, 212, 255, 0.5); }
+  70%  { box-shadow: 0 0 0 7px rgba(45, 212, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(45, 212, 255, 0); }
+}
+.sim-dock-queue--finding { color: var(--cyan); opacity: 0.9; }
+@media (prefers-reduced-motion: reduce) {
+  .sim-dock-head--finding .sim-dock-pulse { animation: none; }
+}
+
 .sim-actions {
   flex: 0 0 auto;
   max-height: 42%;
@@ -2475,6 +2501,18 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
   text-transform: uppercase; color: var(--green);
 }
 .sim-finding-hint { font-size: 10px; color: var(--text-dim); }
+
+/* Compact, non-editable notebook pointer for a finding still being drafted in the
+ * Decision Dock (keeps the FINDINGS DRAFTED list complete without a duplicate
+ * editable card). Dashed cyan to echo the dock's finding accent. */
+.sim-finding--pending {
+  border-style: dashed; border-left-color: var(--cyan); background: rgba(45, 212, 255, 0.03);
+}
+.sim-finding--pending-active { background: rgba(45, 212, 255, 0.06); }
+.sim-finding-tag--pending { color: var(--cyan); }
+.sim-finding-pending-note {
+  margin: 4px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-dim);
+}
 
 /* The committed snapshots — the on-record case-file timeline. */
 .sim-finding-log {
