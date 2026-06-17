@@ -685,6 +685,7 @@ const SIM = {
   mapOpen: false,           // network-map overlay visibility (transient, presentation-only)
   dynamic: [],              // active dynamic conditions for this mission (carry-flag driven)
   discoveryJudgments: {},   // challengeId -> { observation, justification } chosen option ids (two-step graded judgments; transient)
+  reconsiderations: {},     // reconsiderationId -> chosen option id (revise/hold pivot beat; transient, NON-graded, presentation-only)
   autoOpenedBoardEvents: new Set(), // evidence ids that already auto-opened the board (once each)
   powers: null,             // Judgment-to-Power transient state (set in openCareerMission via freshPowersState)
   // ---- Phases 3-5 notebook layer (ALL transient / view-state only; never persisted) ----
@@ -741,6 +742,7 @@ function openCareerMission(missionId) {
   SIM.evReveal = {};
   SIM.reflection = { concerns: new Set(), judgment: null };
   SIM.discoveryJudgments = {};            // graded discovery challenges (caseFileNotebook missions)
+  SIM.reconsiderations = {};              // reconsideration pivot picks (revise/hold) — transient, NON-graded
   SIM.autoOpenedBoardEvents = new Set();  // board auto-open fires once per milestone evidence id
   SIM.conceptsSeen = new Set();           // just-in-time concept cards already shown (transient)
   SIM.conceptOpen = false;                // concept-card overlay visibility (transient)
@@ -2029,6 +2031,39 @@ function discoveryStepHtml(ch, step, label) {
  * step 2 ("why does it matter?") appears only after step 1 is recorded. The card
  * border + status pill track pending vs logged ONLY — never right/wrong — and no
  * grade label is ever shown. Recording still flows through setDiscoveryJudgment. */
+/* Reconsideration annotation on a LOGGED notebook card. While Sarah's pivot is
+ * pending it shows a "Reconsider" badge pointing the analyst at the dock; once the
+ * analyst revises/holds it records that posture + Sarah's reply inline. Display-only,
+ * read straight from SIM.reconsiderations — never grades, never reopens the call. */
+function reconsiderAnnotationHtml(ch) {
+  const rcs = reconsiderationsForTarget(ch.id);
+  if (!rcs.length) return '';
+  return rcs.map(rc => {
+    const ans = reconsiderAnswer(rc);
+    if (!ans) {
+      return `
+      <div class="sim-reconsider-note sim-reconsider-note--pending">
+        <span class="sim-reconsider-badge"><span class="sim-reconsider-glyph" aria-hidden="true">\u21BB</span>Reconsider</span>
+        <span class="sim-reconsider-text">New evidence may change this call — Sarah's waiting on your read in the Decision Dock below.</span>
+      </div>`;
+    }
+    const chosen = rc.options.find(o => o.id === ans);
+    const mod = ans === 'revise' ? 'revised' : (ans === 'hold' ? 'held' : 'done');
+    const verdictLabel = ans === 'revise' ? 'Revised' : (ans === 'hold' ? 'Held' : 'Reconsidered');
+    const reply = chosen && chosen.feedback
+      ? `<div class="sim-comms-msg sim-comms-msg--sarah"><span class="sim-comms-avatar" aria-hidden="true">SR</span><div class="sim-comms-bubble sim-comms-bubble--reply">${commsSpeech(chosen.feedback)}</div></div>`
+      : '';
+    return `
+      <div class="sim-reconsider-note sim-reconsider-note--done sim-reconsider-note--${mod}">
+        <span class="sim-reconsider-badge sim-reconsider-badge--${mod}">${verdictLabel}</span>
+        <div class="sim-reconsider-thread">
+          <div class="sim-comms-msg sim-comms-msg--you"><div class="sim-comms-bubble">${chosen ? chosen.label : ''}</div><span class="sim-comms-avatar sim-comms-avatar--you" aria-hidden="true">YOU</span></div>
+          ${reply}
+        </div>
+      </div>`;
+  }).join('');
+}
+
 function discoveryCardHtml(ch) {
   if (!challengeValid(ch)) return '';
   const obsAnswered = stepAnswered(ch, 'observation');
@@ -2041,6 +2076,9 @@ function discoveryCardHtml(ch) {
   const foot = full
     ? `<div class="sim-comms-foot">Logged with Sarah — she has your read on ${ch.short || 'this finding'}.</div>`
     : '';
+  // Pivot annotation only ever attaches to an already-logged call (the dock shows
+  // pending cards, so this never renders there).
+  const reconsider = full ? reconsiderAnnotationHtml(ch) : '';
   const cardMod = full ? ' sim-comms--logged' : ' sim-comms--pending';
   return `
     <div class="sim-comms${cardMod}" data-ev="${ch.evidenceId || ''}" data-challenge="${ch.id}">
@@ -2053,6 +2091,7 @@ function discoveryCardHtml(ch) {
         ${justHtml}
       </div>
       ${foot}
+      ${reconsider}
     </div>`;
 }
 
@@ -3698,7 +3737,10 @@ function activeDecisionChallenge() {
  * the decision stage (e.g. after an early `decide`) it keeps the handling-action
  * guards live so a call can never be skipped. */
 function caseFileDecisionPending() {
-  return !!(SIM.def && SIM.def.caseFileNotebook) && pendingDiscoveryChallenges().length > 0;
+  if (!(SIM.def && SIM.def.caseFileNotebook)) return false;
+  // A pending two-step call OR a pending reconsideration pivot both hold the line —
+  // Sarah's "does this change your read?" beat can never be skipped by `decide`.
+  return pendingDiscoveryChallenges().length > 0 || pendingReconsiderations().length > 0;
 }
 function decisionLocked() {
   if (SIM.stage === 'report') return false;   // mission finalized — never lock
@@ -3771,6 +3813,72 @@ function setDiscoveryJudgment(challengeId, step, optionId) {
   focusNextComms(challengeId, step); // keep keyboard focus inside the comms flow (a11y)
 }
 
+/* ================================================================== *
+ * RECONSIDERATION / PIVOT BEAT (Option B) — presentation-only, NON-GRADED.
+ * ------------------------------------------------------------------ *
+ * When a LATER finding surfaces that should reframe an EARLIER already-logged
+ * call, Sarah asks the analyst to REVISE or consciously HOLD their read. This is
+ * a deliberate reasoning beat, not a re-grade: setDiscoveryJudgment stays the SOLE
+ * graded write, the original two-step call stays immutable, and this layer only
+ * records reflective posture on SIM.reconsiderations (transient, never persisted,
+ * never touches confidence / grading helpers / saveProgress). Authored per-mission
+ * in def.reconsiderations[] and gated on its presence — never on a mission id.
+ * Copy is neutral ("does this change your read?") so it never leaks a verdict.
+ * ================================================================== */
+function simReconsiderations() {
+  return (SIM.def && Array.isArray(SIM.def.reconsiderations)) ? SIM.def.reconsiderations : [];
+}
+function reconsiderationById(id) {
+  return simReconsiderations().find(r => r && r.id === id) || null;
+}
+/* Well-formed: has a trigger evidence, a resolvable earlier target challenge, and
+ * at least one option. */
+function reconsiderValid(rc) {
+  return !!(rc && rc.id && rc.when && rc.target
+    && Array.isArray(rc.options) && rc.options.length
+    && discoveryChallengeById(rc.target));
+}
+function reconsiderAnswer(rc) {
+  return (rc && SIM.reconsiderations[rc.id]) || null;
+}
+function reconsiderAnswered(rc) {
+  return !!reconsiderAnswer(rc);
+}
+/* "Live" only once the trigger evidence has surfaced AND the earlier call it
+ * reframes has actually been answered — there is nothing to reconsider otherwise. */
+function reconsiderLive(rc) {
+  if (!reconsiderValid(rc)) return false;
+  if (!SIM.evidence.has(rc.when)) return false;
+  return challengeAnswered(discoveryChallengeById(rc.target));
+}
+function visibleReconsiderations() {
+  return simReconsiderations().filter(reconsiderLive);
+}
+function pendingReconsiderations() {
+  return visibleReconsiderations().filter(rc => !reconsiderAnswered(rc));
+}
+/* The single reconsideration the dock is currently asking for (oldest pending). */
+function activeReconsideration() {
+  return pendingReconsiderations()[0] || null;
+}
+/* Live reconsiderations that reframe a given challenge — drives the notebook badge. */
+function reconsiderationsForTarget(challengeId) {
+  return visibleReconsiderations().filter(rc => rc.target === challengeId);
+}
+/* The SOLE writer of SIM.reconsiderations — NON-GRADED. Records the analyst's
+ * revise/hold posture; never touches SIM.discoveryJudgments, the grading helpers,
+ * confidence, or saveProgress. One-shot per reconsideration. */
+function setReconsideration(rcId, optionId) {
+  const rc = reconsiderationById(rcId);
+  if (!reconsiderValid(rc)) return;
+  if (!reconsiderLive(rc)) return;                 // trigger surfaced + target answered
+  if (reconsiderAnswered(rc)) return;              // immutable after first pick
+  if (!rc.options.some(o => o.id === optionId)) return;
+  SIM.reconsiderations[rcId] = optionId;
+  renderEvidencePanel();
+  focusNextComms();                                // keep keyboard focus in the flow
+}
+
 /* After a comms reply is recorded and the panel re-renders, move keyboard focus
  * to the next thing the player says: the justification reply for the same
  * finding, the first pending reply anywhere, else the comms section heading so
@@ -3813,13 +3921,16 @@ function focusNextComms(challengeId, step) {
 /* The dock's content: the single active decision wrapped in dock chrome that
  * makes the stakes obvious. '' when nothing pends (caller hides the host). */
 function decisionDockHtml() {
+  // Priority: a fresh two-step call is answered FIRST; only once none are pending
+  // does a reconsideration of an earlier call surface. So a finding's own normal
+  // call clears before Sarah asks whether it changes a prior read.
   const ch = activeDecisionChallenge();
-  if (!ch) return '';
-  const more = pendingDiscoveryChallenges().length - 1;
-  const queueHtml = more > 0
-    ? `<span class="sim-dock-queue">${more} more call${more === 1 ? '' : 's'} after this</span>`
-    : '';
-  return `
+  if (ch) {
+    const more = pendingDiscoveryChallenges().length - 1;
+    const queueHtml = more > 0
+      ? `<span class="sim-dock-queue">${more} more call${more === 1 ? '' : 's'} after this</span>`
+      : '';
+    return `
     <div class="sim-dock-head">
       <span class="sim-dock-title"><span class="sim-dock-pulse" aria-hidden="true"></span>Sarah needs your call</span>
       ${queueHtml}
@@ -3828,6 +3939,46 @@ function decisionDockHtml() {
       ${discoveryCardHtml(ch)}
     </div>
     <p class="sim-dock-foot">The terminal is paused until you answer Sarah — she's waiting on your read before you run anything else.</p>`;
+  }
+  const rc = activeReconsideration();
+  if (rc) return reconsiderDockHtml(rc);
+  return '';
+}
+
+/* The reconsideration card — a distinct dock variant. Same Sarah-comms chrome and
+ * keyboard/ARIA pattern as a normal call, but it cross-references an EARLIER logged
+ * read and asks the analyst to revise or hold it. Neutral copy, no verdict leak;
+ * recording flows through the NON-GRADED setReconsideration. */
+function reconsiderDockHtml(rc) {
+  const target = discoveryChallengeById(rc.target);
+  const targetName = (target && target.short) || 'an earlier call';
+  const opts = rc.options.map((o, i) =>
+    `<button type="button" class="sim-comms-reply sim-comms-reply--reconsider" data-reconsideration data-rc="${rc.id}" data-option="${o.id}"><span class="sim-comms-reply-key" aria-hidden="true">${String.fromCharCode(65 + i)}</span><span class="sim-comms-reply-text">${o.label}</span></button>`
+  ).join('');
+  return `
+    <div class="sim-dock-head sim-dock-head--reconsider">
+      <span class="sim-dock-title"><span class="sim-dock-pulse" aria-hidden="true"></span>New evidence — does this change a call?</span>
+      <span class="sim-dock-queue sim-dock-queue--reconsider">Reconsider: ${targetName}</span>
+    </div>
+    <div class="sim-dock-body">
+      <div class="sim-comms sim-comms--reconsider" data-rc="${rc.id}">
+        <div class="sim-comms-turn sim-comms-turn--open">
+          <div class="sim-comms-cuebar">
+            <span class="sim-comms-cuebar-step sim-comms-cuebar-step--reconsider" aria-hidden="true">\u21BB</span>
+            <span class="sim-comms-cuebar-text">A new finding reframes your earlier read on “${targetName}”.</span>
+          </div>
+          <div class="sim-comms-msg sim-comms-msg--sarah">
+            <span class="sim-comms-avatar" aria-hidden="true">SR</span>
+            <div class="sim-comms-bubble sim-comms-bubble--ask">${rc.sarah || ''}</div>
+          </div>
+          <div class="sim-comms-replies" role="group" aria-label="Revise or hold your earlier read">
+            <span class="sim-comms-replies-label">Revise or hold your read</span>
+            ${opts}
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="sim-dock-foot">The terminal is paused until you tell Sarah whether this changes your earlier read. Either call is valid — what matters is that you weigh it.</p>`;
 }
 
 /* Paint the dock host. `flash` plays the arrival animation (only when the active
@@ -3874,8 +4025,17 @@ function updateDecisionLock() {
  * keyboard focus to a freshly-surfaced decision. NEVER calls renderEvidencePanel
  * (it is itself called from the END of renderEvidencePanel) — no recursion. */
 function syncDecisionDock() {
-  const active = (SIM.def && SIM.def.caseFileNotebook) ? activeDecisionChallenge() : null;
-  const newId = active ? active.id : null;
+  // Prefix the tracker so a normal call and a reconsideration can never share an
+  // id (avoids a missed flash/focus when the dock swaps from one to the other).
+  let newId = null;
+  if (SIM.def && SIM.def.caseFileNotebook) {
+    const active = activeDecisionChallenge();
+    if (active) newId = 'judgment:' + active.id;
+    else {
+      const rc = activeReconsideration();
+      if (rc) newId = 'reconsider:' + rc.id;
+    }
+  }
   const changed = newId !== SIM._dockActiveId;
   SIM._dockActiveId = newId;
   renderDecisionDock(changed);
@@ -5581,6 +5741,31 @@ const CAREER_MISSIONS = {
         examples: ['partner_pricing_2026.csv holds negotiated rates', 'One partner must never see another\u2019s pricing'] },
       { id: 'm1_cc_mnpi', triggerEv: 'ev_confidential_roadmap', glossaryKey: 'materialNonPublic',
         examples: ['acquisition_roadmap.txt is an unannounced deal plan', 'Releasing it early is a leak with legal risk'] },
+    ],
+    /* Reconsideration / pivot beat (presentation-only, NON-graded). Once the access
+     * log surfaces the contractor reaching files outside its remit, Sarah asks the
+     * analyst to revise or consciously hold the EARLIER "who packaged this release"
+     * read. Both calls are valid analyst postures — the copy never implies one is
+     * correct. Recorded via setReconsideration; the original call stays immutable. */
+    reconsiderations: [
+      {
+        id: 'rc_release_contractor',
+        when: 'ev_contractor_access',   // access_log.txt — contractor read HR/Finance files outside its remit
+        target: 'ch_release_context',   // earlier call: who assembled the release, and was it routine
+        sarah: 'Now look at this — the access log shows that same contractor account reading HR and Finance files it had no business touching. Earlier you logged your read on who packaged the release. Does this new finding change how you see the contractor\u2019s role?',
+        options: [
+          {
+            id: 'revise',
+            label: 'Revise my read — the contractor\u2019s access changes the picture',
+            feedback: '"That\u2019s a deliberate move — when a new fact widens the scope, you let it move you. The packaging gap and the out-of-remit access read as one story now, not two." — Sarah Reyes',
+          },
+          {
+            id: 'hold',
+            label: 'Hold my read — the packaging gap was already the core issue',
+            feedback: '"That\u2019s a deliberate move — you\u2019re holding the line you already drew. The missing owner sign-off stands on its own; the access is more weight on the same concern, not a new direction." — Sarah Reyes',
+          },
+        ],
+      },
     ],
     discoveryChallenges: [
       {
@@ -9261,6 +9446,9 @@ function simInit() {
       if (judg) { setJudgment(judg.dataset.judgment); return; }
       const disc = e.target.closest('[data-discovery-judgment]');
       if (disc) { setDiscoveryJudgment(disc.dataset.challenge, disc.dataset.step, disc.dataset.option); return; }
+      // Reconsideration pivot (revise/hold) — presentation-only, NON-graded.
+      const recon = e.target.closest('[data-reconsideration]');
+      if (recon) { setReconsideration(recon.dataset.rc, recon.dataset.option); return; }
       // Judgment-to-Power tools (Task #117) — transient, presentation-only spend.
       const pwr = e.target.closest('[data-power]');
       if (pwr) { useAnalystPower(pwr.dataset.power); return; }

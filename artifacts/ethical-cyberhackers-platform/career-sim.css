@@ -504,6 +504,63 @@
   .sim-decision-dock--nudge { animation: none; }
 }
 
+/* ---- Reconsideration / pivot beat (Option B) — a distinct ORANGE accent so the
+ * "does this change an earlier call?" moment never reads like a normal yellow
+ * call. Presentation-only; reuses the dock comms chrome with an accent overlay. */
+.sim-dock-head--reconsider .sim-dock-title { color: var(--orange); }
+.sim-dock-head--reconsider .sim-dock-pulse {
+  background: var(--orange);
+  animation: simReconsiderPulse 1.6s ease-out infinite;
+}
+@keyframes simReconsiderPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(240, 150, 60, 0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(240, 150, 60, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(240, 150, 60, 0); }
+}
+.sim-dock-queue--reconsider { color: var(--orange); opacity: 0.9; }
+.sim-comms--reconsider {
+  border-left: 2px solid var(--orange);
+  padding-left: 8px;
+  background: linear-gradient(180deg, rgba(240, 150, 60, 0.07), transparent 62%);
+}
+.sim-comms-cuebar-step--reconsider { color: var(--orange); font-weight: 700; }
+.sim-comms-reply--reconsider:hover,
+.sim-comms-reply--reconsider:focus-visible { border-color: var(--orange); }
+
+/* Annotation rendered on the EARLIER logged call in the read-only notebook. */
+.sim-reconsider-note {
+  margin: 8px 0 0; padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body); font-size: 11px; line-height: 1.55;
+}
+.sim-reconsider-note--pending {
+  display: flex; flex-direction: column; gap: 5px;
+  border: 1px dashed var(--orange);
+  background: rgba(240, 150, 60, 0.08);
+  color: var(--text);
+}
+.sim-reconsider-text { color: var(--text-dim); }
+.sim-reconsider-badge {
+  display: inline-flex; align-items: center; gap: 5px; align-self: flex-start;
+  padding: 2px 8px; border-radius: 999px;
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.8px;
+  text-transform: uppercase; font-weight: 700;
+  color: var(--orange); border: 1px solid var(--orange); background: rgba(240, 150, 60, 0.12);
+}
+.sim-reconsider-glyph { display: inline-block; animation: simReconsiderSpin 2.4s linear infinite; }
+@keyframes simReconsiderSpin { to { transform: rotate(360deg); } }
+.sim-reconsider-note--done {
+  border: 1px solid var(--border);
+  background: var(--bg-panel-alt);
+}
+.sim-reconsider-badge--revised { color: var(--cyan); border-color: var(--cyan); background: rgba(90, 200, 230, 0.12); }
+.sim-reconsider-badge--held { color: var(--text-muted); border-color: var(--border); background: var(--bg-hover); }
+.sim-reconsider-thread { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+@media (prefers-reduced-motion: reduce) {
+  .sim-dock-head--reconsider .sim-dock-pulse,
+  .sim-reconsider-glyph { animation: none; }
+}
+
 .sim-actions {
   flex: 0 0 auto;
   max-height: 42%;
