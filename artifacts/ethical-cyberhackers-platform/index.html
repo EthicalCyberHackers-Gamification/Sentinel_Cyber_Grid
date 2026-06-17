@@ -535,6 +535,11 @@
                    autocapitalize="off" spellcheck="false"
                    placeholder="type a command — try `help`" aria-label="Command input" />
           </form>
+          <!-- Decision Dock — the active two-step judgment lives here, beneath the
+               terminal, and hard-locks the command line until the player answers
+               Sarah. Populated by renderDecisionDock(); hidden when nothing pends. -->
+          <section class="sim-decision-dock" id="simDecisionDock" hidden role="region"
+                   aria-live="polite" aria-label="Decision dock — Sarah needs your call"></section>
           <div class="sim-actions" id="simActions"></div>
         </section>
 

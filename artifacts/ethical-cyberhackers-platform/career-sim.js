@@ -746,6 +746,7 @@ function openCareerMission(missionId) {
   SIM.conceptOpen = false;                // concept-card overlay visibility (transient)
   SIM.nbEvidenceCount = 0;                // notebook attention: evidence count at last render
   SIM.nbConfidence = null;                // notebook attention: confidence at last render (meter flash)
+  SIM._dockActiveId = null;               // Decision Dock: active-decision tracker (transient)
   SIM.sideTrailOpen = new Set();          // optional side-trails the analyst has expanded (transient)
   SIM.sideTrailJudgments = {};            // {trailId:{observation,justification}} picks (transient)
   SIM.powers = freshPowersState();        // Judgment-to-Power tools (transient, never persisted)
@@ -1571,7 +1572,7 @@ function renderEvidencePanel() {
     const pending = visibleDiscoveryChallenges()
       .filter(c => challengeValid(c) && !challengeAnswered(c)).length;
     const alert = pending > 0
-      ? `<span class="sim-nb-alert">${pending} on comms</span>` : '';
+      ? `<span class="sim-nb-alert">${pending} awaiting in dock</span>` : '';
     // Preserve the player's reading position across the full innerHTML rebuild.
     // The notebook re-renders on every submit; without capturing/restoring the
     // scroll container's offset, the freshly-built .sim-evidence-body starts at
@@ -1622,6 +1623,7 @@ function renderEvidencePanel() {
         if (confRose) meter.classList.add('sim-confidence--rose');  // directional micro-nudge
       }
     }
+    syncDecisionDock();  // mirror the active decision into the bottom dock + lock the terminal
     return;
   }
 
@@ -1647,6 +1649,7 @@ function renderEvidencePanel() {
       ${responseHtml}
     </div>`;
   applyNotebookChrome(host.querySelector('.sim-evidence-body'), false);  // collapse toggles + status tags
+  syncDecisionDock();  // gated internally — hides the dock + unlocks for non-case-file missions
 }
 
 /* ================================================================== *
@@ -2044,7 +2047,7 @@ function discoveryCardHtml(ch) {
         <span class="sim-comms-channel"><span class="sim-comms-dot" aria-hidden="true"></span>SARAH REYES · ${ch.short || ''}</span>
         ${statusPill}
       </div>
-      <div class="sim-comms-thread" aria-live="polite">
+      <div class="sim-comms-thread">
         ${obsHtml}
         ${justHtml}
       </div>
@@ -2057,12 +2060,17 @@ function discoveryCardHtml(ch) {
 function analystJudgmentHtml() {
   const vis = visibleDiscoveryChallenges().filter(challengeValid);
   if (!vis.length) return '';
-  const answered = vis.filter(challengeAnswered).length;
-  const cards = vis.map(discoveryCardHtml).join('');
+  // The notebook is now a QUIET, READ-ONLY record of calls already logged with
+  // Sarah. Anything still pending lives in the Decision Dock beneath the terminal
+  // (where it locks the command line until answered), so it never renders twice.
+  const logged = loggedDiscoveryChallenges();
+  const body = logged.length
+    ? logged.map(discoveryCardHtml).join('')
+    : `<p class="sim-comms-empty">No calls logged yet. When Sarah needs your read it appears in the <strong>Decision Dock</strong> beneath the terminal — answer there and it is recorded here.</p>`;
   return `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head sim-notebook-head--comms" tabindex="-1">LIVE COMMS — SARAH REYES <span class="sim-notebook-count">${answered}/${vis.length}</span></div>
-      ${cards}
+      <div class="sim-notebook-head sim-notebook-head--comms" tabindex="-1">DECISIONS LOGGED <span class="sim-notebook-count">${logged.length}/${vis.length}</span></div>
+      ${body}
     </div>`;
 }
 
@@ -3664,6 +3672,37 @@ function stepAnswered(ch, step) {
 function challengeAnswered(ch) {
   return challengeValid(ch) && stepAnswered(ch, 'observation') && stepAnswered(ch, 'justification');
 }
+/* ------------------------------------------------------------------ *
+ * DECISION DOCK predicates (presentation-only). The active two-step judgment
+ * is relocated out of the right-side notebook into a prominent dock beneath the
+ * terminal that hard-locks the command line until the player answers Sarah; the
+ * notebook keeps only the LOGGED record. All gated on SIM.def.caseFileNotebook —
+ * setDiscoveryJudgment stays the sole graded write; never branch on a mission id.
+ * ------------------------------------------------------------------ */
+/* Surfaced, valid challenges the player still owes Sarah an answer on. */
+function pendingDiscoveryChallenges() {
+  return visibleDiscoveryChallenges().filter(c => challengeValid(c) && !challengeAnswered(c));
+}
+/* Surfaced, valid challenges already fully answered — the notebook's record. */
+function loggedDiscoveryChallenges() {
+  return visibleDiscoveryChallenges().filter(c => challengeValid(c) && challengeAnswered(c));
+}
+/* The single decision the dock is currently asking for (oldest pending first). */
+function activeDecisionChallenge() {
+  return pendingDiscoveryChallenges()[0] || null;
+}
+/* A case-file Sarah call is awaiting the player's answer. This blocks acting on
+ * the mission regardless of stage (the only exception is 'report', once the
+ * decision is finalized): during investigation it holds the terminal lock; at
+ * the decision stage (e.g. after an early `decide`) it keeps the handling-action
+ * guards live so a call can never be skipped. */
+function caseFileDecisionPending() {
+  return !!(SIM.def && SIM.def.caseFileNotebook) && pendingDiscoveryChallenges().length > 0;
+}
+function decisionLocked() {
+  if (SIM.stage === 'report') return false;   // mission finalized — never lock
+  return caseFileDecisionPending();
+}
 /* Is the recorded pick for this step the correct one? */
 function challengeStepCorrect(ch, step) {
   const cfg = challengeStep(ch, step);
@@ -3736,17 +3775,141 @@ function setDiscoveryJudgment(challengeId, step, optionId) {
  * finding, the first pending reply anywhere, else the comms section heading so
  * focus never falls back to <body>. Presentation / accessibility only. */
 function focusNextComms(challengeId, step) {
-  const host = document.getElementById('simEvidence');
-  if (!host) return;
+  // Pending decisions now live in the dock; the notebook holds only the logged
+  // record. Keep focus in the live flow: the dock first, then — when nothing is
+  // pending and the terminal has unlocked — back on the command line, else the
+  // read-only notebook heading so focus never falls back to <body>.
+  const dock = document.getElementById('simDecisionDock');
   let target = null;
-  if (step === 'observation') {
-    target = host.querySelector(`.sim-comms-reply[data-challenge="${challengeId}"][data-step="justification"]`);
+  if (dock && !dock.hidden) {
+    if (step === 'observation') {
+      target = dock.querySelector(`.sim-comms-reply[data-challenge="${challengeId}"][data-step="justification"]`);
+    }
+    if (!target) target = dock.querySelector('.sim-comms-reply');
   }
-  if (!target) target = host.querySelector('.sim-comms-reply');
-  if (!target) target = host.querySelector('.sim-notebook-head--comms');
+  if (!target && !decisionLocked()) {
+    const input = document.getElementById('simTermInput');
+    if (input && !input.disabled && typeof input.focus === 'function') {
+      try { input.focus({ preventScroll: true }); } catch (_e) { input.focus(); }
+      return;
+    }
+  }
+  if (!target) {
+    const host = document.getElementById('simEvidence');
+    if (host) target = host.querySelector('.sim-notebook-head--comms');
+  }
   if (target && typeof target.focus === 'function') {
     try { target.focus({ preventScroll: true }); } catch (_e) { target.focus(); }
   }
+}
+
+/* ---- Decision Dock render + terminal lock (presentation-only) ----------- *
+ * The dock relocates the ACTIVE decision beneath the terminal. It reuses the
+ * exact two-step comms card the notebook used, so the depth (Sarah's voice, the
+ * observation -> justification flow, no right/wrong wording) is unchanged — only
+ * its location and the terminal lock are new. No persistence, no scoring. */
+
+/* The dock's content: the single active decision wrapped in dock chrome that
+ * makes the stakes obvious. '' when nothing pends (caller hides the host). */
+function decisionDockHtml() {
+  const ch = activeDecisionChallenge();
+  if (!ch) return '';
+  const more = pendingDiscoveryChallenges().length - 1;
+  const queueHtml = more > 0
+    ? `<span class="sim-dock-queue">${more} more call${more === 1 ? '' : 's'} after this</span>`
+    : '';
+  return `
+    <div class="sim-dock-head">
+      <span class="sim-dock-title"><span class="sim-dock-pulse" aria-hidden="true"></span>Sarah needs your call</span>
+      ${queueHtml}
+    </div>
+    <div class="sim-dock-body">
+      ${discoveryCardHtml(ch)}
+    </div>
+    <p class="sim-dock-foot">The terminal is paused until you answer Sarah — she's waiting on your read before you run anything else.</p>`;
+}
+
+/* Paint the dock host. `flash` plays the arrival animation (only when the active
+ * decision actually changed). Hides the host when nothing is pending. */
+function renderDecisionDock(flash) {
+  const dock = document.getElementById('simDecisionDock');
+  if (!dock) return;
+  const html = (SIM.def && SIM.def.caseFileNotebook) ? decisionDockHtml() : '';
+  if (!html) { dock.hidden = true; dock.innerHTML = ''; return; }
+  dock.hidden = false;
+  dock.innerHTML = html;
+  if (flash) {
+    dock.classList.remove('sim-decision-dock--enter');
+    void dock.offsetWidth;                  // restart the entrance animation
+    dock.classList.add('sim-decision-dock--enter');
+  }
+}
+
+/* Single chokepoint for the hard terminal lock, so the disabled input + ARIA +
+ * placeholder + container class can never desync from the pending state. */
+function updateDecisionLock() {
+  const locked = decisionLocked();
+  const input = document.getElementById('simTermInput');
+  if (input) {
+    input.disabled = locked;
+    if (locked) {
+      input.setAttribute('aria-disabled', 'true');
+      if (input.dataset.basePlaceholder == null) {
+        input.dataset.basePlaceholder = input.getAttribute('placeholder') || '';
+      }
+      input.setAttribute('placeholder', 'Answer Sarah in the Decision Dock below to continue…');
+    } else {
+      input.removeAttribute('aria-disabled');
+      if (input.dataset.basePlaceholder != null) {
+        input.setAttribute('placeholder', input.dataset.basePlaceholder);
+      }
+    }
+  }
+  const ops = document.getElementById('careerOps');
+  if (ops) ops.classList.toggle('career--decision-locked', locked);
+}
+
+/* The single orchestration point: re-render the dock, update the lock, and pull
+ * keyboard focus to a freshly-surfaced decision. NEVER calls renderEvidencePanel
+ * (it is itself called from the END of renderEvidencePanel) — no recursion. */
+function syncDecisionDock() {
+  const active = (SIM.def && SIM.def.caseFileNotebook) ? activeDecisionChallenge() : null;
+  const newId = active ? active.id : null;
+  const changed = newId !== SIM._dockActiveId;
+  SIM._dockActiveId = newId;
+  renderDecisionDock(changed);
+  updateDecisionLock();
+  // When a NEW decision surfaces (e.g. a command just revealed evidence and the
+  // terminal locked), pull focus into the dock — but never yank it away while the
+  // player is already on a reply or otherwise inside the dock.
+  if (changed && newId) {
+    const ae = document.activeElement;
+    const inDock = !!(ae && ae.closest && ae.closest('#simDecisionDock'));
+    const onReply = !!(ae && ae.closest && ae.closest('.sim-comms-reply'));
+    if (!inDock && !onReply) focusFirstDockReply();
+  }
+}
+
+/* Focus the first reply button in the dock (keyboard entry into the decision). */
+function focusFirstDockReply() {
+  const dock = document.getElementById('simDecisionDock');
+  if (!dock || dock.hidden) return null;
+  const t = dock.querySelector('.sim-comms-reply') || dock.querySelector('button, [tabindex]');
+  if (t && typeof t.focus === 'function') {
+    try { t.focus({ preventScroll: true }); } catch (_e) { t.focus(); }
+  }
+  return t;
+}
+
+/* The player tried to type while the terminal is locked: flash the dock + focus
+ * it so they understand where to act. Presentation / accessibility only. */
+function nudgeDecisionDock() {
+  const dock = document.getElementById('simDecisionDock');
+  if (!dock || dock.hidden) return;
+  dock.classList.remove('sim-decision-dock--nudge');
+  void dock.offsetWidth;
+  dock.classList.add('sim-decision-dock--nudge');
+  focusFirstDockReply();
 }
 
 /* ================================================================== *
@@ -4042,6 +4205,10 @@ function analystPowersHtml() {
 /* Terminal command router. ls / cat / less per the Mission 1 spec, plus help,
  * clear, and `decide` to reveal the handling actions when the player is ready. */
 function simRunCommand(raw) {
+  // Defense-in-depth for the hard lock: the form submit already blocks this while
+  // a decision pends, but never run a command (or surface evidence) until the
+  // player has answered Sarah in the dock.
+  if (decisionLocked()) { nudgeDecisionDock(); return; }
   const cmd = String(raw || '').trim();
   if (!cmd) return;
   const promptLabel = (SIM.def && SIM.def.promptLabel) || 'intern@cybercorp:~/release$';
@@ -4487,6 +4654,16 @@ function setJudgment(j) {
  * ================================================================== */
 function simRevealActions(manual) {
   if (SIM.stage === 'report') return;   // decision already made
+  // Hard lock: never advance to the handling actions while Sarah still has a
+  // pending call. The auto-reveal path (after the last file/core command) would
+  // otherwise flip stage -> 'decision' and release the terminal lock with a
+  // decision still unanswered. Keep the player in the investigation + dock until
+  // it's answered; they then type `decide` to reveal the actions. (The typed
+  // `decide` path can't reach here while locked — the input is disabled.)
+  if (caseFileDecisionPending()) {
+    syncDecisionDock();   // re-assert the dock + terminal lock (idempotent)
+    return;
+  }
   SIM.stage = 'decision';
   renderActions();
   if (manual && !investigationComplete()) {
@@ -4517,6 +4694,13 @@ function renderActions() {
 
 function chooseAction(actionId) {
   if (SIM.stage === 'report') return;
+  // Defense-in-depth for the hard lock: never let a handling action be chosen
+  // while Sarah still has a pending call (with simRevealActions guarded these
+  // buttons shouldn't even be visible yet, but never act on an unanswered call).
+  if (caseFileDecisionPending()) {
+    nudgeDecisionDock();
+    return;
+  }
   const action = (SIM.def.actions || []).find(a => a.id === actionId);
   if (!action) return;
 
@@ -4546,6 +4730,9 @@ function chooseAction(actionId) {
 }
 
 function chooseLockedAction(id) {
+  // Hard lock: don't surface the locked-action / alternative-recommendation
+  // path while Sarah still has a pending call.
+  if (caseFileDecisionPending()) { nudgeDecisionDock(); return; }
   const a = (SIM.def.lockedActions || []).find(x => x.id === id);
   if (!a) return;
   const host = document.getElementById('simFeedback');
@@ -4565,6 +4752,8 @@ function chooseLockedAction(id) {
 
 function submitRecommendation(recId) {
   if (SIM.stage === 'report') return;
+  // Hard lock: never finalize a recommendation while Sarah has a pending call.
+  if (caseFileDecisionPending()) { nudgeDecisionDock(); return; }
   const rec = (SIM.def.recommendations || {})[recId];
   if (!rec) return;
   const outcome = computeRecommendationOutcome();
@@ -8867,6 +9056,9 @@ function simInit() {
   if (form) {
     form.addEventListener('submit', e => {
       e.preventDefault();
+      // Hard lock: while Sarah has a pending call, the command line is paused —
+      // steer the player to the Decision Dock instead of running a command.
+      if (typeof decisionLocked === 'function' && decisionLocked()) { nudgeDecisionDock(); return; }
       const input = document.getElementById('simTermInput');
       const raw = input ? input.value : '';
       if (input) input.value = '';
