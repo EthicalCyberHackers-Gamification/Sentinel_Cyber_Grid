@@ -1,0 +1,779 @@
+ETHICAL CYBERHACKERS
+MASTER DESIGN SUMMARY
+FOR THIRD-PARTY AI DESIGN REVIEW
+
+============================================================
+PROJECT OVERVIEW
+============================================================
+
+Ethical CyberHackers is not intended to be a cybersecurity course.
+
+It is intended to be a professional cybersecurity career simulation.
+
+The primary objective is to transform students from passive learners into active cybersecurity professionals through investigation-based gameplay.
+
+The platform teaches:
+
+- Observation
+- Investigation
+- Evidence Collection
+- Documentation
+- Risk Recognition
+- Escalation
+- Professional Judgment
+
+The platform deliberately avoids:
+
+- Tool memorization
+- Command memorization
+- Flashcard learning
+- Quiz-heavy learning
+- CTF-style puzzle solving
+
+The student should feel:
+
+"I work in a cybersecurity department."
+
+Not:
+
+"I am taking a cybersecurity class."
+
+============================================================
+CORE DESIGN PHILOSOPHY
+============================================================
+
+The platform is built around:
+
+Discover
+→
+Interpret
+→
+Justify
+→
+Learn
+→
+Apply
+
+Students are first exposed to evidence.
+
+Students then interpret meaning.
+
+Students justify conclusions.
+
+Students receive professional coaching.
+
+Students apply lessons later.
+
+The objective is professional thinking.
+
+Not technical memorization.
+
+============================================================
+PRIMARY ROLE
+============================================================
+
+ROLE:
+Cybersecurity Intern
+
+Purpose:
+
+Students are new employees at CyberCorp.
+
+They report directly to:
+
+Sarah Reyes
+SOC Lead
+
+Students are not responders.
+
+Students are not administrators.
+
+Students are not engineers.
+
+Students are investigators.
+
+Authorities:
+
+✓ Investigate
+✓ Classify
+✓ Recommend
+✓ Escalate
+✓ Document
+
+Cannot:
+
+✗ Contain systems
+✗ Purchase tools
+✗ Change policy
+✗ Spend budget
+✗ Direct leadership
+
+============================================================
+CURRENT INTERN STORY ARC
+============================================================
+
+Mission 1
+Protect Sensitive Information
+
+Theme:
+
+Data Handling Review
+
+Student investigates an external release package before publication.
+
+Focus:
+
+- Information Classification
+- Data Sensitivity
+- Business Risk
+- Approval Chains
+
+Student discovers:
+
+Contractor assembled release package.
+
+Sensitive payroll data included.
+
+No internal review exists.
+
+------------------------------------------------------------
+
+Mission 2
+Investigate Network Assets
+
+Theme:
+
+Unauthorized Device Investigation
+
+Student investigates a monitoring alert showing more devices than expected.
+
+Focus:
+
+- Device Ownership
+- Network Visibility
+- Asset Inventory
+- Policy Violations
+
+Student discovers:
+
+Unknown device.
+
+Contractor ownership.
+
+Device connected to finance network.
+
+Unauthorized access attempts.
+
+------------------------------------------------------------
+
+Mission 3
+Investigate Suspicious Authentication Activity
+
+Theme:
+
+Account Compromise Investigation
+
+Student investigates:
+
+Failed logins.
+
+Successful login.
+
+Suspicious account activity.
+
+Focus:
+
+- Authentication
+- Identity
+- Access Patterns
+- Account Security
+
+Student discovers:
+
+Contractor account reused.
+
+Potential compromise.
+
+Suspicious access behavior.
+
+------------------------------------------------------------
+
+Mission 4
+Investigate Data Access Activity
+
+Theme:
+
+Potential Data Exfiltration
+
+Student investigates:
+
+Archive creation.
+
+Sensitive data access.
+
+External transfer.
+
+Focus:
+
+- Incident Reconstruction
+- Evidence Correlation
+- Data Exposure
+- Escalation
+
+Student discovers:
+
+All previous missions were connected.
+
+Contractor
+→
+Device
+→
+Account
+→
+Data Access
+→
+Transfer
+
+This serves as the Intern Capstone.
+
+============================================================
+BIGGEST DESIGN SHIFT
+============================================================
+
+The platform originally resembled:
+
+Cybersecurity Lessons
++
+Game Elements
+
+The redesign shifts toward:
+
+Detective Investigation Game
++
+Cybersecurity Reality
+
+Students should be motivated by:
+
+Who did this?
+
+Why did they do it?
+
+What am I missing?
+
+Can I prove it?
+
+What happens next?
+
+Not:
+
+How do I finish the mission?
+
+============================================================
+CURRENT GAMEPLAY SYSTEMS
+============================================================
+
+1. Investigation Terminal
+
+Purpose:
+
+Primary evidence discovery interface.
+
+Students use commands.
+
+Examples:
+
+ls
+cat
+grep
+tail
+ip addr
+
+Commands are NOT learning objectives.
+
+Commands are investigation tools.
+
+The investigation remains the objective.
+
+------------------------------------------------------------
+
+2. Analyst Notebook
+
+Current Role:
+
+Professional case file.
+
+Stores:
+
+Facts
+
+Assessments
+
+Unknowns
+
+Recommendations
+
+The notebook should record:
+
+Reasoning
+
+Not simply discoveries.
+
+Question under review:
+
+How can notebook updates become more active and engaging?
+
+------------------------------------------------------------
+
+3. Investigation Board / Network Map
+
+Currently exists.
+
+Currently underutilized.
+
+Current issue:
+
+Mostly displays information.
+
+Future vision:
+
+Interactive visual reasoning engine.
+
+Should become:
+
+Detective Board
+
+Not:
+
+Network Diagram
+
+The board should answer:
+
+How are things connected?
+
+============================================================
+MAJOR DESIGN DISCOVERY
+============================================================
+
+A major weakness identified during testing:
+
+Students discover evidence.
+
+But the discovery often lacks emotional engagement.
+
+Current Flow:
+
+Command
+→
+Output
+→
+Notebook Update
+
+Proposed Flow:
+
+Command
+→
+Visual Discovery
+→
+Interpretation
+→
+Judgment
+→
+Notebook Update
+→
+Learning
+
+============================================================
+PROPOSED ENGAGEMENT REDESIGN
+============================================================
+
+Every major discovery should trigger an interaction.
+
+Example:
+
+Student runs:
+
+cat contractor_assignments.txt
+
+Instead of only showing text:
+
+A visual panel appears.
+
+------------------------------------------------------------
+
+NEW DISCOVERY
+
+Contractor assigned to logistics.
+
+Personal devices prohibited.
+
+Contractor connected personal laptop.
+
+------------------------------------------------------------
+
+ANALYST JUDGMENT
+
+What concerns you most?
+
+○ Contractor ownership
+
+○ Personal device
+
+○ Finance network access
+
+○ Need more information
+
+------------------------------------------------------------
+
+Student must interpret evidence.
+
+Not merely read evidence.
+
+============================================================
+MISSION 2 RE-EVALUATION
+============================================================
+
+Current Problem:
+
+Mission introduces:
+
+ip addr
+
+before students understand:
+
+- devices
+- networks
+- IP addresses
+- subnets
+
+This creates cognitive overload.
+
+------------------------------------------------------------
+
+Current Flow
+
+ip addr
+
+↓
+
+Technical Output
+
+↓
+
+Interpretation
+
+------------------------------------------------------------
+
+Proposed Flow
+
+Visual Network
+
+↓
+
+IP Address Concept
+
+↓
+
+Interactive Discovery
+
+↓
+
+ip addr
+
+↓
+
+Visual Confirmation
+
+↓
+
+Judgment
+
+------------------------------------------------------------
+
+Example:
+
+Student sees:
+
+File Server
+192.168.1.10
+
+Finance Laptop
+192.168.1.20
+
+Your Workstation
+?
+
+Unknown Device
+???
+
+Sarah explains:
+
+Every device has an address.
+
+Student then uses:
+
+ip addr
+
+Map updates:
+
+Your Workstation
+
+?
+↓
+
+192.168.1.34
+
+Learning becomes visual.
+
+============================================================
+FUTURE NETWORK MAP VISION
+============================================================
+
+Every meaningful command updates the map.
+
+Examples:
+
+ip addr
+
+Reveal workstation.
+
+------------------------------------------------------------
+
+cat inventory.txt
+
+Reveal approved devices.
+
+------------------------------------------------------------
+
+cat contractor_assignments.txt
+
+Reveal contractor ownership.
+
+------------------------------------------------------------
+
+cat network_diagram.txt
+
+Reveal network placement.
+
+------------------------------------------------------------
+
+tail network_events.log
+
+Reveal access attempts.
+
+------------------------------------------------------------
+
+The map gradually evolves into:
+
+Contractor
+↓
+Laptop
+↓
+Finance Network
+↓
+Authentication Activity
+↓
+Sensitive Data
+↓
+Transfer
+
+Students visually reconstruct incidents.
+
+============================================================
+SARAH REYES
+============================================================
+
+Role:
+
+SOC Lead
+
+Mentor
+
+Supervisor
+
+Career Evaluator
+
+Purpose:
+
+Guide thinking.
+
+Not provide answers.
+
+Sarah should:
+
+✓ Ask questions
+✓ Challenge assumptions
+✓ Provide context
+✓ Explain consequences
+
+Sarah should NOT:
+
+✗ Reveal answers
+✗ Solve investigations
+✗ Remove uncertainty
+
+============================================================
+RESOURCE SYSTEM
+============================================================
+
+Current Resources:
+
+Security Posture
+
+Executive Trust
+
+Compliance Exposure
+
+Budget
+
+Career Reputation
+
+Business Continuity
+
+Purpose:
+
+Show organizational consequences.
+
+Students should learn:
+
+Security decisions affect business.
+
+============================================================
+CONSEQUENCE ENGINE
+============================================================
+
+Major design principle:
+
+CyberCorp remembers.
+
+Mission outcomes influence future missions.
+
+Examples:
+
+Missed approval review.
+
+↓
+
+Contractor remains trusted.
+
+↓
+
+Account compromise.
+
+↓
+
+Data exfiltration.
+
+Students see delayed consequences.
+
+============================================================
+PROMOTION SYSTEM
+============================================================
+
+Current recommendation:
+
+Mission 4 ends with:
+
+Quarterly Performance Review
+
+Sarah Reyes evaluates:
+
+- Observation
+- Investigation
+- Documentation
+- Escalation
+- Risk Recognition
+- Judgment
+
+Successful students receive:
+
+Promotion
+
+Cybersecurity Intern
+↓
+Junior SOC Analyst
+
+Promotion should be a memorable emotional payoff.
+
+============================================================
+MOST IMPORTANT OPEN DESIGN QUESTIONS
+============================================================
+
+1.
+
+How should discoveries become interactive rather than passive?
+
+------------------------------------------------------------
+
+2.
+
+How should the Investigation Board become a true detective board rather than a network diagram?
+
+------------------------------------------------------------
+
+3.
+
+Should every major command trigger:
+
+Visual Reveal
++
+Judgment Event
++
+Notebook Update
+
+------------------------------------------------------------
+
+4.
+
+What is the best method for creating:
+
+Discover
+→
+Interpret
+→
+Justify
+→
+Learn
+
+loops throughout gameplay?
+
+------------------------------------------------------------
+
+5.
+
+How can the platform maximize:
+
+Curiosity
+
+Ownership
+
+Professional Identity
+
+Narrative Engagement
+
+without becoming a traditional game?
+
+============================================================
+SPECIFIC FEEDBACK REQUEST
+============================================================
+
+Please evaluate:
+
+1. Overall game psychology
+
+2. Detective-game engagement principles
+
+3. Professional simulation realism
+
+4. Educational effectiveness
+
+5. Beginner onboarding
+
+6. Investigation board design
+
+7. Notebook engagement design
+
+8. Discovery-to-judgment gameplay loops
+
+9. Long-term retention mechanisms
+
+10. Missing systems that would significantly improve immersion, engagement, or learning outcomes.

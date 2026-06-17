@@ -1,0 +1,64 @@
+Build a cybersecurity simulation game mission framework focused on a stronger emotional and cognitive loop: curiosity, uncertainty, judgment, consequence, and payoff.
+
+## Goal
+Increase player engagement by making each mission feel like a living investigation where the player is rewarded for reasoning, ambiguity handling, and professional judgment rather than just finding the right answer.
+
+## Core design requirements
+- The game must center on a cybersecurity analyst identity.
+- Each mission must follow a clear arc: setup, anomaly, tension, decision, consequence, resolution.
+- The player should regularly face multiple plausible interpretations of the same evidence.
+- The game should reward reasoning quality, not just final correctness.
+- Sarah Reyes should function as an adaptive mentor who remembers the player’s reasoning style.
+- Mission outcomes should create visible and human-feeling organizational consequences.
+
+## Strategy to implement
+1. Design every mission around a sharp emotional arc.
+2. Make uncertainty the main source of fun.
+3. Reward reasoning quality more than correctness.
+4. Turn Sarah into a real mentoring relationship with memory.
+5. Add micro-payoffs every few minutes to keep momentum high.
+6. Make consequences visible through company reactions and after-action updates.
+7. Support player identity through analyst styles, heuristics, or role variants.
+8. Use bounded tension: pressure should matter without feeling punishing.
+
+## Product requirements
+Create a mission template that supports:
+- A clean starting context
+- One obvious clue
+- Two or three optional anomalies
+- At least one judgment under incomplete information
+- A counter-argument or “what else could this be?” prompt
+- A mission-end consequence update
+- A short Sarah recap that references the player’s reasoning
+
+## UX and feedback requirements
+- Show ambiguity clearly when it exists.
+- Prompt the player to think before answering.
+- Capture the player’s confidence and rationale.
+- Track the quality of evidence used.
+- Give Sarah memory-based feedback later in the mission or in future missions.
+- Deliver small rewards frequently so the player feels steady progress.
+
+## Success criteria
+The experience should make the player feel:
+- curious about what the clue means
+- confident that their reasoning matters
+- recognized by Sarah and the organization
+- motivated to continue the next mission
+- able to learn from uncertainty rather than avoid it
+
+## Output expected
+Generate:
+- a mission design framework
+- a list of the core mechanics needed
+- the flow of a single mission using this strategy
+- UI prompts that support curiosity, uncertainty, and judgment
+- example Sarah feedback lines
+- example mission consequence updates
+
+## Constraints
+- Keep the design professional and cybersecurity-themed.
+- Avoid arcade-style scoring.
+- Avoid overloading the player with too many systems at once.
+- Prioritize engagement through pacing, recognition, and meaningful judgment.
+
