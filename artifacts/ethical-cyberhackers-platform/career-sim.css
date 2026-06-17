@@ -2841,6 +2841,24 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
   box-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
 }
 
+/* ------------------------------------------------------------------ *
+ * COMMAND BRIEFS — "Guided Terminal" (Task #127)
+ * Reuses the .sim-concept-overlay / .sim-concept-card shell; only the
+ * accent + Sarah attribution differ. A GREEN kicker marks a TOOL brief
+ * (vs the cyan "new concept" card). Presentation-only; the overlay's
+ * entrance animation is disabled under prefers-reduced-motion below. */
+.sim-brief-kicker { color: var(--green); }
+.sim-brief-card {
+  border-color: rgba(0, 255, 136, 0.34);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 255, 136, 0.14);
+}
+.sim-brief-why { background: rgba(0, 255, 136, 0.06); border-left-color: var(--green); }
+.sim-brief-why .sim-concept-why-label { color: var(--green); }
+.sim-brief-run { background: var(--green); }
+@media (prefers-reduced-motion: reduce) {
+  .sim-brief-overlay, .sim-brief-card { animation: none; }
+}
+
 /* ==================================================================
  * ANALYST NOTEBOOK — NAVIGATION CHROME + CASE-FILE IMMERSION
  * ------------------------------------------------------------------

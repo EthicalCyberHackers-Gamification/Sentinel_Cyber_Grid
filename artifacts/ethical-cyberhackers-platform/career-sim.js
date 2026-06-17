@@ -744,6 +744,7 @@ function openCareerMission(missionId) {
   SIM.autoOpenedBoardEvents = new Set();  // board auto-open fires once per milestone evidence id
   SIM.conceptsSeen = new Set();           // just-in-time concept cards already shown (transient)
   SIM.conceptOpen = false;                // concept-card overlay visibility (transient)
+  SIM.briefOpen = false;                  // command-brief ("Guided Terminal") overlay visibility (transient)
   SIM.nbEvidenceCount = 0;                // notebook attention: evidence count at last render
   SIM.nbConfidence = null;                // notebook attention: confidence at last render (meter flash)
   SIM._dockActiveId = null;               // Decision Dock: active-decision tracker (transient)
@@ -4209,6 +4210,9 @@ function simRunCommand(raw) {
   // a decision pends, but never run a command (or surface evidence) until the
   // player has answered Sarah in the dock.
   if (decisionLocked()) { nudgeDecisionDock(); return; }
+  // A command brief ("Guided Terminal") is up — ignore stray terminal submits
+  // until it is dismissed (the brief itself runs the stashed command).
+  if (SIM.briefOpen) return;
   const cmd = String(raw || '').trim();
   if (!cmd) return;
   const promptLabel = (SIM.def && SIM.def.promptLabel) || 'intern@cybercorp:~/release$';
@@ -4296,6 +4300,10 @@ function simRunMissionCommand(cmd) {
     simPrint(`command not found: ${verb}. Type  help  to see available commands, or  decide  when ready.`, 'err');
     return;
   }
+  // Guided Terminal: the first time a new tool is used, Sarah briefs it first;
+  // closeCommandBrief() then runs this command. Sits AFTER the Decision Dock's
+  // hard-lock guard in simRunCommand, so a brief never pre-empts a pending call.
+  if (maybeShowCommandBrief(c, cmd)) return;
   runCommandEntry(c);
 }
 
@@ -4596,6 +4604,164 @@ function closeConceptCard() {
   SIM.conceptOpen = false;
   if (simConceptEl) simConceptEl.hidden = true;
   if (wasOpen) {
+    const input = document.getElementById('simTermInput');
+    if (input) { try { input.focus(); } catch (_) { /* focus is best-effort */ } }
+  }
+}
+
+/* ================================================================== *
+ * COMMAND BRIEFS — "Guided Terminal" (presentation-only)
+ * ------------------------------------------------------------------ *
+ * The first time a player reaches for a brand-new tool, Sarah Reyes
+ * steps in with a short brief — what the tool does and why she wants it
+ * now — BEFORE the command runs. Teaching only: it never grades, scores,
+ * blocks progression, or reveals a verdict (setDiscoveryJudgment stays
+ * the sole graded write).
+ *
+ *  - Gated on def.commandBriefs (a mission flag), never a mission id.
+ *  - Keyed by TOOL (the TYPED command's leading verb, looked up in
+ *    CMD_BRIEF_LIBRARY), so a tool is briefed once EVER across missions
+ *    and sessions via setMissionFlag('cmdBrief:'+toolKey). cmdBrief:* is
+ *    outside CANON_FLAGS, so it never feeds carry-flag / dynamic logic.
+ *  - Fades with rank: suppressed once the analyst outranks the early
+ *    grades (a suppressed brief is NOT marked seen, so a junior re-run
+ *    still teaches).
+ *  - Sits BEHIND the Decision Dock: maybeShowCommandBrief runs only
+ *    after the dock's hard-lock guard, so a brief never interrupts a
+ *    pending call.
+ *  - closeCommandBrief() is the SINGLE chokepoint: every dismissal path
+ *    (Run it / ✕ / backdrop / Esc) runs the stashed command, so the
+ *    player's typed command is never silently dropped.
+ * ================================================================== */
+const COMMAND_BRIEF_MAX_LEVEL = 2;   // brief Intern (1) & Junior (2); fade above
+
+// Brief copy, keyed by the tool's leading verb. cat / ls / less are
+// intentionally absent — they are introduced gently in Mission 1, so they
+// are never "new" by the time a command-brief mission runs. Copy explains
+// the TOOL and Sarah's reasoning; it never names the case's verdict.
+const CMD_BRIEF_LIBRARY = {
+  ip: {
+    tool: 'ip addr',
+    what: "Shows your own machine's address on the network — the number that identifies your workstation on the office LAN.",
+    why: "Start by knowing where you stand. Once you know your own subnet, you know the neighbourhood every device shares with you — that's the ground we're about to search.",
+  },
+  nmap: {
+    tool: 'nmap',
+    what: "Scans a whole range of network addresses at once and reports which devices are switched on and answering.",
+    why: "Before we can spot a device that shouldn't be here, we need the full list of what IS here. nmap draws that map in a single sweep.",
+  },
+  ping: {
+    tool: 'ping',
+    what: "Sends a quick 'are you there?' to a single address and times the reply — a fast way to confirm a host is real and reachable.",
+    why: "A name in a scan isn't proof. Ping the host yourself — if it answers, you know there's a live machine on the other end, not a stale record.",
+  },
+  grep: {
+    tool: 'grep',
+    what: "Filters a file down to just the lines that match a word — instead of reading the whole thing, you see only what you searched for.",
+    why: "These logs are long. grep is how an analyst cuts to the signal — pull just the failed logins, just the one account, and the pattern jumps out.",
+  },
+  tail: {
+    tool: 'tail',
+    what: "Shows the LAST lines of a file — the most recent entries — instead of printing the whole thing from the top.",
+    why: "When something just happened, the newest events sit at the end. tail puts the latest activity in front of you without scrolling through history.",
+  },
+};
+
+function commandBriefsEnabled() { return !!(SIM.def && SIM.def.commandBriefs); }
+function commandBriefSeen(toolKey) {
+  return !!(toolKey && CAREER.missionFlags && CAREER.missionFlags['cmdBrief:' + toolKey]);
+}
+function markCommandBriefSeen(toolKey) { if (toolKey) setMissionFlag('cmdBrief:' + toolKey, true); }
+function commandBriefFadedByRank() {
+  try { return activeRole().authorityLevel > COMMAND_BRIEF_MAX_LEVEL; } catch (_) { return false; }
+}
+// The tool the player is using = the leading verb of what they actually TYPED
+// (e.g. 'ip addr' -> 'ip', 'nmap 192.168.1.0/24' -> 'nmap', 'grep failed' -> 'grep').
+// Keying on the typed verb (not the command's canonical match[0]) means a brief
+// always matches the tool the player reached for: typing `cat events.log` on a
+// command whose primary alias is `tail events.log` shows NO brief (cat is old
+// news from Mission 1), while typing `tail events.log` shows the tail brief.
+function briefToolKey(typedCmd) {
+  return normalizeCmd(typedCmd || '').split(' ')[0] || '';
+}
+
+/* Show the command brief for this command if its tool is new and unseen.
+ * `typedCmd` is the raw command the player entered; its leading verb keys the
+ * brief. Returns true when a brief was shown (so the caller defers the cmd). */
+function maybeShowCommandBrief(c, typedCmd) {
+  try {
+    if (!commandBriefsEnabled()) return false;
+    if (SIM.briefOpen || SIM.conceptOpen || SIM.mapOpen) return false;  // never stack overlays
+    const toolKey = briefToolKey(typedCmd);
+    const b = toolKey && CMD_BRIEF_LIBRARY[toolKey];
+    if (!b) return false;                          // cat / ls / unknown verbs: no brief
+    if (commandBriefFadedByRank()) return false;   // senior analysts skip the basics
+    if (commandBriefSeen(toolKey)) return false;   // once ever per tool, across sessions
+    openCommandBrief(toolKey, b, c);
+    return true;
+  } catch (_) { return false; }
+}
+
+let simBriefEl = null;
+let simBriefPendingCmd = null;   // the command stashed to run when the brief closes
+function simBriefEnsure() {
+  if (simBriefEl) return simBriefEl;
+  const ov = document.createElement('div');
+  ov.className = 'sim-concept-overlay sim-brief-overlay';
+  ov.id = 'simBriefOverlay';
+  ov.hidden = true;
+  ov.innerHTML = `
+    <div class="sim-concept-card sim-brief-card" role="dialog" aria-modal="true" aria-labelledby="simBriefTool">
+      <div class="sim-concept-head">
+        <span class="sim-concept-kicker sim-brief-kicker">\u25C8 NEW TOOL \u00B7 SARAH REYES</span>
+        <button type="button" class="sim-concept-close" data-brief-run aria-label="Close and run command">\u2715</button>
+      </div>
+      <h3 class="sim-concept-term sim-brief-tool" id="simBriefTool"></h3>
+      <p class="sim-concept-def" id="simBriefWhat"></p>
+      <div class="sim-concept-why sim-brief-why" id="simBriefWhyWrap">
+        <span class="sim-concept-why-label">Why Sarah wants it now</span>
+        <span class="sim-concept-why-text" id="simBriefWhy"></span>
+      </div>
+      <div class="sim-concept-foot">
+        <button type="button" class="sim-concept-gotit sim-brief-run" data-brief-run>Run it \u2192</button>
+      </div>
+    </div>`;
+  ov.addEventListener('click', e => {
+    if (e.target === ov || (e.target.closest && e.target.closest('[data-brief-run]'))) closeCommandBrief();
+  });
+  document.body.appendChild(ov);
+  simBriefEl = ov;
+  return ov;
+}
+
+function openCommandBrief(toolKey, b, c) {
+  const ov = simBriefEnsure();
+  ov.querySelector('#simBriefTool').textContent = b.tool || toolKey;
+  ov.querySelector('#simBriefWhat').textContent = b.what || '';
+  const whyWrap = ov.querySelector('#simBriefWhyWrap');
+  if (b.why) { ov.querySelector('#simBriefWhy').textContent = b.why; whyWrap.hidden = false; }
+  else whyWrap.hidden = true;
+  // Retire the brief the moment it is shown (once ever per tool) — every
+  // dismissal path runs the command, so "shown" is the right commit point.
+  markCommandBriefSeen(toolKey);
+  simBriefPendingCmd = c;
+  ov.hidden = false;
+  SIM.briefOpen = true;
+  const run = ov.querySelector('.sim-brief-run');
+  if (run) { try { run.focus(); } catch (_) { /* focus is best-effort */ } }
+}
+
+/* SINGLE chokepoint for every dismissal: run the stashed command so the
+ * typed command is never dropped, then return focus to the terminal unless
+ * a follow-on overlay (concept card / network map) has taken over. */
+function closeCommandBrief() {
+  if (!SIM.briefOpen) return;
+  SIM.briefOpen = false;
+  if (simBriefEl) simBriefEl.hidden = true;
+  const pending = simBriefPendingCmd;
+  simBriefPendingCmd = null;
+  if (pending) runCommandEntry(pending);
+  if (!SIM.conceptOpen && !SIM.mapOpen) {
     const input = document.getElementById('simTermInput');
     if (input) { try { input.focus(); } catch (_) { /* focus is best-effort */ } }
   }
@@ -6311,6 +6477,7 @@ const CAREER_MISSIONS = {
         'small problems get big. Recommend, don'+"'"+'t reconfigure. — Sarah Reyes, SOC Lead"',
     },
 
+    commandBriefs: true,  // Guided Terminal: brief each NEW tool (ip/nmap/ping/grep/tail) once
     commands: [
       {
         id: 'ip_addr',
@@ -7078,6 +7245,7 @@ const CAREER_MISSIONS = {
         'org-wide yourself. — Sarah Reyes, SOC Lead"',
     },
 
+    commandBriefs: true,  // Guided Terminal: brief grep/tail here if not already seen in M2
     commands: [
       {
         id: 'cat_authlog',
@@ -9197,6 +9365,7 @@ function simInit() {
     if (careerScreenOpen()) {
       // The network-map overlay takes Escape first, so it closes without
       // also exiting the mission underneath it.
+      if (SIM.briefOpen) { closeCommandBrief(); return; }
       if (SIM.conceptOpen) { closeConceptCard(); return; }
       if (SIM.mapOpen) { closeSimMap(); return; }
       // Notebook focus overlay exits next, before leaving the mission itself.
