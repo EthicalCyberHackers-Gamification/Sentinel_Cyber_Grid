@@ -1603,6 +1603,153 @@
 }
 .sim-map-intel-v { display: block; font-size: 11.5px; color: var(--text); line-height: 1.5; }
 
+/* ------------------------------------------------------------------ *
+ * Interactive determination (Task #134) — flag / classify on the map.
+ * The player's own pick reads GREEN (a deliberate, distinct accent from the
+ * red/orange/yellow threat-status colors) so a recorded call never reads as a
+ * spoiler about which node is actually guilty.
+ * ------------------------------------------------------------------ */
+.sim-map-node.is-flaggable { cursor: pointer; }
+.sim-map-node.is-flaggable .sim-map-node-dot {
+  border-style: dashed;
+  border-color: var(--green-dim);
+}
+.sim-map-node.is-flaggable:hover .sim-map-node-dot,
+.sim-map-node.is-flaggable:focus-visible .sim-map-node-dot {
+  border-color: var(--green);
+  box-shadow: 0 0 16px rgba(0, 255, 136, 0.45);
+}
+.sim-map-node.is-flaggable:focus-visible .sim-map-node-label { color: var(--green); }
+.sim-map-node.is-flagged .sim-map-node-dot {
+  border-style: solid;
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.35), 0 0 16px rgba(0, 255, 136, 0.45);
+}
+.sim-map-node-pick {
+  margin-top: 1px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--green);
+  border: 1px solid var(--green);
+  background: rgba(0, 255, 136, 0.08);
+  white-space: nowrap;
+}
+.sim-map-node-pick.is-empty {
+  color: var(--text-muted);
+  border-color: var(--green-dim);
+  border-style: dashed;
+  background: transparent;
+}
+.sim-map-info-btn {
+  position: absolute;
+  top: -6px;
+  right: 20px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-style: italic;
+  line-height: 1;
+  color: var(--cyan);
+  background: var(--bg-panel);
+  border: 1px solid var(--cyan-dim);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-map-info-btn:hover,
+.sim-map-info-btn:focus-visible {
+  color: var(--bg-panel);
+  background: var(--cyan);
+  border-color: var(--cyan);
+  outline: none;
+}
+/* Floating classification picker (file-model mission), anchored to a file node */
+.sim-map-classify {
+  position: fixed;
+  z-index: 1300;
+  min-width: 170px;
+  max-width: calc(100vw - 20px);
+  padding: 9px 9px 7px;
+  background: var(--bg-panel);
+  border: 1px solid var(--green-dim);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55), 0 0 18px rgba(0, 255, 136, 0.16);
+  font-family: var(--font-body);
+  animation: simMapIntelIn 140ms ease;
+}
+.sim-map-classify[hidden] { display: none; }
+.sim-map-classify-head {
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 7px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  word-break: break-all;
+}
+.sim-map-classify-opts { display: flex; flex-direction: column; gap: 4px; }
+.sim-map-classify-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-map-classify-opt:hover,
+.sim-map-classify-opt:focus-visible {
+  color: var(--green);
+  border-color: var(--green);
+  background: rgba(0, 255, 136, 0.08);
+  outline: none;
+}
+.sim-map-classify-opt.is-on {
+  color: var(--green);
+  border-color: var(--green);
+  background: rgba(0, 255, 136, 0.12);
+}
+.sim-map-classify-opt.is-on::before { content: '✓ '; }
+/* Foot "YOUR CALL" prompt — turns the map into a clear decision surface */
+.sim-map-call {
+  margin: 0 0 8px;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.sim-map-call[hidden] { display: none; }
+.sim-map-call-label {
+  display: inline-block;
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--green);
+  border: 1px solid var(--green-dim);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  margin-right: 6px;
+}
+.sim-map-call.is-locked .sim-map-call-label { color: var(--text-muted); border-color: var(--border); }
+.sim-map-call-hint { color: var(--text-dim); }
+.sim-map-call strong { color: var(--green); }
+
 /* ================================================================== *
  * CAMPAIGN CONTINUITY — "the company remembers" (M1–M4 arc)
  * ------------------------------------------------------------------ *

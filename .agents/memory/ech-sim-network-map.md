@@ -1,19 +1,37 @@
 ---
 name: Sim reactive Network Map (career-sim popup)
-description: Review-only device-map overlay for ops-center-prototype career missions — its presentation-only invariant, the evidence-driven reveal model, and the body-not-careerOps overlay gotcha.
+description: The career-sim device-map overlay — now an INTERACTIVE decision surface (clicks reuse the existing graded path, no new scoring/persistence), its no-spoiler invariant, evidence-driven reveal model, and the body-not-careerOps overlay gotcha.
 ---
 
-# Sim reactive Network Map (ops-center-prototype)
+# Sim reactive Network Map (career-sim.js shipping; prototype = ops-center sim.js)
 
-On-demand "◈ NETWORK MAP" popup for career-sim missions (`sim.js`/`sim.css`/
-`index.html` in `artifacts/ops-center-prototype`). Same presentation-only family
-as the lab/holotable/console interiors: it READS `SIM.evidence` and writes DOM —
-nothing else.
+On-demand "◈ NETWORK MAP" popup for career-sim missions. Shipping copy lives in
+`artifacts/ethical-cyberhackers-platform/career-sim.{js,css}`; the prototype it
+graduated from is `sim.{js,css}` in `artifacts/ops-center-prototype`.
+
+## INTERACTIVE (shipping career-sim.js) — clicks reuse the existing graded path
+The map is **no longer review-only**. Clicking a revealed node records the SAME
+graded judgment the notebook feeds — there is **no new scoring math and no new
+persisted field**:
+- Link a node to a determination via DATA only: `identifyAs:'<option id>'`
+  (identify-model missions) or `classifyFile:'<file name>'` (M1 file-model). The
+  id/name must already exist in `def.identify.options` / `def.files`.
+- A flaggable click routes through the ONE graded setter — `setIdentification()`
+  / `setClassification()` (file-model opens a floating `#simMapClassify` picker
+  that then calls `setClassification`). Those setters now re-render the map when
+  `SIM.mapOpen`, so notebook⇄map stay in two-way sync.
+- **Locked** read-only at `SIM.stage==='report'` (`mapFlagLocked()`). Identify
+  flagging is gated on `SIM.evidence.size>0` (`mapDetReady`) to mirror the
+  notebook's identify section; classify nodes are `revealBy`-gated already.
+- **No-spoiler still HARD:** only the player's OWN pick is highlighted (green,
+  distinct from red/orange/yellow threat status). Correct ids live in data/config
+  and are NEVER rendered. (Prototype `sim.js` map may still be presentation-only.)
 
 ## Invariants (don't break these)
-- **Presentation-only.** Persists nothing, never writes `ech.progress.v1`, touches
-  no score/resource/outcome. The only new SIM field is the transient `mapOpen`
-  flag, reset on every `openCareerMission`.
+- **Reuse, don't reinvent.** The map writes ONLY `SIM.identified`/`SIM.classified`
+  via the existing setters (plus the transient `mapOpen` flag). Never add a
+  parallel scoring path or a new persisted field — persistence flows through the
+  existing save chain those setters already feed.
 - **Per-mission gate.** Everything keys on `missionHasMap()` (`def.map.nodes`
   exists). Missions without a `map` block take a pure no-op branch — the
   `surfaceEvidence` hook is wrapped in `missionHasMap()`, and `updateMapButton`

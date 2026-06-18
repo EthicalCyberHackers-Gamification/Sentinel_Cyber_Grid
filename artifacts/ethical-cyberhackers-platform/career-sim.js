@@ -4831,6 +4831,7 @@ function setIdentification(id) {
   if (!(idf.options || []).some(o => o.id === id)) return;
   SIM.identified = id;
   renderEvidencePanel();
+  if (SIM.mapOpen) renderSimMap();   // keep the interactive map flag in sync
 }
 
 function identificationQuality() {
@@ -5465,6 +5466,7 @@ function setClassification(fileName, value) {
   if (!CLASSIFICATIONS.some(c => c.id === value)) return;
   SIM.classified[fileName] = value;
   renderEvidencePanel();
+  if (SIM.mapOpen) renderSimMap();   // keep the interactive map flag in sync
 }
 
 /* ------------------------------------------------------------------ *
@@ -6154,7 +6156,7 @@ const CAREER_MISSIONS = {
         },
         f_datasheet: {
           x: 24, y: 88, glyph: '📄', label: 'product_datasheet', sub: 'public · safe',
-          revealBy: 'ev_public_safe', statusBy: { ev_public_safe: 'identified' },
+          revealBy: 'ev_public_safe', statusBy: { ev_public_safe: 'identified' }, classifyFile: 'product_datasheet.txt',
           intel: {
             what: 'A marketing datasheet already cleared for public distribution.',
             technique: 'grep public (or cat product_datasheet.txt) — marked cleared for public distribution by Marketing.',
@@ -6162,7 +6164,7 @@ const CAREER_MISSIONS = {
         },
         f_pricing: {
           x: 41, y: 91, glyph: '📄', label: 'partner_pricing', sub: 'confidential',
-          revealBy: 'ev_confidential_pricing', statusBy: { ev_confidential_pricing: 'suspicious' },
+          revealBy: 'ev_confidential_pricing', statusBy: { ev_confidential_pricing: 'suspicious' }, classifyFile: 'partner_pricing_2026.csv',
           intel: {
             what: 'Negotiated per-partner pricing and renewal dates — internal commercial terms.',
             technique: 'grep negotiated (or cat partner_pricing_2026.csv) — rates marked not for external eyes.',
@@ -6170,7 +6172,7 @@ const CAREER_MISSIONS = {
         },
         f_roadmap: {
           x: 58, y: 92, glyph: '📄', label: 'acquisition_roadmap', sub: 'confidential',
-          revealBy: 'ev_confidential_roadmap', statusBy: { ev_confidential_roadmap: 'suspicious' },
+          revealBy: 'ev_confidential_roadmap', statusBy: { ev_confidential_roadmap: 'suspicious' }, classifyFile: 'acquisition_roadmap.txt',
           intel: {
             what: 'A draft, unannounced acquisition roadmap — material non-public information.',
             technique: 'grep confidential (or cat acquisition_roadmap.txt) — marked material non-public information.',
@@ -6178,7 +6180,7 @@ const CAREER_MISSIONS = {
         },
         f_salary: {
           x: 75, y: 90, glyph: '📄', label: 'employee_salaries', sub: 'restricted · PII',
-          revealBy: 'ev_pii_salary', statusBy: { ev_pii_salary: 'suspicious' },
+          revealBy: 'ev_pii_salary', statusBy: { ev_pii_salary: 'suspicious' }, classifyFile: 'employee_salaries.csv',
           intel: {
             what: 'Employee names, titles and salaries — HR-restricted personal data (PII).',
             technique: 'grep restricted (or cat employee_salaries.csv) — marked HR-Restricted, PII and compensation.',
@@ -6186,7 +6188,7 @@ const CAREER_MISSIONS = {
         },
         f_payments: {
           x: 90, y: 82, glyph: '📄', label: 'customer_payments', sub: 'restricted · PCI',
-          revealBy: 'ev_customer_pii', statusBy: { ev_customer_pii: 'suspicious' },
+          revealBy: 'ev_customer_pii', statusBy: { ev_customer_pii: 'suspicious' }, classifyFile: 'customer_payment_records.csv',
           intel: {
             what: 'Customer card last-4, amounts and processor references — regulated payment data (PCI).',
             technique: 'grep pci (or cat customer_payment_records.csv) — marked regulated cardholder data (PCI scope).',
@@ -7042,6 +7044,7 @@ const CAREER_MISSIONS = {
         },
         you: {
           x: 16, y: 46, glyph: '💻', label: '192.168.1.34', sub: 'your workstation', seed: true, status: 'self',
+          identifyAs: 'dev_34',
           intel: {
             what: 'Your own SOC analyst workstation — an approved, inventoried device.',
             technique: 'ip addr shows your address and confirms which subnet you are investigating from.',
@@ -7049,7 +7052,7 @@ const CAREER_MISSIONS = {
         },
         fileserver: {
           x: 36, y: 84, glyph: '🗄️', label: '192.168.1.10', sub: 'file server',
-          revealBy: 'ev_unknown_host', statusBy: { ev_probe: 'target' },
+          revealBy: 'ev_unknown_host', statusBy: { ev_probe: 'target' }, identifyAs: 'dev_10',
           intel: {
             what: 'The APAC file server — an approved, inventoried device holding shared files.',
             technique: 'A subnet scan (nmap 192.168.1.0/24) lists it; the asset inventory confirms it is approved.',
@@ -7057,7 +7060,7 @@ const CAREER_MISSIONS = {
         },
         finance: {
           x: 64, y: 84, glyph: '💰', label: '192.168.1.20', sub: 'finance laptop',
-          revealBy: 'ev_unknown_host', statusBy: { ev_probe: 'target' },
+          revealBy: 'ev_unknown_host', statusBy: { ev_probe: 'target' }, identifyAs: 'dev_20',
           intel: {
             what: 'The finance laptop — an approved device that handles sensitive financial data.',
             technique: 'Discovered by the subnet scan and confirmed against the approved asset inventory.',
@@ -7065,7 +7068,7 @@ const CAREER_MISSIONS = {
         },
         unknown: {
           x: 86, y: 48, glyph: '❓', label: '192.168.1.57', sub: 'unidentified host',
-          revealBy: 'ev_unknown_host', status: 'unknown', statusBy: { ev_not_in_inventory: 'suspicious' },
+          revealBy: 'ev_unknown_host', status: 'unknown', statusBy: { ev_not_in_inventory: 'suspicious' }, identifyAs: 'dev_57',
           // Cross-case "red string": the same contractor (J. Demir) recurs across
           // your cases. Presentation-only — the timeline is authored, not scored.
           redString: {
@@ -7872,7 +7875,7 @@ const CAREER_MISSIONS = {
         },
         account: {
           x: 50, y: 40, glyph: '👤', label: 'a.okafor', sub: 'Finance Controller',
-          revealBy: 'ev_overview', statusBy: { ev_overview: 'target' },
+          revealBy: 'ev_overview', statusBy: { ev_overview: 'target' }, identifyAs: 'acct_okafor',
           intel: {
             what: 'The Finance Controller account named in the brief — the one the authentication alert fired on.',
             technique: 'Read the authentication log (cat auth.log) to see this account\u2019s failed-then-successful pattern.',
@@ -7920,7 +7923,7 @@ const CAREER_MISSIONS = {
         },
         contractor: {
           x: 86, y: 60, glyph: '👷', label: 'ext-contractor-07', sub: 'J. Demir (disabled)',
-          revealBy: 'ev_contractor_tie', statusBy: { ev_contractor_tie: 'suspicious' },
+          revealBy: 'ev_contractor_tie', statusBy: { ev_contractor_tie: 'suspicious' }, identifyAs: 'acct_demir',
           intel: {
             what: 'The recurring vendor (J. Demir / ext-contractor-07) whose own account was already disabled.',
             technique: 'cat contractor_activity.log — the attacking address maps to this contractor\u2019s prior sessions.',
@@ -8731,7 +8734,7 @@ const CAREER_MISSIONS = {
         },
         exfil: {
           x: 86, y: 80, glyph: '🌐', label: '198.51.100.23', sub: 'external host (LATAM)',
-          revealBy: 'ev_external_dest', status: 'suspicious', statusBy: { ev_external_dest: 'suspicious', ev_transfer: 'suspicious' },
+          revealBy: 'ev_external_dest', status: 'suspicious', statusBy: { ev_external_dest: 'suspicious', ev_transfer: 'suspicious' }, identifyAs: 'rc_external',
           intel: {
             what: 'The external, attacker-controlled host the archive was uploaded to — outside CyberCorp entirely.',
             technique: 'cat transfer.log; grep external network_activity.log — the upload destination address.',
@@ -8739,7 +8742,7 @@ const CAREER_MISSIONS = {
         },
         contractor: {
           x: 30, y: 72, glyph: '👷', label: 'ext-contractor-07', sub: 'J. Demir',
-          revealBy: 'ev_contractor_src', statusBy: { ev_contractor_src: 'suspicious' },
+          revealBy: 'ev_contractor_src', statusBy: { ev_contractor_src: 'suspicious' }, identifyAs: 'rc_contractor',
           intel: {
             what: 'The recurring vendor (J. Demir / ext-contractor-07) whose identity the exfil session traces back to.',
             technique: 'grep contractor01 login_history.log — the session maps to this contractor from your prior cases.',
@@ -9794,6 +9797,192 @@ function simMapIntelBind(el, intel, title, kind) {
   });
 }
 
+/* Hover/focus-only intel binding — for nodes whose CLICK is reserved for the
+ * interactive determination (flagging / classifying). Desktop users still get
+ * intel on hover/keyboard-focus; touch users use the explicit info button. */
+function simMapIntelHoverBind(el, intel, title, kind) {
+  if (!intel || !el) return;
+  el.addEventListener('mouseenter', () => simMapIntelShow(intel, title, kind, el));
+  el.addEventListener('mouseleave', simMapIntelScheduleHide);
+  el.addEventListener('focus', () => simMapIntelShow(intel, title, kind, el));
+  el.addEventListener('blur', simMapIntelHide);
+}
+
+/* Explicit "i" affordance appended to a flaggable node so intel stays reachable
+ * by touch/click without stealing the node's flag click. */
+function simMapAddInfoBtn(div, intel, title, kind) {
+  if (!intel) return;
+  const info = document.createElement('button');
+  info.type = 'button';
+  info.className = 'sim-map-info-btn';
+  info.textContent = 'i';
+  info.setAttribute('aria-label', `${title} — analyst intel`);
+  const toggle = e => {
+    e.preventDefault(); e.stopPropagation();
+    if (simMapIntelEl && !simMapIntelEl.hidden) simMapIntelHide();
+    else simMapIntelShow(intel, title, kind, info);
+  };
+  info.addEventListener('click', toggle);
+  info.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') toggle(e); });
+  div.appendChild(info);
+}
+
+/* ------------------------------------------------------------------ *
+ * Interactive determination on the map (Task #134).
+ * Clicking a revealed node records the SAME graded judgment the notebook
+ * already feeds — identify-model missions set SIM.identified; the file-model
+ * mission sets SIM.classified[file]. No new scoring math, no new persisted
+ * fields, and the map never names the culprit early (only the player's own
+ * choice is highlighted). Locked once the mission is finalized (report stage).
+ * ------------------------------------------------------------------ */
+function mapFlagLocked() { return SIM.stage === 'report'; }
+
+/* Structural link from a map node to the existing graded determination. Returns
+ * null for infrastructure / decoy-less nodes (they stay intel-only). */
+function mapNodeDetermination(n) {
+  if (!n) return null;
+  if (n.identifyAs && SIM.def && SIM.def.identify
+      && (SIM.def.identify.options || []).some(o => o.id === n.identifyAs)) {
+    return { kind: 'identify', optionId: n.identifyAs };
+  }
+  if (n.classifyFile && typeof simFileByName === 'function' && simFileByName(n.classifyFile)) {
+    return { kind: 'classify', fileName: n.classifyFile };
+  }
+  return null;
+}
+
+/* Is the determination actionable yet? Identify mirrors the notebook (needs
+ * something to reason about); classify nodes are revealBy-gated already. */
+function mapDetReady(det) {
+  if (!det) return false;
+  if (det.kind === 'identify') return SIM.evidence.size > 0;
+  return true;
+}
+
+function mapDetSelected(det) {
+  if (!det) return false;
+  if (det.kind === 'identify') return SIM.identified === det.optionId;
+  if (det.kind === 'classify') return !!SIM.classified[det.fileName];
+  return false;
+}
+
+function mapPickBadgeHtml(det, picked, flaggable) {
+  if (!det) return '';
+  if (det.kind === 'identify') {
+    if (picked) return `<span class="sim-map-node-pick">✓ YOUR CALL</span>`;
+    return flaggable ? `<span class="sim-map-node-pick is-empty">Flag this</span>` : '';
+  }
+  const v = SIM.classified[det.fileName];
+  if (v) return `<span class="sim-map-node-pick">${mapEsc(classLabel(v))}</span>`;
+  return flaggable ? `<span class="sim-map-node-pick is-empty">Classify ▾</span>` : '';
+}
+
+function mapFlagAria(n, det, picked) {
+  const base = `${n.label}${n.sub ? ', ' + n.sub : ''}`;
+  if (det.kind === 'identify') {
+    return picked ? `${base} — recorded as your determination`
+                  : `${base} — flag as your determination`;
+  }
+  const v = SIM.classified[det.fileName];
+  return v ? `${base} — classified ${classLabel(v)}; activate to change`
+           : `${base} — activate to classify`;
+}
+
+function simMapFlag(n, det, anchorEl) {
+  if (mapFlagLocked() || !det) return;
+  if (det.kind === 'identify') setIdentification(det.optionId);   // re-renders map via SIM.mapOpen guard
+  else if (det.kind === 'classify') simMapClassifyOpen(det.fileName, anchorEl);
+}
+
+/* Floating classification picker for the file-model mission — a small menu of
+ * the existing CLASSIFICATIONS anchored to the clicked file node. Routes through
+ * setClassification (the one graded path); presentation only otherwise. */
+let simMapClassifyEl = null, simMapClassifyFile = null;
+function simMapClassifyEnsure() {
+  if (simMapClassifyEl) return simMapClassifyEl;
+  const el = document.createElement('div');
+  el.className = 'sim-map-classify';
+  el.setAttribute('role', 'menu');
+  el.hidden = true;
+  el.addEventListener('click', e => {
+    const opt = e.target.closest('[data-mapclass]');
+    if (!opt) return;
+    e.preventDefault(); e.stopPropagation();
+    const f = simMapClassifyFile;
+    simMapClassifyHide();
+    if (f) setClassification(f, opt.dataset.mapclass);   // re-renders map + notebook
+  });
+  el.addEventListener('keydown', e => { if (e.key === 'Escape') simMapClassifyHide(); });
+  document.body.appendChild(el);
+  simMapClassifyEl = el;
+  return el;
+}
+function simMapClassifyOpen(fileName, anchorEl) {
+  if (mapFlagLocked()) return;
+  const el = simMapClassifyEnsure();
+  simMapClassifyFile = fileName;
+  const chosen = SIM.classified[fileName];
+  const opts = CLASSIFICATIONS.map(c =>
+    `<button type="button" class="sim-map-classify-opt${chosen === c.id ? ' is-on' : ''}" data-mapclass="${c.id}" role="menuitemradio" aria-checked="${chosen === c.id}">${mapEsc(c.label)}</button>`
+  ).join('');
+  el.innerHTML = `<div class="sim-map-classify-head">Classify ${mapEsc(fileName)}</div><div class="sim-map-classify-opts">${opts}</div>`;
+  el.hidden = false;
+  simMapClassifyPosition(anchorEl);
+  const first = el.querySelector('.is-on') || el.querySelector('.sim-map-classify-opt');
+  if (first) { try { first.focus(); } catch (_) { /* focus is best-effort */ } }
+}
+function simMapClassifyPosition(anchorEl) {
+  const el = simMapClassifyEl;
+  if (!el || !anchorEl) return;
+  const a = anchorEl.getBoundingClientRect();
+  const cw = el.offsetWidth, ch = el.offsetHeight, m = 10;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let top = a.bottom + m; if (top + ch > vh - m) top = a.top - ch - m;
+  let left = a.left + a.width / 2 - cw / 2;
+  left = Math.max(m, Math.min(left, vw - cw - m));
+  top = Math.max(m, Math.min(top, vh - ch - m));
+  el.style.left = left + 'px';
+  el.style.top = top + 'px';
+}
+function simMapClassifyHide() {
+  if (simMapClassifyEl) simMapClassifyEl.hidden = true;
+  simMapClassifyFile = null;
+}
+
+/* Foot "YOUR CALL" line — turns the map into a clear decision surface and
+ * mirrors the notebook prompt. Empty when the mission has no flaggable node. */
+function mapCallHtml() {
+  const map = SIM.def && SIM.def.map;
+  if (!map) return '';
+  const locked = mapFlagLocked();
+  const nodeList = Object.keys(map.nodes || {}).map(id => map.nodes[id]);
+  if (SIM.def.identify) {
+    const flagNodes = nodeList.filter(n => n.identifyAs && mapNodeVisible(n));
+    if (!flagNodes.length) return '';
+    const opt = (SIM.def.identify.options || []).find(o => o.id === SIM.identified);
+    const prompt = SIM.def.identify.prompt || 'Flag the node that does not belong.';
+    if (locked) {
+      return `<span class="sim-map-call-label">YOUR CALL</span> ${opt ? 'You named <strong>' + mapEsc(opt.label) + '</strong>.' : 'No determination was recorded.'}`;
+    }
+    if (!mapDetReady({ kind: 'identify' })) {
+      return `<span class="sim-map-call-label">YOUR CALL</span> Surface evidence in the terminal, then flag the node that fits your read.`;
+    }
+    if (opt) {
+      return `<span class="sim-map-call-label">YOUR CALL</span> ${mapEsc(prompt)} — recorded: <strong>${mapEsc(opt.label)}</strong>. Select another node to change it.`;
+    }
+    return `<span class="sim-map-call-label">YOUR CALL</span> ${mapEsc(prompt)} <span class="sim-map-call-hint">Select the node on the map to record your determination.</span>`;
+  }
+  if (simFiles().length) {
+    const fileNodes = nodeList.filter(n => n.classifyFile && mapNodeVisible(n));
+    if (!fileNodes.length) return '';
+    const total = fileNodes.length;
+    const done = fileNodes.filter(n => SIM.classified[n.classifyFile]).length;
+    if (locked) return `<span class="sim-map-call-label">YOUR CALL</span> Classification locked — ${done}/${total} mapped files were classified.`;
+    return `<span class="sim-map-call-label">YOUR CALL</span> Classify each file in the release — ${done}/${total} set. <span class="sim-map-call-hint">Select a file node to set its sensitivity.</span>`;
+  }
+  return '';
+}
+
 /* --- Overlay shell (built once, on first open) --- */
 let simMapEl = null;
 function simMapEnsure() {
@@ -9814,6 +10003,7 @@ function simMapEnsure() {
         <div class="sim-map-nodes" id="simMapNodes"></div>
       </div>
       <div class="sim-map-foot">
+        <p class="sim-map-call" id="simMapCall" hidden></p>
         <div class="sim-map-legend">
           <span class="sim-map-leg"><i class="sim-map-swatch is-self"></i>You</span>
           <span class="sim-map-leg"><i class="sim-map-swatch is-known"></i>Known / approved</span>
@@ -9846,6 +10036,7 @@ function closeSimMap() {
   const wasOpen = SIM.mapOpen;
   SIM.mapOpen = false;
   simMapIntelHide();
+  simMapClassifyHide();
   if (simMapEl) simMapEl.hidden = true;
   if (wasOpen) {
     const btn = document.getElementById('simMapBtn');
@@ -9862,6 +10053,7 @@ function renderSimMap() {
   const cap = simMapEl.querySelector('#simMapCap');
   const hint = simMapEl.querySelector('#simMapHint');
   if (!svg || !host) return;
+  simMapClassifyHide();   // node DOM is rebuilt below — drop any stale picker anchor
   if (cap) cap.textContent = map.cap || '';
   svg.innerHTML = '';
   host.innerHTML = '';
@@ -9896,22 +10088,44 @@ function renderSimMap() {
     const status = mapNodeStatus(n);
     const div = document.createElement('div');
     const rsClosed = n.redString && n.redString.closedBy && sideTrailResolved(n.redString.closedBy);
+    const det = mapNodeDetermination(n);
+    const locked = mapFlagLocked();
+    const flaggable = !!det && !locked && mapDetReady(det);
+    const picked = mapDetSelected(det);
     div.className = 'sim-map-node' + (status ? ' is-' + status : '')
-      + (n.redString ? (rsClosed ? ' sim-map-node--redstring is-closed' : ' sim-map-node--redstring') : '');
+      + (n.redString ? (rsClosed ? ' sim-map-node--redstring is-closed' : ' sim-map-node--redstring') : '')
+      + (flaggable ? ' is-flaggable' : '')
+      + (picked ? ' is-flagged' : '');
     div.style.left = n.x + '%';
     div.style.top = n.y + '%';
     const tag = status && MAP_STATUS_TAG[status]
       ? `<span class="sim-map-node-tag">${mapEsc(MAP_STATUS_TAG[status])}</span>` : '';
+    const pick = det ? mapPickBadgeHtml(det, picked, flaggable) : '';
+    const subKind = n.sub ? n.sub.toUpperCase() : '';
     div.innerHTML = `
       <span class="sim-map-node-dot" aria-hidden="true">${mapEsc(n.glyph || '•')}</span>
       <span class="sim-map-node-label">${mapEsc(n.label || '')}</span>
       <span class="sim-map-node-sub">${mapEsc(n.sub || '')}</span>
-      ${tag}`;
-    if (n.intel) {
+      ${tag}${pick}`;
+    if (flaggable) {
+      // Interactive determination: clicking records the EXISTING graded judgment
+      // (setIdentification / setClassification) — no new scoring path.
+      div.tabIndex = 0;
+      div.setAttribute('role', 'button');
+      div.setAttribute('aria-pressed', picked ? 'true' : 'false');
+      div.setAttribute('aria-label', mapFlagAria(n, det, picked));
+      const doFlag = e => { e.preventDefault(); e.stopPropagation(); simMapFlag(n, det, div); };
+      div.addEventListener('click', doFlag);
+      div.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') doFlag(e); });
+      if (n.intel) {
+        simMapIntelHoverBind(div, n.intel, n.label, subKind);   // hover/focus only — click is the flag
+        simMapAddInfoBtn(div, n.intel, n.label, subKind);       // explicit intel for touch/click
+      }
+    } else if (n.intel) {
       div.tabIndex = 0;
       div.setAttribute('role', 'button');
       div.setAttribute('aria-label', `${n.label}${n.sub ? ', ' + n.sub : ''} — analyst intel`);
-      simMapIntelBind(div, n.intel, n.label, n.sub ? n.sub.toUpperCase() : '');
+      simMapIntelBind(div, n.intel, n.label, subKind);
     }
     // Cross-case red string: a dedicated ⛓ affordance opens the recurring-entity
     // timeline, leaving the node's own intel-on-click behaviour intact.
@@ -9934,6 +10148,13 @@ function renderSimMap() {
     hint.textContent = shown < total
       ? `${shown} of ${total} devices mapped — keep investigating in the terminal to reveal the rest.`
       : (map.hint || 'All devices mapped. Select any node or connection for analyst intel.');
+  }
+  const callEl = simMapEl.querySelector('#simMapCall');
+  if (callEl) {
+    const html = mapCallHtml();
+    callEl.innerHTML = html;
+    callEl.hidden = !html;
+    callEl.classList.toggle('is-locked', mapFlagLocked());
   }
 }
 
