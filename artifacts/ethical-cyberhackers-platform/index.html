@@ -529,6 +529,10 @@
             <button type="button" class="sim-map-btn" id="simMapBtn" data-map-open hidden>◈ NETWORK MAP</button>
           </div>
           <div class="sim-term-out" id="simTerminal" aria-live="polite"></div>
+          <!-- (C) Persistent objective + next-action HUD, pinned just above the
+               command line. Populated by renderSimHud() for the file-model mission;
+               hidden for command-model missions. -->
+          <div id="simHud" class="sim-hud" hidden></div>
           <form class="sim-term-form" id="simTermForm">
             <span class="sim-term-prompt" id="simTermPrompt" aria-hidden="true">intern@cybercorp:~/release$</span>
             <input class="sim-term-input" id="simTermInput" type="text" autocomplete="off"

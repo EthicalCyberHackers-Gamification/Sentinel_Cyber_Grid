@@ -750,9 +750,12 @@ function openCareerMission(missionId) {
   SIM.grepUnlockNudged = false;           // file-model grep-triage unlock nudge (once per open)
   SIM.grepNudgePending = false;           // deferred grep nudge waiting for the terminal to unlock
   SIM.investigationReadyNudged = false;   // "all findings in" nudge (once per open)
+  SIM.completionNudgePending = false;     // (D) completion nudge latched while the dock was locked
   SIM.conceptsSeen = new Set();           // just-in-time concept cards already shown (transient)
   SIM.conceptOpen = false;                // concept-card overlay visibility (transient)
   SIM.briefOpen = false;                  // command-brief ("Guided Terminal") overlay visibility (transient)
+  SIM.onboardOpen = false;                // (E) first-shift onboarding overlay visibility (transient)
+  SIM.decisionWasLocked = false;          // (D) edge-trigger for the decision-unlock handoff (transient)
   SIM.nbEvidenceCount = 0;                // notebook attention: evidence count at last render
   SIM.nbConfidence = null;                // notebook attention: confidence at last render (meter flash)
   SIM._dockActiveId = null;               // Decision Dock: active-decision tracker (transient)
@@ -786,6 +789,7 @@ function openCareerMission(missionId) {
   SIM.mapOpen = false;
   if (simMapEl) simMapEl.hidden = true;
   if (simConceptEl) simConceptEl.hidden = true; // concept card never carries across missions
+  if (simOnboardEl) simOnboardEl.hidden = true; // onboarding never carries across missions
   simMapIntelHide();
   updateMapButton();
 
@@ -802,10 +806,12 @@ function openCareerMission(missionId) {
   renderFeedbackPanel();
 
   const input = document.getElementById('simTermInput');
-  if (input) {
-    input.placeholder = simTermPlaceholder(def);
-    setTimeout(() => input.focus(), 50);
-  }
+  if (input) input.placeholder = simTermPlaceholder(def);
+  // (E) First-shift onboarding — show once, before handing over the prompt. When
+  // it opens, the CTA holds focus (and closeMissionOnboarding focuses the input
+  // on dismiss), so only grab the command line here for returning players.
+  maybeShowMissionOnboarding(missionId);
+  if (input && !SIM.onboardOpen) setTimeout(() => input.focus(), 50);
 }
 
 function returnFromCareerMission() {
@@ -1847,19 +1853,94 @@ function newestEvidence() {
   return id ? evidenceById(id) : null;
 }
 
-/* A plain-language "what to do next" line, derived from existing investigation
- * state (no new logic / no scoring). Returns '' when there is nothing to suggest. */
-function investigationNextStep() {
-  const refEv = activeReflectionEv();
-  if (refEv && !SIM.reflection.judgment) return 'Record your judgment on the latest finding below.';
-  if (simFiles().length) {
-    const undiscovered = simFiles().filter(f => !fileClassificationVisible(f));
-    if (undiscovered.length) return 'Investigate the remaining files — cat to deep-read or grep to scan — to surface more evidence.';
-    const unclassified = simFiles().filter(f => fileClassificationVisible(f) && !SIM.classified[f.name]);
-    if (unclassified.length) return 'Classify each file you have reviewed.';
+/* The single, PURE state reader for "what should I do next" on the file-model
+ * mission. Returns {text, chips:[{label,cmd}]} where chips are click-to-run
+ * suggestions (routed through simRunCommand). Reads SIM/def only — writes
+ * nothing, runs no command, touches no scoring. Returns {text:'',chips:[]} for
+ * non-file-model missions (M2–M4 keep their own per-command c.next). Drives the
+ * "→ Next:" scrollback line (A), the persistent HUD (C), and the unlock
+ * handoff (D), so all three speak with one voice. */
+function simNextAction() {
+  if (!markupEnabled()) return { text: '', chips: [] };
+  if (decisionLocked()) {
+    return { text: 'Sarah needs your call — answer in the Decision Dock below.', chips: [] };
   }
-  if (SIM.stage === 'investigation') return 'When the evidence is in, type  decide  to choose an action.';
-  return '';
+  if (!investigationComplete()) {
+    const undiscovered = simFiles().filter(f => !fileClassificationVisible(f));
+    const chips = [];
+    undiscovered.slice(0, 3).forEach(f => chips.push({ label: f.name, cmd: 'cat ' + f.name }));
+    const grepReady = grepTriageEnabled() && fileModelGrepUnlocked();
+    if (grepReady) {
+      const sugg = (SIM.def && Array.isArray(SIM.def.grepSuggestions)) ? SIM.def.grepSuggestions : [];
+      sugg.slice(0, 3).forEach(t => chips.push({ label: 'grep ' + t, cmd: 'grep ' + t }));
+    }
+    const text = grepReady
+      ? 'Open a file with  cat  — or  grep  the folder for sensitivity markers.'
+      : 'Open the next file with  cat  to assess what it holds.';
+    return { text, chips };
+  }
+  if (SIM.stage === 'investigation') {
+    return { text: 'All findings are in — type  decide  to choose how to handle the release.',
+             chips: [{ label: 'decide', cmd: 'decide' }] };
+  }
+  return { text: '', chips: [] };
+}
+
+/* Print a single plain-language "→ Next:" line in the terminal — but ONLY when
+ * the line is usable and there is still investigating to do. The completion path
+ * ("All findings are in…") and the grep-unlock coaching each own their own beat,
+ * so this defers to them (it never double-speaks). Presentation-only. */
+function maybePrintNextStep() {
+  if (!markupEnabled()) return;
+  if (decisionLocked()) return;            // the dock is the next step right now
+  if (investigationComplete()) return;     // completion nudge owns this beat
+  if (SIM.grepNudgePending) return;        // a deferred grep-unlock nudge owns this beat
+  const na = simNextAction();
+  if (na && na.text) simPrint('\u2192 Next: ' + na.text, 'next');
+}
+
+/* The persistent terminal HUD (file-model mission only): the active objective +
+ * the single best next action with a clickable chip, pinned just above the
+ * command line so the player always has a compass. While the dock holds the
+ * line it flips to "answer Sarah". Presentation-only — reads SIM, writes ONLY
+ * #simHud (never re-renders the panel, so it is safe to call from the render
+ * chokepoint). Hidden for command-model missions. */
+function renderSimHud() {
+  const hud = document.getElementById('simHud');
+  if (!hud) return;
+  if (!markupEnabled()) { hud.hidden = true; hud.innerHTML = ''; return; }
+
+  let objHtml = '';
+  let rows = null;
+  try { rows = objectiveTrackState(); } catch (_) { rows = null; }
+  if (rows && rows.length) {
+    const doneN = rows.filter(r => r.done).length;
+    const active = rows.find(r => r.active);
+    const label = active ? active.label : 'All objectives complete';
+    const idx = active ? doneN + 1 : rows.length;
+    objHtml = `<div class="sim-hud-obj">
+        <span class="sim-hud-obj-tag">OBJECTIVE ${idx}/${rows.length}</span>
+        <span class="sim-hud-obj-text">${mapEsc(label)}</span>
+      </div>`;
+  }
+
+  const na = simNextAction();
+  let nextHtml = '';
+  if (na && (na.text || (na.chips && na.chips.length))) {
+    const locked = decisionLocked();
+    const chips = (!locked && na.chips && na.chips.length)
+      ? na.chips.map(c => `<button type="button" class="sim-cmd-chip" data-run-cmd="${mapEsc(c.cmd)}">${mapEsc(c.label)}</button>`).join('')
+      : '';
+    nextHtml = `<div class="sim-hud-next${locked ? ' sim-hud-next--locked' : ''}">
+        <span class="sim-hud-next-label">NEXT</span>
+        <span class="sim-hud-next-text">${mapEsc(na.text)}</span>
+        ${chips ? `<span class="sim-hud-chips">${chips}</span>` : ''}
+      </div>`;
+  }
+
+  if (!objHtml && !nextHtml) { hud.hidden = true; hud.innerHTML = ''; return; }
+  hud.hidden = false;
+  hud.innerHTML = objHtml + nextHtml;
 }
 
 const NOTEBOOK_SECTION_LABELS = {
@@ -2278,6 +2359,35 @@ function simPrint(text, cls) {
   const line = document.createElement('div');
   line.className = 'sim-term-line' + (cls ? ' sim-term-line--' + cls : '');
   line.textContent = text == null ? '' : text;
+  out.appendChild(line);
+  out.scrollTop = out.scrollHeight;
+}
+
+/* Append a terminal line of click-to-run command chips. Each chip is a real
+ * <button> built with createElement/textContent (filenames/labels come from
+ * mission data, so no HTML is interpolated). Clicking routes through the existing
+ * simRunCommand() chokepoint via the delegated [data-run-cmd] handler — no new
+ * command path, same decisionLocked()/briefOpen guards. Presentation-only. */
+function simPrintCmdChips(label, chips) {
+  const out = document.getElementById('simTerminal');
+  if (!out || !Array.isArray(chips) || !chips.length) return;
+  const line = document.createElement('div');
+  line.className = 'sim-term-line sim-term-line--chips';
+  if (label) {
+    const lab = document.createElement('span');
+    lab.className = 'sim-chips-label';
+    lab.textContent = label;
+    line.appendChild(lab);
+  }
+  chips.forEach(c => {
+    if (!c || !c.cmd) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sim-cmd-chip' + (c.done ? ' sim-cmd-chip--done' : '');
+    b.setAttribute('data-run-cmd', c.cmd);
+    b.textContent = c.label || c.cmd;
+    line.appendChild(b);
+  });
   out.appendChild(line);
   out.scrollTop = out.scrollHeight;
 }
@@ -4129,7 +4239,29 @@ function updateDecisionLock() {
   // Flush a grep-unlock nudge that was earned while the line was locked — now
   // that the terminal is free, the coaching points at an action the player can
   // actually take. Guarded by the pending flag so it prints exactly once.
-  if (!locked && SIM.grepNudgePending) printGrepUnlockNudge();
+  const flushGrep = !locked && SIM.grepNudgePending;
+  if (flushGrep) printGrepUnlockNudge();
+  // (D) Unlock handoff — EDGE-TRIGGERED so it fires exactly once per real unlock.
+  // When the dock clears (the player answered Sarah), confirm the beat and point
+  // to the next action. Defer to the grep-unlock coaching when it owns this same
+  // moment. Multiple pending challenges keep `locked` true, so no premature fire;
+  // the optional finding-draft dock never locks, so it never triggers this.
+  const wasLocked = !!SIM.decisionWasLocked;
+  const justUnlocked = wasLocked && !locked;
+  SIM.decisionWasLocked = locked;
+  if (justUnlocked && markupEnabled() && !flushGrep) {
+    simPrint('\u2713 Logged with Sarah.', 'ok');
+    maybePrintNextStep();
+  }
+  // Flush a completion nudge that was earned while the dock was locked — now the
+  // terminal is free, "type decide" is actionable. Runs AFTER the unlock beat so
+  // the player reads "✓ Logged with Sarah." first, then the completion handoff.
+  // (maybePrintNextStep above intentionally suppresses completion, so this is the
+  // one path that surfaces the post-unlock "decide" step.)
+  if (!locked && SIM.completionNudgePending) {
+    SIM.completionNudgePending = false;
+    maybeNudgeInvestigationReady();
+  }
 }
 
 /* The single orchestration point: re-render the dock, update the lock, and pull
@@ -4169,6 +4301,9 @@ function syncDecisionDock() {
     const onReply = !!(ae && ae.closest && ae.closest('.sim-comms-reply'));
     if (!inDock && !onReply) focusFirstDockReply();
   }
+  // Refresh the persistent terminal HUD (C) from the single render chokepoint so
+  // it can never desync from objective/lock state. Only mutates #simHud.
+  renderSimHud();
 }
 
 /* Focus the first reply button in the dock (keyboard entry into the decision). */
@@ -4490,9 +4625,9 @@ function simRunCommand(raw) {
   // a decision pends, but never run a command (or surface evidence) until the
   // player has answered Sarah in the dock.
   if (decisionLocked()) { nudgeDecisionDock(); return; }
-  // A command brief ("Guided Terminal") is up — ignore stray terminal submits
-  // until it is dismissed (the brief itself runs the stashed command).
-  if (SIM.briefOpen) return;
+  // A command brief ("Guided Terminal") or the first-shift onboarding is up —
+  // ignore stray terminal submits until it is dismissed.
+  if (SIM.briefOpen || SIM.onboardOpen) return;
   const cmd = String(raw || '').trim();
   if (!cmd) return;
   const promptLabel = (SIM.def && SIM.def.promptLabel) || 'intern@cybercorp:~/release$';
@@ -4676,11 +4811,20 @@ function simCmdLs() {
     else if ((f.evidenceIds || []).some(id => SIM.evidence.has(id))) tag = '   ● flagged';
     simPrint(`  ${f.name}${tag}`, 'file');
   });
-  if (grepTriageEnabled() && fileModelGrepUnlocked()) {
+  const grepReady = grepTriageEnabled() && fileModelGrepUnlocked();
+  if (grepReady) {
     simPrint('Deep-read with  cat <file>  — or  grep <marker>  to scan the whole folder for sensitive data.', 'dim');
   } else {
     simPrint('Read a file with  cat <file>  to assess its sensitivity.', 'dim');
   }
+  // Click-to-play affordances (B): each file/marker is a button that runs the
+  // command through simRunCommand. Presentation-only — no scoring, same guards.
+  simPrintCmdChips('Open:', files.map(f => ({ label: f.name, cmd: 'cat ' + f.name, done: SIM.read.has(f.name) })));
+  if (grepReady) {
+    const sugg = (SIM.def && Array.isArray(SIM.def.grepSuggestions)) ? SIM.def.grepSuggestions : [];
+    if (sugg.length) simPrintCmdChips('Scan:', sugg.map(t => ({ label: 'grep ' + t, cmd: 'grep ' + t })));
+  }
+  renderSimHud();
 }
 
 /* `ls` / `pwd` are universal navigation helpers — non-scoring: they never surface
@@ -4748,8 +4892,14 @@ function simCmdRead(arg, mode) {
   const evSurfaced = SIM.evidence.size - evBefore;
   if (evSurfaced > 0) simNotebookCue(evSurfaced);
   renderEvidencePanel();
+  const grepNudgedBefore = SIM.grepUnlockNudged;
   maybeUnlockGrepTriage(firstRead);
   maybeNudgeInvestigationReady();
+  // Live "→ Next:" guidance (A). Skip on the exact frame the grep-unlock coaching
+  // fires now (it owns that beat); deferred grep nudges are handled by
+  // maybePrintNextStep's own grepNudgePending guard.
+  const grepJustPrinted = !grepNudgedBefore && SIM.grepUnlockNudged && !SIM.grepNudgePending;
+  if (!grepJustPrinted) maybePrintNextStep();
 }
 
 /* ------------------------------------------------------------------ *
@@ -4796,6 +4946,11 @@ function printGrepUnlockNudge() {
 function maybeNudgeInvestigationReady() {
   if (SIM.stage !== 'investigation' || SIM.investigationReadyNudged) return;
   if (!investigationComplete()) return;
+  // If the finding that completed the investigation ALSO locked the Decision Dock,
+  // don't tell the player to type `decide` while the command line is disabled.
+  // Latch the nudge and flush it from updateDecisionLock() once Sarah's call is
+  // answered — so the completion handoff lands on an action they can take.
+  if (decisionLocked()) { SIM.completionNudgePending = true; return; }
   SIM.investigationReadyNudged = true;
   simPrint('All findings are in. Classify what you found in the notebook, then type  decide  to choose a handling action.', 'ok');
   simRevealActions(false);
@@ -4857,6 +5012,7 @@ function simCmdGrep(arg) {
     simPrint('◆ Correlation: the SAME vendor account that packed this release also read HR/Finance files at 02:00. Read the full trail with  cat access_log.txt  before you log your call.', 'cue');
   }
   maybeNudgeInvestigationReady();
+  maybePrintNextStep(); // Live "→ Next:" guidance (A) — no-op while locked/complete.
 }
 
 /* Surface one evidence item: add to the set, log it, and raise any discovery
@@ -5173,6 +5329,96 @@ function closeCommandBrief() {
     const input = document.getElementById('simTermInput');
     if (input) { try { input.focus(); } catch (_) { /* focus is best-effort */ } }
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * (E) ONE-TIME MISSION ONBOARDING — a once-ever modal shown on first entry to a
+ * file-model mission, teaching the investigate -> tell-Sarah -> decide loop.
+ * Reuses the .sim-concept-overlay/.sim-concept-card shell. Persists ONLY a
+ * once-ever UI flag (setMissionFlag('onboard:'+id)) — the same mechanism the
+ * command briefs use — and otherwise writes nothing and scores nothing.
+ * ------------------------------------------------------------------ */
+let simOnboardEl = null;
+function simOnboardEnsure() {
+  if (simOnboardEl) return simOnboardEl;
+  const ov = document.createElement('div');
+  ov.className = 'sim-concept-overlay sim-onboard-overlay';
+  ov.id = 'simOnboardOverlay';
+  ov.hidden = true;
+  ov.innerHTML = `
+    <div class="sim-concept-card sim-onboard-card" role="dialog" aria-modal="true" aria-labelledby="simOnboardTitle">
+      <div class="sim-concept-head">
+        <span class="sim-concept-kicker sim-onboard-kicker">\u25C8 FIRST SHIFT \u00B7 SARAH REYES</span>
+        <button type="button" class="sim-concept-close" data-onboard-close aria-label="Close onboarding">\u2715</button>
+      </div>
+      <h3 class="sim-concept-term sim-onboard-title" id="simOnboardTitle"></h3>
+      <p class="sim-concept-def sim-onboard-intro" id="simOnboardIntro"></p>
+      <ol class="sim-onboard-steps" id="simOnboardSteps"></ol>
+      <div class="sim-concept-foot">
+        <button type="button" class="sim-concept-gotit sim-onboard-cta" data-onboard-close id="simOnboardCta">Start \u2192</button>
+      </div>
+    </div>`;
+  ov.addEventListener('click', e => {
+    if (e.target === ov || (e.target.closest && e.target.closest('[data-onboard-close]'))) closeMissionOnboarding();
+  });
+  document.body.appendChild(ov);
+  simOnboardEl = ov;
+  return ov;
+}
+
+function onboardingSeen(missionId) {
+  return !!(missionId && CAREER && CAREER.missionFlags && CAREER.missionFlags['onboard:' + missionId]);
+}
+
+/* Show the onboarding once, on first entry to a file-model mission that authors
+ * an `onboarding` block. Gated on BOTH def.onboarding AND markupEnabled() so it
+ * can never fire for a command-model mission. Best-effort — never blocks play. */
+function maybeShowMissionOnboarding(missionId) {
+  try {
+    if (!markupEnabled()) return;
+    const ob = SIM.def && SIM.def.onboarding;
+    if (!ob) return;
+    if (onboardingSeen(missionId)) return;
+    if (SIM.briefOpen || SIM.conceptOpen || SIM.mapOpen) return; // never stack overlays
+    showMissionOnboarding(ob);
+    setMissionFlag('onboard:' + missionId, true); // once ever, like the command briefs
+  } catch (_) { /* onboarding is best-effort */ }
+}
+
+function showMissionOnboarding(ob) {
+  const ov = simOnboardEnsure();
+  ov.querySelector('#simOnboardTitle').textContent = ob.title || 'How this works';
+  ov.querySelector('#simOnboardIntro').textContent = ob.intro || '';
+  const stepsEl = ov.querySelector('#simOnboardSteps');
+  stepsEl.innerHTML = '';
+  (ob.steps || []).forEach(s => {
+    const li = document.createElement('li');
+    li.className = 'sim-onboard-step';
+    const h = document.createElement('span');
+    h.className = 'sim-onboard-step-title';
+    h.textContent = s.title || '';
+    const t = document.createElement('span');
+    t.className = 'sim-onboard-step-text';
+    t.textContent = s.text || '';
+    li.appendChild(h);
+    li.appendChild(t);
+    stepsEl.appendChild(li);
+  });
+  const cta = ov.querySelector('#simOnboardCta');
+  if (cta && ob.cta) cta.textContent = ob.cta;
+  ov.hidden = false;
+  SIM.onboardOpen = true;
+  if (cta) { try { cta.focus(); } catch (_) { /* focus is best-effort */ } }
+}
+
+/* SINGLE dismissal chokepoint: hide the overlay and return focus to the command
+ * line so the player can start typing immediately. */
+function closeMissionOnboarding() {
+  if (!SIM.onboardOpen) return;
+  SIM.onboardOpen = false;
+  if (simOnboardEl) simOnboardEl.hidden = true;
+  const input = document.getElementById('simTermInput');
+  if (input) { try { input.focus(); } catch (_) { /* focus is best-effort */ } }
 }
 
 function setClassification(fileName, value) {
@@ -5975,6 +6221,22 @@ const CAREER_MISSIONS = {
     // markers (unlocks after two deep reads). Per-file `grepTerms` below are the
     // authored indicators that surface that file's evidence when searched.
     grepTriage: true,
+    // (B) Click-to-scan suggestions — the same sensitivity markers the grep-unlock
+    // coaching names. Presentation-only; rendered as terminal/HUD chips.
+    grepSuggestions: ['restricted', 'confidential', 'ext-contractor-07'],
+    // (E) First-shift onboarding — shown once ever on first entry to this mission,
+    // teaching the investigate -> tell-Sarah -> decide loop. Data-gated: only this
+    // file-model mission authors it, so M2-M4 never show it.
+    onboarding: {
+      title: 'Your first shift on the Blue Team',
+      intro: 'You\u2019re the analyst. Sarah Reyes mentors you over comms. The work is a loop of three beats:',
+      steps: [
+        { title: '1 \u00B7 Investigate', text: 'Open files with  cat  (or click a file under the listing). After a couple of reads,  grep  lets you scan the whole folder for sensitive markers.' },
+        { title: '2 \u00B7 Tell Sarah your read', text: 'When something stands out, Sarah asks for your call in the Decision Dock below the terminal. The command line pauses until you answer \u2014 that\u2019s your judgment, not a test.' },
+        { title: '3 \u00B7 Decide', text: 'Once the findings are in, type  decide  (or use the chip) to choose how to handle the outbound release.' },
+      ],
+      cta: 'Start investigating \u2192',
+    },
     boardMilestones: ['ev_pii_salary', 'ev_customer_pii', 'ev_contractor_access'],
     // Progressive objectives (engine-level) — Mission 1 benefits too. Tick live
     // off findings + the recorded decision; presentation-only, never scored.
@@ -9683,6 +9945,16 @@ function simInit() {
   const careerOps = document.getElementById('careerOps');
   if (careerOps) {
     careerOps.addEventListener('click', e => {
+      // Click-to-run command chips (B) — terminal listing + HUD. Route through the
+      // existing simRunCommand chokepoint so the same decisionLocked()/onboardOpen
+      // guards apply. Presentation-only; no new command path.
+      const runCmd = e.target.closest('[data-run-cmd]');
+      if (runCmd) {
+        e.preventDefault();
+        const c = runCmd.getAttribute('data-run-cmd');
+        if (c && typeof simRunCommand === 'function') simRunCommand(c);
+        return;
+      }
       // Analyst Notebook navigation chrome — presentation-only view-state.
       if (e.target.closest('[data-nb-focus]')) { setNotebookFocus(!SIM.focusNotebook); return; }
       if (e.target.closest('[data-nb-expand-all]')) { setAllNotebookCollapsed(false); return; }
@@ -9812,6 +10084,7 @@ function simInit() {
     if (careerScreenOpen()) {
       // The network-map overlay takes Escape first, so it closes without
       // also exiting the mission underneath it.
+      if (SIM.onboardOpen) { closeMissionOnboarding(); return; }
       if (SIM.briefOpen) { closeCommandBrief(); return; }
       if (SIM.conceptOpen) { closeConceptCard(); return; }
       if (SIM.mapOpen) { closeSimMap(); return; }
