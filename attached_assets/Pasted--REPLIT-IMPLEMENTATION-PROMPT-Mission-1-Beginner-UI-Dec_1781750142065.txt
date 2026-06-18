@@ -1,0 +1,647 @@
+# REPLIT IMPLEMENTATION PROMPT
+# Mission 1 Beginner UI Declutter Pass
+# Ethical CyberHackers / Cybersecurity Intern
+
+## Objective
+
+Refactor Mission 1 UI presentation so the first mission feels like a clean, focused investigation rather than a dense training console.
+
+Do not rewrite the curriculum.
+
+Do not rename Mission 1.
+
+Do not remove the existing systems permanently.
+
+Do not remove:
+- Investigation Terminal
+- Sarah Reyes
+- Case Board / Notebook logic
+- File Classification logic
+- Resource / Consequence system
+- Decisions logged history
+- Mission summary data
+
+Instead, change when and how these systems are shown.
+
+The current screen is doing too many jobs at once.
+
+For a new player, it currently presents:
+- terminal
+- mentor dialogue
+- mission tracker
+- notebook
+- classification quiz
+- consequences panel
+- buttons
+- map status
+- decisions logged
+- summary
+- case file
+- feedback
+- multiple status chips
+
+This creates cognitive overload.
+
+Mission 1 should teach one core idea:
+
+"Some information should not leave the company."
+
+The player should not have to manage seven interface systems before they can understand the case.
+
+---
+
+## Design Goal
+
+Mission 1 should feel like:
+
+1. I see the release folder.
+2. I open a suspicious file.
+3. Sarah reacts.
+4. I make one judgment.
+5. The case updates clearly.
+6. I move to the next file.
+
+The UI should focus on only one active cognitive task at a time.
+
+---
+
+## New Mission 1 Layout Principle
+
+Use a simplified beginner layout for Mission 1.
+
+Show only three major areas:
+
+### Left: Investigation Surface
+
+This contains:
+- terminal
+- file output
+- active file content
+- command response
+
+This is where the player discovers evidence.
+
+### Bottom or Center Dock: Sarah / Decision Dock
+
+This appears only when Sarah needs the player to make a judgment.
+
+This contains:
+- Sarah’s current prompt
+- one question
+- one set of choices
+- immediate feedback
+
+This is where the player interprets evidence.
+
+### Right: Compact Case Board
+
+This replaces the dense notebook stack during active play.
+
+This contains:
+- current finding
+- current open question
+- next suggested action
+- one compact case thread
+
+This is where the case quietly builds.
+
+---
+
+## Immediate UI Declutter Requirements
+
+For Mission 1 beginner mode, hide or collapse the following by default:
+
+- Decisions Logged
+- Summary
+- Full Case File
+- Feedback & Consequence
+- Detailed notebook subpanels
+- “Awaiting in dock” chip
+- Secondary status chips unless critical
+- Large persistent consequence panel
+- Full decision history
+- Multi-section notebook stack
+
+These may still exist in state.
+
+They should not dominate the beginner view.
+
+---
+
+## Keep Visible
+
+Mission 1 should initially show:
+
+- Investigation Terminal / file content
+- One Sarah prompt when needed
+- One response area when needed
+- One compact Case Board card
+- One live objective
+- Minimal mission progress indicator
+
+The player should always know:
+
+What am I looking at?
+What does Sarah want from me?
+What is the current case finding?
+What should I do next?
+
+---
+
+## Replace Dense Notebook With Progressive Case Board
+
+The current right panel should not show many notebook modules at once.
+
+Replace with one active Case Board card.
+
+Example default state:
+
+CASE BOARD
+
+Current Finding:
+None yet.
+
+Open Question:
+What is inside the release package?
+
+Next Move:
+List the release folder.
+
+After first discovery:
+
+CASE BOARD
+
+Current Finding:
+Contractor prepared release package.
+
+Open Question:
+Was this reviewed internally?
+
+Next Move:
+Review release notes or approval records.
+
+After sensitive file discovery:
+
+CASE BOARD
+
+Current Finding:
+Employee salary data found.
+
+Open Question:
+Should this leave the company?
+
+Next Move:
+Classify the file.
+
+The board should feel like the case is building, not like the player is managing forms.
+
+---
+
+## Reduce Text Density
+
+Reduce visible text density by 40–60%.
+
+Rules:
+- Every visible module should default to 1–2 lines.
+- Details should be behind expand toggles.
+- Do not show full explanation text unless requested or after judgment.
+- Replace long UI messages with short immersive prompts.
+
+Example replacement:
+
+Current:
+“Sarah's waiting on your read of 'Release ownership' — answer her below. Record what stands out on your latest finding.”
+
+Replace with:
+“Sarah needs your call: Release ownership.”
+
+Another example:
+
+Current:
+“Feedback & Consequence”
+
+Replace with:
+“What Changed”
+
+Current:
+“Decisions Logged”
+
+Replace with:
+“Case History” but collapsed by default.
+
+Current:
+“Active Investigation”
+
+Replace with:
+“Current Case”
+
+---
+
+## Separate Live Play From Record Keeping
+
+During active play, prioritize:
+- evidence
+- Sarah’s current ask
+- player judgment
+
+Record keeping should happen quietly after the player responds.
+
+Flow:
+
+Player opens file.
+Sarah asks one question.
+Player answers.
+Small animation updates Case Board.
+Detailed note is stored in notebook history.
+Notebook history remains collapsed.
+
+Do not force the player to watch the notebook while also reading evidence and making a decision.
+
+---
+
+## File Classification Interaction Redesign
+
+The current file classification should not appear as a sidebar worksheet.
+
+When a file is opened and classification is needed, show a focused mini decision card near the file output or Sarah dock.
+
+Example:
+
+FILE REVIEW
+
+employee_salaries.csv
+
+How should this file be treated?
+
+[Public]
+[Internal]
+[Confidential]
+[Restricted]
+
+After player selects:
+- show Sarah feedback
+- animate result to Case Board
+- collapse the classification UI
+- store detailed record silently
+
+Correct answer example:
+Confidential or Restricted
+
+Sarah feedback:
+“Good. Salary information should not leave the company without proper authorization.”
+
+---
+
+## Consequence System Progressive Reveal
+
+Do not foreground consequence panels at mission start.
+
+For Mission 1 beginner mode:
+- Keep consequences hidden/collapsed until the first meaningful decision.
+- Reveal only one subtle consequence message when relevant.
+
+Example:
+
+WHAT CHANGED
+
+Release risk increased because sensitive employee data was found in the package.
+
+Or:
+
+WHAT CHANGED
+
+CyberCorp avoided potential exposure by pausing the release for review.
+
+Only later missions should show richer consequence panels by default.
+
+---
+
+## Mission 1 Beat-Based UI Sequence
+
+Implement Mission 1 as a sequence of clean interface beats.
+
+### Beat 1: Folder Discovery
+
+Visible:
+- terminal
+- live objective
+- compact case board
+
+Hidden:
+- full notebook
+- decisions logged
+- consequences
+- classification UI
+
+Player action:
+ls
+
+Case Board:
+Open Question:
+What is inside the release folder?
+
+---
+
+### Beat 2: Release Notes Discovery
+
+Player action:
+cat release_notes.txt
+
+Sarah Dock appears:
+“Sarah needs your call: Release ownership.”
+
+Question:
+What stands out?
+
+Choices:
+- External contractor prepared the package
+- File name is unusual
+- There is no issue
+- Need more information
+
+After choice:
+Case Board updates:
+Current Finding:
+Contractor prepared release package.
+
+Open Question:
+Was there internal review?
+
+---
+
+### Beat 3: Safe File Classification
+
+Player action:
+cat product_datasheet.txt
+
+Classification card appears:
+How should this file be treated?
+
+Choices:
+- Public
+- Internal
+- Confidential
+- Restricted
+
+After answer:
+Case Board updates minimally:
+Product datasheet appears safe for public release.
+
+No consequence panel needed.
+
+---
+
+### Beat 4: Sensitive File Discovery
+
+Player action:
+cat employee_salaries.csv
+
+Sarah Dock appears:
+“Sarah needs your call: File sensitivity.”
+
+Question:
+What is the strongest concern?
+
+Choices:
+- Employee compensation data
+- File format
+- File size
+- No concern
+
+Classification card:
+How should this file be treated?
+
+Choices:
+- Public
+- Internal
+- Confidential
+- Restricted
+
+After answer:
+Case Board updates:
+Current Finding:
+Employee salary data found.
+
+Open Question:
+Should release be paused?
+
+Subtle What Changed message appears:
+Compliance exposure risk identified.
+
+---
+
+### Beat 5: Approval Path
+
+Player action:
+cat approval_chain.txt or cat access_log.txt
+
+Case Board updates:
+Current Finding:
+Internal review not confirmed.
+
+Open Question:
+Who approved the release?
+
+Sarah:
+“That is the part I want you to focus on. Sensitive data plus missing review changes the risk.”
+
+---
+
+### Beat 6: Final Recommendation
+
+Only after required findings are discovered, show final decision card:
+
+FINAL RECOMMENDATION
+
+What should happen to the release package?
+
+Choices:
+- Approve release
+- Approve with changes
+- Delay release for internal review
+- Escalate as confirmed breach
+
+Best answer:
+Delay release for internal review / Escalate for review depending on accumulated evidence.
+
+Show:
+- Sarah final feedback
+- What Changed
+- Case Summary
+- Decisions Logged
+- Resource consequences
+
+Only at mission end should full summary panels expand.
+
+---
+
+## Visual Hierarchy Requirements
+
+The eye should land in this order:
+
+1. Current evidence
+2. Sarah’s current ask
+3. Current choice
+4. Resulting case update
+5. Optional consequence
+
+Use:
+- one primary highlight color
+- one secondary accent
+- muted separators
+- fewer bordered boxes
+- more spacing
+- stronger heading contrast
+- fewer always-visible chips
+
+Avoid:
+- many equal-weight boxes
+- repeated neon labels
+- multiple simultaneous panels
+- heavy right-column text blocks
+
+---
+
+## Player-Facing Language Cleanup
+
+Replace system-like labels with immersive labels.
+
+Use:
+- Current Case
+- Sarah’s Call
+- What We Know
+- Open Questions
+- What Changed
+- Case History
+
+Avoid:
+- Decisions Logged
+- Awaiting in Dock
+- Active Investigation
+- Summary
+- Feedback & Consequence
+- Subpanel-heavy technical labels
+
+---
+
+## Beginner Mode Behavior
+
+Create a Mission 1 beginner mode layout.
+
+Rules:
+- Show simplified HUD.
+- Show one live objective.
+- Show one visible finding thread.
+- Keep notebook minimal.
+- Keep consequences hidden until triggered.
+- Do not expose advanced modules until later missions.
+- Do not remove underlying data/state.
+
+Mission 1 is the player’s first day at CyberCorp.
+
+The emotional tone should be:
+- quiet
+- focused
+- investigative
+- slightly tense
+- guided but not crowded
+
+The player should feel:
+
+“Here’s the folder. Check it. Tell me what worries you.”
+
+Not:
+
+“Here are seven interface systems and six parallel information lanes.”
+
+---
+
+## Implementation Guidance
+
+This should be presentation-layer first.
+
+Preserve existing mission data, decisions, consequences, and notebook state.
+
+Add display modes if needed:
+
+missionDisplayMode: "beginner-focused"
+
+or
+
+uiComplexityLevel: "simple"
+
+Mission 1 should default to simple.
+
+Later missions may gradually reveal more systems.
+
+Recommended implementation approach:
+1. Add Mission 1 UI mode flag.
+2. Collapse nonessential panels by default.
+3. Create compact Case Board component.
+4. Create Sarah / Decision Dock component if not already cleanly separated.
+5. Move classification choice into focused mini-card.
+6. Add beat-based reveal logic.
+7. Store all old notebook/decision/consequence data silently.
+8. Expand full mission summary only at mission end.
+
+---
+
+## Acceptance Criteria
+
+Mission 1 beginner mode is successful if:
+
+1. At mission start, the screen shows no more than three major cognitive areas.
+2. The player sees one clear live objective.
+3. The player sees one current Sarah prompt at a time.
+4. The right panel does not show multiple notebook/history/summary/consequence modules simultaneously.
+5. Classification appears only when the player opens a classifiable file.
+6. Consequences do not appear until a meaningful decision is made.
+7. Detailed notebook/history remains accessible but collapsed.
+8. The player does not need to scroll through the notebook to know what happened.
+9. The case feels like it is building one finding at a time.
+10. The mission teaches: “Some information should not leave the company.”
+11. The experience feels like a first-day investigation, not a dense training console.
+
+---
+
+## Do Not Do
+
+Do not add more modules.
+
+Do not add more text.
+
+Do not add more persistent panels.
+
+Do not make the map more prominent in Mission 1 unless it replaces clutter rather than adding to it.
+
+Do not expose advanced consequence systems at mission start.
+
+Do not make the player manage documentation before they understand the evidence.
+
+Do not remove underlying systems permanently.
+
+This is a declutter and sequencing pass, not a systems removal pass.
+
+---
+
+## Final Goal
+
+Mission 1 should become the clean onboarding experience for the whole platform.
+
+The player should learn one thing clearly:
+
+Some information should not leave the company.
+
+The UI should support that lesson by guiding the player through:
+
+Evidence
+→
+Sarah’s question
+→
+Player judgment
+→
+Case update
+→
+Next file
+
+If the screen feels quieter, more focused, and more investigative after this pass, the redesign succeeded.
