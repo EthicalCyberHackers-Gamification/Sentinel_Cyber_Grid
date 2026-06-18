@@ -99,3 +99,22 @@ only render on a (currently unused) standard-path mission.
 **How to apply:** keep type identity in shared classes so both notebook paths benefit;
 add no new animation in this layer (the reduced-motion media query precedes it); the
 section left-rule uses `:has()` purely as enhancement, with the base border as fallback.
+
+## Byte-for-byte invariant for unflagged missions
+
+When a sub-variant of a render path is gated on a per-mission flag (e.g. a "simple
+first-day" layout via `uiComplexityLevel:'simple'`), the UNFLAGGED branch must emit
+the ORIGINAL template **verbatim** — write `if (flag) { newTemplate } else { original
+template literally }`, never funnel both through a shared `${bodyInner}` interpolation.
+
+**Why:** interpolating a shared body fragment at an indentation level injects extra
+whitespace text nodes into the unflagged output, so the innerHTML is no longer
+byte-identical to before. It renders the same visually, but it fails a stated
+"unchanged missions render byte-for-byte" invariant and was flagged in code review.
+
+**How to apply:** capture scroll/`prevBody` BEFORE the if/else, run shared tail
+(`applyNotebookChrome`, grew-flash, dock sync) AFTER it; only the `host.innerHTML`
+assignment differs per branch. Also: a flag-gated "simple" variant should hide
+consequence surfaces (e.g. `#simDials`, `#simFeedback`) only until `SIM.decision` is
+set — both decision paths (`chooseAction`, `submitRecommendation`) set `SIM.decision`
+before the reveal calls, so reveal-on-decision is safe.

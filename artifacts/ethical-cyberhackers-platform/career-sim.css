@@ -204,6 +204,12 @@
   gap: 12px;
   min-height: 0;
 }
+/* Simplified Mission 1: the Feedback & Consequence panel is held back until the
+ * first decision; when hidden, the right column collapses to a single row so the
+ * notebook fills it. Compound selector beats the mobile rule below regardless of
+ * source order. .sim-panel sets display:flex, so [hidden] needs an explicit rule. */
+.career-col--right.career-col--right-solo { grid-template-rows: 1fr; }
+.sim-panel--feedback[hidden] { display: none; }
 
 .sim-panel {
   display: flex;
@@ -1928,6 +1934,65 @@
 /* ACTIVE INVESTIGATION FEED — always-current notebook strip (Task #108).
    Presentation-only: surfaces the newest finding, the judgment it asks for,
    and a suggested next step. Reuses .sim-judgment for the judgment buttons. */
+/* Case Board — the single focal card of the simplified Mission 1 notebook. Sits
+ * outside the collapsible-section system and stays open as the building anchor.
+ * Cyan accent + slightly heavier presence than .sim-feed so it reads as the head
+ * of the column, not just another log. Presentation-only (simpleUiMode). */
+.sim-caseboard {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--cyan);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-alt);
+  padding: 12px 13px;
+  margin-bottom: 14px;
+  animation: simEvIn 280ms ease;
+}
+.sim-caseboard-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.sim-caseboard-title {
+  font-family: var(--font-hud);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  color: var(--cyan);
+}
+.sim-caseboard-caseid {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+.sim-caseboard-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 9px;
+}
+.sim-caseboard-row:last-of-type { margin-bottom: 0; }
+.sim-caseboard-tag {
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.2px;
+  color: var(--cyan-dim);
+}
+.sim-caseboard-tag--ask { color: var(--yellow); }
+.sim-caseboard-val { font-size: 12.5px; line-height: 1.5; color: var(--text-bright); }
+.sim-caseboard-val--muted { color: var(--text-dim); font-style: italic; }
+.sim-caseboard-row--ask .sim-caseboard-val { color: var(--text-bright); }
+.sim-caseboard-row--next .sim-caseboard-val { color: var(--text); font-style: italic; }
+.sim-caseboard-status {
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
 .sim-feed {
   margin-top: 14px;
   border: 1px solid var(--border);

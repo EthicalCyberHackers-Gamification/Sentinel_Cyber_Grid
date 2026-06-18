@@ -389,6 +389,10 @@ function renderConsequenceDials(opts) {
   const host = document.getElementById('simDials');
   if (!host) return;
   if (!consequenceOn('dials')) { host.innerHTML = ''; host.hidden = true; return; }
+  // Simplified Mission 1: keep the Company Health dials hidden until the player
+  // has made a call — there are no consequences to show before a decision. Gated
+  // on the per-mission flag, so M2-M4 still show the dials from mission open.
+  if (simpleUiMode() && !SIM.decision) { host.innerHTML = ''; host.hidden = true; return; }
   host.hidden = false;
   const pulse = (opts && Array.isArray(opts.pulse)) ? opts.pulse : [];
   const s = SIM.consequence || freshConsequenceState();
@@ -1376,8 +1380,23 @@ function responseStatusHtml() {
  * else — active or interactive — starts expanded so no required action is
  * ever hidden on first reveal. Keyed by section "kind". */
 const NB_DEFAULT_COLLAPSED = { facts: 1, casefile: 1, hyp: 1, reflect: 1 };
+/* Simplified first-day workspace (Mission 1): collapse the record-keeping
+ * "CASE HISTORY" (comms) log by default so the notebook reads as one building
+ * case board, not a stack of logs. Merged OVER NB_DEFAULT_COLLAPSED only when
+ * simpleUiMode() is on (gated per-mission), so M2-M4 are byte-for-byte unchanged. */
+const NB_SIMPLE_DEFAULT_COLLAPSED = { comms: 1 };
 const NB_SECTION_SEL = ':scope > .sim-notebook-section, :scope > .sim-feed, :scope > .sim-casefile, :scope > .sim-reflect';
 const NB_HEAD_SEL = '.sim-notebook-head, .sim-feed-head, .sim-casefile-head, .sim-reflect-head';
+
+/* Per-mission UI-complexity gate. Mission 1 sets def.uiComplexityLevel:'simple'
+ * to opt into the decluttered first-day workspace (one building case-board card,
+ * advanced modules hidden, consequence/feedback surfaces held back until a real
+ * decision). Every other mission omits the flag and renders the full notebook
+ * unchanged. Presentation-only — never affects scoring, persistence, curriculum,
+ * or the no-spoiler invariant. */
+function simpleUiMode() {
+  return !!(SIM.def && SIM.def.uiComplexityLevel === 'simple');
+}
 
 /* Immersive case-file id derived from the active mission number (flavor only). */
 function notebookCaseId() {
@@ -1462,6 +1481,12 @@ function applyNotebookChrome(body, grew) {
   if (!body) return;
   const blocks = body.querySelectorAll(NB_SECTION_SEL);
   if (!SIM.nbCollapsed) SIM.nbCollapsed = {};
+  // Simple mode collapses extra record-keeping sections by default (merged over
+  // the global defaults). Gated on the per-mission flag, so other missions keep
+  // the original default-collapse set untouched.
+  const defaults = simpleUiMode()
+    ? Object.assign({}, NB_DEFAULT_COLLAPSED, NB_SIMPLE_DEFAULT_COLLAPSED)
+    : NB_DEFAULT_COLLAPSED;
   blocks.forEach((section, idx) => {
     const head = section.querySelector(NB_HEAD_SEL);
     if (!head || head.dataset.nbToggle) return;
@@ -1469,7 +1494,7 @@ function applyNotebookChrome(body, grew) {
     section.classList.add('sim-nb-section');
     head.classList.add('sim-nb-head');
 
-    const collapsed = (key in SIM.nbCollapsed) ? !!SIM.nbCollapsed[key] : !!NB_DEFAULT_COLLAPSED[key];
+    const collapsed = (key in SIM.nbCollapsed) ? !!SIM.nbCollapsed[key] : !!defaults[key];
     section.classList.toggle('sim-nb-collapsed', collapsed);
 
     head.setAttribute('role', 'button');
@@ -1530,6 +1555,64 @@ function setNotebookFocus(on) {
     btn.innerHTML = SIM.focusNotebook ? '⤡ Exit' : '⤢ Focus';
     btn.title = SIM.focusNotebook ? 'Exit focus mode' : 'Focus mode — expand the notebook';
   }
+}
+
+/* Compact "case board" — the single focal card that replaces the dense notebook
+ * stack in the simplified first-day workspace (simpleUiMode only). Summarises the
+ * current finding, the open question Sarah is waiting on, and the next move. It is
+ * a presentation-only derived view: reads newestEvidence / the visible discovery
+ * challenges / caseFileNextStep / file state and writes NOTHING (no scoring, no
+ * persistence, no spoilers). Rendered OUTSIDE the collapsible-section system
+ * (.sim-caseboard is not matched by NB_SECTION_SEL) so it always stays open as
+ * the building anchor of the right column. */
+function caseBoardCardHtml() {
+  const caseId = notebookCaseId();
+  const latest = newestEvidence();
+  const findingHtml = latest
+    ? `<span class="sim-caseboard-val">${latest.label}</span>`
+    : `<span class="sim-caseboard-val sim-caseboard-val--muted">Nothing yet — open the files in the terminal to start your review.</span>`;
+
+  // The open question Sarah is waiting on (mirrors caseFileNextStep's priority):
+  // an un-recorded observation first, then a missing justification. The actual
+  // answer UI is the Decision Dock — this card only points the analyst to it.
+  const vis = visibleDiscoveryChallenges().filter(challengeValid);
+  const pendingObs = vis.find(c => !stepAnswered(c, 'observation'));
+  const pendingJust = vis.find(c => stepAnswered(c, 'observation') && !stepAnswered(c, 'justification'));
+  let askHtml = '';
+  if (pendingObs) {
+    askHtml = `Sarah wants your read on "${pendingObs.short || 'this finding'}" — answer in the Decision Dock below.`;
+  } else if (pendingJust) {
+    askHtml = `Sarah is asking why "${pendingJust.short || 'this finding'}" matters — tell her in the Decision Dock.`;
+  }
+
+  const next = caseFileNextStep();
+
+  // Orientation readout (findings logged + files cleared from the release) — never a score.
+  const files = simFiles();
+  const classified = files.filter(f => SIM.classified[f.name]).length;
+  const bits = [`${SIM.evidence.size} finding${SIM.evidence.size === 1 ? '' : 's'}`];
+  if (files.length) bits.push(`${classified}/${files.length} files classified`);
+
+  return `
+    <div class="sim-caseboard" role="status" aria-live="polite">
+      <div class="sim-caseboard-head">
+        <span class="sim-caseboard-title">CASE BOARD</span>
+        ${caseId ? `<span class="sim-caseboard-caseid">${mapEsc(caseId)}</span>` : ''}
+      </div>
+      <div class="sim-caseboard-row">
+        <span class="sim-caseboard-tag">Current finding</span>
+        ${findingHtml}
+      </div>
+      ${askHtml ? `<div class="sim-caseboard-row sim-caseboard-row--ask">
+        <span class="sim-caseboard-tag sim-caseboard-tag--ask">Sarah's asking</span>
+        <span class="sim-caseboard-val">${askHtml}</span>
+      </div>` : ''}
+      ${next ? `<div class="sim-caseboard-row sim-caseboard-row--next">
+        <span class="sim-caseboard-tag">Next move</span>
+        <span class="sim-caseboard-val">${next}</span>
+      </div>` : ''}
+      <div class="sim-caseboard-status">${bits.join(' · ')}</div>
+    </div>`;
 }
 
 function renderEvidencePanel() {
@@ -1596,7 +1679,28 @@ function renderEvidencePanel() {
     // evidence GREW we deliberately scroll to the newest finding instead.
     const prevBody = host.querySelector('.sim-evidence-body');
     const prevScroll = prevBody ? prevBody.scrollTop : 0;
-    host.innerHTML = `
+    // Simplified first-day workspace (Mission 1, gated on def.uiComplexityLevel):
+    // one building Case Board card + the essential surfaces, with the advanced
+    // analyst modules hidden and record-keeping collapsed. Omitting a section is
+    // safe — every helper here is a presentation-only state reader, so not calling
+    // it changes nothing in scoring/persistence. The else branch is the ORIGINAL
+    // template reproduced verbatim so M2-M4 (no flag) render byte-for-byte
+    // identical — never funnel both through a shared interpolation.
+    const simpleUi = simpleUiMode();
+    if (simpleUi) {
+      host.innerHTML = `
+      ${notebookPanelHeadHtml(alert)}
+      <div class="sim-evidence-body sim-evidence-body--simple">
+        ${caseBoardCardHtml()}
+        ${evSection}
+        ${classHtml}
+        ${analystJudgmentHtml()}
+        ${caseFileSummaryHtml()}
+        ${identifyHtml}
+        ${responseHtml}
+      </div>`;
+    } else {
+      host.innerHTML = `
       ${notebookPanelHeadHtml(alert)}
       <div class="sim-evidence-body">
         ${confidenceMeterHtml()}
@@ -1618,13 +1722,18 @@ function renderEvidencePanel() {
         ${identifyHtml}
         ${responseHtml}
       </div>`;
+    }
     const body = host.querySelector('.sim-evidence-body');
     applyNotebookChrome(body, grew);  // collapse toggles + status tags (presentation-only)
     if (body && grew) {
       const newest = newestEvidence();
-      const target = (newest && body.querySelector(`.sim-comms--pending[data-ev="${newest.id}"]`))
+      // In simple mode the newest finding lands on the always-open Case Board card;
+      // otherwise pull the eye to the pending comms / feed as before.
+      const target = (simpleUi && body.querySelector('.sim-caseboard'))
+        || (newest && body.querySelector(`.sim-comms--pending[data-ev="${newest.id}"]`))
         || body.querySelector('.sim-comms--pending')
-        || body.querySelector('.sim-feed');
+        || body.querySelector('.sim-feed')
+        || body.querySelector('.sim-caseboard');
       if (target) simScrollBodyTo(body, target);
       void body.offsetWidth;                 // restart the highlight animation
       body.classList.add('sim-evidence-body--flash');
@@ -2197,7 +2306,7 @@ function analystJudgmentHtml() {
     : `<p class="sim-comms-empty">No calls logged yet. When Sarah needs your read it appears in the <strong>Decision Dock</strong> beneath the terminal — answer there and it is recorded here.</p>`;
   return `
     <div class="sim-notebook-section">
-      <div class="sim-notebook-head sim-notebook-head--comms" tabindex="-1">DECISIONS LOGGED <span class="sim-notebook-count">${logged.length}/${vis.length}</span></div>
+      <div class="sim-notebook-head sim-notebook-head--comms" tabindex="-1">${simpleUiMode() ? 'CASE HISTORY' : 'DECISIONS LOGGED'} <span class="sim-notebook-count">${logged.length}/${vis.length}</span></div>
       ${body}
     </div>`;
 }
@@ -2343,6 +2452,19 @@ function renderTerminalPanel() {
 /* ------------------------------------------------------------------ *
  * Panel 4 — Feedback & Consequence (initial empty state)
  * ------------------------------------------------------------------ */
+/* Simplified Mission 1: the Feedback & Consequence panel (and the right-column row
+ * it occupies) stays hidden until the player makes a decision, so the first-day
+ * workspace is just terminal + Decision Dock + Case Board. Toggling
+ * .career-col--right-solo collapses the column to a single row so the notebook
+ * fills it. Gated on the per-mission flag — a no-op for M2-M4. Presentation-only. */
+function setFeedbackPanelHidden(hide) {
+  const host = document.getElementById('simFeedback');
+  if (!host) return;
+  host.hidden = !!hide;
+  const col = host.closest('.career-col--right');
+  if (col) col.classList.toggle('career-col--right-solo', !!hide);
+}
+
 function renderFeedbackPanel() {
   const host = document.getElementById('simFeedback');
   if (!host) return;
@@ -2351,6 +2473,9 @@ function renderFeedbackPanel() {
     <div class="sim-feedback-body" id="simFeedbackBody">
       <p class="sim-empty">Your decisions and their organizational consequences will appear here.</p>
     </div>`;
+  // Held back until the first decision in simple mode (revealed by the decision
+  // handlers below); always visible in the full layout.
+  setFeedbackPanelHidden(simpleUiMode() && !SIM.decision);
 }
 
 /* ------------------------------------------------------------------ *
@@ -5610,6 +5735,7 @@ function chooseLockedAction(id) {
         ${rec ? `<button type="button" class="sim-locked-alt" data-rec="${recId}">Alternative available — Submit Recommendation: ${rec.label}</button>` : ''}
       </div>
     </div>`;
+  setFeedbackPanelHidden(false); // a locked-action note must surface even pre-decision (simple mode)
 }
 
 function submitRecommendation(recId) {
@@ -5961,6 +6087,7 @@ function renderDebrief(action, outcome, changes) {
   html += consequenceTradeoffHtml(); // #120 (D) one reversible micro-tradeoff texture (additive, never blocks RETURN)
   html += `</div>`; // .sim-feedback-body
   host.innerHTML = html;
+  setFeedbackPanelHidden(false); // a decision was made — reveal the panel in simple mode
 }
 
 /* Carry-forward flags for the active mission. Each mission may define its own
@@ -6259,6 +6386,12 @@ const CAREER_MISSIONS = {
      * distinct correct/incorrect Sarah Reyes feedback. All read only where
      * present. */
     caseFileNotebook: true,
+    // First-day declutter (Task: focused Mission 1). Opts this mission alone into
+    // the simplified workspace — one building Case Board card, advanced analyst
+    // modules hidden, consequence/feedback surfaces held back until a real call.
+    // Presentation/sequencing only: scoring, persistence, curriculum and the
+    // no-spoiler invariant are unchanged. Missions 2-4 omit the flag entirely.
+    uiComplexityLevel: 'simple',
     investigationFeed: true,
     // Third investigative skill: `grep` triages the release folder for sensitivity
     // markers (unlocks after two deep reads). Per-file `grepTerms` below are the
