@@ -688,6 +688,7 @@ const SIM = {
   reconsiderations: {},     // reconsiderationId -> chosen option id (revise/hold pivot beat; transient, NON-graded, presentation-only)
   autoOpenedBoardEvents: new Set(), // evidence ids that already auto-opened the board (once each)
   grepUnlockNudged: false,  // file-model grep-triage unlock nudge shown once (transient)
+  grepNudgePending: false,  // grep nudge earned while terminal locked — flush on unlock (transient)
   investigationReadyNudged: false, // "all findings in" nudge shown once (transient)
   powers: null,             // Judgment-to-Power transient state (set in openCareerMission via freshPowersState)
   // ---- Phases 3-5 notebook layer (ALL transient / view-state only; never persisted) ----
@@ -747,6 +748,7 @@ function openCareerMission(missionId) {
   SIM.reconsiderations = {};              // reconsideration pivot picks (revise/hold) — transient, NON-graded
   SIM.autoOpenedBoardEvents = new Set();  // board auto-open fires once per milestone evidence id
   SIM.grepUnlockNudged = false;           // file-model grep-triage unlock nudge (once per open)
+  SIM.grepNudgePending = false;           // deferred grep nudge waiting for the terminal to unlock
   SIM.investigationReadyNudged = false;   // "all findings in" nudge (once per open)
   SIM.conceptsSeen = new Set();           // just-in-time concept cards already shown (transient)
   SIM.conceptOpen = false;                // concept-card overlay visibility (transient)
@@ -4124,6 +4126,10 @@ function updateDecisionLock() {
   }
   const ops = document.getElementById('careerOps');
   if (ops) ops.classList.toggle('career--decision-locked', locked);
+  // Flush a grep-unlock nudge that was earned while the line was locked — now
+  // that the terminal is free, the coaching points at an action the player can
+  // actually take. Guarded by the pending flag so it prints exactly once.
+  if (!locked && SIM.grepNudgePending) printGrepUnlockNudge();
 }
 
 /* The single orchestration point: re-render the dock, update the lock, and pull
@@ -4769,6 +4775,17 @@ function maybeUnlockGrepTriage(firstRead) {
   if (SIM.read.size < 2) return;
   SIM.grepUnlockNudged = true;
   if (typeof markCommandBriefSeen === 'function') markCommandBriefSeen('grep');
+  // Surface the "you can grep now" coaching only when the command line is actually
+  // free to use it. The second read often surfaces a finding that locks the
+  // terminal for Sarah's judgment — defer the nudge until the dock clears
+  // (flushed by updateDecisionLock) so it never tells the player to type while
+  // the input is disabled.
+  if (decisionLocked()) { SIM.grepNudgePending = true; return; }
+  printGrepUnlockNudge();
+}
+/* The grep-unlock coaching, printed at the moment the terminal is usable. */
+function printGrepUnlockNudge() {
+  SIM.grepNudgePending = false;
   simPrint('', 'spacer');
   simPrint('◆ SARAH REYES: Good — you have the lay of the land. You do not have to open every file blind.', 'cue');
   simPrint('  Use  grep <marker>  to scan the whole folder at once. Try  grep restricted ,  grep confidential , or  grep ext-contractor-07 .', 'cue-next');

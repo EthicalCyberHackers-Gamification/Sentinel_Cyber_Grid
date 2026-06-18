@@ -37,6 +37,22 @@ marker (`needle.includes(term)`), not bidirectional. Bidirectional made
 Real grep still PRINTS the non-public line; it just doesn't surface that evidence.
 Soft-gated behind 2 deep reads (`SIM.read.size>=2`) as fading scaffolding.
 
+## A presentation nudge earned during a hard-lock must defer to the unlock
+The grep-unlock coaching is earned at the 2nd deep read — but that same read
+usually surfaces a finding that hard-locks the terminal for Sarah's judgment, so
+printing the "now type grep" cue right then points at a disabled input.
+**Rule:** when a coaching nudge becomes due while `decisionLocked()`, latch a
+transient `*Pending` flag instead of printing, and flush it from the single lock
+chokepoint (`updateDecisionLock`, `if (!locked && pending) print()`), clearing the
+flag inside the print fn so it fires exactly once. Reset the pending flag wherever
+its sibling "shown once" flag resets (per-open), or a stale latch leaks across
+mission opens.
+**Why:** the lock chokepoint is the only place that reliably knows the line just
+became usable; tying the cue to it keeps guidance and the actual input state in
+sync. Safe because `updateDecisionLock` runs at the END of `syncDecisionDock`
+(itself end of `renderEvidencePanel`) and `simPrint` only appends DOM — no
+recursion.
+
 ## Verify cheaply
 A standalone harness that parses the M1 `files`/`grepTerms` from source and
 replays the match algorithm proves all evidence is grep-reachable and the
