@@ -351,6 +351,19 @@
 .sim-term-line--cue-next { color: var(--text-bright); }
 .sim-term-line--spacer { height: 8px; }
 
+/* ---- Per-command output group — a single GREEN left accent line down the edge
+   of one command's echo + all of its result lines, so the player can see where
+   one command's output begins and ends (same border-left accent the Decision
+   Dock / continuity items use). Presentation-only grouping. ---- */
+.sim-term-group {
+  border-left: 2px solid var(--green);
+  padding-left: 10px;
+  margin: 6px 0;
+}
+.sim-term-group + .sim-term-group { margin-top: 12px; }
+/* Tighten the first line's top gap so the accent reads as a clean block. */
+.sim-term-group > .sim-term-line:first-child { margin-top: 0; }
+
 /* ---- Click-to-run command chips (B) — file/marker buttons in scrollback ---- */
 .sim-term-line--chips {
   display: flex;

@@ -725,6 +725,7 @@ function openCareerMission(missionId) {
 
   SIM.runToken++;
   SIM.missionId = missionId;
+  simEndTermGroup();                       // no stale command group carries across missions
   // Dynamic conditions: read prior-mission carry-flags and additively reshape
   // this mission (evidence / commands / risks / brief continuity / outcome).
   // Pure + non-mutating — the canonical def in CAREER_MISSIONS is never changed.
@@ -2352,6 +2353,38 @@ function renderFeedbackPanel() {
     </div>`;
 }
 
+/* ------------------------------------------------------------------ *
+ * Command-output grouping. Each typed command opens a group container;
+ * its echoed command line and all of its result lines are appended into
+ * it, so a single left accent line (CSS .sim-term-group) marks the whole
+ * unit and visually separates one command's output from the next. System
+ * lines printed OUTSIDE a command (the mission intro, the post-decision
+ * "✓ Logged with Sarah." handoff) stay ungrouped. Presentation-only — it
+ * changes only where existing lines are appended, never what is printed. */
+let simTermGroup = null;
+
+/* Where the next terminal line is appended: the open command group if it is
+ * still attached, else the terminal root. Self-heals if the group was
+ * detached by `clear` / a re-render (resets the stale pointer). */
+function simTermTarget(out) {
+  if (simTermGroup && out.contains(simTermGroup)) return simTermGroup;
+  simTermGroup = null;
+  return out;
+}
+
+/* Open a fresh group for the command about to print. */
+function simBeginTermGroup() {
+  const out = document.getElementById('simTerminal');
+  if (!out) { simTermGroup = null; return; }
+  const g = document.createElement('div');
+  g.className = 'sim-term-group';
+  out.appendChild(g);
+  simTermGroup = g;
+}
+
+/* Close the current group so later lines render ungrouped (no accent). */
+function simEndTermGroup() { simTermGroup = null; }
+
 /* Terminal print helper (used across P1–P4). */
 function simPrint(text, cls) {
   const out = document.getElementById('simTerminal');
@@ -2359,7 +2392,7 @@ function simPrint(text, cls) {
   const line = document.createElement('div');
   line.className = 'sim-term-line' + (cls ? ' sim-term-line--' + cls : '');
   line.textContent = text == null ? '' : text;
-  out.appendChild(line);
+  simTermTarget(out).appendChild(line);
   out.scrollTop = out.scrollHeight;
 }
 
@@ -2388,7 +2421,7 @@ function simPrintCmdChips(label, chips) {
     b.textContent = c.label || c.cmd;
     line.appendChild(b);
   });
-  out.appendChild(line);
+  simTermTarget(out).appendChild(line);
   out.scrollTop = out.scrollHeight;
 }
 
@@ -2513,7 +2546,7 @@ function simPrintFileLine(fileName, lineIndex, text) {
   span.dataset.raw = span.textContent;
   line.appendChild(gutter);
   line.appendChild(span);
-  out.appendChild(line);
+  simTermTarget(out).appendChild(line);
   out.scrollTop = out.scrollHeight;
   applyMarkupToLine(line);
 }
@@ -4240,7 +4273,7 @@ function updateDecisionLock() {
   // that the terminal is free, the coaching points at an action the player can
   // actually take. Guarded by the pending flag so it prints exactly once.
   const flushGrep = !locked && SIM.grepNudgePending;
-  if (flushGrep) printGrepUnlockNudge();
+  if (flushGrep) { simEndTermGroup(); printGrepUnlockNudge(); }
   // (D) Unlock handoff — EDGE-TRIGGERED so it fires exactly once per real unlock.
   // When the dock clears (the player answered Sarah), confirm the beat and point
   // to the next action. Defer to the grep-unlock coaching when it owns this same
@@ -4250,6 +4283,7 @@ function updateDecisionLock() {
   const justUnlocked = wasLocked && !locked;
   SIM.decisionWasLocked = locked;
   if (justUnlocked && markupEnabled() && !flushGrep) {
+    simEndTermGroup();                      // post-decision handoff is a system beat, not a command
     simPrint('\u2713 Logged with Sarah.', 'ok');
     maybePrintNextStep();
   }
@@ -4260,6 +4294,7 @@ function updateDecisionLock() {
   // one path that surfaces the post-unlock "decide" step.)
   if (!locked && SIM.completionNudgePending) {
     SIM.completionNudgePending = false;
+    simEndTermGroup();                      // completion handoff lands ungrouped, after the unlock beat
     maybeNudgeInvestigationReady();
   }
 }
@@ -4630,10 +4665,14 @@ function simRunCommand(raw) {
   if (SIM.briefOpen || SIM.onboardOpen) return;
   const cmd = String(raw || '').trim();
   if (!cmd) return;
-  const promptLabel = (SIM.def && SIM.def.promptLabel) || 'intern@cybercorp:~/release$';
-  simPrint(promptLabel + ' ' + cmd, 'cmd');
   const parts = cmd.split(/\s+/);
   const verb = parts[0].toLowerCase();
+  // Group this command's echo + all of its output into one block so a single left
+  // accent line (CSS .sim-term-group) marks the whole unit. `clear` wipes the
+  // terminal, so it stays ungrouped.
+  if (verb !== 'clear') simBeginTermGroup(); else simEndTermGroup();
+  const promptLabel = (SIM.def && SIM.def.promptLabel) || 'intern@cybercorp:~/release$';
+  simPrint(promptLabel + ' ' + cmd, 'cmd');
 
   // Universal verbs available in every mission.
   if (verb === 'help')  return simCmdHelp();
@@ -5543,6 +5582,7 @@ function chooseAction(actionId) {
   SIM.stage = 'report';
   const dock = document.getElementById('simActions');
   if (dock) dock.innerHTML = `<p class="sim-empty">Decision recorded: <strong>${action.label}</strong>. See the debrief →</p>`;
+  simEndTermGroup();                        // button-click result, not a typed command — render ungrouped
   simPrint(`> Decision: ${action.label}${outcome ? ' — ' + outcome.verdict : ''}`, 'ok');
   applyDecisionConsequence(actionId); // #120 — posture-driven ripples (dials/postcards/scars), before debrief reads SIM.consequence
   renderDebrief(action, outcome, changes);
@@ -5588,6 +5628,7 @@ function submitRecommendation(recId) {
   SIM.stage = 'report';
   const dock = document.getElementById('simActions');
   if (dock) dock.innerHTML = `<p class="sim-empty">Recommendation submitted: <strong>${rec.label}</strong>. See the debrief →</p>`;
+  simEndTermGroup();                        // button-click result, not a typed command — render ungrouped
   simPrint(`> Recommendation submitted: ${rec.label} — ${outcome.verdict}`, 'ok');
   applyDecisionConsequence(recId); // #120 — posture-driven ripples, before debrief reads SIM.consequence
   renderDebrief(
