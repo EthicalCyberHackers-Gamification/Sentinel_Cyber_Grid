@@ -753,6 +753,15 @@
 .sim-ev-quality { color: var(--green-dim); letter-spacing: 0.5px; }
 .sim-ev-src { color: var(--text-muted); }
 
+/* Simplified first-day workspace (Mission 1): a COMPACT evidence card — a tight
+ * tier + statement line, with all supporting detail behind one expander. Only
+ * emitted when simpleUiMode() is on (gated per-mission in JS), so other missions
+ * never see this class. Presentation-only — pure spacing. */
+.sim-ev-item--compact { padding: 7px 10px; margin-bottom: 6px; }
+.sim-ev-item--compact .sim-ev-meta { margin-top: 0; margin-bottom: 3px; }
+.sim-ev-item--compact .sim-ev-content { margin-top: 0; }
+.sim-ev-item--compact .sim-ev-controls { margin-top: 6px; }
+
 /* ---------- Classification controls ---------- */
 .sim-classify { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
 .sim-classify-head { font-family: var(--font-hud); font-size: 9.5px; letter-spacing: 1.4px; color: var(--cyan-dim); margin-bottom: 8px; }

@@ -1380,11 +1380,13 @@ function responseStatusHtml() {
  * else — active or interactive — starts expanded so no required action is
  * ever hidden on first reveal. Keyed by section "kind". */
 const NB_DEFAULT_COLLAPSED = { facts: 1, casefile: 1, hyp: 1, reflect: 1 };
-/* Simplified first-day workspace (Mission 1): collapse the record-keeping
- * "CASE HISTORY" (comms) log by default so the notebook reads as one building
- * case board, not a stack of logs. Merged OVER NB_DEFAULT_COLLAPSED only when
- * simpleUiMode() is on (gated per-mission), so M2-M4 are byte-for-byte unchanged. */
-const NB_SIMPLE_DEFAULT_COLLAPSED = { comms: 1 };
+/* Simplified first-day workspace (Mission 1): collapse the secondary
+ * record-keeping sections by default — the "CASE HISTORY" (comms) log and the
+ * "RECOMMENDED RESPONSE" status — so the notebook reads as one building case
+ * board (Case Board + compact evidence + the active File Classification task),
+ * not a stack of logs. Merged OVER NB_DEFAULT_COLLAPSED only when simpleUiMode()
+ * is on (gated per-mission), so M2-M4 are byte-for-byte unchanged. */
+const NB_SIMPLE_DEFAULT_COLLAPSED = { comms: 1, response: 1 };
 const NB_SECTION_SEL = ':scope > .sim-notebook-section, :scope > .sim-feed, :scope > .sim-casefile, :scope > .sim-reflect';
 const NB_HEAD_SEL = '.sim-notebook-head, .sim-feed-head, .sim-casefile-head, .sim-reflect-head';
 
@@ -1901,6 +1903,37 @@ function renderEvItem(e, mode) {
   const tier = e.qualityWeight >= 3 ? 'KEY' : e.qualityWeight === 2 ? 'NOTABLE' : 'MINOR';
   const L = evLayers(e);
   const reveal = SIM.evReveal[e.id]; // undefined | 'analyst' | 'technical'
+
+  // Simplified first-day workspace (Mission 1, gated on def.uiComplexityLevel):
+  // a COMPACT card — the finding statement + tier only — with all supporting
+  // detail (why it matters, analyst notes, technical lines) tucked behind ONE
+  // per-card expander. The inline coaching prompt is intentionally DROPPED here:
+  // the same "what stands out?" question is already posed in the Decision Dock,
+  // so showing it on every card too is pure duplication. Reuses SIM.evReveal (any
+  // truthy value = open) so the open/closed state survives the panel's full
+  // re-renders. Presentation-only; every other mission falls through to the
+  // unchanged beginner/analyst paths below (byte-for-byte identical).
+  if (simpleUiMode()) {
+    const open = !!reveal;
+    let cbody = `<div class="sim-ev-plain">${L.beginner.summary}</div>`;
+    if (open) {
+      if (L.beginner.why) cbody += `<div class="sim-ev-why"><span class="sim-ev-why-label">Why it matters</span>${L.beginner.why}</div>`;
+      cbody += `<div class="sim-ev-layer sim-ev-layer--analyst"><span class="sim-ev-layer-label">Analyst notes</span><span class="sim-ev-layer-text">${L.analyst}</span>${evTermsHtml(L.terms)}</div>`;
+      cbody += `<div class="sim-ev-layer sim-ev-layer--tech"><span class="sim-ev-layer-label">Technical details</span><pre class="sim-ev-tech">${L.technical}</pre></div>`;
+    }
+    const cControl = open
+      ? layerBtn(e.id, 'hide', 'Hide details ▴')
+      : layerBtn(e.id, 'technical', 'Show details ▾');
+    return `
+    <div class="sim-ev-item sim-ev-item--compact sim-ev-item--${tier.toLowerCase()}" data-ev-id="${e.id}">
+      <div class="sim-ev-meta">
+        <span class="sim-ev-quality">${tier} FINDING</span>
+        <span class="sim-ev-src">${e.source || ''}</span>
+      </div>
+      <div class="sim-ev-content">${cbody}</div>
+      <div class="sim-ev-controls">${cControl}</div>
+    </div>`;
+  }
 
   let body = '';
   let control = '';
