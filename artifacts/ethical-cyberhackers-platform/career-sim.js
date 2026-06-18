@@ -687,6 +687,8 @@ const SIM = {
   discoveryJudgments: {},   // challengeId -> { observation, justification } chosen option ids (two-step graded judgments; transient)
   reconsiderations: {},     // reconsiderationId -> chosen option id (revise/hold pivot beat; transient, NON-graded, presentation-only)
   autoOpenedBoardEvents: new Set(), // evidence ids that already auto-opened the board (once each)
+  grepUnlockNudged: false,  // file-model grep-triage unlock nudge shown once (transient)
+  investigationReadyNudged: false, // "all findings in" nudge shown once (transient)
   powers: null,             // Judgment-to-Power transient state (set in openCareerMission via freshPowersState)
   // ---- Phases 3-5 notebook layer (ALL transient / view-state only; never persisted) ----
   markup: [],               // P3 inline mark-up records {id,file,line,start,end,tag,text,challengeId}
@@ -744,6 +746,8 @@ function openCareerMission(missionId) {
   SIM.discoveryJudgments = {};            // graded discovery challenges (caseFileNotebook missions)
   SIM.reconsiderations = {};              // reconsideration pivot picks (revise/hold) — transient, NON-graded
   SIM.autoOpenedBoardEvents = new Set();  // board auto-open fires once per milestone evidence id
+  SIM.grepUnlockNudged = false;           // file-model grep-triage unlock nudge (once per open)
+  SIM.investigationReadyNudged = false;   // "all findings in" nudge (once per open)
   SIM.conceptsSeen = new Set();           // just-in-time concept cards already shown (transient)
   SIM.conceptOpen = false;                // concept-card overlay visibility (transient)
   SIM.briefOpen = false;                  // command-brief ("Guided Terminal") overlay visibility (transient)
@@ -1847,9 +1851,9 @@ function investigationNextStep() {
   const refEv = activeReflectionEv();
   if (refEv && !SIM.reflection.judgment) return 'Record your judgment on the latest finding below.';
   if (simFiles().length) {
-    const unread = simFiles().filter(f => !SIM.read.has(f.name));
-    if (unread.length) return 'Open the remaining files to surface more evidence.';
-    const unclassified = simFiles().filter(f => !SIM.classified[f.name]);
+    const undiscovered = simFiles().filter(f => !fileClassificationVisible(f));
+    if (undiscovered.length) return 'Investigate the remaining files — cat to deep-read or grep to scan — to surface more evidence.';
+    const unclassified = simFiles().filter(f => fileClassificationVisible(f) && !SIM.classified[f.name]);
     if (unclassified.length) return 'Classify each file you have reviewed.';
   }
   if (SIM.stage === 'investigation') return 'When the evidence is in, type  decide  to choose an action.';
@@ -2119,9 +2123,9 @@ function caseFileNextStep() {
   const vis = visibleDiscoveryChallenges().filter(challengeValid);
   if (vis.some(c => !stepAnswered(c, 'observation'))) return 'Record what stands out on your latest finding.';
   if (vis.some(c => !stepAnswered(c, 'justification'))) return 'Explain why your latest finding matters.';
-  const unread = simFiles().filter(f => !SIM.read.has(f.name));
-  if (unread.length) return `Open the remaining ${unread.length} file(s) to surface more evidence.`;
-  const unclassified = simFiles().filter(f => SIM.read.has(f.name) && !SIM.classified[f.name]);
+  const undiscovered = simFiles().filter(f => !fileClassificationVisible(f));
+  if (undiscovered.length) return `Investigate the remaining ${undiscovered.length} file(s) — cat to deep-read or grep to scan — to surface more evidence.`;
+  const unclassified = simFiles().filter(f => fileClassificationVisible(f) && !SIM.classified[f.name]);
   if (unclassified.length) return 'Classify each file you have reviewed.';
   if (SIM.def && SIM.def.identify && !SIM.identified) return 'Record your determination, then type  decide  to choose your response.';
   if (SIM.stage === 'investigation') return 'When the evidence is in, type  decide  to choose your response.';
@@ -2171,8 +2175,8 @@ function caseFileSummaryHtml() {
   // UNKNOWNS — open risks + unread files + pending judgments.
   const unkItems = [];
   openRisks.forEach(r => unkItems.push(r.label));
-  const unread = simFiles().filter(f => !SIM.read.has(f.name));
-  if (unread.length) unkItems.push(`${unread.length} file(s) not yet opened`);
+  const undiscovered = simFiles().filter(f => !fileClassificationVisible(f));
+  if (undiscovered.length) unkItems.push(`${undiscovered.length} file(s) not yet investigated`);
   const pending = visibleDiscoveryChallenges().filter(c => challengeValid(c) && !challengeAnswered(c));
   if (pending.length) unkItems.push(`${pending.length} finding(s) awaiting your judgment`);
   const unkBody = unkItems.length
@@ -2207,10 +2211,10 @@ function caseFileSummaryHtml() {
  * each file holds, plus a legend explaining the four levels (glossary tooltips).
  * Classification logic/scoring is unchanged — only the helper text is new. */
 function renderClassifyHtml(mode) {
-  const readFiles = simFiles().filter(f => SIM.read.has(f.name));
-  if (!readFiles.length) return '';
+  const visFiles = simFiles().filter(fileClassificationVisible);
+  if (!visFiles.length) return '';
   const legend = mode === 'beginner' ? classifyLegendHtml() : '';
-  const rows = readFiles.map(f => {
+  const rows = visFiles.map(f => {
     const chosen = SIM.classified[f.name];
     const opts = CLASSIFICATIONS.map(c =>
       `<button type="button" class="sim-classify-btn${chosen === c.id ? ' sim-classify-btn--active' : ''}" data-classify-file="${f.name}" data-classify-val="${c.id}" title="${classDef(c.id)}">${c.label}</button>`
@@ -3675,6 +3679,27 @@ function simFileByName(name) { return simFiles().find(f => f.name === name) || n
 function simEvidenceDefs() { return (SIM.def && SIM.def.evidence) || []; }
 function evidenceById(id) { return simEvidenceDefs().find(e => e.id === id) || null; }
 function allFilesRead() { return simFiles().length > 0 && simFiles().every(f => SIM.read.has(f.name)); }
+/* File-model completion signal that is agnostic to HOW a finding surfaced. Every
+ * file-borne evidence id is surfaced once it has been deep-read (cat) OR triaged
+ * (grep). Lets the grep-triage flow reach the same completion + thoroughness bonus
+ * as opening all seven files, without a new graded path. */
+function allFileEvidenceSurfaced() {
+  const ids = simFiles().flatMap(f => f.evidenceIds || []);
+  return ids.length > 0 && ids.every(id => SIM.evidence.has(id));
+}
+
+/* A file is "discovered" — and therefore ready to classify — once it has been
+ * deep-read (cat) OR had its evidence surfaced by grep triage. The classify UI
+ * and next-step guidance key on this so the grep flow doesn't force a cat on
+ * every file. Scoring (classificationQuality) still measures ALL files, so a
+ * skipped/undiscovered file still costs accuracy if left unclassified. */
+function fileEvidenceSurfaced(f) {
+  const ids = (f && f.evidenceIds) || [];
+  return ids.length > 0 && ids.some(id => SIM.evidence.has(id));
+}
+function fileClassificationVisible(f) {
+  return !!f && (SIM.read.has(f.name) || fileEvidenceSurfaced(f));
+}
 
 /* Fraction (0..1) of total evidence weight surfaced — drives the recommendation
  * engine so thorough investigation, not command volume, earns better outcomes. */
@@ -4272,7 +4297,7 @@ function scopeCounts() {
     facts: risks.filter(riskConfirmed).length,
     judged: vis.filter(challengeAnswered).length,
     toJudge: vis.filter(c => !challengeAnswered(c)).length,
-    toClassify: files.filter(f => SIM.read.has(f.name) && !SIM.classified[f.name]).length,
+    toClassify: files.filter(f => fileClassificationVisible(f) && !SIM.classified[f.name]).length,
     determinationOpen: !!(SIM.def && SIM.def.identify && !SIM.identified),
   };
 }
@@ -4490,8 +4515,13 @@ function simRunCommand(raw) {
     case 'less':
     case 'more':
     case 'open':   return simCmdRead(arg, verb);
-    default:
-      simPrint(`command not found: ${verb}. Try: ls, cat <file>, less <file>, decide, help.`, 'err');
+    case 'grep':   return simCmdGrep(arg);
+    default: {
+      const tools = grepTriageEnabled() && fileModelGrepUnlocked()
+        ? 'ls, cat <file>, grep <text>, decide, help'
+        : 'ls, cat <file>, less <file>, decide, help';
+      simPrint(`command not found: ${verb}. Try: ${tools}.`, 'err');
+    }
   }
 }
 
@@ -4511,8 +4541,15 @@ function simCmdHelp() {
   }
   simPrint('Available commands:', 'head');
   simPrint('  ls            list the files queued for release', 'dim');
-  simPrint('  cat <file>    read a file (surfaces evidence)', 'dim');
+  simPrint('  cat <file>    read a file in full (surfaces evidence)', 'dim');
   simPrint('  less <file>   page through a file (same as cat here)', 'dim');
+  if (grepTriageEnabled()) {
+    simPrint(
+      fileModelGrepUnlocked()
+        ? '  grep <text>   scan every file for a marker, e.g. grep restricted'
+        : '  grep <text>   scan every file for a marker (unlocks after you read a couple of files)',
+      'dim');
+  }
   simPrint('  pwd           show the current directory', 'dim');
   simPrint('  decide        reveal the handling actions when ready', 'dim');
   simPrint('  clear         clear the terminal', 'dim');
@@ -4597,10 +4634,12 @@ function coreCommandsRun() {
   return core.every(c => SIM.ranCommands.has(c.id));
 }
 
-/* Mission-agnostic "did the analyst finish the investigation?": all files read
- * for file-model missions, all core commands run for command-model missions. */
+/* Mission-agnostic "did the analyst finish the investigation?": every file-borne
+ * finding surfaced for file-model missions (via cat OR grep), all core commands
+ * run for command-model missions. Evidence-based (not all-files-read) so the
+ * grep-triage flow earns the same completion + thoroughness bonus. */
 function investigationComplete() {
-  return simFiles().length ? allFilesRead() : coreCommandsRun();
+  return simFiles().length ? allFileEvidenceSurfaced() : coreCommandsRun();
 }
 
 /* The single identification (which device / which account) for command-model
@@ -4625,8 +4664,17 @@ function simCmdLs() {
   const files = simFiles();
   if (!files.length) { simPrint('release/ is empty.', 'dim'); return; }
   simPrint(`release/  —  ${files.length} files queued for external release`, 'head');
-  files.forEach(f => simPrint(`  ${f.name}${SIM.read.has(f.name) ? '   ✓ reviewed' : ''}`, 'file'));
-  simPrint('Read each file with  cat <file>  to assess its sensitivity.', 'dim');
+  files.forEach(f => {
+    let tag = '';
+    if (SIM.read.has(f.name)) tag = '   ✓ reviewed';
+    else if ((f.evidenceIds || []).some(id => SIM.evidence.has(id))) tag = '   ● flagged';
+    simPrint(`  ${f.name}${tag}`, 'file');
+  });
+  if (grepTriageEnabled() && fileModelGrepUnlocked()) {
+    simPrint('Deep-read with  cat <file>  — or  grep <marker>  to scan the whole folder for sensitive data.', 'dim');
+  } else {
+    simPrint('Read a file with  cat <file>  to assess its sensitivity.', 'dim');
+  }
 }
 
 /* `ls` / `pwd` are universal navigation helpers — non-scoring: they never surface
@@ -4694,10 +4742,104 @@ function simCmdRead(arg, mode) {
   const evSurfaced = SIM.evidence.size - evBefore;
   if (evSurfaced > 0) simNotebookCue(evSurfaced);
   renderEvidencePanel();
-  if (allFilesRead() && SIM.stage === 'investigation') {
-    simPrint('All files reviewed. Classify what you found, then type  decide  to choose a handling action.', 'ok');
-    simRevealActions(false);
+  maybeUnlockGrepTriage(firstRead);
+  maybeNudgeInvestigationReady();
+}
+
+/* ------------------------------------------------------------------ *
+ * grep — the THIRD investigative skill for file-model missions (Mission 1),
+ * beside `ls` (enumerate) and `cat` (deep-read). The analyst hunts the whole
+ * folder for a sensitivity marker instead of opening every file blind, learning
+ * to find signal. Literal, case-insensitive substring search — no regex.
+ *
+ * Printing matches is pure presentation (real grep shows matching lines, any
+ * term). EVIDENCE is surfaced only when the searched term is an AUTHORED
+ * indicator for a matched file (file.grepTerms) — through the SAME idempotent
+ * surfaceEvidence() chokepoint as cat, so there is no new graded path and no
+ * double-count. Soft-gated behind two deep reads (fading scaffolding).
+ * ------------------------------------------------------------------ */
+function grepTriageEnabled() { return !!(SIM.def && SIM.def.grepTriage); }
+function fileModelGrepUnlocked() { return SIM.read.size >= 2; }
+
+/* Fading scaffolding: once the analyst has deep-read two files, unlock grep so
+ * they triage instead of opening every file (earned autonomy). Marks grep as
+ * "introduced" so later command-model missions don't re-brief it. */
+function maybeUnlockGrepTriage(firstRead) {
+  if (!firstRead || !grepTriageEnabled() || SIM.grepUnlockNudged) return;
+  if (SIM.read.size < 2) return;
+  SIM.grepUnlockNudged = true;
+  if (typeof markCommandBriefSeen === 'function') markCommandBriefSeen('grep');
+  simPrint('', 'spacer');
+  simPrint('◆ SARAH REYES: Good — you have the lay of the land. You do not have to open every file blind.', 'cue');
+  simPrint('  Use  grep <marker>  to scan the whole folder at once. Try  grep restricted ,  grep confidential , or  grep ext-contractor-07 .', 'cue-next');
+}
+
+/* Fire the "investigation complete" nudge once, when every file-borne finding
+ * has surfaced (by cat OR grep). Shared by simCmdRead and simCmdGrep. */
+function maybeNudgeInvestigationReady() {
+  if (SIM.stage !== 'investigation' || SIM.investigationReadyNudged) return;
+  if (!investigationComplete()) return;
+  SIM.investigationReadyNudged = true;
+  simPrint('All findings are in. Classify what you found in the notebook, then type  decide  to choose a handling action.', 'ok');
+  simRevealActions(false);
+}
+
+function simCmdGrep(arg) {
+  const raw = String(arg || '').trim();
+  if (!raw) { simPrint('usage: grep <text>   (e.g. grep restricted, grep ext-contractor-07)', 'err'); return; }
+  // Fading scaffolding — get the lay of the land before triaging.
+  if (grepTriageEnabled() && !fileModelGrepUnlocked()) {
+    simPrint('grep is for triaging once you know the folder. Read a file or two first with  cat <file>  — then search for what stands out.', 'dim');
+    return;
   }
+  // Accept `grep <term> <file>` (scoped) or `grep <term>` (whole folder).
+  const parts = raw.split(/\s+/);
+  let scopeFile = null;
+  let term = raw;
+  if (parts.length > 1) {
+    const maybe = simFileByName(parts[parts.length - 1]);
+    if (maybe) { scopeFile = maybe; term = parts.slice(0, -1).join(' '); }
+  }
+  const needle = term.toLowerCase();
+  const files = scopeFile ? [scopeFile] : simFiles();
+  // Literal matches (presentation — what real grep would print).
+  const hits = [];
+  files.forEach(f => (f.content || []).forEach(line => {
+    if (String(line).toLowerCase().includes(needle)) hits.push({ file: f, line });
+  }));
+  simPrint(`$ grep "${term}"${scopeFile ? ' ' + scopeFile.name : ' release/*'}`, 'head');
+  if (!hits.length) {
+    simPrint('  no matches. Try a sensitivity marker — e.g. restricted, confidential, pci, ext-contractor-07.', 'dim');
+    return;
+  }
+  const MAX = 12;
+  hits.slice(0, MAX).forEach(h => simPrint(`  ${h.file.name}:  ${String(h.line).trim()}`, 'file'));
+  if (hits.length > MAX) simPrint(`  …and ${hits.length - MAX} more line${hits.length - MAX === 1 ? '' : 's'}.`, 'dim');
+  simPrint('', 'spacer');
+  // Surface evidence ONLY where the searched term CONTAINS an authored indicator
+  // for a matched file (file.grepTerms). Containment (not bidirectional substring)
+  // keeps it precise: `grep public` surfaces the public datasheet but NOT the
+  // roadmap marked "non-public". Print first, THEN surface, so any concept-card /
+  // map auto-open overlay opens after the grep output is already on screen.
+  const matched = new Set(hits.map(h => h.file));
+  const newly = [];
+  if (needle.length >= 3) {
+    files.forEach(f => {
+      if (!matched.has(f)) return;
+      const terms = (f.grepTerms || []).map(t => String(t).toLowerCase());
+      if (!terms.some(t => needle.includes(t))) return;
+      (f.evidenceIds || []).forEach(id => {
+        if (!SIM.evidence.has(id)) { surfaceEvidence(id); newly.push(id); }
+      });
+    });
+  }
+  if (newly.length > 0) simNotebookCue(newly.length);
+  renderEvidencePanel();
+  // Contractor "aha" — name the cross-file correlation and point to the deep read.
+  if (newly.includes('ev_contractor_access')) {
+    simPrint('◆ Correlation: the SAME vendor account that packed this release also read HR/Finance files at 02:00. Read the full trail with  cat access_log.txt  before you log your call.', 'cue');
+  }
+  maybeNudgeInvestigationReady();
 }
 
 /* Surface one evidence item: add to the set, log it, and raise any discovery
@@ -5221,7 +5363,7 @@ function computeRecommendationOutcome() {
   score += (CAREER.executiveTrust / 100) * 12;
   score += (CAREER.careerReputation / 100) * 8;
   score += timing ? 8 : 0;
-  score += investigationComplete() ? 7 : 0;          // M1: allFilesRead(); M2+: coreCommandsRun()
+  score += investigationComplete() ? 7 : 0;          // M1: allFileEvidenceSurfaced(); M2+: coreCommandsRun()
   score += sevBoost;
   let verdict, multiplier;
   if (score >= 70)      { verdict = 'Approved';            multiplier = 1;   }
@@ -5695,7 +5837,7 @@ const CAREER_MISSIONS = {
           x: 50, y: 33, glyph: '📦', label: 'release pkg', sub: 'queued external', seed: true,
           intel: {
             what: 'The shared folder queued to leave the company for an external partner.',
-            technique: 'List and read the queued files (ls, then cat <file>) to see what is bundled inside.',
+            technique: 'List the queued files (ls), then read them (cat <file>) or scan for markers (grep <text>) to see what is bundled inside.',
             why: 'Everything in this package is about to leave the building, so each file must be classified first.' },
         },
         partner: {
@@ -5711,7 +5853,7 @@ const CAREER_MISSIONS = {
           revealBy: 'ev_public_safe', statusBy: { ev_public_safe: 'identified' },
           intel: {
             what: 'A marketing datasheet already cleared for public distribution.',
-            technique: 'cat product_datasheet.txt — marked cleared for public distribution by Marketing.',
+            technique: 'grep public (or cat product_datasheet.txt) — marked cleared for public distribution by Marketing.',
             why: 'Already-public material is safe to share — the baseline of what a clean release looks like.' },
         },
         f_pricing: {
@@ -5719,7 +5861,7 @@ const CAREER_MISSIONS = {
           revealBy: 'ev_confidential_pricing', statusBy: { ev_confidential_pricing: 'suspicious' },
           intel: {
             what: 'Negotiated per-partner pricing and renewal dates — internal commercial terms.',
-            technique: 'cat partner_pricing_2026.csv — rates marked not for external eyes.',
+            technique: 'grep negotiated (or cat partner_pricing_2026.csv) — rates marked not for external eyes.',
             why: 'One partner seeing another\u2019s private rates is a confidentiality breach; it must not ship.' },
         },
         f_roadmap: {
@@ -5727,7 +5869,7 @@ const CAREER_MISSIONS = {
           revealBy: 'ev_confidential_roadmap', statusBy: { ev_confidential_roadmap: 'suspicious' },
           intel: {
             what: 'A draft, unannounced acquisition roadmap — material non-public information.',
-            technique: 'cat acquisition_roadmap.txt — marked material non-public information, confidential.',
+            technique: 'grep confidential (or cat acquisition_roadmap.txt) — marked material non-public information.',
             why: 'Unannounced deal plans are market-sensitive; releasing them early is a leak and a legal risk.' },
         },
         f_salary: {
@@ -5735,7 +5877,7 @@ const CAREER_MISSIONS = {
           revealBy: 'ev_pii_salary', statusBy: { ev_pii_salary: 'suspicious' },
           intel: {
             what: 'Employee names, titles and salaries — HR-restricted personal data (PII).',
-            technique: 'cat employee_salaries.csv — marked HR-Restricted, PII and compensation.',
+            technique: 'grep restricted (or cat employee_salaries.csv) — marked HR-Restricted, PII and compensation.',
             why: 'Personal pay data must never leave the company; in an external release it is a serious exposure.' },
         },
         f_payments: {
@@ -5743,7 +5885,7 @@ const CAREER_MISSIONS = {
           revealBy: 'ev_customer_pii', statusBy: { ev_customer_pii: 'suspicious' },
           intel: {
             what: 'Customer card last-4, amounts and processor references — regulated payment data (PCI).',
-            technique: 'cat customer_payment_records.csv — marked regulated cardholder data (PCI scope).',
+            technique: 'grep pci (or cat customer_payment_records.csv) — marked regulated cardholder data (PCI scope).',
             why: 'Cardholder data is legally protected; sending it to a partner would be a regulated-data breach.' },
         },
       },
@@ -5786,17 +5928,17 @@ const CAREER_MISSIONS = {
         { a: 'contractor', b: 'f_salary', revealBy: 'ev_contractor_access', danger: true,
           intel: {
             what: 'The contractor account opened employee salary data at 02:00 — outside its remit.',
-            technique: 'cat access_log.txt shows ext-contractor-07 reading employee_salaries.csv.',
+            technique: 'grep ext-contractor-07 (or cat access_log.txt) shows the vendor account reading employee_salaries.csv.',
             why: 'A vendor account reading HR files it has no role in is exactly the access that should be flagged.' } },
         { a: 'contractor', b: 'f_payments', revealBy: 'ev_contractor_access', danger: true,
           intel: {
             what: 'The contractor account opened customer payment records at 02:00 — outside its remit.',
-            technique: 'cat access_log.txt shows ext-contractor-07 reading customer_payment_records.csv.',
+            technique: 'grep ext-contractor-07 (or cat access_log.txt) shows the vendor account reading customer_payment_records.csv.',
             why: 'Regulated payment data accessed by an out-of-scope vendor account is a serious red flag.' } },
         { a: 'contractor', b: 'f_roadmap', revealBy: 'ev_contractor_access', danger: true,
           intel: {
             what: 'The contractor account opened the acquisition roadmap at 02:00 — outside its remit.',
-            technique: 'cat access_log.txt shows ext-contractor-07 reading acquisition_roadmap.txt.',
+            technique: 'grep ext-contractor-07 (or cat access_log.txt) shows the vendor account reading acquisition_roadmap.txt.',
             why: 'Material non-public deal information read by a vendor account is well beyond any legitimate need.' } },
       ],
     },
@@ -5812,6 +5954,10 @@ const CAREER_MISSIONS = {
      * present. */
     caseFileNotebook: true,
     investigationFeed: true,
+    // Third investigative skill: `grep` triages the release folder for sensitivity
+    // markers (unlocks after two deep reads). Per-file `grepTerms` below are the
+    // authored indicators that surface that file's evidence when searched.
+    grepTriage: true,
     boardMilestones: ['ev_pii_salary', 'ev_customer_pii', 'ev_contractor_access'],
     // Progressive objectives (engine-level) — Mission 1 benefits too. Tick live
     // off findings + the recorded decision; presentation-only, never scored.
@@ -6000,7 +6146,7 @@ const CAREER_MISSIONS = {
       { t: 'CyberCorp SOC // Career Operating Center — Data Handling Review', c: 'head' },
       { t: 'A shared folder is queued for an external release. Before it goes out, classify', c: 'dim' },
       { t: 'every file and decide how each should be handled. Review the files first.', c: 'dim' },
-      { t: 'Type  ls  to list the folder, then  cat <file>  to read one. Type  help  anytime.', c: 'dim' },
+      { t: 'Type  ls  to list the folder, then  cat <file>  to read one. Once you know the folder, you can  grep <text>  to hunt for sensitive markers. Type  help  anytime.', c: 'dim' },
     ],
     brief: {
       situation:
@@ -6034,6 +6180,7 @@ const CAREER_MISSIONS = {
         ],
         beginnerNote: 'A cover note for the release. It admits extra finance files were added in.',
         evidenceIds: ['ev_release_context'],
+        grepTerms: ['finance', 'bundled', 'extra'],
       },
       {
         name: 'product_datasheet.txt',
@@ -6045,6 +6192,7 @@ const CAREER_MISSIONS = {
         ],
         beginnerNote: 'A marketing sheet that is already published — meant for the public.',
         evidenceIds: ['ev_public_safe'],
+        grepTerms: ['public', 'cleared', 'marketing'],
       },
       {
         name: 'partner_pricing_2026.csv',
@@ -6057,6 +6205,7 @@ const CAREER_MISSIONS = {
         ],
         beginnerNote: 'The special prices the company privately agreed with each partner.',
         evidenceIds: ['ev_confidential_pricing'],
+        grepTerms: ['negotiated', 'internal', 'not for external'],
       },
       {
         name: 'employee_salaries.csv',
@@ -6069,6 +6218,7 @@ const CAREER_MISSIONS = {
         ],
         beginnerNote: 'Employees'+"'"+' names and how much each person is paid.',
         evidenceIds: ['ev_pii_salary'],
+        grepTerms: ['restricted', 'pii', 'salary', 'compensation'],
       },
       {
         name: 'customer_payment_records.csv',
@@ -6081,6 +6231,7 @@ const CAREER_MISSIONS = {
         ],
         beginnerNote: 'Customers'+"'"+' card and payment details — protected by law.',
         evidenceIds: ['ev_customer_pii'],
+        grepTerms: ['cardholder', 'pci', 'regulated', 'card'],
       },
       {
         name: 'acquisition_roadmap.txt',
@@ -6092,6 +6243,7 @@ const CAREER_MISSIONS = {
         ],
         beginnerNote: 'A secret, unannounced plan about companies CyberCorp may buy.',
         evidenceIds: ['ev_confidential_roadmap'],
+        grepTerms: ['confidential', 'non-public', 'unannounced', 'material'],
       },
       {
         name: 'access_log.txt',
@@ -6105,6 +6257,7 @@ const CAREER_MISSIONS = {
         ],
         beginnerNote: 'A record of who opened which files, and at what time.',
         evidenceIds: ['ev_contractor_access'],
+        grepTerms: ['ext-contractor-07', 'contractor', '02:', 'remit'],
       },
     ],
 

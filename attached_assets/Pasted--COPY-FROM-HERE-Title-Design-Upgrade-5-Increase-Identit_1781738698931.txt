@@ -1,0 +1,178 @@
+—— COPY FROM HERE ——
+
+Title: Design Upgrade #5 — Increase Identity Salience Without Points
+
+Objective
+Strengthen the player’s sense of identity inside CyberCorp without using XP, badges, or leaderboard mechanics. Make players feel more like a real employee whose reputation, trust, and role are evolving through their work. Build visible, in-world systems that reinforce: “I work here” rather than “I finished a mission.”
+
+Scope (feature flags; all default ON in dev)
+• FLAGS.departmentTrust
+• FLAGS.reputationNotes
+• FLAGS.miniRoles
+• FLAGS.identityLanguage
+• FLAGS.identityRecap
+
+Hard constraints
+• No XP, points, badges, stars, or leaderboard UI.
+• Do not alter the core judgment engine, scoring logic, or single authoritative write path.
+• Any new identity systems should feel diegetic and organizational, not gamey.
+• A11y parity or better; keyboard reachable and screen-reader friendly.
+
+Features to build
+
+1) Department Trust (subtle, narrative-facing)
+• Add a compact trust surface showing how key CyberCorp groups currently view the player.
+• Initial departments:
+  - Security Team
+  - IT Operations
+  - Human Resources
+  - Finance
+• Trust should not be presented as big numeric stats. Preferred formats:
+  - Low / Building / Solid / Strong
+  - or subtle bars with labels
+• Trust updates are driven by existing mission outcomes and player behavior patterns:
+  - Careful escalation may improve Security/HR trust
+  - Avoiding disruption may improve IT trust
+  - Catching sensitive exposure may improve Finance/HR trust
+• Display:
+  - Visible in Ops Center profile or post-mission review
+  - Optional subtle change callout after missions: “HR confidence improved”
+• Constraints:
+  - No new grading system
+  - No penalties that lock content
+  - This is interpretive world feedback only
+
+2) Internal Reputation Notes
+• After missions, generate 2–3 short in-world notes from departments, stakeholders, or Sarah.
+• Format examples:
+  - “HR appreciated your caution before escalating payroll exposure.”
+  - “IT noted that your recommendation avoided unnecessary disruption.”
+  - “Marketing was frustrated by the delay, but Security backed your decision.”
+• Notes should:
+  - Reflect actual mission behavior/outcomes
+  - Be concise (1 sentence each)
+  - Include both positive and mixed reactions when appropriate
+• Use parameterized templates; store note id + params, not long-form raw text
+• Surface:
+  - Mission debrief
+  - Ops Center “Recent Reputation Notes” section
+
+3) Mini-Roles Within the Current Role
+• Add temporary sub-identities within a broader role (starting with Cybersecurity Intern).
+• Initial examples:
+  - Privacy Scout
+  - Access Sleuth
+  - Release Review Assistant
+  - Threat Triage Support
+• Mini-roles should:
+  - Be assigned based on mission focus or recent strengths
+  - Slightly change flavor text, assignment framing, and Sarah’s language
+  - Not replace the main career ladder
+• Example:
+  - Same mission, but intro framing changes to:
+    - “I want your eyes on this as our Privacy Scout.”
+• Mini-role assignment should be visible and meaningful, but lightweight.
+
+4) Identity Language Shift
+• As trust or mission count grows, subtly shift how CyberCorp speaks to the player.
+• Examples:
+  - Early: “Take a look and tell me what you notice.”
+  - Later: “Give me your recommendation.”
+  - Early: Sarah explains more.
+  - Later: Sarah assumes competence and asks for judgment faster.
+• Also adjust:
+  - Internal messages CC’ing the player
+  - Assignment phrasing
+  - Stakeholder expectations
+• This should be driven by thresholds from existing progress signals, not a new score.
+
+5) Identity Recap (end-of-mission)
+• At mission end, add a short identity-focused recap panel:
+  - “How CyberCorp saw your work this mission”
+  - Include:
+    - 1 mini-role line
+    - 1–2 trust movement summaries
+    - 2–3 reputation notes
+    - 1 Sarah line reflecting professional growth
+• Keep it short and emotionally meaningful.
+• Do not present as a report card.
+
+Data model (presentation + lightweight persistence)
+Add view/state structures such as:
+• departmentTrust: {
+    security: "building|solid|strong",
+    it: "building|solid|strong",
+    hr: "building|solid|strong",
+    finance: "building|solid|strong"
+  }
+• reputationNotes: [
+    { id, dept, params, createdAt }
+  ]
+• miniRole: {
+    current: "privacyscout|accesssleuth|releasereview|threattriage",
+    assignedAtMissionId
+  }
+• identityToneTier: "newcomer|trustedintern|emerginganalyst"
+These can persist through existing career-state saving if appropriate, but must not interfere with judgment persistence.
+
+Content to provide
+• 12–20 reputation note templates keyed to mission outcomes
+• 4 mini-role definitions:
+  - id
+  - display name
+  - assignment conditions
+  - intro flavor line
+  - Sarah tone adjustments
+• Identity tone progression map:
+  - newcomer
+  - trustedintern
+  - emerginganalyst
+• Department trust routing table:
+  - existing outcome pattern → trust movement(s)
+
+Acceptance criteria
+• After a mission, the player sees clear in-world signals that people inside CyberCorp noticed their work.
+• The player can identify their current mini-role.
+• Trust feels narrative and professional, not like a stat grind.
+• Sarah and mission framing subtly evolve as the player grows.
+• No XP/badge/leaderboard language appears anywhere.
+• No impact on the existing judgment write path or grading logic.
+
+Telemetry to log
+• Which mini-roles are assigned and how often
+• Which reputation notes are emitted
+• Trust movement frequencies by department
+• Whether identity recap is viewed/skipped
+• Whether language tier changes correlate with improved retention or mission completion
+
+Playtest script
+• Run at least two missions with different outcomes:
+  - one careful/escalation-heavy
+  - one restraint/evidence-heavy
+• Verify:
+  - different trust movements appear
+  - different reputation notes appear
+  - mini-role assignment is visible
+  - recap feels like professional recognition, not grading
+  - Sarah wording shifts appropriately by identity tier
+
+Artifacts to return
+• Trust routing table
+• Reputation note template bank
+• Mini-role definition file
+• Screenshots/DOM captures:
+  - mini-role intro framing
+  - trust panel
+  - reputation notes
+  - end-of-mission identity recap
+• JSON playtest report summarizing visible identity effects and invariants
+
+Implementation notes
+• Keep UI understated and consistent with CyberCorp tone.
+• Prefer phrases like “confidence,” “trust,” “relied on,” “recognized,” “copied in,” “asked for your recommendation.”
+• Avoid phrases like “reward,” “XP,” “achievement,” “level up.”
+• If there is uncertainty in assignment logic, prefer deterministic rules tied to mission type or recent strengths.
+
+Now implement under the listed flags, run the playtest, and return the artifacts and JSON report.
+
+—— COPY ENDS ——
