@@ -692,6 +692,44 @@
   .sim-dock-head--finding .sim-dock-pulse { animation: none; }
 }
 
+/* ---- "Review the file first" beat — a calm, low-urgency variant shown BEFORE a
+ * fresh graded call when the mission opts in (reviewBeforeCall). Softer than the
+ * yellow lock so it reads as a gentle pause to read, not an alarm, and its small
+ * footprint keeps the file the player just printed visible. Presentation-only. */
+.sim-decision-dock--review {
+  border-top-color: var(--cyan);
+  background:
+    linear-gradient(180deg, rgba(45, 212, 255, 0.07), rgba(45, 212, 255, 0.02) 60%, transparent),
+    var(--bg-panel);
+  box-shadow: inset 0 1px 0 rgba(45, 212, 255, 0.18);
+}
+.sim-dock-head--review .sim-dock-title { color: var(--cyan); }
+.sim-dock-head--review .sim-dock-pulse {
+  background: var(--cyan);
+  animation: simFindingPulse 1.8s ease-out infinite;
+}
+.sim-dock-review-lead {
+  margin: 2px 2px 11px;
+  font-family: var(--font-body); font-size: 12px; line-height: 1.6;
+  color: var(--text);
+}
+.sim-dock-review-go {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 16px; border-radius: var(--radius-sm);
+  font-family: var(--font-hud); font-size: 12px; letter-spacing: 0.6px;
+  font-weight: 700; text-transform: uppercase; cursor: pointer;
+  color: var(--bg); background: var(--cyan); border: 1px solid var(--cyan);
+  transition: filter 120ms ease, transform 120ms ease;
+}
+.sim-dock-review-go:hover,
+.sim-dock-review-go:focus-visible { filter: brightness(1.12); }
+.sim-dock-review-go:active { transform: translateY(1px); }
+.sim-dock-review-arrow { font-size: 11px; }
+.sim-dock-foot--review { color: var(--text-dim); }
+@media (prefers-reduced-motion: reduce) {
+  .sim-dock-head--review .sim-dock-pulse { animation: none; }
+}
+
 .sim-actions {
   flex: 0 0 auto;
   max-height: 42%;

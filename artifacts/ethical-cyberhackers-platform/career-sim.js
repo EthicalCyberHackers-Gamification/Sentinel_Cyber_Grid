@@ -764,6 +764,7 @@ function openCareerMission(missionId) {
   SIM.nbEvidenceCount = 0;                // notebook attention: evidence count at last render
   SIM.nbConfidence = null;                // notebook attention: confidence at last render (meter flash)
   SIM._dockActiveId = null;               // Decision Dock: active-decision tracker (transient)
+  SIM.reviewAck = {};                      // "review before the call" beat: challenge ids the player has acknowledged reviewing (transient)
   SIM.sideTrailOpen = new Set();          // optional side-trails the analyst has expanded (transient)
   SIM.sideTrailJudgments = {};            // {trailId:{observation,justification}} picks (transient)
   SIM.powers = freshPowersState();        // Judgment-to-Power tools (transient, never persisted)
@@ -1398,6 +1399,17 @@ const NB_HEAD_SEL = '.sim-notebook-head, .sim-feed-head, .sim-casefile-head, .si
  * or the no-spoiler invariant. */
 function simpleUiMode() {
   return !!(SIM.def && SIM.def.uiComplexityLevel === 'simple');
+}
+
+/* Per-mission "review before the call" gate. When a mission sets
+ * def.reviewBeforeCall, a freshly-surfaced graded call first shows a small
+ * "read the file, then continue" beat in the Decision Dock (one CONTINUE button)
+ * INSTEAD of dropping the full question card on top of the file the player just
+ * printed. Once acknowledged, the exact same question card surfaces. Sequencing /
+ * presentation only — never affects scoring, persistence, or the no-spoiler
+ * invariant; gated per-mission, never on a mission id. */
+function reviewGateMode() {
+  return !!(SIM.def && SIM.def.reviewBeforeCall && SIM.def.caseFileNotebook);
 }
 
 /* Immersive case-file id derived from the active mission number (flavor only). */
@@ -4092,6 +4104,17 @@ function loggedDiscoveryChallenges() {
 function activeDecisionChallenge() {
   return pendingDiscoveryChallenges()[0] || null;
 }
+/* The fresh graded call still awaiting its "review the file" acknowledgment, or
+ * null. Only meaningful when reviewGateMode() is on AND the active call has not
+ * yet been acknowledged. Presentation-only: it gates ONLY which card the dock
+ * shows (review prompt vs question) — never grading, the lock target, or which
+ * challenge counts as pending. */
+function activeReviewChallenge() {
+  if (!reviewGateMode()) return null;
+  const ch = activeDecisionChallenge();
+  if (!ch) return null;
+  return SIM.reviewAck[ch.id] ? null : ch;
+}
 /* Answered findings the player has NOT yet logged — the dock's optional draft
  * queue (oldest first). Logging is presentation-only and NEVER locks the terminal
  * (so these are deliberately absent from caseFileDecisionPending); they only
@@ -4292,9 +4315,33 @@ function focusNextComms(challengeId, step) {
  * observation -> justification flow, no right/wrong wording) is unchanged — only
  * its location and the terminal lock are new. No persistence, no scoring. */
 
+/* The review-gate card — a small, calm beat shown before a fresh graded call when
+ * the mission opts in (reviewBeforeCall). It deliberately reveals NOTHING about the
+ * question (no options, no correctness signal): just a nudge to study the file the
+ * player just printed, plus one CONTINUE button that surfaces the real call.
+ * Presentation-only — clicking it flips a transient flag, nothing more. */
+function reviewGateHtml(ch) {
+  return `
+    <div class="sim-dock-head sim-dock-head--review">
+      <span class="sim-dock-title"><span class="sim-dock-pulse" aria-hidden="true"></span>New finding logged</span>
+    </div>
+    <div class="sim-dock-body">
+      <p class="sim-dock-review-lead">Take a moment to read what just came up in the terminal above. When you've looked it over, Sarah will ask for your read.</p>
+      <button type="button" class="sim-dock-review-go" data-review-ack="${ch.id}">I've reviewed it — continue <span class="sim-dock-review-arrow" aria-hidden="true">\u25B8</span></button>
+    </div>
+    <p class="sim-dock-foot sim-dock-foot--review">No rush — the terminal waits here. Read the file, then continue when you're ready.</p>`;
+}
+
 /* The dock's content: the single active decision wrapped in dock chrome that
  * makes the stakes obvious. '' when nothing pends (caller hides the host). */
 function decisionDockHtml() {
+  // Highest priority (opt-in only): the "review the file first" beat. When this
+  // mission sets reviewBeforeCall and a fresh call has surfaced but the player has
+  // not yet acknowledged reviewing the file, show a compact CONTINUE prompt INSTEAD
+  // of the question — so the file just printed stays visible. Once acknowledged,
+  // we fall straight through to the same question card below.
+  const rev = activeReviewChallenge();
+  if (rev) return reviewGateHtml(rev);
   // Priority: a fresh two-step call is answered FIRST; only once none are pending
   // does a reconsideration of an earlier call surface. So a finding's own normal
   // call clears before Sarah asks whether it changes a prior read.
@@ -4390,6 +4437,7 @@ function renderDecisionDock(flash) {
   if (!html) {
     dock.hidden = true; dock.innerHTML = '';
     dock.classList.remove('sim-decision-dock--finding');
+    dock.classList.remove('sim-decision-dock--review');
     return;
   }
   dock.hidden = false;
@@ -4398,6 +4446,9 @@ function renderDecisionDock(flash) {
   // inviting an OPTIONAL finding log (derived from the tracked active-mode id).
   const isFinding = typeof SIM._dockActiveId === 'string' && SIM._dockActiveId.indexOf('finding:') === 0;
   dock.classList.toggle('sim-decision-dock--finding', isFinding);
+  // Calm the dock chrome for the low-urgency "review the file first" beat.
+  const isReview = typeof SIM._dockActiveId === 'string' && SIM._dockActiveId.indexOf('review:') === 0;
+  dock.classList.toggle('sim-decision-dock--review', isReview);
   if (flash) {
     dock.classList.remove('sim-decision-dock--enter');
     void dock.offsetWidth;                  // restart the entrance animation
@@ -4409,6 +4460,7 @@ function renderDecisionDock(flash) {
  * placeholder + container class can never desync from the pending state. */
 function updateDecisionLock() {
   const locked = decisionLocked();
+  const reviewing = !!activeReviewChallenge();   // review beat holds the same lock, calmer copy
   const input = document.getElementById('simTermInput');
   if (input) {
     input.disabled = locked;
@@ -4417,7 +4469,9 @@ function updateDecisionLock() {
       if (input.dataset.basePlaceholder == null) {
         input.dataset.basePlaceholder = input.getAttribute('placeholder') || '';
       }
-      input.setAttribute('placeholder', 'Answer Sarah in the Decision Dock below to continue…');
+      input.setAttribute('placeholder', reviewing
+        ? 'Review the file above, then click Continue…'
+        : 'Answer Sarah in the Decision Dock below to continue…');
     } else {
       input.removeAttribute('aria-disabled');
       if (input.dataset.basePlaceholder != null) {
@@ -4465,17 +4519,22 @@ function syncDecisionDock() {
   // id (avoids a missed flash/focus when the dock swaps from one to the other).
   let newId = null;
   if (SIM.def && SIM.def.caseFileNotebook) {
-    const active = activeDecisionChallenge();
-    if (active) newId = 'judgment:' + active.id;
-    else {
-      const rc = activeReconsideration();
-      if (rc) newId = 'reconsider:' + rc.id;
+    const rev = activeReviewChallenge();
+    if (rev) {
+      newId = 'review:' + rev.id;          // distinct prefix so review -> question still flashes/refocuses
+    } else {
+      const active = activeDecisionChallenge();
+      if (active) newId = 'judgment:' + active.id;
       else {
-        // No graded call or reconsideration pending — surface the oldest un-logged
-        // finding so logging it is discoverable. Distinct prefix so the swap from a
-        // just-answered call into the draft still flashes/announces.
-        const fd = activeDraftFinding();
-        if (fd) newId = 'finding:' + fd.id;
+        const rc = activeReconsideration();
+        if (rc) newId = 'reconsider:' + rc.id;
+        else {
+          // No graded call or reconsideration pending — surface the oldest un-logged
+          // finding so logging it is discoverable. Distinct prefix so the swap from a
+          // just-answered call into the draft still flashes/announces.
+          const fd = activeDraftFinding();
+          if (fd) newId = 'finding:' + fd.id;
+        }
       }
     }
   }
@@ -4519,6 +4578,15 @@ function nudgeDecisionDock() {
   void dock.offsetWidth;
   dock.classList.add('sim-decision-dock--nudge');
   focusFirstDockReply();
+}
+
+/* Record that the player has reviewed the file behind a fresh call, then re-sync
+ * the dock so the actual question card surfaces (and focus moves to it). The flag
+ * is transient view-state only — NEVER grades, persists, or syncs. */
+function acknowledgeReview(challengeId) {
+  if (!challengeId) return;
+  SIM.reviewAck[challengeId] = true;
+  syncDecisionDock();
 }
 
 /* ================================================================== *
@@ -6425,6 +6493,11 @@ const CAREER_MISSIONS = {
     // Presentation/sequencing only: scoring, persistence, curriculum and the
     // no-spoiler invariant are unchanged. Missions 2-4 omit the flag entirely.
     uiComplexityLevel: 'simple',
+    // First-day pacing: after `cat` surfaces a finding, hold the Sarah question
+    // behind a small "read the file, then continue" beat so the just-printed file
+    // stays visible and beginners aren't asked before they've read it. Opt-in,
+    // presentation/sequencing only; Missions 2-4 omit it and ask immediately.
+    reviewBeforeCall: true,
     investigationFeed: true,
     // Third investigative skill: `grep` triages the release folder for sensitivity
     // markers (unlocks after two deep reads). Per-file `grepTerms` below are the
@@ -10403,6 +10476,10 @@ function simInit() {
       if (concern) { toggleConcern(Number(concern.dataset.concern)); return; }
       const judg = e.target.closest('[data-judgment]');
       if (judg) { setJudgment(judg.dataset.judgment); return; }
+      // "Review before the call" beat — acknowledge reading the file, then let the
+      // real question surface. Presentation-only; flips a transient flag + re-syncs.
+      const reviewAck = e.target.closest('[data-review-ack]');
+      if (reviewAck) { acknowledgeReview(reviewAck.dataset.reviewAck); return; }
       const disc = e.target.closest('[data-discovery-judgment]');
       if (disc) { setDiscoveryJudgment(disc.dataset.challenge, disc.dataset.step, disc.dataset.option); return; }
       // Reconsideration pivot (revise/hold) — presentation-only, NON-graded.
