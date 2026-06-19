@@ -690,6 +690,7 @@ const SIM = {
   dynamic: [],              // active dynamic conditions for this mission (carry-flag driven)
   discoveryJudgments: {},   // challengeId -> { observation, justification } chosen option ids (two-step graded judgments; transient)
   reconsiderations: {},     // reconsiderationId -> chosen option id (revise/hold pivot beat; transient, NON-graded, presentation-only)
+  optionOrder: {},          // challengeId -> { observation:[ids], justification:[ids] } stable shuffled reply order (transient view-state; never affects scoring)
   autoOpenedBoardEvents: new Set(), // evidence ids that already auto-opened the board (once each)
   grepUnlockNudged: false,  // file-model grep-triage unlock nudge shown once (transient)
   grepNudgePending: false,  // grep nudge earned while terminal locked — flush on unlock (transient)
@@ -751,6 +752,7 @@ function openCareerMission(missionId) {
   SIM.reflection = { concerns: new Set(), judgment: null };
   SIM.discoveryJudgments = {};            // graded discovery challenges (caseFileNotebook missions)
   SIM.reconsiderations = {};              // reconsideration pivot picks (revise/hold) — transient, NON-graded
+  SIM.optionOrder = {};                   // stable shuffled reply order per challenge step (transient view-state)
   SIM.autoOpenedBoardEvents = new Set();  // board auto-open fires once per milestone evidence id
   SIM.grepUnlockNudged = false;           // file-model grep-triage unlock nudge (once per open)
   SIM.grepNudgePending = false;           // deferred grep nudge waiting for the terminal to unlock
@@ -2240,7 +2242,7 @@ function discoveryStepHtml(ch, step, label) {
         <div class="sim-comms-bubble sim-comms-bubble--ask">${cfg.prompt || ''}</div>
       </div>`;
   if (!answered) {
-    const opts = cfg.options.map((o, i) =>
+    const opts = stepOptionsOrdered(ch, step).map((o, i) =>
       `<button type="button" class="sim-comms-reply" data-discovery-judgment data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}"><span class="sim-comms-reply-key" aria-hidden="true">${String.fromCharCode(65 + i)}</span><span class="sim-comms-reply-text">${o.label}</span></button>`
     ).join('');
     html += `
@@ -4085,6 +4087,31 @@ function stepAnswered(ch, step) {
 function challengeAnswered(ch) {
   return challengeValid(ch) && stepAnswered(ch, 'observation') && stepAnswered(ch, 'justification');
 }
+/* Fisher-Yates shuffle, in place; returns the same array. */
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+/* A step's reply options in a STABLE shuffled display order. The correct reply is
+ * authored first in the data, so it would always render as choice A; shuffling the
+ * display order removes that tell. The order is generated once per challenge+step
+ * and reused across the panel's frequent re-renders, so options never jump while
+ * the player is reading. View-state only (SIM.optionOrder) — never persisted, and
+ * it cannot affect grading, which keys on the option id, not the display slot. */
+function stepOptionsOrdered(ch, step) {
+  const cfg = challengeStep(ch, step);
+  if (!cfg) return [];
+  const ids = cfg.options.map(o => o.id);
+  const store = SIM.optionOrder[ch.id] || (SIM.optionOrder[ch.id] = {});
+  let order = store[step];
+  const stale = !Array.isArray(order) || order.length !== ids.length || !order.every(id => ids.includes(id));
+  if (stale) order = store[step] = shuffleInPlace(ids.slice());
+  const byId = new Map(cfg.options.map(o => [o.id, o]));
+  return order.map(id => byId.get(id)).filter(Boolean);
+}
 /* ------------------------------------------------------------------ *
  * DECISION DOCK predicates (presentation-only). The active two-step judgment
  * is relocated out of the right-side notebook into a prominent dock beneath the
@@ -5325,8 +5352,15 @@ function simNotebookCue(n) {
   if (!SIM.def || !SIM.def.caseFileNotebook) return;
   if (!n || n < 1) return;
   simPrint(`◆ ${n} new finding${n === 1 ? '' : 's'} logged to your ANALYST NOTEBOOK (right panel).`, 'cue');
-  const next = caseFileNextStep();
-  if (next) simPrint(`  In the notebook → ${next}`, 'cue-next');
+  // The "what stands out / why it matters" judgment now happens in the Decision
+  // Dock, not the notebook. While a dock call is pending, don't also point the
+  // player at the notebook for it — that contradicts the dock and the objective
+  // HUD. The other next-steps (investigate / classify / decide) are still valid
+  // terminal guidance, so keep printing those.
+  if (!caseFileDecisionPending()) {
+    const next = caseFileNextStep();
+    if (next) simPrint(`  In the notebook → ${next}`, 'cue-next');
+  }
 }
 
 /* Investigation-First (Mission 1): auto-open the investigation board the first
