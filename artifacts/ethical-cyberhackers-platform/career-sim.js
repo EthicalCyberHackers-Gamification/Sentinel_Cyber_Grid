@@ -4356,7 +4356,7 @@ function reviewGateHtml(ch) {
       <p class="sim-dock-review-lead">Take a moment to read what just came up in the terminal above. When you've looked it over, Sarah will ask for your read.</p>
       <button type="button" class="sim-dock-review-go" data-review-ack="${ch.id}">I've reviewed it — continue <span class="sim-dock-review-arrow" aria-hidden="true">\u25B8</span></button>
     </div>
-    <p class="sim-dock-foot sim-dock-foot--review">No rush — the terminal waits here. Read the file, then continue when you're ready.</p>`;
+    <p class="sim-dock-foot sim-dock-foot--review">No rush — the terminal waits here. Read it over, then continue when you're ready.</p>`;
 }
 
 /* The dock's content: the single active decision wrapped in dock chrome that
@@ -4497,7 +4497,7 @@ function updateDecisionLock() {
         input.dataset.basePlaceholder = input.getAttribute('placeholder') || '';
       }
       input.setAttribute('placeholder', reviewing
-        ? 'Review the file above, then click Continue…'
+        ? 'Review the output above, then click Continue…'
         : 'Answer Sarah in the Decision Dock below to continue…');
     } else {
       input.removeAttribute('aria-disabled');
@@ -6527,10 +6527,11 @@ const CAREER_MISSIONS = {
     // Presentation/sequencing only: scoring, persistence, curriculum and the
     // no-spoiler invariant are unchanged. Missions 2-4 omit the flag entirely.
     uiComplexityLevel: 'simple',
-    // First-day pacing: after `cat` surfaces a finding, hold the Sarah question
-    // behind a small "read the file, then continue" beat so the just-printed file
-    // stays visible and beginners aren't asked before they've read it. Opt-in,
-    // presentation/sequencing only; Missions 2-4 omit it and ask immediately.
+    // Pacing beat: after a command surfaces a finding, hold the Sarah question
+    // behind a small "read what came up, then continue" beat so the just-printed
+    // output stays visible and the analyst isn't asked before they've read it.
+    // Presentation/sequencing only. Now shared by every case-file mission (M2-M4
+    // set the same flag); see reviewGateMode().
     reviewBeforeCall: true,
     investigationFeed: true,
     // Third investigative skill: `grep` triages the release folder for sensitivity
@@ -7106,6 +7107,10 @@ const CAREER_MISSIONS = {
     /* Two-step Analyst Judgment Engine — see Mission 1 for the schema. Authored on
      * existing evidence ids; boardMilestones auto-open the network map once each. */
     caseFileNotebook: true,
+    // Pacing beat (shared with Mission 1; see reviewGateMode): show a "read what
+    // came up, then continue" step before Sarah's graded call so the just-printed
+    // terminal output stays visible. Presentation/sequencing only — never grades.
+    reviewBeforeCall: true,
     boardMilestones: ['ev_contractor_device', 'ev_segment', 'ev_probe'],
     // Progressive objectives (engine-level) — tick live as findings/judgments
     // resolve. Presentation-only; computed read-only by objectiveTrackState().
@@ -7973,6 +7978,10 @@ const CAREER_MISSIONS = {
     /* Two-step Analyst Judgment Engine — see Mission 1 for the schema. Authored on
      * existing evidence ids; boardMilestones auto-open the network map once each. */
     caseFileNotebook: true,
+    // Pacing beat (shared with Mission 1; see reviewGateMode): show a "read what
+    // came up, then continue" step before Sarah's graded call so the just-printed
+    // terminal output stays visible. Presentation/sequencing only — never grades.
+    reviewBeforeCall: true,
     boardMilestones: ['ev_failures', 'ev_impossible', 'ev_changes'],
     discoveryChallenges: [
       {
@@ -8816,6 +8825,10 @@ const CAREER_MISSIONS = {
     /* Two-step Analyst Judgment Engine — see Mission 1 for the schema. Authored on
      * existing evidence ids; boardMilestones auto-open the network map once each. */
     caseFileNotebook: true,
+    // Pacing beat (shared with Mission 1; see reviewGateMode): show a "read what
+    // came up, then continue" step before Sarah's graded call so the just-printed
+    // terminal output stays visible. Presentation/sequencing only — never grades.
+    reviewBeforeCall: true,
     boardMilestones: ['ev_transfer', 'ev_external_dest'],
     discoveryChallenges: [
       {
