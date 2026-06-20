@@ -944,6 +944,7 @@ function returnFromCareerMission() {
  * (#opsCenter / #careerOps) so the module still works standalone (tests).
  * ------------------------------------------------------------------ */
 function enterCareerScreen() {
+  applySimColPrefs(); // restore collapsed/expanded side columns (presentation-only)
   if (typeof window.echEnterCareerScreen === 'function') { window.echEnterCareerScreen(); return; }
   const o = document.getElementById('opsCenter'); if (o) o.style.display = 'none';
   const c = document.getElementById('careerOps'); if (c) c.style.display = 'flex';
@@ -956,6 +957,54 @@ function exitCareerScreen() {
 function careerScreenOpen() {
   const c = document.getElementById('careerOps');
   return !!c && c.style.display !== 'none';
+}
+
+/* ============================================================
+ * Collapsible side columns (Task #150) — presentation-only layout state for the
+ * mission screen's Mission Brief (left) and Analyst Notebook (right) columns.
+ * Stored under a dedicated UI key, never the ech.progress.v1 game blob, so
+ * layout choices never touch game progress. The toggle classes live on the
+ * never-rebuilt .career-main / .career-col wrappers, so the choice survives the
+ * panel re-render cycle.
+ * ============================================================ */
+const ECH_UI_PREFS_KEY = 'ech.ui.v1';
+function echUiGet() {
+  try { return JSON.parse(localStorage.getItem(ECH_UI_PREFS_KEY)) || {}; }
+  catch { return {}; }
+}
+function echUiSet(key, value) {
+  try { const p = echUiGet(); p[key] = value; localStorage.setItem(ECH_UI_PREFS_KEY, JSON.stringify(p)); }
+  catch { /* best-effort */ }
+}
+function setSimColState(side, collapsed) {
+  const main = document.querySelector('.career-main');
+  const col = document.getElementById(side === 'left' ? 'simColLeft' : 'simColRight');
+  const btn = document.querySelector(`.sim-col-toggle[data-sim-col-toggle="${side}"]`);
+  if (!main || !col || !btn) return;
+  main.classList.toggle(`career-main--${side}-collapsed`, collapsed);
+  col.classList.toggle('is-collapsed', collapsed);
+  btn.setAttribute('aria-expanded', String(!collapsed));
+  const what = side === 'left' ? 'mission brief' : 'notebook';
+  btn.setAttribute('aria-label', collapsed ? `Expand ${what}` : `Collapse ${what}`);
+  btn.setAttribute('title', collapsed ? 'Expand panel' : 'Collapse panel');
+  const caret = btn.querySelector('.sim-col-toggle-caret');
+  if (caret) {
+    const collapseGlyph = side === 'left' ? '◂' : '▸';
+    const expandGlyph = side === 'left' ? '▸' : '◂';
+    caret.textContent = collapsed ? expandGlyph : collapseGlyph;
+  }
+}
+function toggleSimColumn(side) {
+  const col = document.getElementById(side === 'left' ? 'simColLeft' : 'simColRight');
+  if (!col) return;
+  const nowCollapsed = !col.classList.contains('is-collapsed');
+  setSimColState(side, nowCollapsed);
+  echUiSet(side === 'left' ? 'simLeft' : 'simRight', nowCollapsed);
+}
+function applySimColPrefs() {
+  const p = echUiGet();
+  setSimColState('left', !!p.simLeft);
+  setSimColState('right', !!p.simRight);
 }
 
 window.openCareerMission = openCareerMission;
@@ -10696,6 +10745,9 @@ function simInit() {
   const careerOps = document.getElementById('careerOps');
   if (careerOps) {
     careerOps.addEventListener('click', e => {
+      // Collapsible side columns (Task #150) — presentation-only layout toggle.
+      const colToggle = e.target.closest('[data-sim-col-toggle]');
+      if (colToggle) { e.preventDefault(); toggleSimColumn(colToggle.dataset.simColToggle); return; }
       // Click-to-run command chips (B) — terminal listing + HUD. Route through the
       // existing simRunCommand chokepoint so the same decisionLocked()/onboardOpen
       // guards apply. Presentation-only; no new command path.

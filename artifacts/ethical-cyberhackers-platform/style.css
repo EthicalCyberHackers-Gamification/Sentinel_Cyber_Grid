@@ -9575,6 +9575,60 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 }
 
 /* ============================================================
+ * Collapsible side columns (Task #150) — presentation-only.
+ * Collapsing a side column shrinks it to a slim rail and lets the central
+ * Global Operations Map grow. Layout classes live on .ocv2-body / the panels
+ * (never rebuilt), so the choice survives every renderOperationsCenter() pass.
+ * The two-class form keeps these above the responsive fallback at all widths.
+ * ============================================================ */
+.ocv2-body.ocv2-body--left-collapsed  { grid-template-columns: 32px 1fr 252px; }
+.ocv2-body.ocv2-body--right-collapsed { grid-template-columns: 270px 1fr 32px; }
+.ocv2-body.ocv2-body--left-collapsed.ocv2-body--right-collapsed { grid-template-columns: 32px 1fr 32px; }
+
+.ocv2-col-toggle {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--color-bg-panel-alt);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ocv2-col-toggle:hover { background: var(--color-bg-hover); color: var(--color-green); }
+.ocv2-col-toggle:focus-visible { outline: 1px solid var(--color-green); outline-offset: -2px; }
+.ocv2-panel--left  .ocv2-col-toggle { justify-content: flex-end; }
+.ocv2-panel--right .ocv2-col-toggle { justify-content: flex-start; }
+.ocv2-col-toggle-caret { font-size: 11px; line-height: 1; }
+.ocv2-col-toggle-label { display: none; white-space: nowrap; }
+
+/* Collapsed rail: hide everything but the toggle; the toggle fills the rail and
+ * shows a vertical label so the panel is always re-openable. */
+.ocv2-panel--collapsed > *:not(.ocv2-col-toggle) { display: none !important; }
+.ocv2-panel--collapsed .ocv2-col-toggle {
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: none;
+}
+.ocv2-panel--collapsed .ocv2-col-toggle-label {
+  display: block;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.12em;
+}
+
+/* ============================================================
  * CyberCorp identity card (OCV2 home, right column #ocIdentity)
  * Ported from the career prototype's oc.css. Uses the lab.css token
  * set (--green / --border / --bg-panel-alt …, defined globally) so it

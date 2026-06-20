@@ -8354,6 +8354,50 @@ function ocv2PostCompletionComms(missionId) {
  * Wires: clock tick, ticker, intel feed, comms seed, node clicks,
  *        card close, launch button, click-outside dismiss, Escape key.
  */
+/* ============================================================
+ * UI preferences (presentation-only) — collapsed/expanded state of the
+ * Operations Center side columns. Stored under a dedicated UI key, NEVER the
+ * ech.progress.v1 game blob, so layout choices never touch game progress.
+ * ============================================================ */
+const ECH_UI_PREFS_KEY = "ech.ui.v1";
+function echLoadUiPrefs() {
+  try { return JSON.parse(localStorage.getItem(ECH_UI_PREFS_KEY)) || {}; }
+  catch { return {}; }
+}
+function echSaveUiPref(key, value) {
+  try {
+    const prefs = echLoadUiPrefs();
+    prefs[key] = value;
+    localStorage.setItem(ECH_UI_PREFS_KEY, JSON.stringify(prefs));
+  } catch { /* private mode / quota — layout pref is best-effort */ }
+}
+
+/* Collapse/expand one OCV2 home side column. Presentation-only: toggles layout
+ * classes on the never-rebuilt .ocv2-body / panel containers so the choice
+ * survives every renderOperationsCenter() pass. */
+function setOcv2ColState(side, collapsed) {
+  const body = document.querySelector(".ocv2-body");
+  const panel = document.getElementById(side === "left" ? "ocv2PanelLeft" : "ocv2PanelRight");
+  const btn = document.querySelector(`.ocv2-col-toggle[data-col-toggle="${side}"]`);
+  if (!body || !panel || !btn) return;
+  body.classList.toggle(`ocv2-body--${side}-collapsed`, collapsed);
+  panel.classList.toggle("ocv2-panel--collapsed", collapsed);
+  btn.setAttribute("aria-expanded", String(!collapsed));
+  // Specific accessible names so screen-reader users can tell the two
+  // side-column toggles apart without relying on visual context.
+  const panelName = side === "left" ? "course path panel" : "SOC communications panel";
+  const label = `${collapsed ? "Expand" : "Collapse"} ${panelName}`;
+  btn.setAttribute("aria-label", label);
+  btn.setAttribute("title", label);
+  const caret = btn.querySelector(".ocv2-col-toggle-caret");
+  if (caret) {
+    // The caret points the way the panel moves: left panel collapses leftward.
+    const collapseGlyph = side === "left" ? "◂" : "▸";
+    const expandGlyph = side === "left" ? "▸" : "◂";
+    caret.textContent = collapsed ? expandGlyph : collapseGlyph;
+  }
+}
+
 function initOcv2() {
   if (ocv2Initialized) return;
   ocv2Initialized = true;
@@ -8439,6 +8483,21 @@ function initOcv2() {
       if (caret) caret.textContent = collapsed ? "▸" : "▾";
     });
   });
+
+  // Collapsible side columns (Task #150) — let the player widen the central map.
+  document.querySelectorAll(".ocv2-col-toggle[data-col-toggle]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const side = btn.dataset.colToggle;
+      const panel = document.getElementById(side === "left" ? "ocv2PanelLeft" : "ocv2PanelRight");
+      const nowCollapsed = !(panel && panel.classList.contains("ocv2-panel--collapsed"));
+      setOcv2ColState(side, nowCollapsed);
+      echSaveUiPref(side === "left" ? "ocLeft" : "ocRight", nowCollapsed);
+    });
+  });
+  // Restore the persisted layout choice (presentation-only).
+  const _uiPrefs = echLoadUiPrefs();
+  if (_uiPrefs.ocLeft) setOcv2ColState("left", true);
+  if (_uiPrefs.ocRight) setOcv2ColState("right", true);
 }
 
 /**

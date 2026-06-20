@@ -1,6 +1,7 @@
 - [Operations Center home re-render](ech-landing-render.md) — every path that reveals `#moduleLanding` must call `renderOperationsCenter()` or it shows stale progress.
 - [OC home title resolution](ech-oc-home-title-resolution.md) — generic missions 004-006 read the ENGINE title, not MISSION_MAP; align home titles via OCV2_GENERIC_DISPLAY override (MISSION_MAP has legacy Object.keys mini-map loops; missions.js = interior).
 - [Ops Center V2 three-panel layout](ech-ocv2-layout.md) — graduated from prototype; ocv2-* classes in style.css, initOcv2()/renderOcPanelV2() in script.js called from renderOperationsCenter(); preserved IDs live in .ocv2-compat-hidden div.
+- [Collapsible side columns](ech-collapsible-columns.md) — presentation-only widen-center collapse (key `ech.ui.v1`); state classes/toggles must sit on never-rebuilt containers; mobile force-show rules need `:not([hidden])` or the feedback panel leaks.
 - [e2e localStorage frame mismatch](ech-e2e-localstorage-frame.md) — can't prime localStorage from the harness (top frame ≠ app iframe); test restore by driving the app UI then reloading.
 - [Active-dashboard viewport lock](ech-active-dashboard-viewport-lock.md) — `body.mission-running .dashboard` (overflow:hidden + grid auto 1fr) clips tall content/forces zoom; let the PAGE scroll during active play.
 - [Supabase backend (local-first)](ech-supabase-backend.md) — optional cloud mirror; localStorage stays authoritative, sync never throws/blocks, attempts resume-safe, completion idempotent across both completion paths.

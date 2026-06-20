@@ -218,18 +218,80 @@
   padding: 12px;
   overflow: hidden;
 }
+/* Collapsible side columns (Task #150): collapsing a side column shrinks it to a
+ * slim rail so the central Investigation Terminal grows. Two-class form keeps
+ * these above the mobile fallback (which re-neutralizes them). */
+.career-main.career-main--left-collapsed  { grid-template-columns: 34px minmax(420px, 1.6fr) minmax(300px, 1.1fr); }
+.career-main.career-main--right-collapsed { grid-template-columns: minmax(280px, 1fr) minmax(420px, 1.6fr) 34px; }
+.career-main.career-main--left-collapsed.career-main--right-collapsed { grid-template-columns: 34px minmax(420px, 1fr) 34px; }
+
+/* Left column wrapper (holds the collapse toggle + the Mission Brief panel). */
+.career-col--left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.career-col--left > .sim-panel--brief { flex: 1 1 auto; min-height: 0; }
+
 .career-col--right {
   display: grid;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: auto 1fr 1fr;
   gap: 12px;
   min-height: 0;
 }
 /* Simplified Mission 1: the Feedback & Consequence panel is held back until the
- * first decision; when hidden, the right column collapses to a single row so the
- * notebook fills it. Compound selector beats the mobile rule below regardless of
- * source order. .sim-panel sets display:flex, so [hidden] needs an explicit rule. */
-.career-col--right.career-col--right-solo { grid-template-rows: 1fr; }
+ * first decision; when hidden, the right column drops its feedback row so the
+ * notebook fills it. The leading auto row is the collapse toggle. Compound
+ * selector beats the mobile rule below regardless of source order. .sim-panel
+ * sets display:flex, so [hidden] needs an explicit rule. */
+.career-col--right.career-col--right-solo { grid-template-rows: auto 1fr; }
 .sim-panel--feedback[hidden] { display: none; }
+
+/* Column collapse toggle — shared by both side columns. */
+.sim-col-toggle {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.sim-col-toggle:hover { color: var(--green); border-color: var(--green); }
+.sim-col-toggle:focus-visible { outline: 1px solid var(--green); outline-offset: 1px; }
+.career-col--left  .sim-col-toggle { justify-content: flex-end; }
+.career-col--right .sim-col-toggle { justify-content: flex-start; }
+.sim-col-toggle-caret { font-size: 11px; line-height: 1; }
+.sim-col-toggle-label { display: none; white-space: nowrap; }
+
+/* Collapsed rail: hide content, let the toggle fill the rail with a vertical label. */
+.career-col--left.is-collapsed  > *:not(.sim-col-toggle),
+.career-col--right.is-collapsed > *:not(.sim-col-toggle) { display: none !important; }
+.career-col--right.is-collapsed { grid-template-rows: 1fr; }
+.career-col--left.is-collapsed  .sim-col-toggle,
+.career-col--right.is-collapsed .sim-col-toggle {
+  flex: 1;
+  height: 100%;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 10px 0;
+  gap: 10px;
+}
+.is-collapsed .sim-col-toggle-label {
+  display: block;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.14em;
+}
 
 .sim-panel {
   display: flex;
@@ -1481,7 +1543,18 @@
 /* ---------- Responsive: stack panels on narrow widths ---------- */
 @media (max-width: 1100px) {
   .career-main { grid-template-columns: 1fr; grid-auto-rows: minmax(220px, auto); overflow-y: auto; }
-  .career-col--right { grid-template-rows: minmax(220px, auto) minmax(220px, auto); }
+  .career-col--right { grid-template-rows: auto minmax(220px, auto) minmax(220px, auto); }
+  /* Column collapse is a desktop affordance; on the stacked mobile layout
+     neutralize it so no panel ever disappears. */
+  .career-main.career-main--left-collapsed,
+  .career-main.career-main--right-collapsed,
+  .career-main.career-main--left-collapsed.career-main--right-collapsed { grid-template-columns: 1fr; }
+  /* Reveal collapsed content when stacked — but never force-show a panel the
+     app has marked [hidden] (e.g. the feedback/debrief panel before the first
+     decision), or it leaks early. */
+  .career-col--left.is-collapsed  > :not(.sim-col-toggle):not([hidden]),
+  .career-col--right.is-collapsed > :not(.sim-col-toggle):not([hidden]) { display: flex !important; }
+  .career-col--right.is-collapsed { grid-template-rows: auto minmax(220px, auto) minmax(220px, auto); }
 }
 
 /* ==================================================================

@@ -137,7 +137,14 @@
       <main class="ocv2-body">
 
         <!-- LEFT — COURSE PATH (graduated from prototype) + demoted monitoring -->
-        <aside class="ocv2-panel ocv2-panel--left" aria-label="Course path and monitoring">
+        <aside class="ocv2-panel ocv2-panel--left" id="ocv2PanelLeft" aria-label="Course path and monitoring">
+          <!-- Collapse toggle (Task #150) — slim, always-visible; widens the central map. -->
+          <button class="ocv2-col-toggle" type="button" data-col-toggle="left"
+                  aria-expanded="true" aria-controls="ocv2PanelLeft"
+                  aria-label="Collapse course path panel" title="Collapse course path panel">
+            <span class="ocv2-col-toggle-label" aria-hidden="true">COURSE PATH</span>
+            <span class="ocv2-col-toggle-caret" aria-hidden="true">◂</span>
+          </button>
           <div class="ocv2-panel-head">
             <div class="ocv2-phead-title">
               <span class="ocv2-phead-icon" aria-hidden="true">◈</span>
@@ -359,7 +366,15 @@
         </section>
 
         <!-- RIGHT — SOC COMMUNICATIONS + ANALYST ROSTER -->
-        <aside class="ocv2-panel ocv2-panel--right" aria-label="SOC communications">
+        <aside class="ocv2-panel ocv2-panel--right" id="ocv2PanelRight" aria-label="SOC communications">
+
+          <!-- Collapse toggle (Task #150) — slim, always-visible; widens the central map. -->
+          <button class="ocv2-col-toggle" type="button" data-col-toggle="right"
+                  aria-expanded="true" aria-controls="ocv2PanelRight"
+                  aria-label="Collapse SOC communications panel" title="Collapse SOC communications panel">
+            <span class="ocv2-col-toggle-label" aria-hidden="true">SOC COMMS</span>
+            <span class="ocv2-col-toggle-caret" aria-hidden="true">▸</span>
+          </button>
 
           <!-- CyberCorp identity card (role / clearance / advancement / queue).
                Populated by renderIdentityPanel() in script.js — derived from
@@ -519,8 +534,16 @@
 
       <div class="career-main">
 
-        <!-- Panel 1 — Mission Brief -->
-        <section class="sim-panel sim-panel--brief" id="simBrief" aria-label="Mission brief"></section>
+        <!-- Panel 1 — Mission Brief (collapsible left column, Task #150) -->
+        <div class="career-col career-col--left" id="simColLeft">
+          <button class="sim-col-toggle" type="button" data-sim-col-toggle="left"
+                  aria-expanded="true" aria-controls="simColLeft"
+                  aria-label="Collapse mission brief" title="Collapse panel">
+            <span class="sim-col-toggle-label" aria-hidden="true">MISSION BRIEF</span>
+            <span class="sim-col-toggle-caret" aria-hidden="true">◂</span>
+          </button>
+          <section class="sim-panel sim-panel--brief" id="simBrief" aria-label="Mission brief"></section>
+        </div>
 
         <!-- Panel 3 — Investigation terminal + decision actions -->
         <section class="sim-panel sim-panel--work" aria-label="Investigation terminal and actions">
@@ -552,7 +575,14 @@
         </section>
 
         <!-- Right column — Panel 2 Evidence (top) + Panel 4 Feedback/Consequence (bottom) -->
-        <div class="career-col career-col--right">
+        <div class="career-col career-col--right" id="simColRight">
+          <!-- Collapse toggle (Task #150) — slim, always-visible; widens the terminal. -->
+          <button class="sim-col-toggle" type="button" data-sim-col-toggle="right"
+                  aria-expanded="true" aria-controls="simColRight"
+                  aria-label="Collapse notebook" title="Collapse panel">
+            <span class="sim-col-toggle-label" aria-hidden="true">NOTEBOOK</span>
+            <span class="sim-col-toggle-caret" aria-hidden="true">▸</span>
+          </button>
           <section class="sim-panel sim-panel--evidence" id="simEvidence" aria-label="Evidence"></section>
           <section class="sim-panel sim-panel--feedback" id="simFeedback" aria-label="Feedback and consequence"></section>
         </div>
