@@ -735,6 +735,7 @@ function openCareerMission(missionId) {
   // hide the "press Enter" cue so Mission 1 state never leaks into another mission.
   { const _ti = document.getElementById('simTermInput'); if (_ti) _ti.value = ''; }
   simHideTermLoadCue();
+  simRemoveCompleteToast();                // clear any lingering completion toast from a prior mission
   // Dynamic conditions: read prior-mission carry-flags and additively reshape
   // this mission (evidence / commands / risks / brief continuity / outcome).
   // Pure + non-mutating — the canonical def in CAREER_MISSIONS is never changed.
@@ -828,6 +829,7 @@ function openCareerMission(missionId) {
 
 function returnFromCareerMission() {
   SIM.runToken++;
+  simRemoveCompleteToast();
   exitCareerScreen();
   renderResourceBar();
 }
@@ -6183,13 +6185,58 @@ function performanceReviewHtml() {
     </div>`;
 }
 
+/* CELEBRATORY COMPLETION MOMENT (presentation-only) — a brief, auto-dismissing
+ * toast shown when the mission debrief renders, so finishing reads as a reward
+ * and the player immediately knows the mission is over. Never persists, scores,
+ * or blocks the RETURN button. Guarded by SIM.runToken so it can't linger across
+ * missions, and removed on mission open / return for safety. */
+function simRemoveCompleteToast() {
+  const t = document.getElementById('simCompleteToast');
+  if (t && t.parentNode) t.parentNode.removeChild(t);
+}
+function simCelebrateComplete() {
+  simRemoveCompleteToast();
+  if (!document.body) return;
+  const el = document.createElement('div');
+  el.id = 'simCompleteToast';
+  el.className = 'sim-complete-toast';
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.innerHTML =
+    '<div class="sim-complete-toast-badge">\u2713</div>' +
+    '<div class="sim-complete-toast-text">' +
+      '<div class="sim-complete-toast-title">MISSION COMPLETE</div>' +
+      '<div class="sim-complete-toast-sub">Debrief ready \u2014 review it, then return to the Operations Center.</div>' +
+    '</div>';
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('is-in'));
+  const token = SIM.runToken;
+  // Operate only on THIS element (never a global by-id remove): if another
+  // mission completes within the window, an old timer must not kill the newer
+  // toast. open/return cleanup already detaches the active toast by id.
+  setTimeout(() => {
+    if (!el.parentNode) return;                          // already cleared (return / new mission)
+    if (SIM.runToken !== token) { el.remove(); return; } // stale across missions — remove just this one
+    el.classList.add('is-out');
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 460);
+  }, 2600);
+}
+
 function renderDebrief(action, outcome, changes) {
   const host = document.getElementById('simFeedback');
   if (!host) return;
   const c = action.consequence || {};
   const denied = outcome && outcome.verdict === 'Denied';
 
-  let html = `<div class="sim-panel-head">MISSION DEBRIEF</div><div class="sim-feedback-body">`;
+  let html = `
+    <div class="sim-complete-head">
+      <span class="sim-complete-head-badge">\u2713</span>
+      <span class="sim-complete-head-text">
+        <span class="sim-complete-head-title">MISSION COMPLETE</span>
+        <span class="sim-complete-head-sub">Debrief below \u00b7 return when ready</span>
+      </span>
+    </div>
+    <div class="sim-feedback-body">`;
   html += `<div class="sim-conseq">`;
   html += `<div class="sim-conseq-title">${action.label}</div>`;
   html += `<div class="sim-conseq-sub">${action.outcomeSub || 'Decision recorded.'}</div>`;
@@ -6260,8 +6307,12 @@ function renderDebrief(action, outcome, changes) {
   html += reportSectionHtml();
   html += consequenceTradeoffHtml(); // #120 (D) one reversible micro-tradeoff texture (additive, never blocks RETURN)
   html += `</div>`; // .sim-feedback-body
+  // Pinned footer: the RETURN button lives OUTSIDE the scrolling body so it's
+  // always visible without scrolling the debrief (the panel is height-bounded).
+  html += `<div class="sim-feedback-foot"><button type="button" class="sim-report-done" data-done="1">RETURN TO OPERATIONS CENTER</button></div>`;
   host.innerHTML = html;
   setFeedbackPanelHidden(false); // a decision was made — reveal the panel in simple mode
+  simCelebrateComplete();        // celebratory, auto-dismissing "mission complete" beat (presentation-only)
 }
 
 /* Carry-forward flags for the active mission. Each mission may define its own
@@ -6320,7 +6371,6 @@ function reportSectionHtml() {
         <ul class="sim-report-flags">${flagItems}</ul>
       </div>
       ${reviewHtml}
-      <button type="button" class="sim-report-done" data-done="1">RETURN TO OPERATIONS CENTER</button>
     </div>`;
 }
 

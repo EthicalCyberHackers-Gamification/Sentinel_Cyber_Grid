@@ -1215,6 +1215,96 @@
 }
 .sim-report-done:hover { background: var(--green-dim); }
 
+/* ---------- Mission complete: pinned footer + header + celebratory toast ----------
+ * Presentation-only completion polish. The RETURN button is lifted OUT of the
+ * scrolling debrief body into a pinned footer so it never requires scrolling
+ * (the feedback panel is height-bounded). A fixed completion header sits at the
+ * top of the panel, and a brief auto-dismissing toast marks the moment. */
+.sim-feedback-foot {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel-alt);
+}
+.sim-feedback-foot .sim-report-done { margin-top: 0; }
+
+.sim-complete-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--green-dim);
+  background: linear-gradient(90deg, rgba(0, 255, 136, 0.10), rgba(0, 255, 136, 0.015));
+}
+.sim-complete-head-badge {
+  flex: 0 0 auto;
+  width: 20px; height: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  color: var(--bg); background: var(--green);
+  border-radius: 50%;
+}
+.sim-complete-head-text { display: flex; flex-direction: column; line-height: 1.2; }
+.sim-complete-head-title {
+  font-family: var(--font-hud); font-size: 12px; font-weight: 700;
+  letter-spacing: 1.4px; color: var(--green);
+}
+.sim-complete-head-sub {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
+  letter-spacing: 0.3px; margin-top: 1px;
+}
+
+.sim-complete-toast {
+  position: fixed;
+  top: 78px; left: 50%;
+  transform: translate(-50%, -14px);
+  z-index: 95;
+  display: flex; align-items: center; gap: 12px;
+  max-width: min(460px, 92vw);
+  padding: 12px 16px;
+  background: var(--bg-panel);
+  border: 1px solid var(--green);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 22px rgba(0, 255, 136, 0.22);
+  opacity: 0; pointer-events: none;
+  transition: opacity 360ms ease, transform 360ms ease;
+}
+.sim-complete-toast.is-in { opacity: 1; transform: translate(-50%, 0); }
+.sim-complete-toast.is-out { opacity: 0; transform: translate(-50%, -14px); }
+.sim-complete-toast-badge {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700;
+  color: var(--bg); background: var(--green);
+  border-radius: 50%;
+  animation: simCompletePop 540ms ease;
+}
+.sim-complete-toast-title {
+  font-family: var(--font-hud); font-size: 13px; font-weight: 700;
+  letter-spacing: 1.4px; color: var(--green);
+}
+.sim-complete-toast-sub {
+  font-size: 11px; color: var(--text-dim); margin-top: 2px; line-height: 1.5;
+}
+@keyframes simCompletePop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sim-complete-toast { transition: opacity 200ms ease; transform: translate(-50%, 0); }
+  .sim-complete-toast.is-out { transform: translate(-50%, 0); }
+  .sim-complete-toast-badge { animation: none; }
+}
+/* Narrow layouts: .career-main becomes the scroller and panels grow with
+   content, so bound the completed debrief panel — its body then scrolls
+   internally and the pinned footer stays reachable like on desktop. */
+@media (max-width: 1100px) {
+  .sim-panel--feedback { max-height: 80vh; }
+}
+
 /* ---------- Analyst Notebook: confidence meter, risks, identify ---------- */
 .sim-confidence {
   border: 1px solid var(--border);
