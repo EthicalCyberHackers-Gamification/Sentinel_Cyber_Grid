@@ -9488,6 +9488,118 @@ function renderMapTransmission(missionId) {
   if (el && def) el.textContent = def.transmission;
 }
 
+/* ============================================================
+ * Mission 1 intro cutscene (presentation-only)
+ * ------------------------------------------------------------
+ * Plays a short cinematic clip the FIRST time the player launches
+ * Mission 1 ("Protect Sensitive Information"), then hands off to the
+ * normal launch flow. Skippable, shown once. The "seen" flag lives in
+ * a SEPARATE localStorage key (never the ech.progress.v1 blob), so it
+ * touches neither saved progress nor cloud sync. Replays never block.
+ * ============================================================ */
+const M1_INTRO_SEEN_KEY = "ech.m1IntroSeen.v1";
+const M1_INTRO_SRC =
+  ((typeof import.meta !== "undefined" && import.meta.env && import.meta.env.BASE_URL) || "/") +
+  "mission-1-intro.mp4";
+let m1IntroActive = false;
+let m1IntroSeenThisSession = false;
+
+function shouldPlayM1Intro() {
+  if (m1IntroSeenThisSession) return false; // in-session guard, survives storage failures
+  try {
+    return localStorage.getItem(M1_INTRO_SEEN_KEY) !== "1";
+  } catch (_) {
+    return false; // storage blocked → don't block the player
+  }
+}
+
+function markM1IntroSeen() {
+  // Always set the in-memory flag first so a failed setItem (quota / private
+  // mode) can't make the cutscene replay in a loop on re-entry this session.
+  m1IntroSeenThisSession = true;
+  try {
+    localStorage.setItem(M1_INTRO_SEEN_KEY, "1");
+  } catch (_) {
+    /* best-effort, presentation-only — session flag above is the real guard */
+  }
+}
+
+function playM1Intro(onDone) {
+  let finished = false;
+  // Duck the background soundtrack so it doesn't clash with the clip's audio;
+  // restore it (only if it was actually playing) when the cutscene finishes.
+  const soundtrackWasPlaying = !!(soundtrackAudio && !soundtrackAudio.paused);
+  if (soundtrackWasPlaying) {
+    try {
+      soundtrackAudio.pause();
+    } catch (_) {
+      /* best-effort ducking */
+    }
+  }
+  const overlay = document.createElement("div");
+  const onKey = (e) => {
+    if (e.key === "Escape") finish();
+  };
+  function finish() {
+    if (finished) return;
+    finished = true;
+    clearTimeout(safety);
+    document.removeEventListener("keydown", onKey);
+    overlay.remove();
+    if (soundtrackWasPlaying && soundtrackAudio) {
+      try {
+        soundtrackAudio.play().catch(() => {});
+      } catch (_) {
+        /* best-effort restore */
+      }
+    }
+    try {
+      if (typeof onDone === "function") onDone();
+    } catch (_) {
+      /* never let the cutscene break the launch */
+    }
+  }
+
+  overlay.className = "m1-intro-overlay";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-label", "Mission 1 introduction");
+
+  const video = document.createElement("video");
+  video.className = "m1-intro-video";
+  video.src = M1_INTRO_SRC;
+  video.preload = "auto";
+  video.autoplay = true;
+  video.playsInline = true;
+  video.setAttribute("playsinline", "");
+  video.addEventListener("ended", finish);
+  video.addEventListener("error", finish); // missing/blocked clip → don't strand
+
+  const skip = document.createElement("button");
+  skip.type = "button";
+  skip.className = "m1-intro-skip";
+  skip.textContent = "Skip intro \u25B6";
+  skip.addEventListener("click", finish);
+
+  overlay.appendChild(video);
+  overlay.appendChild(skip);
+  document.body.appendChild(overlay);
+  document.addEventListener("keydown", onKey);
+
+  // Safety net: never strand the player if the 'ended' event is missed.
+  const safety = setTimeout(finish, 30000);
+
+  const p = video.play();
+  if (p && typeof p.catch === "function") {
+    p.catch(() => {
+      // Autoplay-with-sound blocked → retry muted so it still plays; Skip stays.
+      video.muted = true;
+      video.play().catch(() => {
+        /* leave the overlay up; the Skip button still works */
+      });
+    });
+  }
+}
+
 /**
  * Launch a mission from the map. Locked/coming-soon missions do nothing
  * (their buttons are disabled, but guard defensively). Otherwise hand off
@@ -9504,6 +9616,21 @@ function launchMissionFromMap(missionId, fromOC = false) {
     return;
   }
   if (missionMapStatus(missionId) === "locked") return;
+  // Mission 1 intro cutscene — first launch only, skippable, presentation-only.
+  // Sits BEFORE the career-sim/lab routing so it plays regardless of which
+  // interior Mission 1 opens. On end/skip we re-enter the (now intro-seen) flow.
+  if (missionId === "mission-001") {
+    if (m1IntroActive) return; // already showing — ignore re-entry
+    if (shouldPlayM1Intro()) {
+      m1IntroActive = true;
+      playM1Intro(() => {
+        m1IntroActive = false;
+        markM1IntroSeen();
+        launchMissionFromMap(missionId, fromOC);
+      });
+      return;
+    }
+  }
   // Career simulator interior (career-sim.js isolated module) — assignments that
   // career-sim owns open its resource-driven interior instead of the legacy lab /
   // dashboard. Routed FIRST (before the lab) so 001/002 divert from the lab. We
