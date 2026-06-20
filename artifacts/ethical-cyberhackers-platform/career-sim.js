@@ -731,6 +731,10 @@ function openCareerMission(missionId) {
   SIM.runToken++;
   SIM.missionId = missionId;
   simEndTermGroup();                       // no stale command group carries across missions
+  // Teaching mode is per-mission: clear any command left loaded in the input and
+  // hide the "press Enter" cue so Mission 1 state never leaks into another mission.
+  { const _ti = document.getElementById('simTermInput'); if (_ti) _ti.value = ''; }
+  simHideTermLoadCue();
   // Dynamic conditions: read prior-mission carry-flags and additively reshape
   // this mission (evidence / commands / risks / brief continuity / outcome).
   // Pure + non-mutating — the canonical def in CAREER_MISSIONS is never changed.
@@ -4906,6 +4910,41 @@ function analystPowersHtml() {
     </div>`;
 }
 
+// First-day teaching mode (gated per-mission by def.teachCommands). When on,
+// clicking a command button loads the command into the terminal input and waits
+// for Enter, rather than running on click — so beginners see the exact command.
+function commandTeachMode() {
+  return !!(SIM && SIM.def && SIM.def.teachCommands);
+}
+
+function simHideTermLoadCue() {
+  const cue = document.getElementById('simTermLoadCue');
+  if (cue) { cue.hidden = true; cue.innerHTML = ''; }
+}
+
+function simShowTermLoadCue() {
+  const cue = document.getElementById('simTermLoadCue');
+  if (!cue) return;
+  cue.innerHTML = 'Command loaded in the terminal — press <kbd>Enter</kbd> to run it.';
+  cue.hidden = false;
+}
+
+// Load (don't run) a command into the terminal input so the player runs it with
+// Enter. Mirrors simRunCommand's guards so a button can never bypass the hard
+// lock or fire while a brief/onboarding is open.
+function simLoadCommandToTerminal(cmd) {
+  const text = String(cmd || '');
+  if (!text) return;
+  if (decisionLocked()) { nudgeDecisionDock(); return; }
+  if (SIM.briefOpen || SIM.onboardOpen) return;
+  const input = document.getElementById('simTermInput');
+  if (!input) { simRunCommand(text); return; }
+  input.value = text;
+  input.focus();
+  try { input.setSelectionRange(text.length, text.length); } catch (e) {}
+  simShowTermLoadCue();
+}
+
 /* Terminal command router. ls / cat / less per the Mission 1 spec, plus help,
  * clear, and `decide` to reveal the handling actions when the player is ready. */
 function simRunCommand(raw) {
@@ -6367,6 +6406,11 @@ const CAREER_MISSIONS = {
     threatClass: 'Data Classification & Information Handling',
     priority: 'P2 — HIGH',
     promptLabel: 'intern@cybercorp:~/release$',
+    // First-day teaching: clicking a suggested command button loads it into the
+    // terminal input so the player sees the exact command and runs it themselves
+    // with Enter, instead of firing on click. Scoped to this mission via the flag
+    // (other missions keep click-to-run). Read by commandTeachMode().
+    teachCommands: true,
     carryFlags: [
       { key: 'contractorAccessDiscovered', label: 'Contractor access flagged for follow-up' },
       { key: 'sensitiveDataExposed',       label: 'Sensitive-data exposure on record' },
@@ -10484,7 +10528,16 @@ function simInit() {
       const input = document.getElementById('simTermInput');
       const raw = input ? input.value : '';
       if (input) input.value = '';
+      simHideTermLoadCue();
       if (typeof simRunCommand === 'function') simRunCommand(raw);
+    });
+  }
+
+  // Teaching mode: clear the "press Enter" cue once the player empties the input.
+  const termInput = document.getElementById('simTermInput');
+  if (termInput) {
+    termInput.addEventListener('input', () => {
+      if (!termInput.value) simHideTermLoadCue();
     });
   }
 
@@ -10500,7 +10553,11 @@ function simInit() {
       if (runCmd) {
         e.preventDefault();
         const c = runCmd.getAttribute('data-run-cmd');
-        if (c && typeof simRunCommand === 'function') simRunCommand(c);
+        if (!c) return;
+        // Teaching mode (Mission 1): load the command into the terminal so the
+        // player sees it and runs it with Enter. Other missions keep click-to-run.
+        if (commandTeachMode()) { simLoadCommandToTerminal(c); return; }
+        if (typeof simRunCommand === 'function') simRunCommand(c);
         return;
       }
       // Analyst Notebook navigation chrome — presentation-only view-state.

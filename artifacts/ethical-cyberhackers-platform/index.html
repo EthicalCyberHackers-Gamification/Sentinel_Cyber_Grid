@@ -539,6 +539,10 @@
                    autocapitalize="off" spellcheck="false"
                    placeholder="type a command — try `help`" aria-label="Command input" />
           </form>
+          <!-- Guided-typing cue (Mission 1 / teachCommands): when the player clicks a
+               command button, the command is loaded into the input above and this cue
+               tells them to press Enter to run it. Hidden otherwise. -->
+          <div class="sim-term-load-cue" id="simTermLoadCue" role="status" aria-live="polite" hidden></div>
           <!-- Decision Dock — the active two-step judgment lives here, beneath the
                terminal, and hard-locks the command line until the player answers
                Sarah. Populated by renderDecisionDock(); hidden when nothing pends. -->
