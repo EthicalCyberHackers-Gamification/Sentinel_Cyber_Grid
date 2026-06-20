@@ -602,10 +602,52 @@ function renderHomeConsequences() {
   host.hidden = !html;
 }
 
-function formatResource(key, val) {
-  const def = RESOURCE_DEFS.find(d => d.key === key);
-  if (def && def.kind === 'money') return '$' + Number(val).toLocaleString('en-US');
-  return String(val);
+/* ================================================================== *
+ * PERFORMANCE GAUGES — composite display layer over the six resources
+ * ------------------------------------------------------------------ *
+ * The always-visible bar shows three player-facing red->yellow->green
+ * pointer gauges instead of six raw stats. Each gauge rolls the relevant
+ * underlying resources into a single 0..100 "position": pointer RIGHT =
+ * good judgment / healthy business, pointer LEFT = poor judgment / harm.
+ * PRESENTATION ONLY — derived from live CAREER state, mutates nothing, and
+ * leaves the resource model + scoring (recommendation verdict, Mission 4
+ * review) untouched. The pointer animates as decisions move the resources.
+ * ================================================================== */
+const GAUGE_STATE = { good: 'Strong', warn: 'Caution', low: 'At Risk' };
+
+function gaugeTone(pos) {
+  return pos >= 70 ? 'good' : pos >= 40 ? 'warn' : 'low';
+}
+
+function careerGauges() {
+  const c = CAREER;
+  const clamp01 = n => Math.max(0, Math.min(100, n));
+  // Budget measured against the org's healthy starting reserve (spending pulls left).
+  const budgetNorm = clamp01((c.organizationBudget / CAREER_DEFAULTS.organizationBudget) * 100);
+  const gauges = [
+    {
+      key: 'threatDefense',
+      label: 'Threat Defense',
+      desc: 'Did your calls actually stop the threat?',
+      // Security posture, reinforced by keeping compliance exposure low (inverted).
+      pos: clamp01(0.7 * c.securityPosture + 0.3 * (100 - c.complianceExposure)),
+    },
+    {
+      key: 'businessImpact',
+      label: 'Business Impact',
+      desc: 'Did you keep the business running while you responded?',
+      pos: clamp01(0.65 * c.businessContinuity + 0.35 * budgetNorm),
+    },
+    {
+      key: 'leadershipTrust',
+      label: 'Leadership Trust',
+      desc: 'Does leadership trust your judgment?',
+      // Executive trust is the floor; your earned track record lifts it further.
+      pos: clamp01(c.executiveTrust + 0.25 * c.careerReputation),
+    },
+  ];
+  gauges.forEach(g => { g.pos = Math.round(g.pos); g.tone = gaugeTone(g.pos); g.state = GAUGE_STATE[g.tone]; });
+  return gauges;
 }
 
 /* ================================================================== *
@@ -615,32 +657,60 @@ function formatResource(key, val) {
  * (avoids a global app-shell refactor that would touch the 5 shared
  * .screen layouts). Empty static hosts live in index.html.
  * ================================================================== */
-function renderResourceBar() {
-  const role = activeRole();
-  const authority = role.allowedActions.map(actionLabel).join(' · ');
-  const resourceCells = RESOURCE_DEFS.map(d => {
-    const val = CAREER[d.key];
-    const tone = resourceTone(d, val);
-    const meter = d.kind === 'pct'
-      ? `<span class="sim-res-meter"><span class="sim-res-meter-fill sim-res-${tone}" style="width:${val}%"></span></span>`
-      : '';
-    return `
-      <div class="sim-res sim-res--${tone}" title="${d.label}">
-        <span class="sim-res-label">${d.label}</span>
-        <span class="sim-res-val" data-res="${d.key}">${formatResource(d.key, val)}</span>
-        ${meter}
+function gaugeCellHtml(g) {
+  return `
+      <div class="sim-gauge sim-gauge--${g.tone}" data-gauge="${g.key}" title="${g.label} — ${g.desc}">
+        <div class="sim-gauge-head">
+          <span class="sim-gauge-label">${g.label}</span>
+          <span class="sim-gauge-state">${g.state}</span>
+        </div>
+        <div class="sim-gauge-track" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${g.pos}" aria-label="${g.label}: ${g.state}">
+          <span class="sim-gauge-pointer" style="left:${g.pos}%"></span>
+        </div>
       </div>`;
-  }).join('');
+}
 
-  const html = `
+function resbarShellHtml(role, authority, gauges) {
+  return `
     <div class="sim-resbar-role">
       <span class="sim-resbar-role-tag">ROLE</span>
       <span class="sim-resbar-role-name">${role.title}</span>
       <span class="sim-resbar-auth"><span class="sim-resbar-auth-tag">AUTHORITY</span> ${authority}</span>
     </div>
-    <div class="sim-resbar-resources">${resourceCells}</div>`;
+    <div class="sim-resbar-resources sim-gauges">${gauges.map(gaugeCellHtml).join('')}</div>`;
+}
 
-  document.querySelectorAll('.sim-resbar').forEach(bar => { bar.innerHTML = html; });
+function renderResourceBar() {
+  const role = activeRole();
+  const authority = role.allowedActions.map(actionLabel).join(' · ');
+  const gauges = careerGauges();
+  const roleSig = (role.title || '') + '|' + authority;
+
+  document.querySelectorAll('.sim-resbar').forEach(bar => {
+    const cells = bar.querySelector('.sim-gauges');
+    // Rebuild the static shell only when missing or the role/authority changed;
+    // otherwise update pointers IN PLACE so the CSS transition animates the shift.
+    if (!cells || bar.dataset.roleSig !== roleSig) {
+      bar.innerHTML = resbarShellHtml(role, authority, gauges);
+      bar.dataset.roleSig = roleSig;
+      return;
+    }
+    gauges.forEach(g => {
+      const cell = cells.querySelector(`.sim-gauge[data-gauge="${g.key}"]`);
+      if (!cell) return;
+      cell.className = `sim-gauge sim-gauge--${g.tone}`;
+      cell.title = `${g.label} — ${g.desc}`;
+      const ptr = cell.querySelector('.sim-gauge-pointer');
+      if (ptr) ptr.style.left = g.pos + '%';
+      const st = cell.querySelector('.sim-gauge-state');
+      if (st) st.textContent = g.state;
+      const track = cell.querySelector('.sim-gauge-track');
+      if (track) {
+        track.setAttribute('aria-valuenow', String(g.pos));
+        track.setAttribute('aria-label', `${g.label}: ${g.state}`);
+      }
+    });
+  });
 }
 
 // Host bridge: the shipping OCV2 home re-renders through renderOperationsCenter(),
@@ -649,21 +719,6 @@ if (typeof window !== 'undefined') window.echCareerRenderResourceBar = renderRes
 // #120 Consequence Emotion Loop — host (renderOperationsCenter) calls this on every
 // home show to surface queued postcards (B) + persistent scar memory (C).
 if (typeof window !== 'undefined') window.echCareerRenderHomeConsequences = renderHomeConsequences;
-
-/* Tone for color coding: pct resources use higherBetter to flip the scale;
- * money is neutral-to-warn as it depletes. Presentation only. */
-function resourceTone(def, val) {
-  if (def.kind === 'money') {
-    if (val <= 10000) return 'bad';
-    if (val <= 30000) return 'warn';
-    return 'good';
-  }
-  const good = def.higherBetter ? val >= 70 : val <= 25;
-  const warn = def.higherBetter ? val >= 40 : val <= 55;
-  if (good) return 'good';
-  if (warn) return 'warn';
-  return 'bad';
-}
 
 /* ================================================================== *
  * OPERATING CENTER — four-panel mission screen (#careerOps)
