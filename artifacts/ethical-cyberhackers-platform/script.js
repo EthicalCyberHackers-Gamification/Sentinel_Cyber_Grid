@@ -9491,38 +9491,22 @@ function renderMapTransmission(missionId) {
 /* ============================================================
  * Mission 1 intro cutscene (presentation-only)
  * ------------------------------------------------------------
- * Plays a short cinematic clip the FIRST time the player launches
- * Mission 1 ("Protect Sensitive Information"), then hands off to the
- * normal launch flow. Skippable, shown once. The "seen" flag lives in
- * a SEPARATE localStorage key (never the ech.progress.v1 blob), so it
- * touches neither saved progress nor cloud sync. Replays never block.
+ * Plays a short cinematic clip EVERY time the player launches Mission 1
+ * ("Protect Sensitive Information"), then hands off to the normal launch
+ * flow. Always skippable. Strictly presentation-only — it touches neither
+ * saved progress (ech.progress.v1) nor cloud sync.
+ *
+ * Re-entry: on finish we set the transient one-shot `m1IntroProceed` flag
+ * and re-call launchMissionFromMap; the gate consumes that flag to fall
+ * through into the mission exactly once, so finishing the clip never
+ * replays it (no infinite loop). `m1IntroActive` separately guards against
+ * opening the mission behind the overlay if launch is re-triggered mid-clip.
  * ============================================================ */
-const M1_INTRO_SEEN_KEY = "ech.m1IntroSeen.v1";
 const M1_INTRO_SRC =
   ((typeof import.meta !== "undefined" && import.meta.env && import.meta.env.BASE_URL) || "/") +
   "mission-1-intro.mp4";
 let m1IntroActive = false;
-let m1IntroSeenThisSession = false;
-
-function shouldPlayM1Intro() {
-  if (m1IntroSeenThisSession) return false; // in-session guard, survives storage failures
-  try {
-    return localStorage.getItem(M1_INTRO_SEEN_KEY) !== "1";
-  } catch (_) {
-    return false; // storage blocked → don't block the player
-  }
-}
-
-function markM1IntroSeen() {
-  // Always set the in-memory flag first so a failed setItem (quota / private
-  // mode) can't make the cutscene replay in a loop on re-entry this session.
-  m1IntroSeenThisSession = true;
-  try {
-    localStorage.setItem(M1_INTRO_SEEN_KEY, "1");
-  } catch (_) {
-    /* best-effort, presentation-only — session flag above is the real guard */
-  }
-}
+let m1IntroProceed = false;
 
 function playM1Intro(onDone) {
   let finished = false;
@@ -9616,16 +9600,19 @@ function launchMissionFromMap(missionId, fromOC = false) {
     return;
   }
   if (missionMapStatus(missionId) === "locked") return;
-  // Mission 1 intro cutscene — first launch only, skippable, presentation-only.
+  // Mission 1 intro cutscene — plays on EVERY launch, skippable, presentation-only.
   // Sits BEFORE the career-sim/lab routing so it plays regardless of which
-  // interior Mission 1 opens. On end/skip we re-enter the (now intro-seen) flow.
+  // interior Mission 1 opens. On end/skip we set a one-shot proceed flag and
+  // re-enter, which falls through into the mission exactly once.
   if (missionId === "mission-001") {
     if (m1IntroActive) return; // already showing — ignore re-entry
-    if (shouldPlayM1Intro()) {
+    if (m1IntroProceed) {
+      m1IntroProceed = false; // one-shot: clip just finished → enter the mission
+    } else {
       m1IntroActive = true;
       playM1Intro(() => {
         m1IntroActive = false;
-        markM1IntroSeen();
+        m1IntroProceed = true;
         launchMissionFromMap(missionId, fromOC);
       });
       return;

@@ -11267,7 +11267,7 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 
 /* ============================================================
    Mission 1 intro cutscene overlay (presentation-only)
-   Full-screen video shown once before the first Mission 1 launch
+   Full-screen video shown before each Mission 1 launch
    (see playM1Intro() in script.js). z-index sits above every other
    surface in the app (current max ~10981).
    ============================================================ */
