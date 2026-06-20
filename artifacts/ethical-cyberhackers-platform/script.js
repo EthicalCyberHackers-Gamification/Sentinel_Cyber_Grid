@@ -8944,7 +8944,12 @@ function renderOperationsCenter() {
       const t = window.echCareerThreatLevel({ resolved: cs.completed, total: cs.total });
       threatChip.classList.remove("ocv2-status--ok", "ocv2-status--warn", "ocv2-status--alert", "ocv2-status--crit");
       threatChip.classList.add(`ocv2-status--${t.tone}`);
-      threatText.textContent = `THREAT LEVEL: ${t.label}`;
+      // Labelled "ACTIVE THREATS" (not "THREAT LEVEL") so it doesn't read as a
+      // contradiction of the Threat Defense gauge: Threat Defense = your defensive
+      // capability; this = the live danger out there, which stays elevated while
+      // assignments are still unresolved even when your defenses are strong.
+      threatText.textContent = `ACTIVE THREATS: ${t.label}`;
+      threatChip.title = `Active threats — the live danger level. Blends assignments resolved (${t.resolved}/${t.total}) with your Threat Defense posture (${t.defense}/100). Strong defenses still read elevated while threats remain unworked; clear assignments to bring it down.`;
     }
   }
   // #120 Consequence Emotion Loop — surface queued postcards + persistent scar memory.
