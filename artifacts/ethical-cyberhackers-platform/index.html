@@ -136,6 +136,15 @@
       <!-- THREE-PANEL BODY -->
       <main class="ocv2-body">
 
+        <!-- Drag-to-resize dividers (Task #151) — presentation-only. Sit on each
+             side↔center boundary; pointer/keyboard driven in script.js. -->
+        <div class="ocv2-resize-handle ocv2-resize-handle--left" data-oc-resize="left"
+             role="separator" aria-orientation="vertical" tabindex="0"
+             aria-label="Resize course path panel"></div>
+        <div class="ocv2-resize-handle ocv2-resize-handle--right" data-oc-resize="right"
+             role="separator" aria-orientation="vertical" tabindex="0"
+             aria-label="Resize SOC communications panel"></div>
+
         <!-- LEFT — COURSE PATH (graduated from prototype) + demoted monitoring -->
         <aside class="ocv2-panel ocv2-panel--left" id="ocv2PanelLeft" aria-label="Course path and monitoring">
           <!-- Collapse toggle (Task #150) — slim, always-visible; widens the central map. -->
@@ -533,6 +542,15 @@
       </div>
 
       <div class="career-main">
+
+        <!-- Drag-to-resize dividers (Task #151) — presentation-only. Sit on each
+             side↔center boundary; pointer/keyboard driven in career-sim.js. -->
+        <div class="sim-resize-handle sim-resize-handle--left" data-sim-resize="left"
+             role="separator" aria-orientation="vertical" tabindex="0"
+             aria-label="Resize mission brief panel"></div>
+        <div class="sim-resize-handle sim-resize-handle--right" data-sim-resize="right"
+             role="separator" aria-orientation="vertical" tabindex="0"
+             aria-label="Resize analyst notebook panel"></div>
 
         <!-- Panel 1 — Mission Brief (collapsible left column, Task #150) -->
         <div class="career-col career-col--left" id="simColLeft">

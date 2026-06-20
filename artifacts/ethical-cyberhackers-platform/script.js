@@ -8372,6 +8372,132 @@ function echSaveUiPref(key, value) {
   } catch { /* private mode / quota — layout pref is best-effort */ }
 }
 
+/* ============================================================
+ * Drag-to-resize side columns (Task #151) — presentation-only layout state for
+ * the OCV2 home. Side widths flow through the --oc-left-w / --oc-right-w custom
+ * props (the grid template and the divider handles both read them). One apply
+ * fn (applyOcColumns) sets the inline vars from full state {collapsed, stored
+ * width, viewport}; widths persist under ech.ui.v1 (ocLeftW/ocRightW), never the
+ * game blob. Drag uses a delta from the start width so grid gap/padding never
+ * enter the math. ============================================================ */
+const OC_RESIZE = {
+  rail: 32,
+  centerMin: 360,   // the Global Operations Map never shrinks below this
+  defaults: { left: 270, right: 252 },
+  min:      { left: 190, right: 190 },
+  hardMax:  { left: 480, right: 460 },
+};
+function ocResizeDesktop() {
+  return window.matchMedia("(min-width: 901px)").matches;
+}
+function ocSideCollapsed(side) {
+  const body = document.querySelector(".ocv2-body");
+  return !!body && body.classList.contains(`ocv2-body--${side}-collapsed`);
+}
+function ocStoredWidth(side) {
+  const raw = echLoadUiPrefs()[side === "left" ? "ocLeftW" : "ocRightW"];
+  return typeof raw === "number" ? raw : OC_RESIZE.defaults[side];
+}
+function ocRenderedWidth(side) {
+  const body = document.querySelector(".ocv2-body");
+  if (!body) return OC_RESIZE.defaults[side];
+  if (ocSideCollapsed(side)) return OC_RESIZE.rail;
+  const n = parseFloat(getComputedStyle(body).getPropertyValue(`--oc-${side}-w`));
+  return Number.isFinite(n) ? n : ocStoredWidth(side);
+}
+/* Clamp a candidate width: never below the per-side min, never wide enough to
+ * starve the center (dynamic max = container − other side − centerMin). */
+function ocClampWidth(side, w) {
+  const body = document.querySelector(".ocv2-body");
+  let max = OC_RESIZE.hardMax[side];
+  if (body && body.clientWidth) {
+    const other = side === "left" ? "right" : "left";
+    max = Math.min(max, body.clientWidth - ocRenderedWidth(other) - OC_RESIZE.centerMin);
+  }
+  max = Math.max(OC_RESIZE.min[side], max);
+  return Math.round(Math.min(max, Math.max(OC_RESIZE.min[side], w)));
+}
+function ocUpdateResizeAria(side) {
+  const h = document.querySelector(`.ocv2-resize-handle[data-oc-resize="${side}"]`);
+  if (!h) return;
+  h.setAttribute("aria-valuemin", String(OC_RESIZE.min[side]));
+  h.setAttribute("aria-valuemax", String(OC_RESIZE.hardMax[side]));
+  h.setAttribute("aria-valuenow", String(ocClampWidth(side, ocStoredWidth(side))));
+}
+/* Single source of truth: write the inline width vars from current state. */
+function applyOcColumns() {
+  const body = document.querySelector(".ocv2-body");
+  if (!body) return;
+  const desktop = ocResizeDesktop();
+  ["left", "right"].forEach((side) => {
+    if (ocSideCollapsed(side)) {
+      body.style.setProperty(`--oc-${side}-w`, OC_RESIZE.rail + "px");
+    } else if (!desktop) {
+      // Narrow layout: drop any inline drag width so the CSS 220px default wins.
+      body.style.removeProperty(`--oc-${side}-w`);
+    } else {
+      body.style.setProperty(`--oc-${side}-w`, ocClampWidth(side, ocStoredWidth(side)) + "px");
+    }
+    ocUpdateResizeAria(side);
+  });
+}
+function ocBeginResize(side, ev) {
+  const body = document.querySelector(".ocv2-body");
+  if (!body || !ocResizeDesktop() || ocSideCollapsed(side)) return;
+  ev.preventDefault();
+  const startX = ev.clientX;
+  const startW = ocClampWidth(side, ocStoredWidth(side));
+  body.classList.add("is-col-resizing");
+  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* older browsers */ }
+  const onMove = (e) => {
+    const dx = e.clientX - startX;
+    const w = ocClampWidth(side, side === "left" ? startW + dx : startW - dx);
+    body.style.setProperty(`--oc-${side}-w`, w + "px");
+    const h = document.querySelector(`.ocv2-resize-handle[data-oc-resize="${side}"]`);
+    if (h) h.setAttribute("aria-valuenow", String(w));
+  };
+  const onUp = () => {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
+    body.classList.remove("is-col-resizing");
+    echSaveUiPref(side === "left" ? "ocLeftW" : "ocRightW", ocRenderedWidth(side));
+    applyOcColumns();
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", onUp); // interrupted drag → clean up
+}
+function ocResizeKey(side, e) {
+  if (!ocResizeDesktop() || ocSideCollapsed(side)) return;
+  let w = ocClampWidth(side, ocStoredWidth(side));
+  const step = e.shiftKey ? 48 : 16;
+  if (e.key === "ArrowLeft") w += side === "left" ? -step : step;
+  else if (e.key === "ArrowRight") w += side === "left" ? step : -step;
+  else if (e.key === "Home" || e.key === "End") w = OC_RESIZE.defaults[side];
+  else return;
+  e.preventDefault();
+  echSaveUiPref(side === "left" ? "ocLeftW" : "ocRightW", ocClampWidth(side, w));
+  applyOcColumns();
+}
+function ocResizeReset(side) {
+  echSaveUiPref(side === "left" ? "ocLeftW" : "ocRightW", OC_RESIZE.defaults[side]);
+  applyOcColumns();
+}
+function initOcResize() {
+  document.querySelectorAll(".ocv2-resize-handle[data-oc-resize]").forEach((h) => {
+    const side = h.dataset.ocResize;
+    h.addEventListener("pointerdown", (e) => ocBeginResize(side, e));
+    h.addEventListener("keydown", (e) => ocResizeKey(side, e));
+    h.addEventListener("dblclick", () => ocResizeReset(side));
+  });
+  // Re-evaluate inline widths when crossing the responsive breakpoint so a drag
+  // width never sticks on the narrow layout (restored on the way back).
+  const mq = window.matchMedia("(min-width: 901px)");
+  if (mq.addEventListener) mq.addEventListener("change", applyOcColumns);
+  else if (mq.addListener) mq.addListener(applyOcColumns);
+}
+
 /* Collapse/expand one OCV2 home side column. Presentation-only: toggles layout
  * classes on the never-rebuilt .ocv2-body / panel containers so the choice
  * survives every renderOperationsCenter() pass. */
@@ -8396,6 +8522,9 @@ function setOcv2ColState(side, collapsed) {
     const expandGlyph = side === "left" ? "▸" : "◂";
     caret.textContent = collapsed ? expandGlyph : collapseGlyph;
   }
+  // Width is owned by the resize layer: collapsed → rail, expanded → last
+  // dragged width (Task #151). The class toggled above is read by applyOcColumns.
+  applyOcColumns();
 }
 
 function initOcv2() {
@@ -8494,10 +8623,15 @@ function initOcv2() {
       echSaveUiPref(side === "left" ? "ocLeft" : "ocRight", nowCollapsed);
     });
   });
-  // Restore the persisted layout choice (presentation-only).
+  // Restore the persisted layout choice (presentation-only): collapse state for
+  // each side, then drag widths. setOcv2ColState runs applyOcColumns internally;
+  // call it for BOTH sides (not just collapsed ones) so a stored drag width on an
+  // expanded side is restored too. initOcResize wires the dividers + breakpoint.
   const _uiPrefs = echLoadUiPrefs();
-  if (_uiPrefs.ocLeft) setOcv2ColState("left", true);
-  if (_uiPrefs.ocRight) setOcv2ColState("right", true);
+  setOcv2ColState("left", !!_uiPrefs.ocLeft);
+  setOcv2ColState("right", !!_uiPrefs.ocRight);
+  initOcResize();
+  applyOcColumns();
 }
 
 /**

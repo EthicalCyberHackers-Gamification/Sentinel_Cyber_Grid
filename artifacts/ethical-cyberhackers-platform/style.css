@@ -9548,8 +9548,15 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 /* ---- THREE-PANEL BODY ---- */
 .ocv2-body {
   flex: 1;
+  position: relative; /* anchor for the absolutely-positioned resize handles */
   display: grid;
-  grid-template-columns: 270px 1fr 252px;
+  /* Side-column widths are driven by custom props so the drag handles (which
+   * read the same vars) track the boundary, and collapse/resize/mobile all flow
+   * through one value. JS (applyOcColumns) sets them inline; CSS supplies the
+   * defaults + collapse/mobile fallbacks below. */
+  --oc-left-w: 270px;
+  --oc-right-w: 252px;
+  grid-template-columns: var(--oc-left-w) 1fr var(--oc-right-w);
   gap: 0;
   overflow: hidden;
   min-height: 0;
@@ -9581,9 +9588,50 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
  * (never rebuilt), so the choice survives every renderOperationsCenter() pass.
  * The two-class form keeps these above the responsive fallback at all widths.
  * ============================================================ */
-.ocv2-body.ocv2-body--left-collapsed  { grid-template-columns: 32px 1fr 252px; }
-.ocv2-body.ocv2-body--right-collapsed { grid-template-columns: 270px 1fr 32px; }
-.ocv2-body.ocv2-body--left-collapsed.ocv2-body--right-collapsed { grid-template-columns: 32px 1fr 32px; }
+/* Collapse shrinks a side to a slim rail. JS sets these inline too; the rules
+ * here are the no-inline fallback. Driving the same var keeps the boundary
+ * handle (left: var(--oc-*-w)) pinned to the rail edge while collapsed. */
+.ocv2-body.ocv2-body--left-collapsed  { --oc-left-w: 32px; }
+.ocv2-body.ocv2-body--right-collapsed { --oc-right-w: 32px; }
+
+/* ---- Drag-to-resize handles (Task #151) — presentation-only ----
+ * A slim grab strip sits on each side↔center boundary, auto-tracking the column
+ * width via the same custom prop. Pointer/keyboard driven in script.js. */
+.ocv2-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  z-index: 6;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+.ocv2-resize-handle--left  { left: var(--oc-left-w);  transform: translateX(-50%); }
+.ocv2-resize-handle--right { right: var(--oc-right-w); transform: translateX(50%); }
+/* A faint center line that lights up on hover/focus/drag so the strip is findable. */
+.ocv2-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--color-border);
+  transition: background 0.15s ease, width 0.15s ease;
+}
+.ocv2-resize-handle:hover::after,
+.ocv2-resize-handle:focus-visible::after,
+.ocv2-body.is-col-resizing .ocv2-resize-handle::after { background: var(--color-green); width: 2px; }
+.ocv2-resize-handle:focus-visible { outline: none; }
+/* No resizing a collapsed rail, and the divider is inert on narrow layouts. */
+.ocv2-body--left-collapsed  .ocv2-resize-handle--left,
+.ocv2-body--right-collapsed .ocv2-resize-handle--right { display: none; }
+/* While dragging, kill text selection across the whole body. */
+.ocv2-body.is-col-resizing { user-select: none; cursor: col-resize; }
 
 .ocv2-col-toggle {
   flex: 0 0 auto;
@@ -10733,9 +10781,14 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
 
 /* ---- RESPONSIVE FALLBACK (narrower viewports) ---- */
 @media (max-width: 900px) {
+  /* Narrower default sides. Set the vars (not grid-template-columns) so collapse
+   * rails still win; JS clears any inline drag width here so it can't persist
+   * onto the cramped layout. Resize handles are hidden below. */
   .ocv2-body {
-    grid-template-columns: 220px 1fr 220px;
+    --oc-left-w: 220px;
+    --oc-right-w: 220px;
   }
+  .ocv2-resize-handle { display: none; }
   .ocv2-header-status .ocv2-status-chip:nth-child(3) { display: none; }
 }
 

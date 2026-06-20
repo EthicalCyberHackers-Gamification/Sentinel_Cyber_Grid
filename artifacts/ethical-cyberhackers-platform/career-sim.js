@@ -993,6 +993,9 @@ function setSimColState(side, collapsed) {
     const expandGlyph = side === 'left' ? '▸' : '◂';
     caret.textContent = collapsed ? expandGlyph : collapseGlyph;
   }
+  // Width is owned by the resize layer: collapsed → rail, expanded → last
+  // dragged width (Task #151). The class toggled above is read by applySimColumns.
+  applySimColumns();
 }
 function toggleSimColumn(side) {
   const col = document.getElementById(side === 'left' ? 'simColLeft' : 'simColRight');
@@ -1005,6 +1008,128 @@ function applySimColPrefs() {
   const p = echUiGet();
   setSimColState('left', !!p.simLeft);
   setSimColState('right', !!p.simRight);
+  applySimColumns();
+}
+
+/* ============================================================
+ * Drag-to-resize side columns (Task #151) — presentation-only layout for the
+ * mission screen. Mirrors the OCV2 home resize layer (separate ES module scope,
+ * so the parallel const names are intentional). Side widths flow through the
+ * --sim-left-w / --sim-right-w custom props (grid template + divider handles
+ * both read them); widths persist under ech.ui.v1 (simLeftW/simRightW), never the
+ * game blob. No matchMedia listener is needed: the <1100px layout sets
+ * grid-template-columns:1fr literally, which overrides the var template, so the
+ * inline vars are simply inert when stacked. Drag uses a delta from the start
+ * width so the grid gap/padding never enter the math.
+ * ============================================================ */
+const SIM_RESIZE = {
+  rail: 34,
+  centerMin: 400,   // the Investigation Terminal never shrinks below this
+  defaults: { left: 320, right: 360 },
+  min:      { left: 240, right: 260 },
+  hardMax:  { left: 520, right: 560 },
+};
+function simResizeDesktop() {
+  return window.matchMedia('(min-width: 1101px)').matches;
+}
+function simSideCollapsed(side) {
+  const main = document.querySelector('.career-main');
+  return !!main && main.classList.contains(`career-main--${side}-collapsed`);
+}
+function simStoredWidth(side) {
+  const raw = echUiGet()[side === 'left' ? 'simLeftW' : 'simRightW'];
+  return typeof raw === 'number' ? raw : SIM_RESIZE.defaults[side];
+}
+function simRenderedWidth(side) {
+  const main = document.querySelector('.career-main');
+  if (!main) return SIM_RESIZE.defaults[side];
+  if (simSideCollapsed(side)) return SIM_RESIZE.rail;
+  const n = parseFloat(getComputedStyle(main).getPropertyValue(`--sim-${side}-w`));
+  return Number.isFinite(n) ? n : simStoredWidth(side);
+}
+/* Clamp a candidate width: never below the per-side min, never wide enough to
+ * starve the terminal. Available track space = clientWidth − padding(24) −
+ * gaps(24); keep the center at >= centerMin. */
+function simClampWidth(side, w) {
+  const main = document.querySelector('.career-main');
+  let max = SIM_RESIZE.hardMax[side];
+  if (main && main.clientWidth) {
+    const other = side === 'left' ? 'right' : 'left';
+    max = Math.min(max, main.clientWidth - 48 - simRenderedWidth(other) - SIM_RESIZE.centerMin);
+  }
+  max = Math.max(SIM_RESIZE.min[side], max);
+  return Math.round(Math.min(max, Math.max(SIM_RESIZE.min[side], w)));
+}
+function simUpdateResizeAria(side) {
+  const h = document.querySelector(`.sim-resize-handle[data-sim-resize="${side}"]`);
+  if (!h) return;
+  h.setAttribute('aria-valuemin', String(SIM_RESIZE.min[side]));
+  h.setAttribute('aria-valuemax', String(SIM_RESIZE.hardMax[side]));
+  h.setAttribute('aria-valuenow', String(simClampWidth(side, simStoredWidth(side))));
+}
+/* Single source of truth: write the inline width vars from current state. */
+function applySimColumns() {
+  const main = document.querySelector('.career-main');
+  if (!main) return;
+  ['left', 'right'].forEach((side) => {
+    if (simSideCollapsed(side)) {
+      main.style.setProperty(`--sim-${side}-w`, SIM_RESIZE.rail + 'px');
+    } else {
+      main.style.setProperty(`--sim-${side}-w`, simClampWidth(side, simStoredWidth(side)) + 'px');
+    }
+    simUpdateResizeAria(side);
+  });
+}
+function simBeginResize(side, ev) {
+  const main = document.querySelector('.career-main');
+  if (!main || !simResizeDesktop() || simSideCollapsed(side)) return;
+  ev.preventDefault();
+  const startX = ev.clientX;
+  const startW = simClampWidth(side, simStoredWidth(side));
+  main.classList.add('is-col-resizing');
+  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch { /* older browsers */ }
+  const onMove = (e) => {
+    const dx = e.clientX - startX;
+    const w = simClampWidth(side, side === 'left' ? startW + dx : startW - dx);
+    main.style.setProperty(`--sim-${side}-w`, w + 'px');
+    const h = document.querySelector(`.sim-resize-handle[data-sim-resize="${side}"]`);
+    if (h) h.setAttribute('aria-valuenow', String(w));
+  };
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+    main.classList.remove('is-col-resizing');
+    echUiSet(side === 'left' ? 'simLeftW' : 'simRightW', simRenderedWidth(side));
+    applySimColumns();
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp); // interrupted drag → clean up
+}
+function simResizeKey(side, e) {
+  if (!simResizeDesktop() || simSideCollapsed(side)) return;
+  let w = simClampWidth(side, simStoredWidth(side));
+  const step = e.shiftKey ? 48 : 16;
+  if (e.key === 'ArrowLeft') w += side === 'left' ? -step : step;
+  else if (e.key === 'ArrowRight') w += side === 'left' ? step : -step;
+  else if (e.key === 'Home' || e.key === 'End') w = SIM_RESIZE.defaults[side];
+  else return;
+  e.preventDefault();
+  echUiSet(side === 'left' ? 'simLeftW' : 'simRightW', simClampWidth(side, w));
+  applySimColumns();
+}
+function simResizeReset(side) {
+  echUiSet(side === 'left' ? 'simLeftW' : 'simRightW', SIM_RESIZE.defaults[side]);
+  applySimColumns();
+}
+function initSimResize() {
+  document.querySelectorAll('.sim-resize-handle[data-sim-resize]').forEach((h) => {
+    const side = h.dataset.simResize;
+    h.addEventListener('pointerdown', (e) => simBeginResize(side, e));
+    h.addEventListener('keydown', (e) => simResizeKey(side, e));
+    h.addEventListener('dblclick', () => simResizeReset(side));
+  });
 }
 
 window.openCareerMission = openCareerMission;
@@ -10739,6 +10864,10 @@ function simInit() {
       if (!termInput.value) simHideTermLoadCue();
     });
   }
+
+  // Drag-to-resize side-column dividers (Task #151) — presentation-only. The
+  // handles are static children of .career-main, so bind them once here.
+  initSimResize();
 
   // One delegated handler for every interactive control inside #careerOps.
   // Panels are re-rendered, so we bind the stable parent and route by data-attr.

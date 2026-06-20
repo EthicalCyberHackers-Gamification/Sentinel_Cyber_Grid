@@ -31,3 +31,31 @@ and force-shows the feedback/debrief panel before the first decision — a conte
 leak on narrow viewports when the right column is persisted collapsed.
 **How to apply:** any "force-show on mobile" rule that uses `!important` on a column
 whose children include app-`[hidden]` panels needs the `:not([hidden])` guard.
+
+## Drag-to-resize shares this layer (widths via custom props)
+Resizable side columns build on the same `ech.ui.v1` layer (width keys
+`ocLeftW`/`ocRightW`, `simLeftW`/`simRightW`). Widths flow through CSS custom props
+(`--oc-left-w`/`--oc-right-w` on `.ocv2-body`; `--sim-left-w`/`--sim-right-w` on
+`.career-main`); the grid template references the var and the absolutely-positioned
+divider handles read the same var so they auto-track the boundary.
+
+**Rule:** one apply fn per screen (`applyOcColumns`/`applySimColumns`) is the sole
+writer of the inline width vars, and it reads collapsed state from the **DOM class**
+(`ocSideCollapsed`/`simSideCollapsed`), never the just-saved pref.
+**Why:** the collapse click handler saves the collapse pref AFTER `setOc/SimColState`
+toggles the class; reading the pref inside the apply fn would race and pick stale
+collapse state. Reading the class (already toggled) makes save-ordering irrelevant.
+
+**Rule (mobile-override asymmetry — the real gotcha):** the HOME narrow layout
+(`@media max-width:900px`) sets the width vars to 220px, so it is var-overridable —
+home MUST use a `matchMedia` listener and `removeProperty` the inline var on narrow
+so the CSS default wins. The MISSION narrow layout (`@media max-width:1100px`) sets
+`grid-template-columns: 1fr` literally, which overrides the var template entirely, so
+the mission inline vars are simply **inert when stacked** — mission needs NO
+matchMedia listener.
+**How to apply:** before reusing this pattern on a new screen, check whether its
+mobile rule overrides the var (→ needs listener+removeProperty) or the whole
+template (→ vars inert, no listener). Clamp = per-side min + dynamic max
+(`container − otherSide − centerMin`; mission also subtracts padding+gaps). Drag uses
+delta `startW ± dx` so gap/padding never enter the math; window pointermove/up/cancel
+listeners are added on drag start and all removed on the one `onUp`.

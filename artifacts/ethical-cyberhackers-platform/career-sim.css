@@ -212,18 +212,58 @@
 .career-main {
   flex: 1 1 auto;
   min-height: 0;
+  position: relative; /* anchor for the absolutely-positioned resize handles */
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(420px, 1.6fr) minmax(300px, 1.1fr);
+  /* Side widths flow through custom props so the drag dividers (Task #151) track
+   * the boundary and collapse/resize share one value; JS (applySimColumns) sets
+   * them inline, CSS supplies the defaults + collapse rail fallback. */
+  --sim-left-w: 320px;
+  --sim-right-w: 360px;
+  grid-template-columns: var(--sim-left-w) minmax(360px, 1fr) var(--sim-right-w);
   gap: 12px;
   padding: 12px;
   overflow: hidden;
 }
 /* Collapsible side columns (Task #150): collapsing a side column shrinks it to a
- * slim rail so the central Investigation Terminal grows. Two-class form keeps
- * these above the mobile fallback (which re-neutralizes them). */
-.career-main.career-main--left-collapsed  { grid-template-columns: 34px minmax(420px, 1.6fr) minmax(300px, 1.1fr); }
-.career-main.career-main--right-collapsed { grid-template-columns: minmax(280px, 1fr) minmax(420px, 1.6fr) 34px; }
-.career-main.career-main--left-collapsed.career-main--right-collapsed { grid-template-columns: 34px minmax(420px, 1fr) 34px; }
+ * slim rail so the central Investigation Terminal grows. JS sets these inline
+ * too; the rules here are the no-inline fallback. */
+.career-main.career-main--left-collapsed  { --sim-left-w: 34px; }
+.career-main.career-main--right-collapsed { --sim-right-w: 34px; }
+
+/* ---- Drag-to-resize handles (Task #151) — presentation-only ----
+ * Slim grab strip on each side↔center boundary; offset by padding(12) + half the
+ * gap(6) so it lands in the visual gutter. Pointer/keyboard driven in
+ * career-sim.js. */
+.sim-resize-handle {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  width: 12px;
+  z-index: 6;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+.sim-resize-handle--left  { left: calc(12px + var(--sim-left-w) + 6px);  transform: translateX(-50%); }
+.sim-resize-handle--right { right: calc(12px + var(--sim-right-w) + 6px); transform: translateX(50%); }
+.sim-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--border);
+  transition: background 0.15s ease, width 0.15s ease;
+}
+.sim-resize-handle:hover::after,
+.sim-resize-handle:focus-visible::after,
+.career-main.is-col-resizing .sim-resize-handle::after { background: var(--green); width: 2px; }
+.sim-resize-handle:focus-visible { outline: none; }
+.career-main--left-collapsed  .sim-resize-handle--left,
+.career-main--right-collapsed .sim-resize-handle--right { display: none; }
+.career-main.is-col-resizing { user-select: none; cursor: col-resize; }
 
 /* Left column wrapper (holds the collapse toggle + the Mission Brief panel). */
 .career-col--left {
@@ -1545,10 +1585,13 @@
   .career-main { grid-template-columns: 1fr; grid-auto-rows: minmax(220px, auto); overflow-y: auto; }
   .career-col--right { grid-template-rows: auto minmax(220px, auto) minmax(220px, auto); }
   /* Column collapse is a desktop affordance; on the stacked mobile layout
-     neutralize it so no panel ever disappears. */
+     neutralize it so no panel ever disappears. The base `1fr` above already
+     wins here (collapse only sets a var now), but keep these explicit. */
   .career-main.career-main--left-collapsed,
   .career-main.career-main--right-collapsed,
   .career-main.career-main--left-collapsed.career-main--right-collapsed { grid-template-columns: 1fr; }
+  /* Resizing is a desktop affordance; the dividers are inert when stacked. */
+  .sim-resize-handle { display: none; }
   /* Reveal collapsed content when stacked — but never force-show a panel the
      app has marked [hidden] (e.g. the feedback/debrief panel before the first
      decision), or it leaks early. */
