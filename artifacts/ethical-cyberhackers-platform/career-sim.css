@@ -9,7 +9,13 @@
 /* ---------- Resource bar (top of home + mission screens) ---------- */
 .sim-resbar {
   flex: 0 0 auto;
-  display: flex;
+  /* 3-column grid keeps the gauges in column 2 dead-CENTER of the bar
+   * (always in the player's line of sight) while the role/authority block
+   * stays left. The two minmax(0,1fr) side tracks are equal, so the auto
+   * middle track is centered; they collapse to 0 on narrow widths so the
+   * bar scrolls (overflow-x) instead of overlapping. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 22px;
   padding: 7px 16px;
@@ -28,7 +34,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 0 1 auto;
+  /* Hug content + align left so the divider sits next to the text, not at the
+   * far edge of the 1fr grid track. max-width caps it to its track so long
+   * role/authority text CLIPS instead of spilling into the centered gauges. */
+  justify-self: start;
+  max-width: 100%;
   min-width: 0;
   padding-right: 20px;
   border-right: 1px solid var(--border);
@@ -66,13 +76,8 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  /* flex:0 0 auto + margin-left:auto pins the meters to the right edge WITHOUT
-   * letting this block shrink below its content. The old `flex:1 1 auto;
-   * min-width:0; justify-content:flex-end` let it shrink past its content and
-   * the right-aligned cells spilled LEFTWARD over the role/authority text
-   * (Security Posture "72" read as "12"). The role block now clips instead. */
-  flex: 0 0 auto;
-  margin-left: auto;
+  /* Sits in the grid's CENTER (auto) column — see `.sim-resbar`. No margin
+   * pinning: the flanking minmax(0,1fr) tracks keep it horizontally centered. */
 }
 /* Performance gauges: three red->yellow->green tracks with a sliding pointer.
  * Pointer RIGHT = good judgment / healthy business; LEFT = poor judgment / harm. */

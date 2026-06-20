@@ -20,3 +20,10 @@ live in `careerGauges()`). To animate the pointer, `renderResourceBar()` builds
 the shell ONCE per `.sim-resbar` host (there are TWO) keyed on a role/authority
 signature, then updates pointer `left`/state/ARIA IN PLACE on later calls — a
 full innerHTML rebuild would kill the CSS `left` transition.
+
+**Layout:** the bar is a 3-col grid `minmax(0,1fr) auto minmax(0,1fr)` so the
+gauges (auto col) sit DEAD-CENTER of the bar (player line-of-sight), role/auth
+left. The role/authority text INTENTIONALLY clips (`justify-self:start` +
+`max-width:100%` caps it to its track) rather than spilling into the centered
+gauges — the clipped authority verbs are secondary chrome (role name stays
+visible; also shown in the home ID card). Don't "fix" the clip by un-centering.
