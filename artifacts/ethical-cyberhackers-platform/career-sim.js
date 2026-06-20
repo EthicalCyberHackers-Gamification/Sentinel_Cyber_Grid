@@ -651,6 +651,51 @@ function careerGauges() {
 }
 
 /* ================================================================== *
+ * THREAT LEVEL — one live danger reading for the OCV2 home header.
+ * Presentation-only: derived from real progress (missions resolved)
+ * blended with current Threat Defense posture. More contained = lower
+ * threat; a collapsing defense pushes it back up. Writes nothing — it
+ * only reports the situation the player has already earned.
+ * ================================================================== */
+const THREAT_LEVELS = {
+  normal:   { id: 'normal',   label: 'NORMAL',   tone: 'ok'    },
+  guarded:  { id: 'guarded',  label: 'GUARDED',  tone: 'warn'  },
+  elevated: { id: 'elevated', label: 'ELEVATED', tone: 'alert' },
+  critical: { id: 'critical', label: 'CRITICAL', tone: 'crit'  },
+};
+
+function careerThreatLevel(opts) {
+  // Resolved/total: prefer the caller's count (the home passes the SAME source
+  // the identity panel's "X/N resolved" uses, so the two can never disagree).
+  // Fall back to career-sim's own completion array when called standalone.
+  const o = opts || {};
+  let total, resolved;
+  if (Number.isFinite(o.total) && Number.isFinite(o.resolved)) {
+    total = o.total > 0 ? o.total : 1;
+    resolved = Math.max(0, o.resolved);
+  } else {
+    const ids = (typeof window !== 'undefined' && Array.isArray(window.CAREER_MISSION_IDS) && window.CAREER_MISSION_IDS.length)
+      ? window.CAREER_MISSION_IDS
+      : Object.keys(CAREER_MISSIONS);
+    total = ids.length || 1;
+    resolved = Array.isArray(CAREER.completedMissions) ? CAREER.completedMissions.length : 0;
+  }
+  const progress = Math.max(0, Math.min(1, resolved / total));            // 0..1, higher = safer
+  const td = careerGauges().find(g => g.key === 'threatDefense');
+  const defense = td ? td.pos : 0;                                        // 0..100, your defensive posture
+  // Containment: how under control the situation is — half from work
+  // cleared, half from how strong your defense currently is.
+  const containment = Math.round(0.5 * progress * 100 + 0.5 * defense);
+  let level;
+  if (containment >= 75) level = THREAT_LEVELS.normal;
+  else if (containment >= 50) level = THREAT_LEVELS.guarded;
+  else if (containment >= 25) level = THREAT_LEVELS.elevated;
+  else level = THREAT_LEVELS.critical;
+  return { ...level, containment, resolved, total, defense };
+}
+if (typeof window !== 'undefined') window.echCareerThreatLevel = careerThreatLevel;
+
+/* ================================================================== *
  * RESOURCE BAR — always visible at the top of home AND mission screens
  * ------------------------------------------------------------------ *
  * Per-screen duplicated bar: one render fills every `.sim-resbar` host

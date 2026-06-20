@@ -9382,8 +9382,10 @@ body.demo-active .soc-toolkit-backdrop { display: none; }
   white-space: nowrap;
 }
 
-.ocv2-status--ok   { color: var(--color-green); border-color: rgba(0,255,136,0.2); }
-.ocv2-status--warn { color: var(--color-yellow); border-color: rgba(255,215,0,0.2); }
+.ocv2-status--ok    { color: var(--color-green);  border-color: rgba(0,255,136,0.2); }
+.ocv2-status--warn  { color: var(--color-yellow); border-color: rgba(255,215,0,0.2); }
+.ocv2-status--alert { color: var(--color-orange); border-color: rgba(255,107,0,0.25); }
+.ocv2-status--crit  { color: var(--color-red);    border-color: rgba(255,51,51,0.3); }
 
 .ocv2-status-dot {
   width: 6px;

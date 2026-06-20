@@ -8737,6 +8737,23 @@ function renderOperationsCenter() {
   if (typeof window !== "undefined" && typeof window.echCareerRenderResourceBar === "function") {
     window.echCareerRenderResourceBar();
   }
+  // Live Threat Level (Task #149): the OCV2 header threat reading is derived from
+  // real progress (missions resolved + current Threat Defense posture), not a
+  // fixed label. Recomputed on every home render — including right after a
+  // mission completes — so good play visibly drives the threat down.
+  if (typeof window !== "undefined" && typeof window.echCareerThreatLevel === "function") {
+    const threatChip = document.getElementById("ocv2ThreatChip");
+    const threatText = document.getElementById("ocv2ThreatText");
+    if (threatChip && threatText) {
+      // Drive the resolved count from the same source as the identity panel's
+      // "X/N resolved" (deriveCareerState) so the chip can never disagree with it.
+      const cs = deriveCareerState();
+      const t = window.echCareerThreatLevel({ resolved: cs.completed, total: cs.total });
+      threatChip.classList.remove("ocv2-status--ok", "ocv2-status--warn", "ocv2-status--alert", "ocv2-status--crit");
+      threatChip.classList.add(`ocv2-status--${t.tone}`);
+      threatText.textContent = `THREAT LEVEL: ${t.label}`;
+    }
+  }
   // #120 Consequence Emotion Loop — surface queued postcards + persistent scar memory.
   if (typeof window !== "undefined" && typeof window.echCareerRenderHomeConsequences === "function") {
     window.echCareerRenderHomeConsequences();
