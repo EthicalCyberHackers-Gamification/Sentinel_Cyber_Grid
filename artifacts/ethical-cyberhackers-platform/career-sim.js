@@ -162,14 +162,20 @@ const RESOURCE_DEFS = [
 
 const CAREER_SCHEMA_VERSION = 2;
 
+// Starting standing is deliberately mid-range (not pinned high) so the three
+// headline gauges have room to climb on strong play AND fall on weak play —
+// a fresh analyst starts in "Caution" on Threat Defense / Leadership Trust and
+// earns their way to "Strong". complianceExposure starts above its floor so its
+// 30% slice of Threat Defense can actually move both ways. (Only affects new /
+// reset saves — loadCareerState preserves an existing player's resources.)
 const CAREER_DEFAULTS = {
   schemaVersion: CAREER_SCHEMA_VERSION,
-  securityPosture: 72,
+  securityPosture: 60,
   organizationBudget: 50000,
-  executiveTrust: 75,
-  complianceExposure: 0,
+  executiveTrust: 60,
+  complianceExposure: 25,
   careerReputation: 0,
-  businessContinuity: 85,
+  businessContinuity: 75,
   currentRole: 'cybersecurity_intern',
   currentRank: 'Cybersecurity Intern',
   evidenceView: 'beginner',   // 'beginner' | 'analyst' — presentation only
@@ -6147,7 +6153,7 @@ function chooseAction(actionId) {
   if (action.type === 'recommendation') {
     outcome = computeRecommendationOutcome();
     if (outcome.verdict === 'Denied') deltas = { careerReputation: -5, executiveTrust: -4, complianceExposure: 5 };
-    else deltas = scaleDeltas(deltas, outcome.multiplier);
+    else deltas = mergeDeltas(scaleDeltas(deltas, outcome.multiplier), verdictStandingDeltas(outcome.verdict));
   }
   // Fold in any dynamic carry-flag deltas (UNSCALED) so prior-mission
   // consequences move resources without distorting the leadership verdict.
@@ -6197,7 +6203,7 @@ function submitRecommendation(recId) {
   const outcome = computeRecommendationOutcome();
   let deltas;
   if (outcome.verdict === 'Denied') deltas = { careerReputation: -5, executiveTrust: -4, complianceExposure: 5 };
-  else deltas = scaleDeltas(rec.deltas || {}, outcome.multiplier);
+  else deltas = mergeDeltas(scaleDeltas(rec.deltas || {}, outcome.multiplier), verdictStandingDeltas(outcome.verdict));
   // Fold in any dynamic carry-flag deltas (UNSCALED) — see chooseAction.
   const changes = applyResourceDeltas(mergeDeltas(deltas, dynamicDeltaMods(SIM.dynamic)));
   if (outcome.verdict !== 'Denied') (rec.setFlags || []).forEach(f => setMissionFlag(f, true));
@@ -6229,23 +6235,31 @@ function computeRecommendationOutcome() {
     : evidenceQuality();
   const timing = SIM.evidence.size > 0 ? 1 : 0;
   const sev = (SIM.def && SIM.def.severity) || 'MEDIUM';
-  const sevBoost = sev === 'CRITICAL' ? 10 : sev === 'HIGH' ? 10 : sev === 'MEDIUM' ? 5 : 0;
-  // Challenge missions (M1 pilot) reweight evidence + accuracy to make room for a
-  // graded-judgment term; missions without challenges keep the original weights.
+  const sevBoost = sev === 'CRITICAL' ? 4 : sev === 'HIGH' ? 4 : sev === 'MEDIUM' ? 2 : 0;
+  // The verdict TIER must reflect how well the analyst actually performed, so the
+  // two skill signals — getting the right answer (classify / identify) and the
+  // graded discovery judgments — carry the majority of the score. Everything else
+  // (evidence surfaced, standing, timing, investigation completeness, severity) is
+  // a small modifier, not a floor, so a thorough-but-inaccurate run (e.g. ~71%
+  // classification / ~50% discovery) lands BELOW "Approved" instead of being
+  // floated over the line by baseline credit.
   const jq = judgmentQualityAll();                   // null when no discovery challenges
   let score = 0;
   if (jq == null) {
-    score += q * 30;                                 // evidence surfaced
-    score += accuracy * 25;                          // correct answer (classify / identify)
+    score += accuracy * 48;                          // correct answer carries it (no graded judgments here)
+    score += q * 22;                                 // evidence surfaced
   } else {
-    score += q * 25;                                 // evidence surfaced (rebalanced)
-    score += accuracy * 22;                          // correct classification
-    score += jq * 13;                                // graded discovery judgments
+    score += accuracy * 40;                          // correct classification / identification
+    score += jq * 30;                                // graded discovery judgments
+    score += q * 10;                                 // evidence surfaced
   }
-  score += (CAREER.executiveTrust / 100) * 12;
-  score += (CAREER.careerReputation / 100) * 8;
-  score += timing ? 8 : 0;
-  score += investigationComplete() ? 7 : 0;          // M1: allFileEvidenceSurfaced(); M2+: coreCommandsRun()
+  // Earned standing is a SMALL nudge only (cap ~+6 combined) — deliberately too
+  // small to lift a weak-skill run (e.g. ~71% / ~50%) across the "Approved"
+  // line even for a maxed-out veteran, so the verdict tier stays skill-driven.
+  score += (CAREER.executiveTrust / 100) * 4;        // benefit of the doubt — never threshold-crossing
+  score += (CAREER.careerReputation / 100) * 2;
+  score += timing ? 3 : 0;
+  score += investigationComplete() ? 3 : 0;          // M1: allFileEvidenceSurfaced(); M2+: coreCommandsRun()
   score += sevBoost;
   let verdict, multiplier;
   if (score >= 70)      { verdict = 'Approved';            multiplier = 1;   }
@@ -6259,6 +6273,28 @@ function scaleDeltas(deltas, m) {
   const out = {};
   Object.keys(deltas).forEach(k => { out[k] = Math.round(deltas[k] * m); });
   return out;
+}
+
+// Standing swing layered ON TOP of the (multiplier-scaled) action deltas for a
+// recommendation, so the leadership verdict itself moves the headline gauges:
+// a strong call earns trust/reputation, a weak one is a quiet setback, and a
+// barely-supported one actively erodes standing and raises compliance exposure.
+// Denied is handled by its own replacement penalty at the call sites, so it gets
+// nothing here. Summed via mergeDeltas (which adds shared keys), then clamped by
+// applyResourceDeltas. Keeps the gauges presentation-only — this only touches
+// the six underlying resources, never the gauges directly.
+function verdictStandingDeltas(verdict) {
+  switch (verdict) {
+    case 'Approved':           return { executiveTrust: 5, careerReputation: 4 };
+    // The businessContinuity / organizationBudget hits are intentional: an
+    // action's own business cost scales DOWN with a weaker multiplier, which on
+    // its own would make a weak verdict read as *less* business damage. These
+    // penalties more than offset that so the Business Impact gauge moves in the
+    // right direction — strong play preserves it best, weak play erodes it.
+    case 'Partially Approved': return { executiveTrust: -2, careerReputation: -1, complianceExposure: 3, businessContinuity: -4, organizationBudget: -4000 };
+    case 'Deferred':           return { executiveTrust: -6, careerReputation: -4, complianceExposure: 6, businessContinuity: -8, organizationBudget: -8000 };
+    default:                   return {}; // Denied: handled by the call-site penalty
+  }
 }
 
 function recommendationReason(o) {
@@ -7378,7 +7414,7 @@ const CAREER_MISSIONS = {
         label: 'Recommend Legal Review',
         summary: 'Ask Legal to review the contractor access and the release.',
         outcomeSub: 'You recommended a legal review.',
-        deltas: { complianceExposure: -15, executiveTrust: 8, careerReputation: 10, businessContinuity: -5, organizationBudget: -5000 },
+        deltas: { complianceExposure: -15, executiveTrust: 8, careerReputation: 10, businessContinuity: -5, organizationBudget: -5000, securityPosture: 6 },
         setFlags: ['legalReviewTriggered'],
         deniedNote: 'Leadership declined the legal review for now; the contractor access remains unreviewed.',
         consequence: {
