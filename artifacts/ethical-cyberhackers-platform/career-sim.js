@@ -2442,8 +2442,11 @@ const NOTEBOOK_SECTION_LABELS = {
  * "notebook updated" notice the first time a new one appears. Presentation-only:
  * mutates transient SIM trackers, writes no progress and adds no scoring. Called
  * once per panel render (the single chokepoint) so the HTML builders stay
- * side-effect free. No-op unless the mission opts into the feed (Mission 1 never
- * does), so it can never alter Mission 1. */
+ * side-effect free. No-op unless the mission opts into the state-summary feed
+ * (def.investigationFeed — set on all four missions). NOTE: this is the
+ * PRE-EXISTING feed gate; the newer beginner guidance bundle (stage bar, RECENT
+ * ACTIVITY log, progressive focus) is gated separately on def.investigationGuidance
+ * and is Mission-1-only. */
 function noteNotebookSections(sections) {
   if (!SIM.def || !SIM.def.investigationFeed) return;
   if (!SIM.notebookSeen) SIM.notebookSeen = new Set();
@@ -2504,7 +2507,10 @@ function investigationFeedHtml() {
   // newest first. Every line is authored or derived from neutral facts (file and
   // command names, the player's own search term); it never interprets evidence or
   // hints at the verdict.
-  const feed = Array.isArray(SIM.feed) ? SIM.feed : [];
+  // The RECENT ACTIVITY log is part of the Mission-1-only guidance bundle
+  // (def.investigationGuidance). Other missions keep the state summary above but
+  // not the chronological log.
+  const feed = (SIM.def.investigationGuidance && Array.isArray(SIM.feed)) ? SIM.feed : [];
   const logRows = feed.slice().reverse().map(f =>
     `<li class="sim-feed-log-row sim-feed-log-row--${mapEsc(f.kind)}"><span class="sim-feed-log-text">${mapEsc(f.text)}</span></li>`
   ).join('');
@@ -2530,7 +2536,7 @@ function investigationFeedHtml() {
  * side effect: every emit site already runs through renderEvidencePanel(). No-op
  * unless the mission opts into the feed. */
 function emitFeed(kind, text) {
-  if (!SIM.def || !SIM.def.investigationFeed) return;
+  if (!SIM.def || !SIM.def.investigationGuidance) return;
   if (!Array.isArray(SIM.feed)) SIM.feed = [];
   const t = String(text == null ? '' : text).trim();
   if (!t) return;
@@ -2585,7 +2591,10 @@ function stageState() {
  * Focus layer (T-F) — a CSS-only, desktop-only SUBTLE emphasis; no persisted
  * state and no answer hint. */
 function renderStageBar() {
-  const rows = SIM.def ? stageState() : null;
+  // Mission-1-only: the stage bar AND the progressive UI focus (data-stage) belong
+  // to the Phase 1B guidance bundle (def.investigationGuidance). Other missions get
+  // neither — rows stays null so the attribute is cleared and the bar stays hidden.
+  const rows = (SIM.def && SIM.def.investigationGuidance) ? stageState() : null;
   // Progressive UI Focus (Task #154, T-F) — expose the current stage so CSS can
   // gently de-emphasize the genuinely-secondary panels. Set/cleared here (the one
   // chokepoint) so it always tracks state; cleared when no mission is active.
@@ -7239,6 +7248,11 @@ const CAREER_MISSIONS = {
     // set the same flag); see reviewGateMode().
     reviewBeforeCall: true,
     investigationFeed: true,
+    // Phase 1B investigation-guidance bundle (workflow stage bar, RECENT ACTIVITY
+    // log, progressive UI focus) is Mission-1-only. M2-M4 keep their existing
+    // "Active Investigation" state summary but do NOT get the beginner guidance
+    // overlay. Gate new guidance surfaces on this flag, never on a mission id.
+    investigationGuidance: true,
     // Third investigative skill: `grep` triages the release folder for sensitivity
     // markers (unlocks after two deep reads). Per-file `grepTerms` below are the
     // authored indicators that surface that file's evidence when searched.
