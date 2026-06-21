@@ -1,0 +1,197 @@
+# Phase 1 Task 1: Terminal-First Evidence Support
+
+## Objective
+
+Preserve authentic terminal-based learning while making mission evidence easier for beginners to identify and review.
+
+The platform should maintain realistic cybersecurity workflows by displaying files directly in the terminal when opened, while providing an optional readability layer that helps new players understand that the displayed content is mission evidence.
+
+This feature should improve clarity without sacrificing realism.
+
+---
+
+## Problem Statement
+
+Workshop feedback indicates that many players struggled to identify which information in the terminal was the actual evidence they needed to review.
+
+Currently:
+
+* File contents appear inside normal terminal output.
+* Evidence blends into command history and system messages.
+* New players cannot easily distinguish mission artifacts from general terminal chatter.
+* Some participants miss critical clues because they do not realize the displayed content is the file they are supposed to analyze.
+
+However, moving all files into a separate viewer risks reducing the realism of the cybersecurity experience.
+
+The solution is to preserve authentic terminal output while adding optional evidence support tools.
+
+---
+
+## Requirements
+
+### Terminal-First Behavior
+
+When a player executes commands such as:
+
+```bash
+cat file.txt
+view file.txt
+open file.txt
+inspect file.txt
+```
+
+The file contents must appear directly inside the terminal exactly as they would in a realistic command-line environment.
+
+The terminal remains the primary interface.
+
+Do not replace terminal output with a modal.
+
+Do not automatically redirect players away from the terminal.
+
+---
+
+### Evidence Support Layer
+
+After mission evidence is displayed in the terminal, provide an optional action such as:
+
+```text
+Open Evidence View
+```
+
+or
+
+```text
+Readable View
+```
+
+or
+
+```text
+Review Evidence
+```
+
+This action should be visually associated with the displayed evidence.
+
+The purpose is to help players who are unfamiliar with terminal interfaces without removing realism for more advanced players.
+
+---
+
+### Evidence View Requirements
+
+When the player selects the Evidence View:
+
+Display:
+
+* Evidence File label
+* File name
+* Short instructional cue
+* Exact file contents
+* Close button
+* Return to Terminal option
+
+Example:
+
+```text
+Evidence File
+
+employee_notes.txt
+
+Review this file carefully.
+It contains information needed to complete the mission.
+
+--------------------------------
+
+[file contents]
+
+--------------------------------
+```
+
+---
+
+### Content Preservation
+
+The Evidence View must display the exact same content shown in the terminal.
+
+Do not:
+
+* summarize
+* simplify
+* rewrite
+* modify
+* interpret
+
+the file contents.
+
+The Evidence View is purely a readability enhancement.
+
+---
+
+### Readability Improvements
+
+Within the Evidence View:
+
+* Larger text
+* Better spacing
+* Strong contrast
+* Clear visual framing
+* Improved scrolling behavior
+* Responsive layout
+
+The goal is readability, not additional guidance.
+
+---
+
+### Terminal History Preservation
+
+The original terminal output must remain visible in the terminal history.
+
+Players should always be able to review the evidence through normal terminal interaction.
+
+The Evidence View is a secondary tool.
+
+---
+
+### Tutorial Mode Support
+
+If the simulator is operating in Tutorial Mode or Mission 0:
+
+Allow the Evidence View to be automatically suggested after opening a file.
+
+Example:
+
+```text
+You opened a mission file.
+
+New to terminals?
+
+Open Evidence View for a clearer reading experience.
+```
+
+Outside Tutorial Mode, the feature should remain optional.
+
+---
+
+## Success Criteria
+
+A beginner player should:
+
+* Recognize that a file has been opened
+* Understand that the displayed content is mission evidence
+* Be able to read the evidence comfortably
+* Return to the terminal easily
+
+An advanced player should:
+
+* Continue using terminal-only workflows
+* Experience no interruption to realism
+* Be able to ignore the Evidence View entirely
+
+---
+
+## Design Principle
+
+Players should be learning cybersecurity investigation techniques, not struggling to determine which portion of the terminal contains the evidence.
+
+The terminal remains the primary investigative interface.
+
+The Evidence View exists only to reduce unnecessary cognitive friction for new learners while preserving authenticity for experienced users.

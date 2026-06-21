@@ -569,7 +569,23 @@
             <span>INVESTIGATION TERMINAL</span>
             <button type="button" class="sim-map-btn" id="simMapBtn" data-map-open hidden>◈ NETWORK MAP</button>
           </div>
-          <div class="sim-term-out" id="simTerminal" aria-live="polite"></div>
+          <div class="sim-work-split" id="simWorkSplit">
+            <div class="sim-term-out" id="simTerminal" aria-live="polite"></div>
+            <!-- On-demand File Reader (Task #153) — a pinned, scrollable pane that
+                 shows the file you opened beside the terminal, so short-line file
+                 content is easy to read without hunting through terminal history.
+                 Hidden until `cat/less/more/open <file>` populates it. The terminal
+                 still prints the file (mark-up / grep depend on those records);
+                 this is an additive read surface. Presentation-only. -->
+            <aside class="sim-file-reader" id="simFileReader" aria-label="File reader" hidden>
+              <div class="sim-file-reader-head">
+                <span class="sim-file-reader-name" id="simFileReaderName">FILE</span>
+                <button type="button" class="sim-file-reader-close" data-file-reader-close
+                        aria-label="Close file reader" title="Close file reader">✕</button>
+              </div>
+              <div class="sim-file-reader-body" id="simFileReaderBody"></div>
+            </aside>
+          </div>
           <!-- (C) Persistent objective + next-action HUD, pinned just above the
                command line. Populated by renderSimHud() for the file-model mission;
                hidden for command-model missions. -->

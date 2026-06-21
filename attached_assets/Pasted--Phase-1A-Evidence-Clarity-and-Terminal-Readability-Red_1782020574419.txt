@@ -1,0 +1,429 @@
+# Phase 1A – Evidence Clarity and Terminal Readability Redesign
+
+## Objective
+
+Improve evidence discoverability and mission clarity while preserving an authentic terminal-based cybersecurity experience.
+
+This phase must not introduce new gameplay systems, scoring systems, mission content, or onboarding flows.
+
+The sole purpose of Phase 1A is to make it immediately obvious:
+
+* what the player's objective is
+* what information is evidence
+* what information is system output
+* what information is mentor guidance
+* what information is command history
+
+while maintaining realism.
+
+---
+
+# Design Principles
+
+The simulator should continue feeling like a cybersecurity workstation.
+
+Do not replace the terminal.
+
+Do not convert investigations into popup-driven experiences.
+
+Do not simplify the investigative process.
+
+Instead:
+
+Improve visual communication so players spend their effort analyzing evidence rather than figuring out what part of the interface matters.
+
+---
+
+# Task 1 – Persistent Mission Objective Header
+
+## Problem
+
+Players often forget:
+
+* what they are trying to find
+* why they opened a file
+* what answer they are supposed to submit
+
+This causes unnecessary confusion.
+
+---
+
+## Requirements
+
+Create a persistent mission objective area positioned above the active terminal workspace.
+
+The objective should remain visible at all times during investigations.
+
+Display:
+
+* Mission Title
+* Current Objective
+* Mission Progress
+
+Example:
+
+```text
+MISSION 1: RELEASE REVIEW
+
+Objective:
+Determine whether confidential information
+should be released outside the company.
+
+Progress:
+2 of 4 files reviewed
+```
+
+---
+
+## Requirements
+
+The objective area should:
+
+* remain visible during scrolling
+* remain visible while evidence is displayed
+* remain visible while mentor messages appear
+* never be hidden behind other panels
+
+This becomes the player's anchor throughout the mission.
+
+---
+
+# Task 2 – Evidence Header Frame
+
+## Problem
+
+When files are opened using terminal commands, evidence blends into surrounding output.
+
+Players cannot easily identify:
+
+* where evidence begins
+* where evidence ends
+
+---
+
+## Requirements
+
+Whenever a mission artifact is opened through:
+
+```bash
+cat
+view
+open
+inspect
+```
+
+display a terminal-style evidence frame before the file contents.
+
+Example:
+
+```text
+┌──────────────────────────────┐
+│ EVIDENCE FILE OPENED         │
+│ employee_notes.txt           │
+└──────────────────────────────┘
+```
+
+followed immediately by the actual file contents.
+
+Example:
+
+```text
+$ cat employee_notes.txt
+
+┌──────────────────────────────┐
+│ EVIDENCE FILE OPENED         │
+│ employee_notes.txt           │
+└──────────────────────────────┘
+
+Meeting Notes
+
+The customer database export
+contains confidential information...
+```
+
+---
+
+## Requirements
+
+The frame must:
+
+* look native to the terminal
+* preserve realism
+* use existing terminal styling
+* clearly identify mission evidence
+
+Do not use bright colors.
+
+Do not create a popup.
+
+Do not interrupt the workflow.
+
+---
+
+# Task 3 – Terminal Output Classification
+
+## Problem
+
+All information currently appears visually similar.
+
+Players struggle to distinguish:
+
+* commands
+* evidence
+* mentor dialogue
+* system updates
+* mission events
+
+---
+
+## Requirements
+
+Create visual distinctions between output categories.
+
+---
+
+### Commands
+
+Example:
+
+```bash
+$ cat employee_notes.txt
+```
+
+Commands should remain visually recognizable as terminal input.
+
+---
+
+### Evidence
+
+Evidence should be displayed with:
+
+* evidence frame
+* subtle spacing
+* readable formatting
+
+without changing content.
+
+---
+
+### System Messages
+
+Examples:
+
+```text
+Mission Updated
+
+Progress Saved
+
+New Objective Available
+```
+
+System messages should have their own visual style.
+
+---
+
+### Mentor Messages
+
+Examples:
+
+```text
+Sarah:
+
+Review the file carefully before making a decision.
+```
+
+Mentor dialogue should have its own visual presentation.
+
+---
+
+### Alerts
+
+Examples:
+
+```text
+SECURITY ALERT
+
+Potential data exposure detected.
+```
+
+Alerts should be visually distinct from normal output.
+
+---
+
+## Goal
+
+A player should instantly know:
+
+"This is evidence."
+
+"This is Sarah."
+
+"This is a system message."
+
+without reading the content itself.
+
+---
+
+# Task 4 – Evidence Discovery Indicators
+
+## Problem
+
+Players often do not realize that a file they opened is important to the mission.
+
+---
+
+## Requirements
+
+When mission evidence is successfully opened:
+
+Display a small contextual indicator.
+
+Examples:
+
+```text
+Mission Evidence Found
+```
+
+or
+
+```text
+Evidence Added
+```
+
+or
+
+```text
+Artifact Discovered
+```
+
+The indicator should appear briefly and then fade.
+
+---
+
+## Requirements
+
+The indicator should:
+
+* not interrupt gameplay
+* not block the terminal
+* not require dismissal
+* reinforce that evidence has investigative value
+
+---
+
+# Task 5 – Evidence Tracking Panel
+
+## Problem
+
+Players forget which evidence they have already reviewed.
+
+This becomes increasingly problematic in larger investigations.
+
+---
+
+## Requirements
+
+Create a lightweight Evidence Tracker.
+
+Display:
+
+```text
+Mission Evidence
+
+✓ employee_notes.txt
+✓ release_summary.doc
+□ customer_export.csv
+```
+
+---
+
+## Requirements
+
+The tracker should:
+
+* update automatically
+* track reviewed artifacts
+* remain compact
+* support future missions
+
+Do not display excessive information.
+
+Only track discovered evidence.
+
+---
+
+# Task 6 – Layout Cleanup
+
+## Problem
+
+Workshop feedback repeatedly references:
+
+* too much happening
+* information overload
+* unclear focus
+
+---
+
+## Requirements
+
+Review the mission screen.
+
+Remove, collapse, or relocate elements that are not immediately helping the player complete the current task.
+
+Prioritize:
+
+1. Mission Objective
+2. Evidence
+3. Terminal
+4. Command Input
+
+Everything else should be secondary.
+
+---
+
+## Requirements
+
+Avoid:
+
+* duplicate information
+* competing panels
+* excessive instructional text
+* unnecessary status blocks
+
+The active investigation should remain the visual focal point.
+
+---
+
+# Success Criteria
+
+A first-time player should be able to answer the following questions within 10 seconds:
+
+* What mission am I working on?
+* What is my objective?
+* What file did I just open?
+* Is this evidence?
+* What information should I focus on?
+
+An experienced player should feel:
+
+* terminal realism is preserved
+* workflows remain authentic
+* investigation speed is improved
+* interface clutter is reduced
+
+---
+
+# Out of Scope
+
+Do not implement:
+
+* Voice-over
+* Mission redesign
+* Scoring redesign
+* New tutorials
+* New onboarding flows
+* Cinematic sequences
+* Adaptive difficulty
+* New gameplay mechanics
+
+This phase focuses exclusively on evidence visibility, terminal readability, mission clarity, and reduction of cognitive overload.

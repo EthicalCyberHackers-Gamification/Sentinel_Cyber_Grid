@@ -404,6 +404,58 @@
 .sim-brief-obj--done .sim-brief-obj-icon { color: var(--green); }
 .sim-brief-obj--done span:last-child { color: var(--text-muted); text-decoration: line-through; }
 
+/* ---- Mission Brief compact anchor + expand toggle (Task #153) ----
+   The left rail is collapsed to a quiet "case at a glance" by default; the full
+   brief renders only when the analyst expands it. Presentation-only. */
+.sim-brief-toggle {
+  font-family: var(--font-hud);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--cyan-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.sim-brief-toggle:hover { color: var(--cyan); border-color: var(--cyan-dim); }
+.sim-brief-toggle:focus-visible { outline: 1px solid var(--green); outline-offset: 1px; }
+.sim-brief-compact { display: flex; flex-direction: column; gap: 7px; }
+.sim-brief-compact-title {
+  font-family: var(--font-hud);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-bright);
+  line-height: 1.3;
+}
+.sim-brief-compact-obj {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sim-brief-compact-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.sim-brief-chip {
+  font-family: var(--font-hud);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+.sim-brief-chip--alert { color: var(--orange); border-color: color-mix(in srgb, var(--orange) 40%, transparent); }
+
 /* ---------- CASE CONTINUITY (dynamic conditions from carry-flags) ----------
    Brief panel: which earlier decision is shaping THIS case (continuityLines).
    Debrief: how each carried decision changed the outcome (outcomeNotes).
@@ -466,7 +518,12 @@
 .sim-term-line--head { color: var(--green); }
 .sim-term-line--dim { color: var(--text-dim); }
 .sim-term-line--cmd { color: var(--cyan); }
-.sim-term-line--err { color: var(--red); }
+.sim-term-line--err {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 9%, transparent);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
 .sim-term-line--ok { color: var(--green); }
 .sim-term-line--warn { color: var(--yellow); }
 .sim-term-line--file { color: var(--text-bright); }
@@ -475,9 +532,101 @@
 .sim-term-line--question { color: var(--purple); font-style: italic; }
 .sim-term-line--confidence { color: var(--green-dim); }
 .sim-term-line--next { color: var(--text-dim); }
-.sim-term-line--cue { color: var(--cyan); font-weight: 600; margin-top: 2px; }
-.sim-term-line--cue-next { color: var(--text-bright); }
+/* Sarah Reyes over comms (Task #153) — her guidance reads as a distinct
+   transmission block, set apart from system output, file content and alerts.
+   Background tint only (no border) so it composes cleanly whether the cue prints
+   inside a per-command group's green left accent or ungrouped. A trailing
+   cue-next instruction tucks under the speaker line as one connected block. */
+.sim-term-line--cue {
+  color: var(--cyan);
+  font-weight: 600;
+  margin-top: 8px;
+  padding: 4px 8px 3px;
+  background: color-mix(in srgb, var(--cyan) 8%, transparent);
+  border-radius: 4px;
+}
+.sim-term-line--cue:has(+ .sim-term-line--cue-next) {
+  border-radius: 4px 4px 0 0;
+  padding-bottom: 1px;
+}
+.sim-term-line--cue-next {
+  color: var(--text-bright);
+  padding: 1px 8px 4px;
+  background: color-mix(in srgb, var(--cyan) 8%, transparent);
+  border-radius: 0 0 4px 4px;
+}
 .sim-term-line--spacer { height: 8px; }
+
+/* ---- Investigation work split: terminal + on-demand File Reader (Task #153) ----
+ * The terminal and the File Reader share the work panel's flexible vertical space
+ * as a horizontal row. The reader is hidden (display:none) until a file is opened,
+ * so by default the terminal fills the panel exactly as before. */
+.sim-work-split {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+}
+.sim-work-split > .sim-term-out { flex: 1 1 auto; min-width: 0; }
+
+.sim-file-reader {
+  flex: 0 0 clamp(280px, 40%, 480px);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--bg-panel-alt);
+  animation: simFileReaderIn 200ms ease;
+}
+.sim-file-reader[hidden] { display: none; }
+.sim-file-reader-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.sim-file-reader-name {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-bright);
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sim-file-reader-close {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.sim-file-reader-close:hover { color: var(--red); border-color: var(--red); }
+.sim-file-reader-close:focus-visible { outline: 1px solid var(--green); outline-offset: 1px; }
+.sim-file-reader-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.sim-file-reader-line { white-space: pre-wrap; word-break: break-word; }
+.sim-file-reader-line--blank { height: 0.85em; }
+@keyframes simFileReaderIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---- Per-command output group — a single GREEN left accent line down the edge
    of one command's echo + all of its result lines, so the player can see where
@@ -690,7 +839,7 @@
  * dock pushes the terminal output UP without ever covering the command line. */
 .sim-decision-dock {
   flex: 0 0 auto;
-  max-height: 46vh;
+  max-height: 38vh;
   overflow-y: auto;
   padding: 10px 12px 12px;
   border-top: 2px solid var(--yellow);
@@ -700,6 +849,41 @@
   box-shadow: inset 0 1px 0 rgba(240, 200, 90, 0.25);
 }
 .sim-decision-dock[hidden] { display: none; }
+/* Peek/expand chrome (Task #153) — compact bar by default, full surface on expand.
+ * Peek is a single short row, so it lifts the max-height cap and tightens padding. */
+.sim-decision-dock--peek { padding: 8px 12px; max-height: none; }
+.sim-dock-peek {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.sim-dock-peek-title {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-hud); font-size: 11px; letter-spacing: 1px;
+  text-transform: uppercase; font-weight: 700; color: var(--yellow);
+}
+.sim-dock-peek-go {
+  flex: 0 0 auto;
+  font-family: var(--font-hud); font-size: 10.5px; font-weight: 700; letter-spacing: 0.6px;
+  color: var(--bg); background: var(--yellow);
+  border: none; border-radius: 5px; padding: 6px 12px; cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+.sim-dock-peek-go:hover, .sim-dock-peek-go:focus-visible { filter: brightness(1.12); }
+.sim-dock-peek-go:active { transform: translateY(1px); }
+.sim-dock-peek--finding .sim-dock-peek-title { color: var(--cyan); }
+.sim-dock-peek--finding .sim-dock-peek-go { background: var(--cyan); }
+.sim-dock-peek--finding .sim-dock-pulse { background: var(--cyan); }
+.sim-dock-peek--reconsider .sim-dock-peek-title { color: var(--orange); }
+.sim-dock-peek--reconsider .sim-dock-peek-go { background: var(--orange); }
+.sim-dock-peek--reconsider .sim-dock-pulse { background: var(--orange); }
+.sim-dock-controls { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.sim-dock-collapse {
+  font-family: var(--font-hud); font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px;
+  color: var(--text-dim); background: transparent; border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 8px; cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.sim-dock-collapse:hover { color: var(--text-bright); border-color: var(--text-dim); }
+.sim-dock-collapse:focus-visible { outline: 1px solid var(--green); outline-offset: 1px; }
 .sim-dock-head {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   margin-bottom: 8px;
@@ -1598,6 +1782,15 @@
   .career-col--left.is-collapsed  > :not(.sim-col-toggle):not([hidden]),
   .career-col--right.is-collapsed > :not(.sim-col-toggle):not([hidden]) { display: flex !important; }
   .career-col--right.is-collapsed { grid-template-rows: auto minmax(220px, auto) minmax(220px, auto); }
+  /* A horizontal terminal/reader split is too cramped when stacked — flow the
+     File Reader BELOW the terminal and cap its height so both stay readable. */
+  .sim-work-split { flex-direction: column; }
+  .sim-file-reader {
+    flex: 0 0 auto;
+    max-height: 45vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
 }
 
 /* ==================================================================

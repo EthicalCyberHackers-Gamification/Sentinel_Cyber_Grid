@@ -892,6 +892,9 @@ function openCareerMission(missionId) {
   SIM.sparring = freshSparringState();    // #124 Sarah-sparring layer (transient view-state)
   SIM.nbCollapsed = {};                   // notebook section collapse state (transient, keyed by kind)
   SIM.focusNotebook = false;              // notebook focus/expand overlay (transient)
+  SIM.activeFile = null;                   // on-demand File Reader: currently-open file name (transient)
+  SIM.briefExpanded = false;               // Mission Brief compact/expanded state (transient, never persisted)
+  SIM.dockExpanded = false;                // Decision Dock peek/expanded state (transient, never persisted)
   { const _ops = document.getElementById('careerOps'); if (_ops) _ops.classList.remove('career--nb-focus'); }
   // Performance-mirror PERK: a session-scoped, NON-persisted carry-over note from
   // the PREVIOUS mission's debrief. Surfaced once here, then cleared. Never saved.
@@ -923,6 +926,7 @@ function openCareerMission(missionId) {
   renderEvidencePanel();
   renderTerminalPanel();
   renderFeedbackPanel();
+  renderFileReader();   // hidden until the analyst opens a file (SIM.activeFile reset above)
 
   const input = document.getElementById('simTermInput');
   if (input) input.placeholder = simTermPlaceholder(def);
@@ -1206,9 +1210,26 @@ function renderBriefPanel() {
       <ol class="sim-timeline-list">
         ${history.map(timelineItemHtml).join('')}
       </ol>` : '';
-  host.innerHTML = `
-    <div class="sim-panel-head">MISSION BRIEF</div>
-    <div class="sim-brief-body">
+  // Compact anchor (Task #153) — the case at a glance (title + lead objective +
+  // priority) is always visible so the left rail stays quiet. The full brief
+  // (operation rows, situation, all objectives, supervisor note/memory, company
+  // timeline, case continuity, optional side-trails) is deferred behind "Full
+  // brief" — nothing is removed, only collapsed by default. Transient
+  // (SIM.briefExpanded); never persisted.
+  const expanded = !!SIM.briefExpanded;
+  const leadObjective = (b.objectives && b.objectives[0]) ? b.objectives[0] : (b.situation || '');
+  const objCount = (b.objectives || []).length;
+  const compactHtml = `
+      <div class="sim-brief-compact">
+        <div class="sim-brief-compact-title">${def.title}</div>
+        ${leadObjective ? `<p class="sim-brief-compact-obj">${leadObjective}</p>` : ''}
+        <div class="sim-brief-compact-meta">
+          <span class="sim-brief-chip sim-brief-chip--alert">${def.priority}</span>
+          ${objCount ? `<span class="sim-brief-chip">${objCount} objective${objCount === 1 ? '' : 's'}</span>` : ''}
+        </div>
+      </div>`;
+  const fullHtml = !expanded ? '' : `
+      <div class="sim-brief-divider"></div>
       <div class="sim-brief-row"><span class="sim-brief-key">OPERATION ID</span><span class="sim-brief-v">${def.opId}</span></div>
       <div class="sim-brief-row"><span class="sim-brief-key">CURRICULUM</span><span class="sim-brief-v">${def.threatClass}</span></div>
       <div class="sim-brief-row"><span class="sim-brief-key">PRIORITY</span><span class="sim-brief-v sim-brief-v--alert">${def.priority}</span></div>
@@ -1227,7 +1248,15 @@ function renderBriefPanel() {
       ${memHtml}
       ${timelineHtml}
       ${continuityHtml}
-      ${renderSideTrailsPanel()}
+      ${renderSideTrailsPanel()}`;
+  host.innerHTML = `
+    <div class="sim-panel-head">
+      <span>MISSION BRIEF</span>
+      <button type="button" class="sim-brief-toggle" data-brief-toggle aria-expanded="${expanded ? 'true' : 'false'}">${expanded ? '▾ Less' : '▸ Full brief'}</button>
+    </div>
+    <div class="sim-brief-body">
+      ${compactHtml}
+      ${fullHtml}
     </div>`;
 }
 
@@ -2852,6 +2881,13 @@ function simPrint(text, cls) {
   line.textContent = text == null ? '' : text;
   simTermTarget(out).appendChild(line);
   out.scrollTop = out.scrollHeight;
+}
+
+/* Pin the terminal to its latest output. Used when the Decision Dock opens so the
+ * dock never visually buries the most recent command output. Presentation-only. */
+function scrollTerminalToLatest() {
+  const out = document.getElementById('simTerminal');
+  if (out) out.scrollTop = out.scrollHeight;
 }
 
 /* Append a terminal line of click-to-run command chips. Each chip is a real
@@ -4741,8 +4777,34 @@ function reconsiderDockHtml(rc) {
     <p class="sim-dock-foot">The terminal is paused until you tell Sarah whether this changes your earlier read. Either call is valid — what matters is that you weigh it.</p>`;
 }
 
+/* Collapsed "peek" bar for the Decision Dock (Task #153). A single compact row that
+ * names what's waiting and offers a button to expand into the full surface. Keeps
+ * the terminal from being starved while still making a pending call un-missable.
+ * Presentation-only; the expand button routes through the delegated handler. */
+function dockPeekHtml() {
+  const id = SIM._dockActiveId || '';
+  let label, cta, variant = '';
+  if (id.indexOf('finding:') === 0) {
+    label = 'Finding ready to log'; cta = 'Log finding'; variant = 'sim-dock-peek--finding';
+  } else if (id.indexOf('reconsider:') === 0) {
+    label = 'New evidence — does this change a call?'; cta = 'Review & Decide'; variant = 'sim-dock-peek--reconsider';
+  } else if (id.indexOf('review:') === 0) {
+    label = 'Review the file before your call'; cta = 'Continue';
+  } else {
+    label = 'Sarah needs your call'; cta = 'Review & Decide';
+  }
+  return `
+    <div class="sim-dock-peek ${variant}">
+      <span class="sim-dock-peek-title"><span class="sim-dock-pulse" aria-hidden="true"></span>${label}</span>
+      <button type="button" class="sim-dock-peek-go" data-dock-expand>${cta} \u25B8</button>
+    </div>`;
+}
+
 /* Paint the dock host. `flash` plays the arrival animation (only when the active
- * decision actually changed). Hides the host when nothing is pending. */
+ * decision actually changed). Hides the host when nothing is pending. The dock has
+ * two presentation states (Task #153): a compact PEEK bar (default) and the full
+ * EXPANDED surface (SIM.dockExpanded) — a blocking call auto-expands (see
+ * syncDecisionDock) so the analyst is brought straight into the decision. */
 function renderDecisionDock(flash) {
   const dock = document.getElementById('simDecisionDock');
   if (!dock) return;
@@ -4751,10 +4813,21 @@ function renderDecisionDock(flash) {
     dock.hidden = true; dock.innerHTML = '';
     dock.classList.remove('sim-decision-dock--finding');
     dock.classList.remove('sim-decision-dock--review');
+    dock.classList.remove('sim-decision-dock--peek');
     return;
   }
   dock.hidden = false;
-  dock.innerHTML = html;
+  const expanded = !!SIM.dockExpanded;
+  if (expanded) {
+    // A collapse control above the full surface lets the analyst shrink the dock to
+    // re-read the terminal without abandoning the pending call.
+    dock.innerHTML =
+      `<div class="sim-dock-controls"><button type="button" class="sim-dock-collapse" data-dock-collapse aria-label="Collapse decision dock">\u25BE Collapse</button></div>` +
+      html;
+  } else {
+    dock.innerHTML = dockPeekHtml();
+  }
+  dock.classList.toggle('sim-decision-dock--peek', !expanded);
   // Soften the dock's "locked/urgent" yellow chrome to a calm cyan when it is only
   // inviting an OPTIONAL finding log (derived from the tracked active-mode id).
   const isFinding = typeof SIM._dockActiveId === 'string' && SIM._dockActiveId.indexOf('finding:') === 0;
@@ -4766,6 +4839,7 @@ function renderDecisionDock(flash) {
     dock.classList.remove('sim-decision-dock--enter');
     void dock.offsetWidth;                  // restart the entrance animation
     dock.classList.add('sim-decision-dock--enter');
+    scrollTerminalToLatest();               // keep the latest output visible above the dock
   }
 }
 
@@ -4852,6 +4926,12 @@ function syncDecisionDock() {
     }
   }
   const changed = newId !== SIM._dockActiveId;
+  // Peek/expand policy (Task #153): when the active mode CHANGES, a blocking call
+  // auto-expands (bring the analyst straight into the decision); a non-blocking
+  // finding-log — or a cleared dock — drops back to the compact peek so the terminal
+  // is never starved by an optional surface. A re-render of the SAME mode (e.g.
+  // step 1 → step 2 of a call) preserves whatever the analyst last chose.
+  if (changed) SIM.dockExpanded = !!(newId && decisionLocked());
   SIM._dockActiveId = newId;
   renderDecisionDock(changed);
   updateDecisionLock();
@@ -5488,6 +5568,40 @@ function simCmdPwd() {
   simPrint(path.replace(/^~/, '/home/intern'), 'file');
 }
 
+/* On-demand File Reader (Task #153) — presentation-only. Mirrors the file the
+ * analyst just opened into a pinned, scrollable pane beside the terminal so
+ * short-line file content is easy to read without scrolling terminal history.
+ * Transient (SIM.activeFile); never persisted, never graded. The terminal still
+ * prints the file (mark-up / grep depend on those line records) — this is an
+ * additive read surface, not a replacement. */
+function renderFileReader() {
+  const panel = document.getElementById('simFileReader');
+  if (!panel) return;
+  const file = SIM.activeFile ? simFileByName(SIM.activeFile) : null;
+  if (!file) { panel.hidden = true; return; }
+  const nameEl = document.getElementById('simFileReaderName');
+  const body = document.getElementById('simFileReaderBody');
+  if (nameEl) nameEl.textContent = file.name;
+  if (body) {
+    body.innerHTML = '';
+    (file.content || []).forEach(l => {
+      const text = l == null ? '' : String(l);
+      const div = document.createElement('div');
+      div.className = 'sim-file-reader-line' + (text.trim() ? '' : ' sim-file-reader-line--blank');
+      div.textContent = text;
+      body.appendChild(div);
+    });
+    body.scrollTop = 0;
+  }
+  panel.hidden = false;
+}
+
+/* Close the File Reader pane (✕ button) — clears the transient open-file state. */
+function closeFileReader() {
+  SIM.activeFile = null;
+  renderFileReader();
+}
+
 function simCmdRead(arg, mode) {
   if (!arg) { simPrint(`usage: ${mode} <file>`, 'err'); return; }
   const file = simFileByName(arg);
@@ -5506,6 +5620,10 @@ function simCmdRead(arg, mode) {
   const evSurfaced = SIM.evidence.size - evBefore;
   if (evSurfaced > 0) simNotebookCue(evSurfaced);
   renderEvidencePanel();
+  // Pin the opened file into the on-demand File Reader (Task #153) — additive,
+  // presentation-only; the terminal lines above remain the mark-up/grep surface.
+  SIM.activeFile = file.name;
+  renderFileReader();
   const grepNudgedBefore = SIM.grepUnlockNudged;
   maybeUnlockGrepTriage(firstRead);
   maybeNudgeInvestigationReady();
@@ -10913,6 +11031,30 @@ function simInit() {
       // Collapsible side columns (Task #150) — presentation-only layout toggle.
       const colToggle = e.target.closest('[data-sim-col-toggle]');
       if (colToggle) { e.preventDefault(); toggleSimColumn(colToggle.dataset.simColToggle); return; }
+      // On-demand File Reader close (Task #153) — presentation-only.
+      if (e.target.closest('[data-file-reader-close]')) { e.preventDefault(); closeFileReader(); return; }
+      // Mission Brief compact/expand toggle (Task #153) — presentation-only.
+      if (e.target.closest('[data-brief-toggle]')) { e.preventDefault(); SIM.briefExpanded = !SIM.briefExpanded; renderBriefPanel(); return; }
+      // Decision Dock peek/expand (Task #153) — presentation-only chrome. Expanding a
+      // blocking call also pulls focus to the first reply so the keyboard path is
+      // intact; collapsing parks focus on the re-open button so it's never lost.
+      if (e.target.closest('[data-dock-expand]')) {
+        e.preventDefault();
+        SIM.dockExpanded = true;
+        renderDecisionDock(false);
+        scrollTerminalToLatest();
+        if (decisionLocked()) focusFirstDockReply();
+        return;
+      }
+      if (e.target.closest('[data-dock-collapse]')) {
+        e.preventDefault();
+        SIM.dockExpanded = false;
+        renderDecisionDock(false);
+        const dk = document.getElementById('simDecisionDock');
+        const go = dk && dk.querySelector('[data-dock-expand]');
+        if (go && typeof go.focus === 'function') go.focus();
+        return;
+      }
       // Click-to-run command chips (B) — terminal listing + HUD. Route through the
       // existing simRunCommand chokepoint so the same decisionLocked()/onboardOpen
       // guards apply. Presentation-only; no new command path.
