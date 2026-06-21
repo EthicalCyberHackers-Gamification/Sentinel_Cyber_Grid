@@ -856,6 +856,7 @@ function openCareerMission(missionId) {
   SIM.notebookSeen = new Set(); // Feed "notebook updated" notice — sections seen.
   SIM.notebookNotice = '';      // Latest notebook section to fill in (label).
   SIM.feed = [];                // Active Investigation Feed — chronological event log (transient, never persisted).
+  lastHudNextText = '';         // HUD next-action change tracker — replays the cue on a new instruction (transient).
   SIM.classified = {};
   SIM.identified = null;
   SIM.decision = null;
@@ -2385,16 +2386,34 @@ function maybePrintNextStep() {
   if (na && na.text) simPrint('\u2192 Next: ' + na.text, 'next');
 }
 
+// HUD next-action change tracker — transient module state (never persisted) so
+// the cue replays its entrance animation only when the instruction changes.
+let lastHudNextText = '';
+
 /* The persistent terminal HUD (file-model mission only): the active objective +
  * the single best next action with a clickable chip, pinned just above the
  * command line so the player always has a compass. While the dock holds the
  * line it flips to "answer Sarah". Presentation-only — reads SIM, writes ONLY
  * #simHud (never re-renders the panel, so it is safe to call from the render
- * chokepoint). Hidden for command-model missions. */
+ * chokepoint). Hidden for command-model missions.
+ *
+ * Beginner-guidance missions (def.investigationGuidance) add a louder, animated
+ * "mission control" treatment via the .sim-hud--guided class: NEXT becomes the
+ * primary call-to-action, and once Sarah is waiting a pulse + downward arrow
+ * point at the Decision Dock below. Gated on the flag, never forked on a mission
+ * id; still presentation-only (no scoring, no answer text). */
 function renderSimHud() {
   const hud = document.getElementById('simHud');
   if (!hud) return;
-  if (!markupEnabled()) { hud.hidden = true; hud.innerHTML = ''; return; }
+  if (!markupEnabled()) {
+    hud.hidden = true; hud.innerHTML = '';
+    hud.classList.remove('sim-hud--guided');
+    lastHudNextText = '';
+    return;
+  }
+
+  const guided = !!(SIM.def && SIM.def.investigationGuidance);
+  hud.classList.toggle('sim-hud--guided', guided);
 
   let objHtml = '';
   let rows = null;
@@ -2417,14 +2436,32 @@ function renderSimHud() {
     const chips = (!locked && na.chips && na.chips.length)
       ? na.chips.map(c => `<button type="button" class="sim-cmd-chip" data-run-cmd="${mapEsc(c.cmd)}">${mapEsc(c.label)}</button>`).join('')
       : '';
-    nextHtml = `<div class="sim-hud-next${locked ? ' sim-hud-next--locked' : ''}">
-        <span class="sim-hud-next-label">NEXT</span>
+    // Replay the entrance only when the instruction actually changes, so the cue
+    // catches the eye on a new step without flickering on routine repaints.
+    const changed = guided && na.text && na.text !== lastHudNextText;
+    if (na.text) lastHudNextText = na.text;
+    // Beginner cue only: a calm pointer while working; a pulse + downward arrow
+    // toward the Decision Dock below once Sarah is waiting on the call.
+    const marker = guided
+      ? (locked
+          ? '<span class="sim-hud-next-pulse" aria-hidden="true"></span>'
+          : '<span class="sim-hud-next-icon" aria-hidden="true">\u25B8</span>')
+      : '';
+    const arrow = (guided && locked)
+      ? '<span class="sim-hud-next-arrow" aria-hidden="true">\u25BE</span>'
+      : '';
+    nextHtml = `<div class="sim-hud-next${locked ? ' sim-hud-next--locked' : ''}${changed ? ' sim-hud-next--enter' : ''}">
+        ${marker}<span class="sim-hud-next-label">NEXT</span>
         <span class="sim-hud-next-text">${mapEsc(na.text)}</span>
-        ${chips ? `<span class="sim-hud-chips">${chips}</span>` : ''}
+        ${chips ? `<span class="sim-hud-chips">${chips}</span>` : ''}${arrow}
       </div>`;
   }
 
-  if (!objHtml && !nextHtml) { hud.hidden = true; hud.innerHTML = ''; return; }
+  if (!objHtml && !nextHtml) {
+    hud.hidden = true; hud.innerHTML = '';
+    lastHudNextText = '';
+    return;
+  }
   hud.hidden = false;
   hud.innerHTML = objHtml + nextHtml;
 }

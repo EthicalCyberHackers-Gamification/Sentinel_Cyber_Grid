@@ -724,8 +724,63 @@
   color: var(--cyan);
 }
 .sim-hud-next--locked .sim-hud-next-label { color: var(--yellow); }
-.sim-hud-next-text { font-size: 12px; color: var(--text-dim); }
+.sim-hud-next-text { font-size: 12px; color: var(--text); }
 .sim-hud-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+
+/* ---- Beginner-guidance HUD (.sim-hud--guided, set in renderSimHud from
+ * def.investigationGuidance): turn the OBJECTIVE / NEXT strip into a loud, active
+ * "mission control" card so new analysts can't miss what to do next. NEXT is the
+ * primary call-to-action; OBJECTIVE drops to quiet context. Once Sarah is waiting,
+ * a pulse marker + downward arrow point at the Decision Dock below. The pulse
+ * reuses the dock-pulse language. Presentation-only — no scoring, no answer text. */
+.sim-hud--guided {
+  gap: 8px;
+  padding: 10px 12px 11px;
+  border-top: 1px solid var(--cyan);
+  border-left: 3px solid var(--cyan);
+  background: linear-gradient(180deg, rgba(0, 229, 255, 0.10), rgba(0, 229, 255, 0.02) 70%, transparent);
+  box-shadow: inset 0 1px 0 rgba(0, 229, 255, 0.18);
+}
+.sim-hud--guided .sim-hud-obj-text { font-size: 11px; color: var(--text-dim); }
+.sim-hud--guided .sim-hud-next { align-items: center; gap: 8px; }
+.sim-hud--guided .sim-hud-next-label {
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--cyan); color: var(--cyan);
+  background: rgba(0, 229, 255, 0.10);
+}
+.sim-hud--guided .sim-hud-next-text {
+  font-size: 14px; font-weight: 600; line-height: 1.35;
+  color: var(--text-bright); font-family: var(--font-body);
+}
+.sim-hud--guided .sim-hud-next-icon { flex: 0 0 auto; color: var(--cyan); font-size: 13px; line-height: 1; }
+.sim-hud--guided .sim-hud-next-pulse {
+  flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--yellow); animation: simDockPulse 1.6s ease-out infinite;
+}
+.sim-hud--guided .sim-hud-next-arrow {
+  flex: 0 0 auto; margin-left: auto; color: var(--yellow);
+  font-size: 15px; line-height: 1; animation: simHudArrow 1.3s ease-in-out infinite;
+}
+@keyframes simHudArrow {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50%      { transform: translateY(3px); opacity: 1; }
+}
+/* Sarah is waiting (dock holds the line): swing the action to yellow urgency. */
+.sim-hud--guided .sim-hud-next--locked .sim-hud-next-label {
+  border-color: var(--yellow); color: var(--yellow); background: rgba(255, 215, 0, 0.12);
+}
+.sim-hud--guided .sim-hud-next--locked .sim-hud-next-text { color: var(--yellow); }
+/* Replay the entrance only when the instruction text changes (flagged in JS). */
+.sim-hud--guided .sim-hud-next--enter { animation: simHudNextEnter 380ms ease; }
+@keyframes simHudNextEnter {
+  0%   { opacity: 0; transform: translateX(-6px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sim-hud--guided .sim-hud-next-pulse,
+  .sim-hud--guided .sim-hud-next-arrow,
+  .sim-hud--guided .sim-hud-next--enter { animation: none; }
+}
 
 /* ---- Notebook Phase 3: selectable file lines + inline mark-up ---- */
 .sim-term-line--fileline {
