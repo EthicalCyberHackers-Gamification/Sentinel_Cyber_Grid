@@ -855,6 +855,7 @@ function openCareerMission(missionId) {
   SIM.lastEvidenceId = null; // Active Investigation Feed — newest-finding tracker.
   SIM.notebookSeen = new Set(); // Feed "notebook updated" notice — sections seen.
   SIM.notebookNotice = '';      // Latest notebook section to fill in (label).
+  SIM.feed = [];                // Active Investigation Feed — chronological event log (transient, never persisted).
   SIM.classified = {};
   SIM.identified = null;
   SIM.decision = null;
@@ -923,10 +924,15 @@ function openCareerMission(missionId) {
   renderResourceBar();
   renderCareerHeader();
   renderBriefPanel();
+  // Active Investigation Feed (Task #154) — seed the log before the first notebook
+  // paint so the shift-start + lead-objective events are visible from the outset.
+  emitFeed('start', 'Shift started — ' + (def.title || 'new assignment') + '.');
+  { const _obj = feedObjectiveLabel(); if (_obj) emitFeed('objective', 'Objective: ' + _obj); }
   renderEvidencePanel();
   renderTerminalPanel();
   renderFeedbackPanel();
   renderFileReader();   // hidden until the analyst opens a file (SIM.activeFile reset above)
+  renderStageBar();     // Workflow stage indicator (Task #154)
 
   const input = document.getElementById('simTermInput');
   if (input) input.placeholder = simTermPlaceholder(def);
@@ -940,6 +946,9 @@ function openCareerMission(missionId) {
 function returnFromCareerMission() {
   SIM.runToken++;
   simRemoveCompleteToast();
+  // Progressive UI Focus (T-F): clear the stage attribute so it never lingers on
+  // the hidden mission shell after returning to the Operations Center.
+  { const ops = document.getElementById('careerOps'); if (ops) ops.removeAttribute('data-stage'); }
   exitCareerScreen();
   renderResourceBar();
 }
@@ -1947,6 +1956,7 @@ function caseBoardCardHtml() {
 }
 
 function renderEvidencePanel() {
+  renderStageBar();   // Workflow stage indicator (Task #154) — keep in sync on every state change.
   const host = document.getElementById('simEvidence');
   if (!host) return;
 
@@ -2024,6 +2034,8 @@ function renderEvidencePanel() {
       <div class="sim-evidence-body sim-evidence-body--simple">
         ${caseBoardCardHtml()}
         ${evSection}
+        ${reviewedFilesReopenHtml()}
+        ${investigationFeedHtml()}
         ${classHtml}
         ${analystJudgmentHtml()}
         ${caseFileSummaryHtml()}
@@ -2039,6 +2051,7 @@ function renderEvidencePanel() {
         ${sparringCarryHtml()}
         ${viewbar}
         ${evSection}
+        ${reviewedFilesReopenHtml()}
         ${inventoryBoardHtml()}
         ${investigationFeedHtml()}
         ${analystJudgmentHtml()}
@@ -2096,6 +2109,7 @@ function renderEvidencePanel() {
       ${confidenceMeterHtml()}
       ${viewbar}
       ${evSection}
+      ${reviewedFilesReopenHtml()}
       ${investigationFeedHtml()}
       ${risksHtml}
       ${extrasHtml}
@@ -2446,34 +2460,36 @@ function noteNotebookSections(sections) {
 function investigationFeedHtml() {
   // Opt-in via the dataset flag; a mission without it returns '' (panel unchanged).
   if (!SIM.def || !SIM.def.investigationFeed) return '';
+
+  // (1) STATE SUMMARY — newest finding + the comms step it asks for + next step.
+  // Collapses until the first finding surfaces; the chronological log below still
+  // renders the earlier "shift started" / "objective" events, so the feed shows
+  // activity from the very first frame.
   const latest = newestEvidence();
-  if (!latest) return ''; // collapse until the first finding surfaces
-
-  // (2) The judgment this finding asks for — a TEXT pointer to the pending step
-  // on the card below. The card is the single interactive surface (no buttons
-  // here), so judgment state lives in exactly one place.
-  const vis = visibleDiscoveryChallenges().filter(challengeValid);
-  const pendingObs = vis.find(c => !stepAnswered(c, 'observation'));
-  const pendingJust = vis.find(c => stepAnswered(c, 'observation') && !stepAnswered(c, 'justification'));
-  let judgeBlock = '';
-  if (pendingObs) {
-    judgeBlock = `<div class="sim-feed-judge">
-      <span class="sim-feed-judge-label">On comms</span>
-      <span class="sim-feed-judge-value">Sarah's waiting on your read of "${pendingObs.short}" — answer her below.</span></div>`;
-  } else if (pendingJust) {
-    judgeBlock = `<div class="sim-feed-judge">
-      <span class="sim-feed-judge-label">On comms</span>
-      <span class="sim-feed-judge-value">Sarah wants to know why "${pendingJust.short}" matters — tell her below.</span></div>`;
-  } else if (vis.length) {
-    judgeBlock = `<div class="sim-feed-judge sim-feed-judge--done">
-      <span class="sim-feed-judge-label">Comms</span>
-      <span class="sim-feed-judge-value">You and Sarah are in sync on every finding so far.</span></div>`;
-  }
-
-  const next = caseFileNextStep();
-  return `
-    <div class="sim-feed" role="status" aria-live="polite">
-      <div class="sim-feed-head">ACTIVE INVESTIGATION</div>
+  let summary = '';
+  if (latest) {
+    // A TEXT pointer to the pending judgment on the card below. The card is the
+    // single interactive surface (no buttons here), so judgment state lives in
+    // exactly one place.
+    const vis = visibleDiscoveryChallenges().filter(challengeValid);
+    const pendingObs = vis.find(c => !stepAnswered(c, 'observation'));
+    const pendingJust = vis.find(c => stepAnswered(c, 'observation') && !stepAnswered(c, 'justification'));
+    let judgeBlock = '';
+    if (pendingObs) {
+      judgeBlock = `<div class="sim-feed-judge">
+        <span class="sim-feed-judge-label">On comms</span>
+        <span class="sim-feed-judge-value">Sarah's waiting on your read of "${pendingObs.short}" — answer her below.</span></div>`;
+    } else if (pendingJust) {
+      judgeBlock = `<div class="sim-feed-judge">
+        <span class="sim-feed-judge-label">On comms</span>
+        <span class="sim-feed-judge-value">Sarah wants to know why "${pendingJust.short}" matters — tell her below.</span></div>`;
+    } else if (vis.length) {
+      judgeBlock = `<div class="sim-feed-judge sim-feed-judge--done">
+        <span class="sim-feed-judge-label">Comms</span>
+        <span class="sim-feed-judge-value">You and Sarah are in sync on every finding so far.</span></div>`;
+    }
+    const next = caseFileNextStep();
+    summary = `
       <div class="sim-feed-row">
         <span class="sim-feed-tag">Newest finding</span>
         <span class="sim-feed-text">${latest.label}</span>
@@ -2481,7 +2497,144 @@ function investigationFeedHtml() {
       ${judgeBlock}
       ${next ? `<div class="sim-feed-row sim-feed-row--next">
         <span class="sim-feed-tag">Next step</span>
-        <span class="sim-feed-text">${next}</span></div>` : ''}
+        <span class="sim-feed-text">${next}</span></div>` : ''}`;
+  }
+
+  // (2) CHRONOLOGICAL ACTIVITY LOG — a plain-language record of what happened,
+  // newest first. Every line is authored or derived from neutral facts (file and
+  // command names, the player's own search term); it never interprets evidence or
+  // hints at the verdict.
+  const feed = Array.isArray(SIM.feed) ? SIM.feed : [];
+  const logRows = feed.slice().reverse().map(f =>
+    `<li class="sim-feed-log-row sim-feed-log-row--${mapEsc(f.kind)}"><span class="sim-feed-log-text">${mapEsc(f.text)}</span></li>`
+  ).join('');
+  const log = logRows
+    ? `<div class="sim-feed-log">
+        <div class="sim-feed-log-head">RECENT ACTIVITY</div>
+        <ul class="sim-feed-log-list">${logRows}</ul>
+      </div>`
+    : '';
+
+  if (!summary && !log) return '';
+  return `
+    <div class="sim-feed" role="status" aria-live="polite">
+      <div class="sim-feed-head">ACTIVE INVESTIGATION</div>
+      ${summary}
+      ${log}
+    </div>`;
+}
+
+/* Append a plain-language event to the Active Investigation Feed log (Task #154).
+ * Transient only — SIM.feed resets every mission and is never persisted. Dedupes
+ * the last entry and caps the log so it stays a short, readable trail. NO render
+ * side effect: every emit site already runs through renderEvidencePanel(). No-op
+ * unless the mission opts into the feed. */
+function emitFeed(kind, text) {
+  if (!SIM.def || !SIM.def.investigationFeed) return;
+  if (!Array.isArray(SIM.feed)) SIM.feed = [];
+  const t = String(text == null ? '' : text).trim();
+  if (!t) return;
+  const last = SIM.feed[SIM.feed.length - 1];
+  if (last && last.text === t) return;        // dedupe consecutive duplicates
+  SIM.feed.push({ kind: kind || 'event', text: t });
+  if (SIM.feed.length > 12) SIM.feed = SIM.feed.slice(-12);
+}
+
+/* The mission's lead objective label, for the feed's "objective assigned" event.
+ * Reads the computed objective rows (process steps only — never an answer); empty
+ * for a mission without an objective track. */
+function feedObjectiveLabel() {
+  let rows = null;
+  try { rows = objectiveTrackState(); } catch (_) { rows = null; }
+  if (rows && rows.length) return rows[0].label || '';
+  return '';
+}
+
+/* Workflow stage indicator (Task #154). Maps the engine's coarse SIM.stage
+ * (investigation | decision | report) onto five player-facing stages so the
+ * analyst always knows where they are in the case. Pure reader — derives from
+ * existing transient progress, writes no state and never scores. */
+function stageState() {
+  const stages = [
+    { key: 'briefing', label: 'Briefing' },
+    { key: 'evidence', label: 'Evidence Review' },
+    { key: 'analysis', label: 'Analysis' },
+    { key: 'decision', label: 'Decision' },
+    { key: 'feedback', label: 'Feedback' },
+  ];
+  let activeKey;
+  if (SIM.stage === 'report') activeKey = 'feedback';
+  else if (SIM.stage === 'decision') activeKey = 'decision';
+  else {
+    const started = (SIM.read && SIM.read.size) ||
+      (SIM.ranCommands && SIM.ranCommands.size) ||
+      (SIM.evidence && SIM.evidence.size);
+    let complete = false;
+    try { complete = investigationComplete(); } catch (_) { complete = false; }
+    if (!started) activeKey = 'briefing';
+    else if (!complete) activeKey = 'evidence';
+    else activeKey = 'analysis';
+  }
+  const ai = stages.findIndex(s => s.key === activeKey);
+  return stages.map((s, i) => ({ key: s.key, label: s.label, active: i === ai, done: i < ai }));
+}
+
+/* Paint the compact stage stepper (#simStageBar). Presentation-only and
+ * explanation-free (stage names only — never a hint about the verdict). Also
+ * publishes the active stage onto #careerOps[data-stage] for the Progressive UI
+ * Focus layer (T-F) — a CSS-only, desktop-only SUBTLE emphasis; no persisted
+ * state and no answer hint. */
+function renderStageBar() {
+  const rows = SIM.def ? stageState() : null;
+  // Progressive UI Focus (Task #154, T-F) — expose the current stage so CSS can
+  // gently de-emphasize the genuinely-secondary panels. Set/cleared here (the one
+  // chokepoint) so it always tracks state; cleared when no mission is active.
+  const ops = document.getElementById('careerOps');
+  if (ops) {
+    const activeKey = rows && (rows.find(s => s.active) || {}).key;
+    if (activeKey) ops.setAttribute('data-stage', activeKey);
+    else ops.removeAttribute('data-stage');
+  }
+  const host = document.getElementById('simStageBar');
+  if (!host) return;
+  if (!rows) { host.hidden = true; host.innerHTML = ''; return; }
+  const items = rows.map((s, i) => {
+    const state = s.active ? 'active' : s.done ? 'done' : 'todo';
+    const mark = s.done ? '✓' : String(i + 1);
+    return `<li class="sim-stage sim-stage--${state}"${s.active ? ' aria-current="step"' : ''}>
+      <span class="sim-stage-dot" aria-hidden="true">${mark}</span>
+      <span class="sim-stage-label">${s.label}</span>
+    </li>`;
+  }).join('');
+  host.innerHTML = `<ol class="sim-stage-list">${items}</ol>`;
+  host.hidden = false;
+}
+
+/* Render glossary chips for a file's focusTerms (Task #154) — reuses the existing
+ * hover-definition mechanism; presentation-only. */
+function focusTermsHtml(terms) {
+  if (!Array.isArray(terms) || !terms.length) return '';
+  const chips = terms.map(t => glossaryTermHtml(t)).filter(Boolean).join(' ');
+  return chips ? `<span class="sim-file-focus-terms">${chips}</span>` : '';
+}
+
+/* Reviewed-files reopen strip (Task #154) — lets the analyst reopen any file they
+ * have already read back into the File Reader from the notebook. File-model only
+ * (returns '' when the mission has no files); reopening surfaces no new evidence
+ * and never touches the terminal history. */
+function reviewedFilesReopenHtml() {
+  const files = simFiles();
+  if (!files.length) return '';
+  const read = SIM.read || new Set();
+  const rows = files.filter(f => read.has(f.name)).map(f =>
+    `<button type="button" class="sim-reopen-chip${SIM.activeFile === f.name ? ' sim-reopen-chip--on' : ''}" data-reopen="${mapEsc(f.name)}"${SIM.activeFile === f.name ? ' aria-current="true"' : ''}>${mapEsc(f.name)}</button>`
+  ).join('');
+  if (!rows) return '';
+  return `
+    <div class="sim-notebook-section sim-reopen">
+      <div class="sim-notebook-head sim-notebook-head--reopen">REVIEWED FILES <span class="sim-notebook-count">${read.size}</span></div>
+      <p class="sim-reopen-hint">Reopen a file you've read to study it again.</p>
+      <div class="sim-reopen-list">${rows}</div>
     </div>`;
 }
 
@@ -5452,6 +5605,9 @@ function runCommandEntry(c) {
   if (evSurfaced > 0) simNotebookCue(evSurfaced);
   simPrint('', 'spacer');
 
+  // Active Investigation Feed (Task #154) — neutral command record; never interprets.
+  if (firstRun) emitFeed('command', 'Ran ' + ((c.match && c.match[0]) || c.id) + '.');
+  if (evSurfaced > 0) emitFeed('finding', 'New finding added to your notebook.');
   renderEvidencePanel();
 
   if (firstRun && coreCommandsRun() && SIM.stage === 'investigation') {
@@ -5584,6 +5740,19 @@ function renderFileReader() {
   if (nameEl) nameEl.textContent = file.name;
   if (body) {
     body.innerHTML = '';
+    // Investigation Focus (Task #154) — an attention cue for what to look at in
+    // this file. Authored per-file (def.files[].focus) with a generic fallback;
+    // it never names the suspicious line or says whether the file is safe. Optional
+    // focusTerms render as hover-definition glossary chips. Presentation-only.
+    const focusText = (file.focus && String(file.focus).trim()) ||
+      'Review this evidence carefully before making your decision.';
+    const focusEl = document.createElement('div');
+    focusEl.className = 'sim-file-focus';
+    focusEl.innerHTML =
+      `<span class="sim-file-focus-label">Investigation Focus</span>` +
+      `<span class="sim-file-focus-text">${mapEsc(focusText)}</span>` +
+      focusTermsHtml(file.focusTerms);
+    body.appendChild(focusEl);
     (file.content || []).forEach(l => {
       const text = l == null ? '' : String(l);
       const div = document.createElement('div');
@@ -5619,6 +5788,9 @@ function simCmdRead(arg, mode) {
   if (firstRead) (file.evidenceIds || []).forEach(surfaceEvidence);
   const evSurfaced = SIM.evidence.size - evBefore;
   if (evSurfaced > 0) simNotebookCue(evSurfaced);
+  // Active Investigation Feed (Task #154) — neutral record; never interprets.
+  if (firstRead) emitFeed('review', 'Reviewed ' + file.name + '.');
+  if (evSurfaced > 0) emitFeed('finding', 'New finding added to your notebook.');
   renderEvidencePanel();
   // Pin the opened file into the on-demand File Reader (Task #153) — additive,
   // presentation-only; the terminal lines above remain the mark-up/grep surface.
@@ -5738,6 +5910,9 @@ function simCmdGrep(arg) {
     });
   }
   if (newly.length > 0) simNotebookCue(newly.length);
+  // Active Investigation Feed (Task #154) — the player's own search term is safe.
+  emitFeed('scan', 'Scanned the files for "' + term + '".');
+  if (newly.length > 0) emitFeed('finding', 'New finding added to your notebook.');
   renderEvidencePanel();
   // Contractor "aha" — name the cross-file correlation and point to the deep read.
   if (newly.includes('ev_contractor_access')) {
@@ -6225,7 +6400,9 @@ function simRevealActions(manual) {
     return;
   }
   SIM.stage = 'decision';
+  emitFeed('stage', 'Moved to the decision step.');   // Active Investigation Feed (Task #154)
   renderActions();
+  renderEvidencePanel();   // refresh the feed + stage bar now that the stage changed
   if (manual && !investigationComplete()) {
     const msg = simFiles().length
       ? 'Note: you have not reviewed every file. Acting on incomplete evidence weakens your recommendation.'
@@ -6286,6 +6463,9 @@ function chooseAction(actionId) {
   simEndTermGroup();                        // button-click result, not a typed command — render ungrouped
   simPrint(`> Decision: ${action.label}${outcome ? ' — ' + outcome.verdict : ''}`, 'ok');
   applyDecisionConsequence(actionId); // #120 — posture-driven ripples (dials/postcards/scars), before debrief reads SIM.consequence
+  emitFeed('decision', 'Decision submitted: ' + action.label + '.');   // Active Investigation Feed (Task #154)
+  emitFeed('complete', 'Case closed — debrief ready.');
+  renderEvidencePanel();   // surface the decision/completion feed entries before the debrief
   renderDebrief(action, outcome, changes);
   finalizeMission({ decisionLabel: action.label, decisionKind: action.type || 'direct', verdict: outcome ? outcome.verdict : null, changes });
 }
@@ -6333,6 +6513,9 @@ function submitRecommendation(recId) {
   simEndTermGroup();                        // button-click result, not a typed command — render ungrouped
   simPrint(`> Recommendation submitted: ${rec.label} — ${outcome.verdict}`, 'ok');
   applyDecisionConsequence(recId); // #120 — posture-driven ripples, before debrief reads SIM.consequence
+  emitFeed('decision', 'Recommendation submitted: ' + rec.label + '.');   // Active Investigation Feed (Task #154)
+  emitFeed('complete', 'Case closed — debrief ready.');
+  renderEvidencePanel();   // surface the decision/completion feed entries before the debrief
   renderDebrief(
     { label: 'Recommendation: ' + rec.label, consequence: rec.consequence, setFlags: rec.setFlags, deniedNote: rec.deniedNote, outcomeSub: 'Submitted to leadership for a decision.' },
     outcome, changes
@@ -7299,6 +7482,7 @@ const CAREER_MISSIONS = {
         beginnerNote: 'A cover note for the release. It admits extra finance files were added in.',
         evidenceIds: ['ev_release_context'],
         grepTerms: ['finance', 'bundled', 'extra'],
+        focus: 'Read how this package was assembled and who decided what goes out.',
       },
       {
         name: 'product_datasheet.txt',
@@ -7311,6 +7495,7 @@ const CAREER_MISSIONS = {
         beginnerNote: 'A marketing sheet that is already published — meant for the public.',
         evidenceIds: ['ev_public_safe'],
         grepTerms: ['public', 'cleared', 'marketing'],
+        focus: 'Check who this material was cleared for before it was queued to ship.',
       },
       {
         name: 'partner_pricing_2026.csv',
@@ -7324,6 +7509,7 @@ const CAREER_MISSIONS = {
         beginnerNote: 'The special prices the company privately agreed with each partner.',
         evidenceIds: ['ev_confidential_pricing'],
         grepTerms: ['negotiated', 'internal', 'not for external'],
+        focus: 'Look at who these figures were meant for, and whether they were ever cleared to leave the company.',
       },
       {
         name: 'employee_salaries.csv',
@@ -7337,6 +7523,8 @@ const CAREER_MISSIONS = {
         beginnerNote: 'Employees'+"'"+' names and how much each person is paid.',
         evidenceIds: ['ev_pii_salary'],
         grepTerms: ['restricted', 'pii', 'salary', 'compensation'],
+        focus: 'Notice what kind of personal information each row holds, and who it belongs to.',
+        focusTerms: ['pii'],
       },
       {
         name: 'customer_payment_records.csv',
@@ -7350,6 +7538,8 @@ const CAREER_MISSIONS = {
         beginnerNote: 'Customers'+"'"+' card and payment details — protected by law.',
         evidenceIds: ['ev_customer_pii'],
         grepTerms: ['cardholder', 'pci', 'regulated', 'card'],
+        focus: 'Consider what category of data these payment details fall under.',
+        focusTerms: ['pci'],
       },
       {
         name: 'acquisition_roadmap.txt',
@@ -7362,6 +7552,8 @@ const CAREER_MISSIONS = {
         beginnerNote: 'A secret, unannounced plan about companies CyberCorp may buy.',
         evidenceIds: ['ev_confidential_roadmap'],
         grepTerms: ['confidential', 'non-public', 'unannounced', 'material'],
+        focus: 'Note whether this plan has been announced yet, and who is meant to see it.',
+        focusTerms: ['materialNonPublic'],
       },
       {
         name: 'access_log.txt',
@@ -7376,6 +7568,7 @@ const CAREER_MISSIONS = {
         beginnerNote: 'A record of who opened which files, and at what time.',
         evidenceIds: ['ev_contractor_access'],
         grepTerms: ['ext-contractor-07', 'contractor', '02:', 'remit'],
+        focus: 'Compare which account opened these files, and when, against what its role should need.',
       },
     ],
 
@@ -11033,6 +11226,22 @@ function simInit() {
       if (colToggle) { e.preventDefault(); toggleSimColumn(colToggle.dataset.simColToggle); return; }
       // On-demand File Reader close (Task #153) — presentation-only.
       if (e.target.closest('[data-file-reader-close]')) { e.preventDefault(); closeFileReader(); return; }
+      // Reviewed-files reopen (Task #154) — reopen a read file into the File Reader
+      // from the notebook. Reuses renderFileReader; surfaces no new evidence and
+      // never touches the terminal history. Presentation-only.
+      const fileReopen = e.target.closest('[data-reopen]');
+      if (fileReopen) {
+        e.preventDefault();
+        const n = fileReopen.getAttribute('data-reopen');
+        if (n && simFileByName(n)) {
+          SIM.activeFile = n;
+          renderFileReader();
+          renderEvidencePanel();   // reflect the active-file highlight on the reopen chips
+          const p = document.getElementById('simFileReader');
+          if (p && typeof p.scrollIntoView === 'function') p.scrollIntoView({ block: 'nearest' });
+        }
+        return;
+      }
       // Mission Brief compact/expand toggle (Task #153) — presentation-only.
       if (e.target.closest('[data-brief-toggle]')) { e.preventDefault(); SIM.briefExpanded = !SIM.briefExpanded; renderBriefPanel(); return; }
       // Decision Dock peek/expand (Task #153) — presentation-only chrome. Expanding a

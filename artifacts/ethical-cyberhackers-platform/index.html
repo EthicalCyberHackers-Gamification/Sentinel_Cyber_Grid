@@ -569,6 +569,10 @@
             <span>INVESTIGATION TERMINAL</span>
             <button type="button" class="sim-map-btn" id="simMapBtn" data-map-open hidden>◈ NETWORK MAP</button>
           </div>
+          <!-- Workflow stage indicator (Task #154) — compact current-stage stepper
+               (Briefing ▸ Evidence Review ▸ Analysis ▸ Decision ▸ Feedback). Driven
+               by stageState()/renderStageBar() in career-sim.js. Presentation-only. -->
+          <nav class="sim-stage-bar" id="simStageBar" aria-label="Investigation progress" hidden></nav>
           <div class="sim-work-split" id="simWorkSplit">
             <div class="sim-term-out" id="simTerminal" aria-live="polite"></div>
             <!-- On-demand File Reader (Task #153) — a pinned, scrollable pane that

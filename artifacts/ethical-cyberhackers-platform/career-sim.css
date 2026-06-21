@@ -2521,6 +2521,201 @@
 .sim-feed-judge-value { font-family: var(--font-mono); font-size: 12px; color: var(--green); font-weight: 600; }
 
 /* ------------------------------------------------------------------ *
+ * INVESTIGATION GUIDANCE (Task #154) — presentation-only guidance layer:
+ * activity log · workflow stage bar · file focus cue · reviewed-files reopen.
+ * Neutral styling throughout; nothing here encodes correctness or a verdict.
+ * ------------------------------------------------------------------ */
+
+/* (1) Active Investigation Feed — chronological activity log appended below the
+ * state summary. Newest-first, plain text; no interpretation, so no right/wrong
+ * colours — kind accents only nudge emphasis (finding brighter, completion green). */
+.sim-feed-log { margin-top: 10px; padding-top: 9px; border-top: 1px dashed var(--border); }
+.sim-feed-log-head {
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.2px;
+  color: var(--cyan-dim);
+  margin-bottom: 7px;
+}
+.sim-feed-log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.sim-feed-log-row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.sim-feed-log-row::before {
+  content: "\203A";
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  color: var(--cyan-dim);
+}
+.sim-feed-log-text { min-width: 0; word-break: break-word; }
+.sim-feed-log-row--finding .sim-feed-log-text { color: var(--text-bright); }
+.sim-feed-log-row--finding::before { color: var(--yellow); }
+.sim-feed-log-row--stage::before,
+.sim-feed-log-row--decision::before { color: var(--orange); }
+.sim-feed-log-row--complete .sim-feed-log-text { color: var(--green); }
+.sim-feed-log-row--complete::before { color: var(--green); }
+
+/* (2) Workflow stage indicator — compact 5-step stepper at the top of the
+ * Investigation Terminal. Shows position only; never a hint about the verdict. */
+.sim-stage-bar {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel-alt);
+}
+.sim-stage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 4px;
+}
+.sim-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-hud);
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.sim-stage:not(:last-child)::after {
+  content: "\203A";
+  margin-left: 4px;
+  font-family: var(--font-mono);
+  color: var(--border);
+}
+.sim-stage-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1;
+}
+.sim-stage-label { white-space: nowrap; }
+.sim-stage--done { color: var(--green-dim); }
+.sim-stage--active { color: var(--cyan); }
+.sim-stage--active .sim-stage-dot { background: rgba(0, 229, 255, 0.12); box-shadow: inset 0 0 0 1px var(--cyan); }
+.sim-stage--todo { color: var(--text-dim); opacity: 0.7; }
+@media (max-width: 720px) {
+  .sim-stage-label { display: none; }
+  .sim-stage--active .sim-stage-label { display: inline; }
+  .sim-stage:not(:last-child)::after { margin-left: 2px; }
+}
+
+/* (3) Investigation Focus cue at the top of an opened file in the File Reader.
+ * Authored/neutral prose (font-body, not the mono file content); attention only. */
+.sim-file-focus {
+  margin: 0 0 12px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--cyan);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel-alt);
+  font-family: var(--font-body);
+}
+.sim-file-focus-label {
+  display: block;
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--cyan-dim);
+  margin-bottom: 4px;
+}
+.sim-file-focus-text { display: block; font-size: 12px; line-height: 1.5; color: var(--text-bright); }
+.sim-file-focus-terms { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+/* (4) Reviewed-files reopen strip — reopen a file you've already read back into the
+ * File Reader. File-model only; presentation-only (surfaces no new evidence). */
+.sim-notebook-head--reopen { --nb-accent: var(--cyan); --nb-icon: "\21BA"; }
+.sim-reopen-hint { margin: 0 0 8px; font-size: 11px; line-height: 1.4; color: var(--text-dim); }
+.sim-reopen-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.sim-reopen-chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 4px 9px;
+  color: var(--cyan);
+  background: rgba(0, 229, 255, 0.07);
+  border: 1px solid var(--cyan-dim);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.sim-reopen-chip:hover { background: rgba(0, 229, 255, 0.14); border-color: var(--cyan); }
+.sim-reopen-chip:focus-visible { outline: 1px solid var(--green); outline-offset: 1px; }
+.sim-reopen-chip--on {
+  color: var(--bg);
+  background: var(--cyan);
+  border-color: var(--cyan);
+  font-weight: 600;
+}
+
+/* (5) Progressive UI Focus (Task #154, T-F) — SUBTLE per-stage emphasis. Visual
+ * only: gently dims the two genuinely-secondary panels (the mission brief and the
+ * feedback panel) at the stages where they are not in play, so attention settles
+ * on the terminal + notebook. STRICTLY opacity only — no reflow, no hiding, no
+ * pointer blocking; the terminal (.sim-panel--work) and the notebook (#simEvidence)
+ * are NEVER dimmed, and any hover/focus restores full emphasis instantly. Driven
+ * by #careerOps[data-stage] (set in renderStageBar from stageState). Desktop only;
+ * fully neutralized on narrow layouts, in notebook focus mode, and for collapsed
+ * rails. No persisted state, no answer hint.
+ *
+ * NOTE: this is the deliberately-minimal slice of T-F. A stronger stage-driven
+ * rearrangement (collapsing/reordering panels) is DEFERRED until an interactive
+ * M1–M4 playthrough is possible — see docs/PHASE_1B_INVESTIGATION_GUIDANCE_QA.md. */
+@media (min-width: 1101px) {
+  #careerOps[data-stage] .career-col--left,
+  #careerOps[data-stage] .sim-panel--feedback {
+    transition: opacity 240ms ease;
+  }
+  /* Mission brief recedes once the analyst is past the briefing stage. */
+  #careerOps[data-stage="evidence"] .career-col--left,
+  #careerOps[data-stage="analysis"] .career-col--left,
+  #careerOps[data-stage="decision"] .career-col--left,
+  #careerOps[data-stage="feedback"] .career-col--left,
+  /* Feedback panel recedes until there is a decision to react to. */
+  #careerOps[data-stage="briefing"] .sim-panel--feedback,
+  #careerOps[data-stage="evidence"] .sim-panel--feedback,
+  #careerOps[data-stage="analysis"] .sim-panel--feedback,
+  #careerOps[data-stage="decision"] .sim-panel--feedback {
+    opacity: 0.74;
+  }
+  /* Any deliberate interaction restores full emphasis — nothing is locked away. */
+  #careerOps[data-stage] .career-col--left:hover,
+  #careerOps[data-stage] .career-col--left:focus-within,
+  #careerOps[data-stage] .sim-panel--feedback:hover,
+  #careerOps[data-stage] .sim-panel--feedback:focus-within {
+    opacity: 1;
+  }
+  /* Never fight the notebook-focus overlay or a collapsed rail. */
+  #careerOps.career--nb-focus[data-stage] .career-col--left,
+  #careerOps.career--nb-focus[data-stage] .sim-panel--feedback,
+  #careerOps[data-stage] .career-col--left.is-collapsed,
+  #careerOps[data-stage] .career-col--right.is-collapsed .sim-panel--feedback {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #careerOps[data-stage] .career-col--left,
+  #careerOps[data-stage] .sim-panel--feedback { transition: none; }
+}
+
+/* ------------------------------------------------------------------ *
  * INVESTIGATION-FIRST (Intern missions): live Sarah-Reyes comms + case file
  * ------------------------------------------------------------------ */
 

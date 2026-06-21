@@ -1,0 +1,428 @@
+# Phase 1B – Investigation Guidance & Analyst Workflow
+
+## Objective
+
+Improve player guidance after evidence is discovered.
+
+Phase 1A made evidence easier to identify inside the terminal. Phase 1B should help players understand what to do with the evidence without giving away answers.
+
+The goal is to reduce confusion around:
+
+* what step the player is on
+* why the evidence matters
+* what action comes next
+* how to move from evidence review to analyst decision
+
+Preserve the terminal-first design. Do not turn the simulator into a popup-only or quiz-only experience.
+
+---
+
+# Design Principles
+
+The player should still feel like a beginner cybersecurity analyst working inside a realistic investigation environment.
+
+Do not give away answers.
+
+Do not over-explain.
+
+Do not remove terminal interaction.
+
+Do not simplify mission decisions.
+
+Instead, provide enough workflow structure so beginners can continue without getting lost.
+
+---
+
+# Task 1 – Active Investigation Feed
+
+## Problem
+
+Players lose track of what has happened during the mission.
+
+They may open files, read evidence, receive mentor messages, and complete actions without understanding the sequence of the investigation.
+
+## Requirement
+
+Create an Active Investigation Feed that records important mission events in plain language.
+
+Example:
+
+```text
+Active Investigation Feed
+
+Sarah assigned the release review.
+employee_notes.txt discovered.
+employee_notes.txt reviewed.
+Awaiting analyst decision.
+```
+
+## Feed Should Track
+
+* mission started
+* objective assigned
+* evidence discovered
+* evidence reviewed
+* important command completed
+* stage changed
+* answer submitted
+* mission completed
+
+## Rules
+
+* Keep feed entries short.
+* Do not reveal answers.
+* Do not interpret evidence for the player unless that is already part of the mission logic.
+* The feed should help players remember what happened, not solve the mission.
+
+---
+
+# Task 2 – Investigation Context Layer
+
+## Problem
+
+Players may recognize that a file is evidence but still not know what kind of analysis they should perform.
+
+## Requirement
+
+When evidence is opened, display a short investigation focus statement near the evidence frame or readable view.
+
+Example:
+
+```text
+Investigation Focus:
+Review this file for signs of confidential company information.
+```
+
+Other examples:
+
+```text
+Investigation Focus:
+Look for unusual login behavior.
+
+Investigation Focus:
+Review this artifact for indicators of phishing.
+
+Investigation Focus:
+Check whether this file contains information that should be escalated.
+```
+
+## Rules
+
+* Context must guide attention without giving away the answer.
+* Do not say which exact line is suspicious.
+* Do not reveal whether the file is safe or unsafe.
+* Use mission-specific context where available.
+* If no mission-specific context exists, use a generic fallback:
+  "Review this evidence carefully before making your decision."
+
+---
+
+# Task 3 – Mission Workflow Guidance
+
+## Problem
+
+Players do not always know what step comes next.
+
+## Requirement
+
+Add a compact Current Investigation Stage display.
+
+Example:
+
+```text
+Investigation Stage
+
+1. Review Evidence ✓
+2. Analyze Findings
+3. Submit Decision
+```
+
+## Workflow Stages
+
+Use a simple mission workflow:
+
+```text
+Briefing
+Evidence Review
+Analysis
+Decision
+Feedback
+```
+
+## Rules
+
+* Highlight the current stage.
+* Mark completed stages.
+* Keep it compact.
+* Do not show excessive explanation.
+* Update automatically as the mission progresses.
+
+---
+
+# Task 4 – Evidence Reopen System
+
+## Problem
+
+Players need to revisit evidence without scrolling through terminal history.
+
+## Requirement
+
+Extend the Evidence Tracker so reviewed files can be reopened.
+
+Example:
+
+```text
+Mission Evidence
+
+✓ employee_notes.txt [Reopen]
+✓ customer_export.csv [Reopen]
+□ release_summary.doc
+```
+
+## Rules
+
+* Reopening evidence should show the same content already displayed earlier.
+* Do not create duplicate evidence entries.
+* Do not alter terminal history unless the player reruns the command.
+* Reopen should use the readable evidence view if available.
+* Terminal-first behavior remains unchanged for initial file opening.
+
+---
+
+# Task 5 – Decision Workspace
+
+## Problem
+
+Players may understand the evidence but not understand how to translate it into a mission decision.
+
+## Requirement
+
+Create a clear Analyst Decision area that appears only after the required evidence review stage is complete.
+
+Example:
+
+```text
+Analyst Decision
+
+Based on the evidence reviewed, what is your recommendation?
+
+○ Approve Release
+○ Escalate for Review
+○ Block Release
+
+Reason:
+[short response field]
+
+[Submit Decision]
+```
+
+## Rules
+
+* Do not show the decision workspace too early.
+* Do not remove any existing answer logic.
+* Connect this workspace to current mission answer submission.
+* Keep decision labels mission-specific where possible.
+* Include a short reason field only if it already fits the mission logic.
+* If free-text reasoning is not supported, create the UI placeholder but do not force backend changes.
+
+---
+
+# Task 6 – Lightweight Analyst Notebook
+
+## Problem
+
+Players forget important findings after reviewing multiple artifacts.
+
+## Requirement
+
+Create a lightweight Analyst Notebook that records player-discovered investigation facts.
+
+Example:
+
+```text
+Analyst Notebook
+
+✓ employee_notes.txt reviewed
+✓ customer_export.csv reviewed
+✓ Decision pending
+```
+
+## Rules
+
+* Keep it simple.
+* Do not auto-write conclusions that reveal the answer.
+* Track reviewed evidence and completed steps.
+* Do not become a long notes panel.
+* Do not compete visually with the terminal.
+
+---
+
+# Task 7 – Hover Definitions for Beginner Terms
+
+## Problem
+
+Beginner players may not understand terms like PII, credential, phishing, IOC, domain, port, or authentication log.
+
+## Requirement
+
+Add hover definitions for key cybersecurity terms inside mission instructions, evidence context, and decision prompts.
+
+Examples:
+
+```text
+PII → Personally Identifiable Information, such as names, emails, phone numbers, or account details.
+
+Credential → Information used to log in, such as a username, password, token, or access key.
+
+Phishing → A deceptive message designed to trick someone into revealing information or clicking a harmful link.
+```
+
+## Rules
+
+* Keep definitions short.
+* Use plain language.
+* Do not open large help panels.
+* Do not interrupt gameplay.
+* Add definitions only to beginner-facing text, not every terminal output instance.
+
+---
+
+# Task 8 – Progressive UI Focus
+
+## Problem
+
+Too many panels compete for attention at once.
+
+## Requirement
+
+Adjust the interface so the visible UI changes based on the player’s current investigation stage.
+
+## Stage-Based Display
+
+### Briefing Stage
+
+Show:
+
+* mission objective
+* brief instructions
+* start action
+
+### Evidence Review Stage
+
+Show:
+
+* terminal
+* mission objective
+* evidence tracker
+* active investigation feed
+
+### Analysis Stage
+
+Show:
+
+* terminal
+* evidence tracker
+* analyst notebook
+* investigation context
+
+### Decision Stage
+
+Show:
+
+* decision workspace
+* evidence tracker
+* objective
+* optional notebook
+
+### Feedback Stage
+
+Show:
+
+* mission result
+* key learning takeaway
+* continue button
+
+## Rules
+
+* Do not hide the terminal during terminal-required stages.
+* Do not display all panels at once.
+* Collapse secondary panels when they are not needed.
+* Preserve user access to evidence and objective throughout.
+
+---
+
+# Implementation Constraints
+
+Do not implement:
+
+* new missions
+* voice-over
+* cinematic sequences
+* new scoring system
+* advanced analytics
+* authentication changes
+* Supabase schema changes unless absolutely necessary
+* major backend rewrites
+
+Do not change:
+
+* mission pass/fail rules
+* existing XP logic
+* existing mission unlock logic
+* existing command parsing logic except where needed to update feed/stage/evidence tracking
+
+---
+
+# Success Criteria
+
+A first-time player should be able to understand:
+
+* what just happened
+* what evidence they reviewed
+* what stage they are in
+* what they should do next
+* how to make a decision
+
+without needing facilitator intervention.
+
+An experienced player should still feel:
+
+* terminal workflow is preserved
+* mission realism is intact
+* support tools are optional and nonintrusive
+* the interface is cleaner and faster to use
+
+---
+
+# QA Checklist
+
+Create or update:
+
+```text
+docs/PHASE_1B_INVESTIGATION_GUIDANCE_QA.md
+```
+
+Include checklist items for:
+
+* Active Investigation Feed updates correctly
+* Feed does not reveal answers
+* Investigation Context appears when evidence opens
+* Context guides without giving away solution
+* Workflow stage updates correctly
+* Evidence can be reopened
+* Reopened evidence matches original content exactly
+* Decision Workspace appears only after required evidence review
+* Analyst Notebook tracks reviewed evidence without revealing conclusions
+* Hover definitions work for selected beginner terms
+* UI changes based on investigation stage
+* Terminal-first workflow remains intact
+* Existing mission completion logic still works
+* Existing XP and unlock logic still works
+
+---
+
+# Final Instruction
+
+Implement Phase 1B as an investigation guidance layer on top of the existing Phase 1A terminal-first evidence design.
+
+The result should help beginners stay oriented while preserving the realistic analyst workflow.
