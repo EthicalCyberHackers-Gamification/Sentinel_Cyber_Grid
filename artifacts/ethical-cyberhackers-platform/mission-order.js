@@ -64,7 +64,7 @@ export function canCompleteMission(missionId, isComplete, order = MISSION_PLAY_O
  * Pure data, consumed by the continuity layer in script.js. */
 export const WORLD_CONTINUITY = {
   "mission-001": { dept: "finance",     employee: "okafor",    actor: "contractor",
-                   resolved: "Contractor's out-of-scope access to the Finance release folder revoked; the release is held pending classification." },
+                   resolved: "Contractor's unapproved release package held; the bundled HR and Finance data was pulled before anything left CyberCorp." },
   "mission-002": { dept: "itinfra",     employee: "nwosu",     actor: "contractor", connects: "mission-001",
                    resolved: "Unapproved contractor device 192.168.1.57 removed from the finance segment; asset inventory reconciled." },
   "mission-003": { dept: "finance",     actor: "contractor",   connects: "mission-002",

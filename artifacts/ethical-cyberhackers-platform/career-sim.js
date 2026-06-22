@@ -1929,10 +1929,10 @@ function caseBoardCardHtml() {
   const next = caseFileNextStep();
 
   // Orientation readout (findings logged + files cleared from the release) — never a score.
-  const files = simFiles();
-  const classified = files.filter(f => SIM.classified[f.name]).length;
+  const clsFiles = classifiableFiles();
+  const classified = clsFiles.filter(f => SIM.classified[f.name]).length;
   const bits = [`${SIM.evidence.size} finding${SIM.evidence.size === 1 ? '' : 's'}`];
-  if (files.length) bits.push(`${classified}/${files.length} files classified`);
+  if (clsFiles.length) bits.push(`${classified}/${clsFiles.length} files classified`);
 
   return `
     <div class="sim-caseboard" role="status" aria-live="polite">
@@ -2353,7 +2353,7 @@ function simNextAction() {
     return { text: 'Sarah needs your call — answer in the Decision Dock below.', chips: [] };
   }
   if (!investigationComplete()) {
-    const undiscovered = simFiles().filter(f => !fileClassificationVisible(f));
+    const undiscovered = simFiles().filter(f => !fileInvestigated(f));
     const chips = [];
     undiscovered.slice(0, 3).forEach(f => chips.push({ label: f.name, cmd: 'cat ' + f.name }));
     const grepReady = grepTriageEnabled() && fileModelGrepUnlocked();
@@ -2877,7 +2877,7 @@ function caseFileNextStep() {
   const vis = visibleDiscoveryChallenges().filter(challengeValid);
   if (vis.some(c => !stepAnswered(c, 'observation'))) return 'Record what stands out on your latest finding.';
   if (vis.some(c => !stepAnswered(c, 'justification'))) return 'Explain why your latest finding matters.';
-  const undiscovered = simFiles().filter(f => !fileClassificationVisible(f));
+  const undiscovered = simFiles().filter(f => !fileInvestigated(f));
   if (undiscovered.length) return `Investigate the remaining ${undiscovered.length} file(s) — cat to deep-read or grep to scan — to surface more evidence.`;
   const unclassified = simFiles().filter(f => fileClassificationVisible(f) && !SIM.classified[f.name]);
   if (unclassified.length) return 'Classify each file you have reviewed.';
@@ -2929,7 +2929,7 @@ function caseFileSummaryHtml() {
   // UNKNOWNS — open risks + unread files + pending judgments.
   const unkItems = [];
   openRisks.forEach(r => unkItems.push(r.label));
-  const undiscovered = simFiles().filter(f => !fileClassificationVisible(f));
+  const undiscovered = simFiles().filter(f => !fileInvestigated(f));
   if (undiscovered.length) unkItems.push(`${undiscovered.length} file(s) not yet investigated`);
   const pending = visibleDiscoveryChallenges().filter(c => challengeValid(c) && !challengeAnswered(c));
   if (pending.length) unkItems.push(`${pending.length} finding(s) awaiting your judgment`);
@@ -2977,10 +2977,10 @@ function renderClassifyHtml(mode) {
       ? `<div class="sim-classify-hint">${f.beginnerNote}</div>` : '';
     return `<div class="sim-classify-row"><div class="sim-classify-file">${f.name}</div>${note}<div class="sim-classify-opts">${opts}</div></div>`;
   }).join('');
-  const done = simFiles().filter(f => SIM.classified[f.name]).length;
+  const done = classifiableFiles().filter(f => SIM.classified[f.name]).length;
   return `
     <div class="sim-classify">
-      <div class="sim-classify-head">FILE CLASSIFICATION — ${done}/${simFiles().length}</div>
+      <div class="sim-classify-head">FILE CLASSIFICATION — ${done}/${classifiableFiles().length}</div>
       ${legend}
       ${rows}
     </div>`;
@@ -3460,18 +3460,18 @@ function openChallengeInComms(challengeId) {
 const FINDING_TEMPLATES = {
   // ---- Mission 1 — Data Handling Review ----
   ch_release_context: {
-    template: 'The release was assembled by {who} with {review}, so {risk}.',
+    template: 'The release was assembled by {who}, and {review}, so {risk}.',
     chips: [
       { key: 'who', value: 'an external contractor', alts: ['an outside vendor account', 'a non-employee account'] },
-      { key: 'review', value: 'no internal sign-off', alts: ['no data-owner approval', 'no internal review'] },
-      { key: 'risk', value: 'nobody inside vetted what is leaving the company', alts: ['the contents left the building unchecked', 'there is no accountable owner for the release'] },
+      { key: 'review', value: 'I have not yet confirmed anyone inside reviewed it', alts: ['internal review still needs to be verified', 'the internal sign-off is still unconfirmed'] },
+      { key: 'risk', value: 'an outside account decided what is leaving and that needs checking', alts: ['who approved this release is still an open question', 'the release needs an accountable internal owner'] },
     ],
   },
-  ch_public_safe: {
-    template: 'The product datasheet is {nature}, so it {risk}.',
+  ch_manifest: {
+    template: 'The package {contains}, which {risk}.',
     chips: [
-      { key: 'nature', value: 'already-published marketing collateral', alts: ['public, marketing-cleared material', 'externally released content'] },
-      { key: 'risk', value: 'carries no new exposure if it ships', alts: ['is safe to include in the release', 'needs no further restriction'] },
+      { key: 'contains', value: 'bundles internal HR and Finance data into an external partner send', alts: ['mixes internal company data into an outbound shipment', 'puts HR and Finance material in a partner package'] },
+      { key: 'risk', value: 'means sensitive data is staged to leave the company', alts: ['is exactly what review should catch before it ships', 'exposes internal data to an outside partner'] },
     ],
   },
   ch_pii_salary: {
@@ -3489,12 +3489,11 @@ const FINDING_TEMPLATES = {
       { key: 'risk', value: 'would be a reportable data breach', alts: ['breaches regulated-data rules', 'creates real customer harm and fines'] },
     ],
   },
-  ch_contractor_access: {
-    template: 'A {actor} was {action}, which I am logging as {stance}.',
+  ch_approval_gap: {
+    template: 'The release has {gap}, so I am logging it as {stance}.',
     chips: [
-      { key: 'actor', value: 'contractor account (ext-contractor-07)', alts: ['vendor account', 'non-employee account'] },
-      { key: 'action', value: 'reading HR/Finance files at 02:00, outside its remit', alts: ['reaching data far outside its job at 2 AM', 'touching salaries and roadmaps overnight'] },
-      { key: 'stance', value: 'something to flag and escalate', alts: ['activity that warrants a closer look', { text: 'probably routine release prep', warn: 'That softer wording understates the off-hours, out-of-scope access you noted above.' }] },
+      { key: 'gap', value: 'no data-owner sign-off and no internal review', alts: ['none of its required approvals', 'an empty approval record'] },
+      { key: 'stance', value: 'not ready to ship \u2014 hold and route for review', alts: ['something to hold and escalate', { text: 'probably fine to send', warn: 'That softer wording understates the missing approvals on a package full of sensitive data.' }] },
     ],
   },
   // ---- Mission 2 — Network Asset Investigation ----
@@ -4535,8 +4534,23 @@ function fileEvidenceSurfaced(f) {
   const ids = (f && f.evidenceIds) || [];
   return ids.length > 0 && ids.some(id => SIM.evidence.has(id));
 }
-function fileClassificationVisible(f) {
+// A file has been INVESTIGATED once it is deep-read (cat) or its evidence has
+// surfaced (grep). Distinct from CLASSIFIABLE: review-only narrative files
+// (reviewOnly:true, no trueClassification) are read for context but never
+// tier-classified, so they must NOT count toward classification UI/scoring.
+function fileInvestigated(f) {
   return !!f && (SIM.read.has(f.name) || fileEvidenceSurfaced(f));
+}
+function fileClassifiable(f) {
+  return !!f && !f.reviewOnly && !!f.trueClassification;
+}
+function classifiableFiles() {
+  return simFiles().filter(fileClassifiable);
+}
+// A file appears in the classification UI once it is BOTH classifiable AND
+// investigated. Review-only files never appear here or in the graded scorecard.
+function fileClassificationVisible(f) {
+  return fileClassifiable(f) && fileInvestigated(f);
 }
 
 /* Fraction (0..1) of total evidence weight surfaced — drives the recommendation
@@ -4555,7 +4569,7 @@ function evidenceQuality() {
  * real gameplay input, never cosmetic. Measured over EVERY file (the objective
  * is to classify each one), so skipping files costs accuracy. */
 function classificationQuality() {
-  const files = simFiles();
+  const files = classifiableFiles();
   if (!files.length) return 0;
   let correct = 0;
   files.forEach(f => { if (SIM.classified[f.name] === f.trueClassification) correct++; });
@@ -5961,8 +5975,8 @@ function simCmdGrep(arg) {
   if (newly.length > 0) emitFeed('finding', 'New finding added to your notebook.');
   renderEvidencePanel();
   // Contractor "aha" — name the cross-file correlation and point to the deep read.
-  if (newly.includes('ev_contractor_access')) {
-    simPrint('◆ Correlation: the SAME vendor account that packed this release also read HR/Finance files at 02:00. Read the full trail with  cat access_log.txt  before you log your call.', 'cue');
+  if (newly.includes('ev_contractor_intent')) {
+    simPrint('◆ Correlation: the SAME vendor account that requested this release also bundled the HR/Finance exports into it — and skipped internal review. Read the note with  cat contractor_message.txt , then check  cat approval_record.txt .', 'cue');
   }
   maybeNudgeInvestigationReady();
   maybePrintNextStep(); // Live "→ Next:" guidance (A) — no-op while locked/complete.
@@ -6382,7 +6396,8 @@ function closeMissionOnboarding() {
 }
 
 function setClassification(fileName, value) {
-  if (!simFileByName(fileName)) return;
+  const file = simFileByName(fileName);
+  if (!file || !fileClassifiable(file)) return;
   if (!CLASSIFICATIONS.some(c => c.id === value)) return;
   SIM.classified[fileName] = value;
   renderEvidencePanel();
@@ -6714,7 +6729,7 @@ function performanceSignals() {
   // Recommendation accuracy: file-model missions grade classification, command-
   // model missions grade the single identification, otherwise fall back to eq.
   let recommendation;
-  if (simFiles().length) recommendation = classificationQuality();
+  if (classifiableFiles().length) recommendation = classificationQuality();
   else if (SIM.def && SIM.def.identify) recommendation = SIM.identified === SIM.def.identify.correctId ? 1 : (SIM.identified ? 0.25 : 0);
   else recommendation = eq;
 
@@ -6991,7 +7006,7 @@ function reportSectionHtml() {
   // missions (M1) review classification; command-model missions review the single
   // identification (which device / which account). Missions with neither skip it.
   let reviewHtml = '';
-  const files = simFiles();
+  const files = classifiableFiles();
   if (files.length) {
     const correct = files.filter(f => SIM.classified[f.name] === f.trueClassification).length;
     const accPct = Math.round((correct / files.length) * 100);
@@ -7114,9 +7129,8 @@ const CAREER_MISSIONS = {
     priority: 'P2 — HIGH',
     promptLabel: 'intern@cybercorp:~/release$',
     // First-day teaching: clicking a suggested command button loads it into the
-    // terminal input so the player sees the exact command and runs it themselves
-    // with Enter, instead of firing on click. Scoped to this mission via the flag
-    // (other missions keep click-to-run). Read by commandTeachMode().
+    // terminal input so the player runs it themselves with Enter. Scoped to this
+    // mission via the flag; read by commandTeachMode().
     teachCommands: true,
     carryFlags: [
       { key: 'contractorAccessDiscovered', label: 'Contractor access flagged for follow-up' },
@@ -7124,232 +7138,90 @@ const CAREER_MISSIONS = {
       { key: 'legalReviewTriggered',       label: 'Legal review opened' },
       { key: 'contractorAccessIgnored',    label: 'Contractor access left unreviewed' },
     ],
-    evidenceEmpty: 'No evidence yet. Use the terminal to review the files, then classify what you find.',
+    evidenceEmpty: 'No evidence yet. Use the terminal to review the release package, then classify what you find.',
+    // The investigation is built around ONE question: can this package safely
+    // leave CyberCorp? Each finding is a beat toward that call, not a repeat of
+    // the same open-then-classify loop. Review-only narrative files (reviewOnly)
+    // carry the story; only the data previews are tier-classified.
     risks: [
-      { id: 'risk_pii',        label: 'Employee personal data (PII) is in the outbound release', triggeredBy: ['ev_pii_salary'] },
-      { id: 'risk_pci',        label: 'Regulated customer payment records (PCI) are in the release', triggeredBy: ['ev_customer_pii'] },
-      { id: 'risk_confidential',label: 'Confidential business information is bundled in', triggeredBy: ['ev_confidential_pricing', 'ev_confidential_roadmap'] },
-      { id: 'risk_contractor', label: 'A contractor account accessed files outside its remit', triggeredBy: ['ev_contractor_access'] },
-      { id: 'risk_noreview',   label: 'The release was assembled with no internal reviewer', triggeredBy: ['ev_release_context'] },
+      { id: 'risk_pii',         label: 'Employee personal data (PII) is in the outbound package', triggeredBy: ['ev_pii_salary'] },
+      { id: 'risk_pci',         label: 'Regulated customer payment records (PCI) are in the package', triggeredBy: ['ev_customer_pii'] },
+      { id: 'risk_confidential', label: 'Confidential business information is bundled in', triggeredBy: ['ev_confidential_pricing', 'ev_manifest'] },
+      { id: 'risk_contractor',  label: 'A contractor assembled and packed the outbound release', triggeredBy: ['ev_release_context', 'ev_contractor_intent', 'ev_approval_gap'] },
+      { id: 'risk_noreview',    label: 'The release has no completed internal approval', triggeredBy: ['ev_approval_gap'] },
     ],
-
-    // Reactive data-access map (Task #97) — review-only, same engine as
-    // mission-002. Mission 1 has no real network, so the graph is a data-access
-    // diagram: contractor account -> release package -> files. Only the two
-    // genuinely pre-known anchors from the brief (the contractor who requested
-    // the release and the release package itself) are seeded; each file appears
-    // and flags ONLY once the player has read it, and the out-of-remit access
-    // links appear ONLY once the access log is read. Nothing is persisted/scored.
-    map: {
-      cap: 'RELEASE REVIEW · OUTBOUND DATA FLOW — EMEA REGION',
-      hint: 'Red marks sensitive files that should not leave and the contractor\u2019s out-of-remit access. Select any node or connection for analyst intel.',
-      nodes: {
-        contractor: {
-          x: 13, y: 56, glyph: '👷', label: 'ext-contractor-07', sub: 'J. Demir · vendor', seed: true,
-          statusBy: { ev_contractor_access: 'suspicious' },
-          intel: {
-            what: 'The external vendor account that requested this outbound release.',
-            technique: 'Its role is stated in the assignment brief and the release cover note (cat release_notes.txt).',
-            why: 'An outside vendor account assembling a release of company files is the kind of access worth reviewing.' },
-        },
-        release: {
-          x: 50, y: 33, glyph: '📦', label: 'release pkg', sub: 'queued external', seed: true,
-          intel: {
-            what: 'The shared folder queued to leave the company for an external partner.',
-            technique: 'List the queued files (ls), then read them (cat <file>) or scan for markers (grep <text>) to see what is bundled inside.',
-            why: 'Everything in this package is about to leave the building, so each file must be classified first.' },
-        },
-        partner: {
-          x: 50, y: 10, glyph: '🌐', label: 'Meridian Logistics', sub: 'external partner',
-          revealBy: 'ev_release_context',
-          intel: {
-            what: 'The external logistics partner the release is addressed to.',
-            technique: 'Named in the release cover note (cat release_notes.txt).',
-            why: 'It is outside the company, so anything bundled into the package would land in third-party hands.' },
-        },
-        f_datasheet: {
-          x: 24, y: 88, glyph: '📄', label: 'product_datasheet', sub: 'public · safe',
-          revealBy: 'ev_public_safe', statusBy: { ev_public_safe: 'identified' }, classifyFile: 'product_datasheet.txt',
-          intel: {
-            what: 'A marketing datasheet already cleared for public distribution.',
-            technique: 'grep public (or cat product_datasheet.txt) — marked cleared for public distribution by Marketing.',
-            why: 'Already-public material is safe to share — the baseline of what a clean release looks like.' },
-        },
-        f_pricing: {
-          x: 41, y: 91, glyph: '📄', label: 'partner_pricing', sub: 'confidential',
-          revealBy: 'ev_confidential_pricing', statusBy: { ev_confidential_pricing: 'suspicious' }, classifyFile: 'partner_pricing_2026.csv',
-          intel: {
-            what: 'Negotiated per-partner pricing and renewal dates — internal commercial terms.',
-            technique: 'grep negotiated (or cat partner_pricing_2026.csv) — rates marked not for external eyes.',
-            why: 'One partner seeing another\u2019s private rates is a confidentiality breach; it must not ship.' },
-        },
-        f_roadmap: {
-          x: 58, y: 92, glyph: '📄', label: 'acquisition_roadmap', sub: 'confidential',
-          revealBy: 'ev_confidential_roadmap', statusBy: { ev_confidential_roadmap: 'suspicious' }, classifyFile: 'acquisition_roadmap.txt',
-          intel: {
-            what: 'A draft, unannounced acquisition roadmap — material non-public information.',
-            technique: 'grep confidential (or cat acquisition_roadmap.txt) — marked material non-public information.',
-            why: 'Unannounced deal plans are market-sensitive; releasing them early is a leak and a legal risk.' },
-        },
-        f_salary: {
-          x: 75, y: 90, glyph: '📄', label: 'employee_salaries', sub: 'restricted · PII',
-          revealBy: 'ev_pii_salary', statusBy: { ev_pii_salary: 'suspicious' }, classifyFile: 'employee_salaries.csv',
-          intel: {
-            what: 'Employee names, titles and salaries — HR-restricted personal data (PII).',
-            technique: 'grep restricted (or cat employee_salaries.csv) — marked HR-Restricted, PII and compensation.',
-            why: 'Personal pay data must never leave the company; in an external release it is a serious exposure.' },
-        },
-        f_payments: {
-          x: 90, y: 82, glyph: '📄', label: 'customer_payments', sub: 'restricted · PCI',
-          revealBy: 'ev_customer_pii', statusBy: { ev_customer_pii: 'suspicious' }, classifyFile: 'customer_payment_records.csv',
-          intel: {
-            what: 'Customer card last-4, amounts and processor references — regulated payment data (PCI).',
-            technique: 'grep pci (or cat customer_payment_records.csv) — marked regulated cardholder data (PCI scope).',
-            why: 'Cardholder data is legally protected; sending it to a partner would be a regulated-data breach.' },
-        },
-      },
-      links: [
-        { a: 'contractor', b: 'release', revealBy: 'ev_release_context',
-          intel: {
-            what: 'The release package was assembled by the contractor account itself, with no internal reviewer.',
-            technique: 'The cover note (cat release_notes.txt) shows it was prepared by the vendor account.',
-            why: 'Normally an internal data owner signs off on what leaves; an outsider self-approving it is a gap.' } },
-        { a: 'release', b: 'partner', revealBy: 'ev_release_context',
-          intel: {
-            what: 'The whole package is queued to be sent to the external partner.',
-            technique: 'cat release_notes.txt — addressed to Meridian Logistics.',
-            why: 'This is the door out of the company; whatever is in the package goes through it.' } },
-        { a: 'release', b: 'f_datasheet', revealBy: 'ev_public_safe',
-          intel: {
-            what: 'The public datasheet is part of the outbound package.',
-            technique: 'Listed by ls and read with cat product_datasheet.txt.',
-            why: 'Public collateral is exactly what should be in a partner release — no concern.' } },
-        { a: 'release', b: 'f_pricing', revealBy: 'ev_confidential_pricing', danger: true,
-          intel: {
-            what: 'Confidential partner pricing is bundled into the outbound package.',
-            technique: 'cat partner_pricing_2026.csv reveals it sitting in the release.',
-            why: 'Internal commercial terms heading to an external partner is a confidentiality breach.' } },
-        { a: 'release', b: 'f_roadmap', revealBy: 'ev_confidential_roadmap', danger: true,
-          intel: {
-            what: 'The unannounced acquisition roadmap is bundled into the outbound package.',
-            technique: 'cat acquisition_roadmap.txt reveals it sitting in the release.',
-            why: 'Material non-public information leaving early is a leak with legal consequences.' } },
-        { a: 'release', b: 'f_salary', revealBy: 'ev_pii_salary', danger: true,
-          intel: {
-            what: 'Restricted employee PII is bundled into the outbound package.',
-            technique: 'cat employee_salaries.csv reveals it sitting in the release.',
-            why: 'Personal salary data must never leave the company, least of all to a third party.' } },
-        { a: 'release', b: 'f_payments', revealBy: 'ev_customer_pii', danger: true,
-          intel: {
-            what: 'Regulated customer payment data is bundled into the outbound package.',
-            technique: 'cat customer_payment_records.csv reveals it sitting in the release.',
-            why: 'Sending PCI cardholder data to a partner would be a regulated-data breach.' } },
-        { a: 'contractor', b: 'f_salary', revealBy: 'ev_contractor_access', danger: true,
-          intel: {
-            what: 'The contractor account opened employee salary data at 02:00 — outside its remit.',
-            technique: 'grep ext-contractor-07 (or cat access_log.txt) shows the vendor account reading employee_salaries.csv.',
-            why: 'A vendor account reading HR files it has no role in is exactly the access that should be flagged.' } },
-        { a: 'contractor', b: 'f_payments', revealBy: 'ev_contractor_access', danger: true,
-          intel: {
-            what: 'The contractor account opened customer payment records at 02:00 — outside its remit.',
-            technique: 'grep ext-contractor-07 (or cat access_log.txt) shows the vendor account reading customer_payment_records.csv.',
-            why: 'Regulated payment data accessed by an out-of-scope vendor account is a serious red flag.' } },
-        { a: 'contractor', b: 'f_roadmap', revealBy: 'ev_contractor_access', danger: true,
-          intel: {
-            what: 'The contractor account opened the acquisition roadmap at 02:00 — outside its remit.',
-            technique: 'grep ext-contractor-07 (or cat access_log.txt) shows the vendor account reading acquisition_roadmap.txt.',
-            why: 'Material non-public deal information read by a vendor account is well beyond any legitimate need.' } },
-      ],
-    },
 
     /* ---- TWO-STEP ANALYST JUDGMENT ENGINE (shared across all four interns) -
      * caseFileNotebook restructures the Analyst Notebook into a case-file model
-     * (FACT / ASSESSMENT / REASON / UNKNOWNS / RECOMMENDATIONS). investigationFeed
-     * surfaces the Active Investigation pointer. boardMilestones auto-open the
-     * network map once each as significant findings surface. discoveryChallenges
+     * (FACT / ASSESSMENT / REASON / UNKNOWNS / RECOMMENDATIONS). discoveryChallenges
      * are the per-finding TWO-STEP judgments: first "what stands out?"
-     * (observation), then "why does it matter?" (justification), each with
-     * distinct correct/incorrect Sarah Reyes feedback. All read only where
-     * present. */
+     * (observation), then "why does it matter?" (justification). All read only. */
     caseFileNotebook: true,
-    // First-day declutter (Task: focused Mission 1). Opts this mission alone into
-    // the simplified workspace — one building Case Board card, advanced analyst
-    // modules hidden, consequence/feedback surfaces held back until a real call.
-    // Presentation/sequencing only: scoring, persistence, curriculum and the
-    // no-spoiler invariant are unchanged. Missions 2-4 omit the flag entirely.
+    // First-day declutter (Mission 1 only). Simplified workspace; advanced modules
+    // hidden; consequence/feedback surfaces held back until a real call. Missions
+    // 2-4 omit the flag entirely.
     uiComplexityLevel: 'simple',
-    // Pacing beat: after a command surfaces a finding, hold the Sarah question
-    // behind a small "read what came up, then continue" beat so the just-printed
-    // output stays visible and the analyst isn't asked before they've read it.
-    // Presentation/sequencing only. Now shared by every case-file mission (M2-M4
-    // set the same flag); see reviewGateMode().
+    // Pacing beat: after a command surfaces a finding, hold Sarah's question behind
+    // a small "read what came up, then continue" beat. Now shared by every case-
+    // file mission (M2-M4 set the same flag); see reviewGateMode().
     reviewBeforeCall: true,
     investigationFeed: true,
-    // Phase 1B investigation-guidance bundle (workflow stage bar, RECENT ACTIVITY
-    // log, progressive UI focus) is Mission-1-only. M2-M4 keep their existing
-    // "Active Investigation" state summary but do NOT get the beginner guidance
-    // overlay. Gate new guidance surfaces on this flag, never on a mission id.
+    // Beginner investigation-guidance bundle (stage bar, RECENT ACTIVITY, focus) —
+    // Mission-1-only. Gate new guidance surfaces on this flag, never on a mission id.
     investigationGuidance: true,
-    // Third investigative skill: `grep` triages the release folder for sensitivity
-    // markers (unlocks after two deep reads). Per-file `grepTerms` below are the
-    // authored indicators that surface that file's evidence when searched.
+    // Third investigative skill: `grep` triages the package for sensitivity markers
+    // (unlocks after two deep reads). Per-file `grepTerms` below surface evidence.
     grepTriage: true,
-    // (B) Click-to-scan suggestions — the same sensitivity markers the grep-unlock
-    // coaching names. Presentation-only; rendered as terminal/HUD chips.
     grepSuggestions: ['restricted', 'confidential', 'ext-contractor-07'],
-    // (E) First-shift onboarding — shown once ever on first entry to this mission,
-    // teaching the investigate -> tell-Sarah -> decide loop. Data-gated: only this
-    // file-model mission authors it, so M2-M4 never show it.
+    // First-shift onboarding — shown once on first entry; teaches the
+    // investigate -> tell-Sarah -> decide loop. Data-gated to this mission.
     onboarding: {
       title: 'Your first shift on the Blue Team',
-      intro: 'You\u2019re the analyst. Sarah Reyes mentors you over comms. The work is a loop of three beats:',
+      intro: 'You’re the analyst. Sarah Reyes mentors you over comms. The work is a loop of three beats:',
       steps: [
-        { title: '1 \u00B7 Investigate', text: 'Open files with  cat  (or click a file under the listing). After a couple of reads,  grep  lets you scan the whole folder for sensitive markers.' },
-        { title: '2 \u00B7 Tell Sarah your read', text: 'When something stands out, Sarah asks for your call in the Decision Dock below the terminal. The command line pauses until you answer \u2014 that\u2019s your judgment, not a test.' },
-        { title: '3 \u00B7 Decide', text: 'Once the findings are in, type  decide  (or use the chip) to choose how to handle the outbound release.' },
+        { title: '1 · Investigate', text: 'Open files with  cat  (or click a file under the listing). After a couple of reads,  grep  lets you scan the whole package for sensitive markers.' },
+        { title: '2 · Tell Sarah your read', text: 'When something stands out, Sarah asks for your call in the Decision Dock below the terminal. The command line pauses until you answer — that’s your judgment, not a test.' },
+        { title: '3 · Decide', text: 'Once the findings are in, type  decide  (or use the chip) to rule on whether this package can safely leave CyberCorp.' },
       ],
-      cta: 'Start investigating \u2192',
+      cta: 'Start investigating →',
     },
-    boardMilestones: ['ev_pii_salary', 'ev_customer_pii', 'ev_contractor_access'],
-    // Progressive objectives (engine-level) — Mission 1 benefits too. Tick live
-    // off findings + the recorded decision; presentation-only, never scored.
+    // Progressive objectives (engine-level). Tick live off findings + the recorded
+    // decision; presentation-only, never scored. Labels are process goals (no spoilers).
     objectiveTrack: [
-      { id: 'm1_review',    label: 'Review the files queued in the outbound release', doneBy: ['ev:ev_public_safe'] },
-      { id: 'm1_sensitive', label: 'Flag the sensitive data that must not leave', doneBy: ['ev:ev_pii_salary', 'ev:ev_customer_pii'] },
-      { id: 'm1_access',    label: 'Investigate the suspicious contractor access', doneBy: ['ev:ev_contractor_access'] },
-      { id: 'm1_decide',    label: 'Decide how to handle the release', doneBy: ['decision'] },
+      { id: 'm1_review',    label: 'Review what’s queued in the outbound package', doneBy: ['ev:ev_manifest'] },
+      { id: 'm1_sensitive', label: 'Classify the data in the package by sensitivity', doneBy: ['ev:ev_pii_salary', 'ev:ev_customer_pii'] },
+      { id: 'm1_access',    label: 'Confirm the package’s approval status', doneBy: ['ev:ev_approval_gap'] },
+      { id: 'm1_decide',    label: 'Decide whether the package can leave CyberCorp', doneBy: ['decision'] },
     ],
-    // Just-in-time concept cards — classification basics, triggered on findings
-    // DISJOINT from boardMilestones so they never collide with the map auto-open.
+    // Just-in-time concept cards — classification basics, triggered on findings.
     conceptCards: [
-      { id: 'm1_cc_public', triggerEv: 'ev_public_safe', glossaryKey: 'public',
-        examples: ['product_datasheet.txt is cleared for public release', 'Already-public material is safe to share'] },
+      { id: 'm1_cc_public', triggerEv: 'ev_manifest', glossaryKey: 'public',
+        examples: ['The manifest lists already-published marketing collateral', 'Public material is safe to share with a partner'] },
       { id: 'm1_cc_confidential', triggerEv: 'ev_confidential_pricing', glossaryKey: 'confidential',
-        examples: ['partner_pricing_2026.csv holds negotiated rates', 'One partner must never see another\u2019s pricing'] },
-      { id: 'm1_cc_mnpi', triggerEv: 'ev_confidential_roadmap', glossaryKey: 'materialNonPublic',
-        examples: ['acquisition_roadmap.txt is an unannounced deal plan', 'Releasing it early is a leak with legal risk'] },
+        examples: ['partner_pricing.preview holds negotiated rates', 'One partner must never see another’s pricing'] },
+      { id: 'm1_cc_restricted', triggerEv: 'ev_pii_salary', glossaryKey: 'restricted',
+        examples: ['employee_salaries.preview ties names to pay', 'Personal compensation data must never leave the company'] },
     ],
-    /* Reconsideration / pivot beat (presentation-only, NON-graded). Once the access
-     * log surfaces the contractor reaching files outside its remit, Sarah asks the
-     * analyst to revise or consciously hold the EARLIER "who packaged this release"
-     * read. Both calls are valid analyst postures — the copy never implies one is
-     * correct. Recorded via setReconsideration; the original call stays immutable. */
+    /* Reconsideration / pivot beat (presentation-only, NON-graded). Once the
+     * approval record surfaces the missing sign-off, Sarah asks the analyst to
+     * revise or consciously hold the EARLIER "who packaged this release" read.
+     * Both calls are valid; the copy never implies one is correct. */
     reconsiderations: [
       {
         id: 'rc_release_contractor',
-        when: 'ev_contractor_access',   // access_log.txt — contractor read HR/Finance files outside its remit
-        target: 'ch_release_context',   // earlier call: who assembled the release, and was it routine
-        sarah: 'Now look at this — the access log shows that same contractor account reading HR and Finance files it had no business touching. Earlier you logged your read on who packaged the release. Does this new finding change how you see the contractor\u2019s role?',
+        when: 'ev_approval_gap',
+        target: 'ch_release_context',
+        sarah: 'Now look at this — the approval record shows no data-owner ever signed off, and the contractor’s own note says they bundled the HR and Finance exports themselves. Earlier you logged your read on who packaged this release. Does this change how you see it?',
         options: [
           {
             id: 'revise',
-            label: 'Revise my read — the contractor\u2019s access changes the picture',
-            feedback: '"That\u2019s a deliberate move — when a new fact widens the scope, you let it move you. The packaging gap and the out-of-remit access read as one story now, not two." — Sarah Reyes',
+            label: 'Revise my read — the missing approval changes the picture',
+            feedback: '"That’s a deliberate move — when a new fact widens the scope, you let it move you. The self-packed release and the missing sign-off read as one story now, not two." — Sarah Reyes',
           },
           {
             id: 'hold',
             label: 'Hold my read — the packaging gap was already the core issue',
-            feedback: '"That\u2019s a deliberate move — you\u2019re holding the line you already drew. The missing owner sign-off stands on its own; the access is more weight on the same concern, not a new direction." — Sarah Reyes',
+            feedback: '"That’s a deliberate move — you’re holding the line you already drew. The missing owner sign-off stands on its own; the approval gap is more weight on the same concern, not a new direction." — Sarah Reyes',
           },
         ],
       },
@@ -7361,18 +7233,18 @@ const CAREER_MISSIONS = {
           prompt: 'You read the release cover note. What stands out MOST about how this package was prepared?',
           correct: 'a',
           options: [
-            { id: 'a', label: 'An external contractor assembled the release with no internal review',
+            { id: 'a', label: 'An external contractor assembled the package and added extra files',
               feedback: '"Exactly — an outside account deciding what leaves the company is the thread to pull. Good eye." — Sarah Reyes' },
             { id: 'b', label: 'The cover note is short and a little informal',
               feedback: '"Tone is not the signal. Look at WHO prepared this and whether anyone inside checked it." — Sarah Reyes' },
             { id: 'c', label: 'The partner is in logistics, not security',
-              feedback: '"The partner being logistics is fine. The issue is the contractor self-approving the contents." — Sarah Reyes' },
+              feedback: '"The partner being logistics is fine. The issue is the contractor self-packing the contents." — Sarah Reyes' },
             { id: 'd', label: 'Nothing — this is a routine partner release',
-              feedback: '"I would push back — a contractor packaging finance files unsupervised is not routine." — Sarah Reyes' },
+              feedback: '"I’d push back — a contractor adding finance files unsupervised is not routine." — Sarah Reyes' },
           ],
         },
         justification: {
-          prompt: 'Why does a contractor self-assembling this release matter?',
+          prompt: 'Why does a contractor self-assembling this package matter?',
           correct: 'a',
           options: [
             { id: 'a', label: 'No data-owner ever signed off on what is leaving the company',
@@ -7385,29 +7257,29 @@ const CAREER_MISSIONS = {
         },
       },
       {
-        id: 'ch_public_safe', evidenceId: 'ev_public_safe', short: 'Public collateral', weight: 1,
+        id: 'ch_manifest', evidenceId: 'ev_manifest', short: 'Package contents', weight: 1,
         observation: {
-          prompt: 'You open the product datasheet. What stands out about this file?',
+          prompt: 'The manifest lists everything queued for the external send. What stands out MOST?',
           correct: 'a',
           options: [
-            { id: 'a', label: 'It is published, marketing-cleared collateral',
-              feedback: '"Yes — recognising what is already public is just as important as spotting what is not." — Sarah Reyes' },
-            { id: 'b', label: 'It mentions pricing, so it must be confidential',
-              feedback: '"Look closer — that is the PUBLISHED list price, not a negotiated rate. Pricing alone does not make it sensitive." — Sarah Reyes' },
-            { id: 'c', label: 'It is in a flagged release, so it must be risky',
-              feedback: '"Guilt by association is not analysis. Judge the file on what it contains, not the folder it sits in." — Sarah Reyes' },
+            { id: 'a', label: 'HR and Finance internal data is bundled into a package bound for an outside partner',
+              feedback: '"Exactly — the mix is the signal. Internal HR and Finance material has no business in a partner send." — Sarah Reyes' },
+            { id: 'b', label: 'There are five separate items in the package',
+              feedback: '"The count isn’t the point. Look at WHAT kinds of data are in there, not how many." — Sarah Reyes' },
+            { id: 'c', label: 'The manifest was auto-generated',
+              feedback: '"How it was generated doesn’t matter. What matters is the sensitive material it lists." — Sarah Reyes' },
           ],
         },
         justification: {
-          prompt: 'Why is the datasheet safe to include in the partner release?',
+          prompt: 'Why does the manifest deserve a careful look before anything ships?',
           correct: 'a',
           options: [
-            { id: 'a', label: 'Already-public material carries no new exposure if it leaves',
-              feedback: '"Exactly — over-blocking public collateral just erodes trust with the business. This one is fine to share." — Sarah Reyes' },
-            { id: 'b', label: 'Partners usually ignore datasheets anyway',
-              feedback: '"We do not judge by whether they read it. It is safe because it is already public." — Sarah Reyes' },
-            { id: 'c', label: 'We can always redact the pricing later',
-              feedback: '"No redaction needed — the pricing is the published price. It is safe as-is." — Sarah Reyes' },
+            { id: 'a', label: 'It’s the one place that shows the full scope of what would leave the company',
+              feedback: '"Right — the manifest is your map. It tells you exactly what to open and judge before the package moves." — Sarah Reyes' },
+            { id: 'b', label: 'Manifests are required by the partner',
+              feedback: '"Maybe, but that’s not why we read it. We read it to see the full scope of the send." — Sarah Reyes' },
+            { id: 'c', label: 'It proves the contractor is malicious',
+              feedback: '"It doesn’t prove intent. It shows scope — that’s what we act on right now." — Sarah Reyes' },
           ],
         },
       },
@@ -7431,7 +7303,7 @@ const CAREER_MISSIONS = {
           options: [
             { id: 'a', label: 'Compensation PII must never leave the company — it is the Restricted tier',
               feedback: '"Correct call — names tied to pay is the top tier. This can never reach a partner." — Sarah Reyes' },
-            { id: 'b', label: 'Staff might get jealous of each other\u2019s pay',
+            { id: 'b', label: 'Staff might get jealous of each other’s pay',
               feedback: '"Internal morale is real, but the classification is about external exposure of PII — that is what makes it Restricted." — Sarah Reyes' },
             { id: 'c', label: 'It is only Confidential — internal staff can see it',
               feedback: '"Close, but salary PII outranks Confidential. Individual pay is Restricted." — Sarah Reyes' },
@@ -7446,17 +7318,17 @@ const CAREER_MISSIONS = {
           options: [
             { id: 'a', label: 'These are regulated cardholder records',
               feedback: '"Yes — recognising this as regulated payment data is the whole game." — Sarah Reyes' },
-            { id: 'b', label: 'The CSV is messy and hard to read',
+            { id: 'b', label: 'The preview is messy and hard to read',
               feedback: '"Formatting is noise. Focus on what the data IS: regulated card records." — Sarah Reyes' },
-            { id: 'c', label: 'There are only a few rows',
-              feedback: '"Even one card record matters. Volume is not what stands out here." — Sarah Reyes' },
+            { id: 'c', label: 'There are only a few rows shown',
+              feedback: '"Even one card record matters — and the rest are just truncated. Volume is not what stands out here." — Sarah Reyes' },
           ],
         },
         justification: {
           prompt: 'Why is cardholder data in an outbound package the single highest concern?',
           correct: 'a',
           options: [
-            { id: 'a', label: 'Sending it to an outside party is a regulated-data breach',
+            { id: 'a', label: 'Regulated payment data leaving to a third party triggers legal and breach consequences',
               feedback: '"Exactly — PCI cardholder data leaving to a third party means fines and real customer harm." — Sarah Reyes' },
             { id: 'b', label: 'The partner might already have a copy',
               feedback: '"We cannot assume that, and it would not reduce our liability. The exposure itself is the concern." — Sarah Reyes' },
@@ -7466,29 +7338,29 @@ const CAREER_MISSIONS = {
         },
       },
       {
-        id: 'ch_contractor_access', evidenceId: 'ev_contractor_access', short: 'Contractor activity', weight: 2,
+        id: 'ch_approval_gap', evidenceId: 'ev_approval_gap', short: 'Approval gap', weight: 2,
         observation: {
-          prompt: 'The access log shows ext-contractor-07 reading HR/Finance files at 02:00, outside its remit. What stands out?',
+          prompt: 'The approval record shows no data-owner sign-off and no internal reviewer for this release. What stands out?',
           correct: 'a',
           options: [
-            { id: 'a', label: 'A vendor account is reaching data far outside its job, at 2 AM',
-              feedback: '"Right — scope and timing together are the tell: a vendor account in HR/Finance in the middle of the night." — Sarah Reyes' },
-            { id: 'b', label: 'The timestamps use a 24-hour clock',
-              feedback: '"The clock format is irrelevant. It is WHAT was accessed and by WHOM that matters." — Sarah Reyes' },
-            { id: 'c', label: 'The log file is quite long',
-              feedback: '"Length is not the signal. Zero in on the out-of-scope reads by the contractor account." — Sarah Reyes' },
+            { id: 'a', label: 'A package full of sensitive data is staged to ship with zero approvals',
+              feedback: '"Right — the control that should stop this never ran. No owner, no reviewer, and it’s ready to send." — Sarah Reyes' },
+            { id: 'b', label: 'The approval form uses an old template',
+              feedback: '"The template isn’t the issue. Look at the sign-offs that are missing." — Sarah Reyes' },
+            { id: 'c', label: 'Approvals are usually a formality anyway',
+              feedback: '"Not here. The sign-off is the gate that keeps sensitive data from leaving by accident." — Sarah Reyes' },
           ],
         },
         justification: {
-          prompt: 'How should you judge this activity?',
+          prompt: 'How should you judge a sensitive release with no completed approvals?',
           correct: 'suspicious',
           options: [
-            { id: 'suspicious', label: 'Suspicious — flag and escalate for investigation',
-              feedback: '"Exactly the right call. Strong indicators but not proof of intent — Suspicious means we escalate and investigate." — Sarah Reyes' },
-            { id: 'benign', label: 'Benign — probably just release preparation',
-              feedback: '"I would challenge that. A vendor reading salaries and roadmaps at 2 AM is not normal prep." — Sarah Reyes' },
-            { id: 'malicious', label: 'Malicious — confirmed insider attack, lock everything down now',
-              feedback: '"Good instinct to take it seriously, but we cannot prove intent yet. Call it Suspicious and escalate." — Sarah Reyes' },
+            { id: 'suspicious', label: 'Not ready to ship — hold it and route it for proper review',
+              feedback: '"Exactly the right call. Missing approvals on a sensitive package means it does not leave until it’s reviewed." — Sarah Reyes' },
+            { id: 'benign', label: 'Fine to send — the contractor clearly meant well',
+              feedback: '"Intent isn’t the test. Without the sign-off, we can’t let regulated data walk out the door." — Sarah Reyes' },
+            { id: 'malicious', label: 'Confirmed sabotage — lock everything down now',
+              feedback: '"Good to take it seriously, but we can’t prove intent. Hold the release and escalate — that’s the measured call." — Sarah Reyes' },
           ],
         },
       },
@@ -7496,136 +7368,149 @@ const CAREER_MISSIONS = {
 
     intro: [
       { t: 'CyberCorp SOC // Career Operating Center — Data Handling Review', c: 'head' },
-      { t: 'A shared folder is queued for an external release. Before it goes out, classify', c: 'dim' },
-      { t: 'every file and decide how each should be handled. Review the files first.', c: 'dim' },
-      { t: 'Type  ls  to list the folder, then  cat <file>  to read one. Once you know the folder, you can  grep <text>  to hunt for sensitive markers. Type  help  anytime.', c: 'dim' },
+      { t: 'A package is staged to leave CyberCorp for an external partner. Before it goes,', c: 'dim' },
+      { t: 'find out what’s inside and answer one question: can this release safely leave?', c: 'dim' },
+      { t: 'Type  ls  to list the package, then  cat <file>  to read one. Once you know the folder, you can  grep <text>  to hunt for sensitive markers. Type  help  anytime.', c: 'dim' },
     ],
     brief: {
       situation:
-        'A contractor has requested an external release of a Finance shared folder. ' +
-        'Routine, until access logs flagged the same contractor account reading files ' +
-        'well outside its remit. Before anything leaves the building, review and classify ' +
-        'the folder, judge the handling for each file, and decide what to do about the ' +
-        'contractor activity.',
+        'An external contractor staged a partner release and bundled in extra files to ' +
+        '"save a round trip." Before anything leaves CyberCorp, work the one question that ' +
+        'matters: can this package safely go out? Read what’s inside, classify the ' +
+        'sensitive data, check whether the release was ever properly approved, and decide.',
       objectives: [
-        'Review every file in the release folder',
-        'Classify each file (Public / Internal / Confidential / Restricted)',
-        'Investigate the suspicious contractor access',
-        'Decide how to handle the release — and justify it',
+        'Review what’s queued in the outbound package',
+        'Classify the sensitive data (Public / Internal / Confidential / Restricted)',
+        'Confirm whether the release was properly approved',
+        'Decide whether the package can leave CyberCorp — and justify it',
       ],
       managerNote:
         '"You are the intern on this one, so you do not get to approve a release yourself — ' +
         'and you should not. Classify carefully, and if something feels off, recommend or ' +
         'escalate. Document everything. — Sarah Reyes, SOC Lead"',
     },
-
-    /* ---- INVESTIGATION: files queued for release (ground-truth handling) ---- */
     files: [
       {
         name: 'release_notes.txt',
-        trueClassification: 'public',
+        reviewOnly: true,
         content: [
           'EXTERNAL RELEASE PACKAGE — Partner: Meridian Logistics',
           'Prepared by:  ext-contractor-07  (J. Demir, vendor account)',
           'Purpose:      share Q3 logistics collateral with the partner.',
-          'Note:         "Bundled a few extra finance files to save a round trip." ',
+          'Note:         "Bundled a few extra finance files to save a round trip."',
         ],
         beginnerNote: 'A cover note for the release. It admits extra finance files were added in.',
         evidenceIds: ['ev_release_context'],
-        grepTerms: ['finance', 'bundled', 'extra'],
-        focus: 'Read how this package was assembled and who decided what goes out.',
+        grepTerms: ['finance', 'bundled', 'ext-contractor-07'],
+        focus: 'Read who assembled this package and what they decided to include.',
       },
       {
-        name: 'product_datasheet.txt',
-        trueClassification: 'public',
+        name: 'package_manifest.txt',
+        reviewOnly: true,
         content: [
-          'CyberCorp LogiSuite — Product Datasheet (Marketing)',
-          'Throughput, supported regions, published list pricing.',
-          'Cleared for public distribution by Marketing.',
+          'RELEASE MANIFEST — OPS-2026-001   (auto-generated)',
+          'item                            owner       type',
+          '------------------------------  ----------  ---------------------------',
+          'product_datasheet.pdf           Marketing   published collateral',
+          'partner_pricing.preview         Sales       negotiated partner rates',
+          'employee_salaries.preview       HR          personnel + compensation',
+          'customer_payment_records.prev   Finance     customer card / payment data',
+          'internal_roadmap.pdf            Strategy    unannounced planning',
+          '# 5 items queued for EXTERNAL send to Meridian Logistics.',
         ],
-        beginnerNote: 'A marketing sheet that is already published — meant for the public.',
-        evidenceIds: ['ev_public_safe'],
-        grepTerms: ['public', 'cleared', 'marketing'],
-        focus: 'Check who this material was cleared for before it was queued to ship.',
+        beginnerNote: 'A packing list of everything in the release and which team each item came from.',
+        evidenceIds: ['ev_manifest'],
+        grepTerms: ['manifest', 'external', 'queued'],
+        focus: 'Scan the packing list and notice which teams’ data is bundled into an external send.',
       },
       {
-        name: 'partner_pricing_2026.csv',
+        name: 'partner_pricing.preview',
         trueClassification: 'confidential',
         content: [
           'partner,tier,negotiated_rate,renewal_date',
           'Meridian Logistics,Gold,0.42/unit,2026-09-01',
           'Halden Freight,Silver,0.51/unit,2026-04-15',
-          '# Internal negotiated rates — not for external eyes.',
+          '--- preview truncated · 142 more rows ---',
+          '# Confidential — internal negotiated rates, not for external eyes.',
         ],
         beginnerNote: 'The special prices the company privately agreed with each partner.',
         evidenceIds: ['ev_confidential_pricing'],
-        grepTerms: ['negotiated', 'internal', 'not for external'],
+        grepTerms: ['negotiated', 'internal', 'confidential', 'not for external'],
         focus: 'Look at who these figures were meant for, and whether they were ever cleared to leave the company.',
       },
       {
-        name: 'employee_salaries.csv',
+        name: 'employee_salaries.preview',
         trueClassification: 'restricted',
         content: [
           'name,department,title,annual_salary',
           'A. Okafor,Finance,Controller,128000',
           'L. Brandt,Engineering,Staff Engineer,176000',
+          '--- preview truncated · 318 more rows ---',
           '# HR-Restricted. PII + compensation.',
         ],
-        beginnerNote: 'Employees'+"'"+' names and how much each person is paid.',
+        beginnerNote: 'Employees’ names and how much each person is paid.',
         evidenceIds: ['ev_pii_salary'],
         grepTerms: ['restricted', 'pii', 'salary', 'compensation'],
         focus: 'Notice what kind of personal information each row holds, and who it belongs to.',
         focusTerms: ['pii'],
       },
       {
-        name: 'customer_payment_records.csv',
+        name: 'customer_payment_records.preview',
         trueClassification: 'restricted',
         content: [
           'customer,card_last4,amount,processor_ref',
           'Northwind Co,4417,12450.00,TX-99312',
           'Bryce & Hall,8820,3275.50,TX-99318',
+          '--- preview truncated · 904 more rows ---',
           '# Regulated cardholder data (PCI scope).',
         ],
-        beginnerNote: 'Customers'+"'"+' card and payment details — protected by law.',
+        beginnerNote: 'Customers’ card and payment details — protected by law.',
         evidenceIds: ['ev_customer_pii'],
         grepTerms: ['cardholder', 'pci', 'regulated', 'card'],
         focus: 'Consider what category of data these payment details fall under.',
         focusTerms: ['pci'],
       },
       {
-        name: 'acquisition_roadmap.txt',
-        trueClassification: 'confidential',
+        name: 'contractor_message.txt',
+        reviewOnly: true,
         content: [
-          'PROJECT NORTHSTAR — Acquisition Roadmap (DRAFT, UNANNOUNCED)',
-          'Target shortlist, valuation ranges, timeline through 2027.',
-          '# Material non-public information. Confidential.',
+          'From:    ext-contractor-07 (J. Demir, vendor)',
+          'To:      release-desk',
+          'Subject: Q3 partner package — ready to send',
+          '',
+          'Packed the Q3 logistics sheets for Meridian. While I was in',
+          'there I added the finance and HR exports too — figured it saves',
+          'us a second hand-off. Didn’t wait on the internal review, the',
+          'partner’s in a hurry. Good to send from my end.',
         ],
-        beginnerNote: 'A secret, unannounced plan about companies CyberCorp may buy.',
-        evidenceIds: ['ev_confidential_roadmap'],
-        grepTerms: ['confidential', 'non-public', 'unannounced', 'material'],
-        focus: 'Note whether this plan has been announced yet, and who is meant to see it.',
-        focusTerms: ['materialNonPublic'],
+        beginnerNote: 'A note from the outside contractor saying they added the finance and HR files themselves and skipped the internal review.',
+        evidenceIds: ['ev_contractor_intent'],
+        grepTerms: ['ext-contractor-07', 'contractor', 'finance', 'review'],
+        focus: 'Read what the contractor added on their own, and which step they skipped.',
       },
       {
-        name: 'access_log.txt',
-        trueClassification: 'internal',
+        name: 'approval_record.txt',
+        reviewOnly: true,
         content: [
-          'ts                  account            file',
-          '2026-06-11 02:14    ext-contractor-07  employee_salaries.csv',
-          '2026-06-11 02:16    ext-contractor-07  customer_payment_records.csv',
-          '2026-06-11 02:21    ext-contractor-07  acquisition_roadmap.txt',
-          '# Vendor account reading HR/Finance files at 02:00, outside its remit.',
+          'RELEASE APPROVAL RECORD — OPS-2026-001',
+          '-------------------------------------------------',
+          'Data-owner sign-off (HR) ......... NOT ON FILE',
+          'Data-owner sign-off (Finance) .... NOT ON FILE',
+          'Internal reviewer assigned ....... NONE',
+          'Security review completed ......... NO',
+          'Approved for external release .... PENDING — no approver',
+          '# Package is staged to send with no completed approvals.',
         ],
-        beginnerNote: 'A record of who opened which files, and at what time.',
-        evidenceIds: ['ev_contractor_access'],
-        grepTerms: ['ext-contractor-07', 'contractor', '02:', 'remit'],
-        focus: 'Compare which account opened these files, and when, against what its role should need.',
+        beginnerNote: 'The official approval checklist for this release — every required sign-off is missing.',
+        evidenceIds: ['ev_approval_gap'],
+        grepTerms: ['approval', 'sign-off', 'pending', 'review'],
+        focus: 'Check which approvals this release has actually cleared before it ships.',
       },
     ],
 
     /* ---- Ground-truth evidence (weighted; quality drives recommendations) ----
-     * `label` is the legacy one-liner (still used in the terminal log + fallback).
-     * `layers` adds beginner-first presentation; the engine never reads them.   */
+     * `label` is the legacy one-liner (terminal log + fallback). `layers` adds
+     * beginner-first presentation; the engine never reads them.   */
     evidence: [
       {
         id: 'ev_release_context', label: 'Release was prepared by the contractor account itself.',
@@ -7636,28 +7521,28 @@ const CAREER_MISSIONS = {
             why: 'Normally someone inside the company checks what an outsider is about to send out.',
             prompt: 'Should an outside contractor decide by themselves what leaves the company?',
           },
-          analyst: 'The release set was assembled by the external contractor account, with no internal reviewer in the chain.',
-          technical: 'Prepared by: ext-contractor-07 (vendor account). No internal data-owner sign-off recorded on the release manifest.',
+          analyst: 'The release set was assembled by the external contractor account; whether anyone inside reviewed it is not established from the cover note alone.',
+          technical: 'Prepared by: ext-contractor-07 (vendor account). Internal data-owner / approval status is not stated in the cover note \u2014 confirm against the approval record.',
           terms: [],
         },
       },
       {
-        id: 'ev_public_safe', label: 'Public marketing collateral — safe to release externally.',
-        qualityWeight: 1, source: 'product_datasheet.txt',
+        id: 'ev_manifest', label: 'The package bundles internal HR/Finance data into an external send.',
+        qualityWeight: 2, source: 'package_manifest.txt',
         layers: {
           beginner: {
-            summary: 'This is a marketing sheet that has already been published.',
-            why: 'Information that is already public is fine to share with a partner.',
-            prompt: 'Is there any real risk in sharing something that is already public?',
+            summary: 'The packing list shows HR, Finance and Sales material all queued to go to an outside partner.',
+            why: 'Internal company data mixed into a partner shipment is exactly what should be caught before it leaves.',
+            prompt: 'Should internal HR and Finance files be in a package headed to an outside partner?',
           },
-          analyst: 'Product datasheet — marketing-cleared collateral approved for public distribution.',
-          technical: 'product_datasheet.txt — Classification: Public. Cleared for public distribution by Marketing.',
-          terms: ['public'],
+          analyst: 'Release manifest enumerates five items for external send, including HR (personnel/compensation), Finance (customer payments) and Sales (negotiated pricing) data.',
+          technical: 'package_manifest.txt — 5 items queued for EXTERNAL send to Meridian Logistics; owners span Marketing, Sales, HR, Finance, Strategy.',
+          terms: [],
         },
       },
       {
-        id: 'ev_confidential_pricing', label: 'Confidential partner pricing bundled into the release set.',
-        qualityWeight: 2, source: 'partner_pricing_2026.csv',
+        id: 'ev_confidential_pricing', label: 'Confidential partner pricing bundled into the package.',
+        qualityWeight: 2, source: 'partner_pricing.preview',
         layers: {
           beginner: {
             summary: 'This file lists the special prices the company privately gives each partner.',
@@ -7665,77 +7550,77 @@ const CAREER_MISSIONS = {
             prompt: 'Should one partner be able to see the deal another partner was given?',
           },
           analyst: 'Negotiated partner pricing (per-unit rates and renewal dates) bundled into an outbound release — internal commercial data.',
-          technical: 'partner_pricing_2026.csv — negotiated_rate + renewal_date per partner. Internal-only commercial terms; Confidential.',
+          technical: 'partner_pricing.preview — negotiated_rate + renewal_date per partner. Internal-only commercial terms; Confidential.',
           terms: ['confidential'],
         },
       },
       {
-        id: 'ev_pii_salary', label: 'Employee names and salaries (PII) present in the release set.',
-        qualityWeight: 3, source: 'employee_salaries.csv',
+        id: 'ev_pii_salary', label: 'Employee names and salaries (PII) present in the package.',
+        qualityWeight: 3, source: 'employee_salaries.preview',
         layers: {
           beginner: {
-            summary: 'This file has employees'+"'"+' names and how much each person is paid.',
+            summary: 'This file has employees’ names and how much each person is paid.',
             why: 'Pay and personal details are private — they should never leave the company.',
             prompt: 'Should employee salary information ever be sent to an outside partner?',
           },
           analyst: 'Employee personal data and compensation (PII) found in the outbound release set.',
-          technical: 'employee_salaries.csv — name, department, title, annual_salary. HR-Restricted PII + compensation. Classification: Restricted.',
+          technical: 'employee_salaries.preview — name, department, title, annual_salary. HR-Restricted PII + compensation. Classification: Restricted.',
           terms: ['pii'],
         },
       },
       {
         id: 'ev_customer_pii', label: 'Regulated customer payment records present (PCI scope).',
-        qualityWeight: 3, source: 'customer_payment_records.csv',
+        qualityWeight: 3, source: 'customer_payment_records.preview',
         layers: {
           beginner: {
-            summary: 'This file holds customers'+"'"+' card and payment details.',
+            summary: 'This file holds customers’ card and payment details.',
             why: 'Card and payment data is strictly protected by law — leaking it can mean fines and real harm to customers.',
             prompt: 'What could go wrong if customer payment details were sent outside the company?',
           },
           analyst: 'Customer cardholder data (card last-4, amounts, processor references) — regulated payment records in the release set.',
-          technical: 'customer_payment_records.csv — card_last4, amount, processor_ref. Regulated cardholder data (PCI scope). Classification: Restricted.',
+          technical: 'customer_payment_records.preview — card_last4, amount, processor_ref. Regulated cardholder data (PCI scope). Classification: Restricted.',
           terms: ['pci', 'pii'],
         },
       },
       {
-        id: 'ev_confidential_roadmap', label: 'Unannounced acquisition roadmap (material non-public info).',
-        qualityWeight: 2, source: 'acquisition_roadmap.txt',
+        id: 'ev_contractor_intent', label: 'Contractor bundled the HR/Finance exports and skipped internal review.',
+        qualityWeight: 2, source: 'contractor_message.txt',
         layers: {
           beginner: {
-            summary: 'This is a secret plan about companies CyberCorp might buy.',
-            why: 'Unannounced business plans are highly sensitive — sharing them early can break the law and tip off competitors.',
-            prompt: 'Should an unannounced business plan be included in a partner release?',
+            summary: 'The contractor’s own note says they added the finance and HR files and didn’t wait for the internal review.',
+            why: 'Skipping the internal check is how sensitive files end up leaving the company by accident.',
+            prompt: 'Is it okay for a contractor to add files and skip the review because the partner is in a hurry?',
           },
-          analyst: 'Draft acquisition roadmap (targets, valuation ranges, timeline) — unannounced, market-sensitive material.',
-          technical: 'acquisition_roadmap.txt — PROJECT NORTHSTAR target shortlist + valuation ranges through 2027. Material non-public information. Classification: Confidential.',
-          terms: ['materialNonPublic', 'confidential'],
+          analyst: 'Contractor states they self-bundled HR/Finance exports into the partner package and bypassed internal review to save time.',
+          technical: 'contractor_message.txt — ext-contractor-07 self-added finance + HR exports; explicitly skipped internal review ("partner’s in a hurry").',
+          terms: [],
         },
       },
       {
-        id: 'ev_contractor_access', label: 'Contractor account read HR/Finance files outside its remit.',
-        qualityWeight: 3, source: 'access_log.txt', setFlag: 'contractorAccessDiscovered',
+        id: 'ev_approval_gap', label: 'The release has no data-owner sign-off and no internal review.',
+        qualityWeight: 3, source: 'approval_record.txt', setFlag: 'contractorAccessDiscovered',
         layers: {
           beginner: {
-            summary: 'The outside contractor'+"'"+'s account opened private HR and Finance files in the middle of the night.',
-            why: 'An outside account reading files that have nothing to do with its job — at 2 in the morning — is unusual and worth a closer look.',
-            prompt: 'Does this look like normal work, or something to flag?',
+            summary: 'The approval checklist for this release is completely empty — nobody signed off.',
+            why: 'The sign-off is the gate that keeps sensitive data from leaving by mistake — and it never happened here.',
+            prompt: 'Should a package full of sensitive data ship when no one has approved it?',
           },
-          analyst: 'Vendor account ext-contractor-07 accessed HR/Finance files (salaries, payment records, roadmap) at ~02:00 — outside its expected scope.',
-          technical: 'access_log.txt — ext-contractor-07 read employee_salaries.csv, customer_payment_records.csv, acquisition_roadmap.txt between 02:14–02:21. Vendor account active off-hours, outside its remit.',
+          analyst: 'Release approval record shows no HR/Finance data-owner sign-off, no assigned reviewer, no security review — yet the package is staged to send.',
+          technical: 'approval_record.txt — data-owner sign-off NOT ON FILE (HR, Finance); reviewer NONE; security review NO; external release PENDING with no approver.',
           terms: [],
         },
         reflection: {
-          title: 'REVIEW THE SUSPICIOUS ACTIVITY',
-          prompt: 'What concerns you about this activity? (Tick anything that stands out.)',
+          title: 'REVIEW THE APPROVAL GAP',
+          prompt: 'What concerns you about this release’s approvals? (Tick anything that stands out.)',
           concerns: [
-            'An outside contractor account opened private files',
-            'The files were opened in the middle of the night',
-            'The files were outside the contractor'+"'"+'s normal work',
-            'This looks like normal release preparation',
+            'No data owner signed off on what is leaving',
+            'No internal reviewer was ever assigned',
+            'A security review was never completed',
+            'The package is staged to send anyway',
             'I need more information before deciding',
           ],
-          judgmentPrompt: 'Based on what you found, how would you judge this activity?',
-          feedback: 'There is no single right answer here — analysts reason from what they observe. Noticing WHO touched the data, WHEN, and whether it fits their job is exactly the kind of thinking that catches a problem early.',
+          judgmentPrompt: 'Based on what you found, how ready is this release to ship?',
+          feedback: 'There is no single right answer here — analysts reason from what they observe. Noticing that the approvals never happened, and that the package is staged to send anyway, is exactly the kind of thinking that stops a leak before it starts.',
         },
       },
     ],
@@ -7745,8 +7630,8 @@ const CAREER_MISSIONS = {
       {
         id: 'approve_release',
         type: 'direct',
-        label: 'Approve Release',
-        summary: 'Send the folder to the partner as requested.',
+        label: 'Approve & send the package',
+        summary: 'Release the package to the partner as-is.',
         outcomeSub: 'You authorized the external release.',
         deltas: { complianceExposure: 35, executiveTrust: -20, careerReputation: -15, securityPosture: -25, businessContinuity: 3, organizationBudget: -15000 },
         setFlags: ['sensitiveDataExposed', 'contractorAccessIgnored'],
@@ -7759,28 +7644,28 @@ const CAREER_MISSIONS = {
       {
         id: 'restrict_access',
         type: 'direct',
-        label: 'Restrict Access',
-        summary: 'Lock the folder down and block the external release.',
-        outcomeSub: 'You restricted access to the folder.',
+        label: 'Delay the release for internal review',
+        summary: 'Hold the package and route it for the data-owner review and sign-off it never got.',
+        outcomeSub: 'You held the release for internal review.',
         deltas: { securityPosture: 15, complianceExposure: -10, businessContinuity: -8, careerReputation: 8 },
         setFlags: [],
         consequence: {
-          immediate: ['External release halted; sensitive files restricted to authorized roles.'],
-          business: ['Partner deliverable delayed pending reclassification. No data exposed.'],
+          immediate: ['External send halted; the package routed back for data-owner review and sign-off.'],
+          business: ['Partner deliverable delayed pending proper approval. No data left the company.'],
           future: ['A clean handling record strengthens later recommendations.'],
         },
       },
       {
         id: 'recommend_legal',
         type: 'recommendation',
-        label: 'Recommend Legal Review',
-        summary: 'Ask Legal to review the contractor access and the release.',
+        label: 'Recommend Legal review the handling',
+        summary: 'Ask Legal to review how this release was assembled and approved.',
         outcomeSub: 'You recommended a legal review.',
         deltas: { complianceExposure: -15, executiveTrust: 8, careerReputation: 10, businessContinuity: -5, organizationBudget: -5000, securityPosture: 6 },
         setFlags: ['legalReviewTriggered'],
-        deniedNote: 'Leadership declined the legal review for now; the contractor access remains unreviewed.',
+        deniedNote: 'Leadership declined the legal review for now; the contractor handling remains unreviewed.',
         consequence: {
-          immediate: ["Legal engaged to review the contractor's data access and the proposed release."],
+          immediate: ['Legal engaged to review how the contractor assembled and approved the release.'],
           business: ['Release paused pending legal guidance; exposure contained early.'],
           future: ['Legal is now tracking this contractor — useful in later missions.'],
         },
@@ -7788,8 +7673,8 @@ const CAREER_MISSIONS = {
       {
         id: 'archive',
         type: 'direct',
-        label: 'Archive',
-        summary: 'Archive the folder; cancel the external transfer.',
+        label: 'Withdraw the package entirely',
+        summary: 'Cancel the external transfer and archive the folder.',
         outcomeSub: 'You archived the release folder.',
         deltas: { businessContinuity: -3, securityPosture: 6, complianceExposure: -5, careerReputation: 2 },
         setFlags: ['contractorAccessIgnored'],
@@ -7802,14 +7687,14 @@ const CAREER_MISSIONS = {
       {
         id: 'escalate',
         type: 'recommendation',
-        label: 'Escalate',
+        label: 'Escalate to your SOC Lead',
         summary: 'Escalate to your SOC Lead with your findings.',
         outcomeSub: 'You escalated to leadership.',
         deltas: { executiveTrust: 10, careerReputation: 8, businessContinuity: -2, complianceExposure: -8, securityPosture: 3 },
         setFlags: [],
         deniedNote: 'Leadership sent it back — they want stronger findings before acting.',
         consequence: {
-          immediate: ['Escalated to SOC Lead with classification findings and the access-log evidence.'],
+          immediate: ['Escalated to SOC Lead with the classification findings and the approval-gap evidence.'],
           business: ['Senior review engaged; the decision sits with the right authority.'],
           future: ['Acting within your authority builds trust for bigger calls later.'],
         },
@@ -7840,7 +7725,7 @@ const CAREER_MISSIONS = {
         setFlags: [],
         deniedNote: 'Leadership declined to open a policy review without stronger evidence.',
         consequence: {
-          immediate: ['Policy review requested for contractor data access.'],
+          immediate: ['Policy review requested for how releases get approved before they leave.'],
           business: ['Data-handling policy gaps flagged to leadership.'],
           future: ['Tighter policy reduces future exposure.'],
         },
@@ -8119,7 +8004,7 @@ const CAREER_MISSIONS = {
             entity: 'J. Demir — external contractor (ext-07)',
             note: 'The same contractor keeps surfacing across your cases. The thread is still open.',
             timeline: [
-              { op: 'OPS-2026-001 · Release Review', where: 'Contractor account read HR & Finance records outside its remit.' },
+              { op: 'OPS-2026-001 · Release Review', where: 'Bundled sensitive HR & Finance exports into an outbound partner release with no internal approval.' },
               { op: 'OPS-2026-002 · Network Assets', where: 'Personal laptop (192.168.1.57) on the internal segment, reaching for Finance.' },
             ],
           },

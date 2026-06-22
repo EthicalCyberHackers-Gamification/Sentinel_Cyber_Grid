@@ -459,7 +459,7 @@ const COURSE_MISSION_META = {
     region: "EMEA", severity: "HIGH",
     title: "Protect Sensitive Information",
     difficulty: "Beginner", duration: "~15 min",
-    objective: "Classify a sensitive release folder and review the suspicious contractor access before anything leaves the building.",
+    objective: "Review an outbound release package a contractor assembled, classify the sensitive data inside, and decide whether it can safely leave CyberCorp.",
     skills: ["Data classification", "Information handling"],
   },
   "mission-002": {
@@ -7792,7 +7792,7 @@ const OCV2_NODE_META = {
 };
 
 const OCV2_TICKER_IOCS = [
-  { sev: "high",     text: "Contractor account contractor01 — out-of-scope reads on the Finance release folder — under review" },
+  { sev: "high",     text: "Contractor account contractor01 — sensitive HR/Finance exports bundled into an outbound release with no approval — under review" },
   { sev: "medium",   text: "Unknown host 192.168.1.57 — unmanaged device on APAC finance segment — not in inventory" },
   { sev: "high",     text: "Finance account a.okafor — failed-login burst then foreign success — MFA disabled post-login" },
   { sev: "medium",   text: "IP Range: 203.0.113.0/24 — Sequential port scan ongoing LATAM perimeter" },
@@ -7873,7 +7873,7 @@ const SECURITY_BULLETINS = [
   { tag: "IT INFRA", text: "Scheduled maintenance: IT Infrastructure rotates resolver-02 at 13:00 UTC." },
   { tag: "HR",       text: "Mandatory security-awareness refresher is due this quarter — see the HR portal." },
   { tag: "EXEC OPS", text: "Executive Operations: heightened spear-phishing risk targeting finance approvers." },
-  { tag: "RESOLVED", text: "Contractor's out-of-scope access to the Finance release folder revoked; the release is held pending classification.", after: "mission-001" },
+  { tag: "RESOLVED", text: "Contractor's unapproved release package held; the bundled HR and Finance data was pulled before anything left CyberCorp.", after: "mission-001" },
   { tag: "RESOLVED", text: "Unapproved contractor device removed from the APAC finance segment; asset inventory reconciled.", after: "mission-002" },
   { tag: "RESOLVED", text: "Compromised Finance account secured and MFA enforced on NA-East; tied back to the flagged contractor.", after: "mission-003" },
   { tag: "RESOLVED", text: "LATAM data-exfiltration channel cut and the staged customer-data archive purged; breach notification scoped with Legal.", after: "mission-004" },
