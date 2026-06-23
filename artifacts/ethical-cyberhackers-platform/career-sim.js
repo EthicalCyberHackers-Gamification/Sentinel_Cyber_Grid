@@ -1748,6 +1748,14 @@ function caseBoardMode() {
 function passiveNotebookMode() {
   return caseBoardMode() && !!SIM.def.caseBoard.passiveNotebook;
 }
+/* Mission-1 "quiet notebook" gate (def.quietNotebook). With the live work moved to
+ * the Case Board + Decision Dock, the right-column notebook becomes a calm READ-ONLY
+ * record: its noisy pulse badges (LIVE / NEW) are suppressed and its sections
+ * collapse by default. Presentation-only and strictly gated — missions without the
+ * flag keep every badge and their original default-open sections. */
+function quietNotebookMode() {
+  return !!(SIM.def && SIM.def.quietNotebook && SIM.def.caseFileNotebook);
+}
 /* Per-mission Decision-Dock gate (Mission 1). When set, the dock reframes the
  * graded discovery beats as investigative dialogue (move/theory framing, multiple
  * valid reads, optional multi-select) instead of a right/wrong quiz. Strictly
@@ -1812,6 +1820,10 @@ function nbSectionKey(section, head, idx) {
 /* Conservative status tag derived only from existing DOM/state. Returns
  * {label, tone} or null (no chip). Never reveals correctness. */
 function nbSectionStatus(key, section, grew) {
+  // Quiet notebook (Mission 1, quietNotebook): drop the noisy pulse badges
+  // (evidence → NEW/LIVE, feed → LIVE) so the read-only record reads calm. The
+  // meaningful done/active/flag/muted chips on other sections are left untouched.
+  if (quietNotebookMode() && (key === 'evidence' || key === 'feed')) return null;
   const countEl = section.querySelector('.sim-notebook-count');
   const txt = countEl ? countEl.textContent.trim() : '';
   const ratio = txt.match(/(\d+)\s*\/\s*(\d+)/);
@@ -1857,6 +1869,10 @@ function applyNotebookChrome(body, grew) {
   const defaults = simpleUiMode()
     ? Object.assign({}, NB_DEFAULT_COLLAPSED, NB_SIMPLE_DEFAULT_COLLAPSED)
     : NB_DEFAULT_COLLAPSED;
+  // Quiet notebook (Mission 1): with the live work on the Case Board + Dock, the
+  // read-only record starts collapsed by default. The player's OWN toggles (tracked
+  // in SIM.nbCollapsed) still win, so any section they expand stays expanded.
+  const quiet = quietNotebookMode();
   blocks.forEach((section, idx) => {
     const head = section.querySelector(NB_HEAD_SEL);
     if (!head || head.dataset.nbToggle) return;
@@ -1864,7 +1880,7 @@ function applyNotebookChrome(body, grew) {
     section.classList.add('sim-nb-section');
     head.classList.add('sim-nb-head');
 
-    const collapsed = (key in SIM.nbCollapsed) ? !!SIM.nbCollapsed[key] : !!defaults[key];
+    const collapsed = (key in SIM.nbCollapsed) ? !!SIM.nbCollapsed[key] : (quiet ? true : !!defaults[key]);
     section.classList.toggle('sim-nb-collapsed', collapsed);
 
     head.setAttribute('role', 'button');
@@ -1944,6 +1960,159 @@ function boardClassifyHtml(f) {
     </div>`;
 }
 
+/* Mission 1 PASSIVE Case Board (caseBoard.passive). The board becomes a read-only
+ * case file that builds ITSELF: every surfaced finding auto-appears under the
+ * heading it answers, the chain auto-draws as headings fill, and the conclusion
+ * lights once every configured finding has surfaced. No tray, no click-to-place,
+ * no board-hosted classification (that moved to the dock). Reads only surfaced-
+ * evidence + classification state and writes NOTHING (no scoring, no persistence). */
+function passiveBoardMode() {
+  return caseBoardMode() && !!(SIM.def.caseBoard && SIM.def.caseBoard.passive);
+}
+
+/* The live "Current case / Open question / Next move" strip atop the passive board
+ * — a derived read of newestEvidence / the pending discovery call / caseFileNextStep
+ * (mirrors caseBoardCardHtml's derivation). Presentation-only. */
+function caseBoardSummaryHtml() {
+  const latest = newestEvidence();
+  const vis = visibleDiscoveryChallenges().filter(challengeValid);
+  const pendingObs = vis.find(c => !stepAnswered(c, 'observation'));
+  const pendingJust = vis.find(c => stepAnswered(c, 'observation') && !stepAnswered(c, 'justification'));
+  let askHtml = '';
+  if (pendingObs) askHtml = `Sarah wants your read on \u201C${pendingObs.short || 'this finding'}\u201D \u2014 answer in the Decision Dock below.`;
+  else if (pendingJust) askHtml = `Sarah is asking why \u201C${pendingJust.short || 'this finding'}\u201D matters \u2014 tell her in the Decision Dock.`;
+  const next = caseFileNextStep();
+  const clsFiles = classifiableFiles();
+  const classified = clsFiles.filter(f => SIM.classified[f.name]).length;
+  const findingTxt = `${SIM.evidence.size} finding${SIM.evidence.size === 1 ? '' : 's'} surfaced`;
+  const classTxt = clsFiles.length ? ` \u00B7 ${classified}/${clsFiles.length} files classified` : '';
+  return `
+    <div class="sim-board-summary" role="status" aria-live="polite">
+      <div class="sim-board-summary-row">
+        <span class="sim-board-summary-tag">Current case</span>
+        <span class="sim-board-summary-val">${latest ? latest.label : 'Reviewing the outbound package \u2014 open the files in the terminal to start.'}</span>
+      </div>
+      ${askHtml ? `<div class="sim-board-summary-row sim-board-summary-row--ask">
+        <span class="sim-board-summary-tag sim-board-summary-tag--ask">Open question</span>
+        <span class="sim-board-summary-val">${askHtml}</span>
+      </div>` : ''}
+      ${next ? `<div class="sim-board-summary-row">
+        <span class="sim-board-summary-tag">Next move</span>
+        <span class="sim-board-summary-val">${next}</span>
+      </div>` : ''}
+      <div class="sim-board-summary-status">${findingTxt}${classTxt}</div>
+    </div>`;
+}
+
+/* Presentation-only "case readiness" readout (def.gamefeelReadiness). A derived
+ * progress bar showing how COMPLETE the investigation is — the fraction of evidence
+ * weight surfaced (evidenceQuality). It is pure coverage: it climbs as the analyst
+ * investigates so the case visibly "comes together", and NEVER reflects correctness
+ * or the eventual verdict (no-spoiler invariant). Returns '' without the flag. */
+function caseBoardReadinessHtml() {
+  if (!(SIM.def && SIM.def.gamefeelReadiness)) return '';
+  const pct = Math.round(evidenceQuality() * 100);
+  let note;
+  if (pct <= 0) note = 'Just getting started \u2014 open the files in the terminal to begin building the case.';
+  else if (pct < 40) note = 'Early days \u2014 keep pulling threads.';
+  else if (pct < 75) note = 'The picture is taking shape.';
+  else if (pct < 100) note = 'Nearly there \u2014 a few threads left to run down.';
+  else note = 'Every thread run down \u2014 you\u2019re ready to make the call.';
+  return `
+    <div class="sim-board-readiness" role="group" aria-label="Case readiness">
+      <div class="sim-board-readiness-top">
+        <span class="sim-board-readiness-label">CASE READINESS</span>
+        <span class="sim-board-readiness-pct">${pct}%</span>
+      </div>
+      <div class="sim-board-readiness-track"><div class="sim-board-readiness-fill" style="width:${pct}%"></div></div>
+      <p class="sim-board-readiness-note">${note}</p>
+    </div>`;
+}
+
+function caseBoardPassiveHtml() {
+  const cfg = SIM.def.caseBoard;
+  const zones = cfg.zones || [];
+  const placements = cfg.placements || {};       // evId -> the zone it belongs in
+  const placementIds = Object.keys(placements);
+  const onBoard = simEvidenceDefs().filter(e => SIM.evidence.has(e.id) && placements[e.id]);
+  const expectedForZone = z => placementIds.filter(id => placements[id] === z.id);
+  const zoneLit = z => {
+    const exp = expectedForZone(z);
+    return exp.length > 0 && exp.every(id => SIM.evidence.has(id));
+  };
+
+  // Read-only finding card. INSIDE-zone files show the sensitivity the player set
+  // in the dock — their OWN pick, never a correctness mark (no spoiler).
+  const cardHtml = (e) => {
+    const text = (e.layers && e.layers.beginner && e.layers.beginner.summary) || e.label || '';
+    const file = classifiableFileForEvidence(e.id);
+    const cls = file && SIM.classified[file.name];
+    const badge = cls
+      ? `<span class="sim-board-card-class sim-board-card-class--${cls}">${classLabel(cls)}</span>`
+      : (file ? `<span class="sim-board-card-class sim-board-card-class--unset">Set sensitivity \u25B8</span>` : '');
+    return `<div class="sim-board-card sim-board-card--passive">
+        <span class="sim-board-card-dot" aria-hidden="true"></span>
+        <span class="sim-board-card-text">${text}</span>
+        ${badge}
+      </div>`;
+  };
+
+  const zoneNode = (z, i) => {
+    const here = onBoard.filter(e => placements[e.id] === z.id);
+    const lit = zoneLit(z);
+    const reaction = (lit && z.reaction)
+      ? `<p class="sim-board-zone-reaction"><span class="sim-board-zone-react-av" aria-hidden="true">SR</span><span>${z.reaction}</span></p>`
+      : '';
+    return `
+      <div class="sim-board-zone sim-board-zone--passive${lit ? ' is-lit' : ''}${here.length ? '' : ' is-empty'}">
+        <div class="sim-board-zone-head">
+          <span class="sim-board-zone-step" aria-hidden="true">${i + 1}</span>
+          <span class="sim-board-zone-label">${z.label}</span>
+        </div>
+        ${here.length
+          ? `<div class="sim-board-zone-cards">${here.map(cardHtml).join('')}</div>`
+          : `<p class="sim-board-zone-wait">${z.hint}</p>`}
+        ${reaction}
+      </div>`;
+  };
+
+  let chain = '';
+  zones.forEach((z, i) => {
+    chain += zoneNode(z, i);
+    if (i < zones.length - 1) {
+      const drawn = zoneLit(z) && zoneLit(zones[i + 1]);
+      chain += `<div class="sim-board-link${drawn ? ' is-drawn' : ''}" aria-hidden="true"></div>`;
+    }
+  });
+  // THE CALL closes only once EVERY configured finding has surfaced.
+  const caseClosed = placementIds.length > 0 && placementIds.every(id => SIM.evidence.has(id));
+  const concl = cfg.conclusion;
+  if (concl) {
+    const surfaced = placementIds.filter(id => SIM.evidence.has(id)).length;
+    chain += `<div class="sim-board-link${caseClosed ? ' is-drawn' : ''}" aria-hidden="true"></div>`;
+    chain += `
+      <div class="sim-board-conclusion${caseClosed ? ' is-lit' : ''}">
+        <span class="sim-board-conclusion-label">${concl.label}</span>
+        ${caseClosed
+          ? `<span class="sim-board-conclusion-text">${concl.text}</span>`
+          : `<span class="sim-board-conclusion-pending">${surfaced}/${placementIds.length} findings surfaced \u2014 keep investigating to close the case.</span>`}
+      </div>`;
+  }
+
+  const intro = cfg.intro ? `<p class="sim-board-intro">${cfg.intro}</p>` : '';
+  return `
+    <div class="sim-board sim-board--passive">
+      <div class="sim-board-head">
+        <span class="sim-board-title">CASE BOARD</span>
+        <span class="sim-board-caseid">${notebookCaseId()}</span>
+      </div>
+      ${caseBoardSummaryHtml()}
+      ${caseBoardReadinessHtml()}
+      ${intro}
+      <div class="sim-board-chain">${chain}</div>
+    </div>`;
+}
+
 /* INTERACTIVE Case Board (Mission 1, gated on caseBoardMode()). Surfaced findings
  * become click-to-place cards the analyst drops into labelled zones; the case
  * chain auto-draws as each zone's findings land, and file classification happens
@@ -1954,6 +2123,7 @@ function boardClassifyHtml(f) {
  * action, not a pre-marked answer key. Returns '' for any mission without the flag. */
 function caseBoardInteractiveHtml() {
   if (!caseBoardMode()) return '';
+  if (passiveBoardMode()) return caseBoardPassiveHtml();   // Mission 1: the read-only self-building board
   const cfg = SIM.def.caseBoard;
   const zones = cfg.zones || [];
   const placements = cfg.placements || {};      // evId -> the zone it belongs in
@@ -2263,7 +2433,7 @@ function renderEvidencePanel() {
       const newest = newestEvidence();
       // In simple mode the newest finding lands on the always-open Case Board card;
       // otherwise pull the eye to the pending comms / feed as before.
-      const target = (board && body.querySelector('.sim-board-tray'))
+      const target = (board && (body.querySelector('.sim-board-summary') || body.querySelector('.sim-board-tray')))
         || (simpleUi && body.querySelector('.sim-caseboard'))
         || (newest && body.querySelector(`.sim-comms--pending[data-ev="${newest.id}"]`))
         || body.querySelector('.sim-comms--pending')
@@ -2959,21 +3129,28 @@ function discoveryStepHtml(ch, step, label) {
       const draft = discoveryDraft(ch, step);
       const opts = stepOptionsOrdered(ch, step).map(o => {
         const on = draft.includes(o.id);
-        return `<button type="button" class="sim-comms-reply sim-comms-reply--multi${on ? ' is-on' : ''}" data-discovery-draft data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}" aria-pressed="${on}"><span class="sim-comms-reply-check" aria-hidden="true">${on ? '\u2611' : '\u2610'}</span><span class="sim-comms-reply-text">${o.label}</span></button>`;
+        const chip = invest ? ' sim-comms-reply--chip' : '';   // M1: toggleable tag chips, not a form checklist
+        return `<button type="button" class="sim-comms-reply sim-comms-reply--multi${chip}${on ? ' is-on' : ''}" data-discovery-draft data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}" aria-pressed="${on}"><span class="sim-comms-reply-check" aria-hidden="true">${on ? '\u2611' : '\u2610'}</span><span class="sim-comms-reply-text">${o.label}</span></button>`;
       }).join('');
       const count = draft.length;
       html += `
-      <div class="sim-comms-replies sim-comms-replies--multi" role="group" aria-label="Flag everything that applies">
+      <div class="sim-comms-replies sim-comms-replies--multi${invest ? ' sim-comms-replies--chips' : ''}" role="group" aria-label="Flag everything that applies">
         <span class="sim-comms-replies-label">${cfg.multiLabel || 'Flag everything that looks sensitive \u2014 pick as many as apply, then send your list to Sarah.'}</span>
         ${opts}
         <button type="button" class="sim-comms-multi-send" data-discovery-submit data-challenge="${ch.id}" data-step="${step}"${count ? '' : ' disabled'}>${count ? `Send ${count} flagged to Sarah` : 'Select what to flag'} <span aria-hidden="true">\u25B8</span></button>
       </div>`;
     } else {
-      const opts = stepOptionsOrdered(ch, step).map((o, i) =>
-        `<button type="button" class="sim-comms-reply" data-discovery-judgment data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}"><span class="sim-comms-reply-key" aria-hidden="true">${String.fromCharCode(65 + i)}</span><span class="sim-comms-reply-text">${o.label}</span></button>`
-      ).join('');
+      // Investigation dock (M1): drop the A/B/C quiz letter and render tappable
+      // chat reply CHIPS so choosing a read feels like sending a message rather
+      // than answering multiple choice. Every mission WITHOUT the flag keeps the
+      // exact original markup (byte-identical).
+      const opts = stepOptionsOrdered(ch, step).map((o, i) => {
+        const key = invest ? '' : `<span class="sim-comms-reply-key" aria-hidden="true">${String.fromCharCode(65 + i)}</span>`;
+        const cls = invest ? 'sim-comms-reply sim-comms-reply--chip' : 'sim-comms-reply';
+        return `<button type="button" class="${cls}" data-discovery-judgment data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}">${key}<span class="sim-comms-reply-text">${o.label}</span></button>`;
+      }).join('');
       html += `
-      <div class="sim-comms-replies" role="group" aria-label="Your response to Sarah">
+      <div class="sim-comms-replies${invest ? ' sim-comms-replies--chips' : ''}" role="group" aria-label="Your response to Sarah">
         <span class="sim-comms-replies-label">${replyLabel}</span>
         ${opts}
       </div>`;
@@ -4787,6 +4964,16 @@ function classifiableFileForEvidence(evId) {
   ) || null;
 }
 
+/* The file the dock should currently invite the player to classify, or null: the
+ * first classifiable+investigated file not yet classified. Gated on classificationDock
+ * so ONLY Mission 1 surfaces the dock card (M2-M4 keep the standalone notebook
+ * control). NON-BLOCKING — never feeds caseFileDecisionPending()/decisionLocked(),
+ * so the terminal is never gated on classifying; classificationQuality() is unchanged. */
+function activeClassificationFile() {
+  if (!(SIM.def && SIM.def.classificationDock)) return null;
+  return simFiles().find(f => fileClassificationVisible(f) && !SIM.classified[f.name]) || null;
+}
+
 /* Fraction (0..1) of total evidence weight surfaced — drives the recommendation
  * engine so thorough investigation, not command volume, earns better outcomes. */
 function evidenceQuality() {
@@ -5260,6 +5447,11 @@ function decisionDockHtml() {
   }
   const rc = activeReconsideration();
   if (rc) return reconsiderDockHtml(rc);
+  // Optional, NON-BLOCKING (Mission 1): invite the player to classify a reviewed
+  // file right in the conversation. Sits below graded calls/reconsiderations and
+  // above the finding-draft log; never locks the terminal.
+  const cf = activeClassificationFile();
+  if (cf) return classificationDockHtml(cf);
   // Lowest priority: once nothing graded is pending, invite the player to LOG the
   // finding they just drafted, right where they decided. Optional + non-blocking.
   const fd = activeDraftFinding();
@@ -5289,6 +5481,44 @@ function findingDockHtml(ch) {
     <p class="sim-dock-foot sim-dock-foot--finding">Optional — put your call on the record in your own words. The terminal stays open; keep investigating any time.</p>`;
 }
 
+/* The classification dock card (Mission 1, classificationDock). Relocates file
+ * sensitivity OUT of the case board and INTO the conversation as its own
+ * NON-BLOCKING beat: Sarah asks how sensitive the just-reviewed file is, the
+ * player answers with sensitivity chips. Routes ONLY through the existing
+ * data-classify-file hook (setClassification — the sole graded writer);
+ * classificationQuality()'s denominator is unchanged, so skipping it still weakens
+ * the case but never locks the terminal. */
+function classificationDockHtml(f) {
+  const chosen = SIM.classified[f.name];
+  const remaining = simFiles().filter(x => fileClassificationVisible(x) && !SIM.classified[x.name]).length - 1;
+  const queue = remaining > 0
+    ? `<span class="sim-dock-queue sim-dock-queue--classify">${remaining} more file${remaining === 1 ? '' : 's'} to classify</span>`
+    : '';
+  const opts = CLASSIFICATIONS.map(c =>
+    `<button type="button" class="sim-comms-reply sim-comms-reply--chip sim-comms-reply--classify${chosen === c.id ? ' is-on' : ''}" data-classify-file="${f.name}" data-classify-val="${c.id}" title="${classDef(c.id)}"><span class="sim-comms-reply-text">${c.label}</span></button>`
+  ).join('');
+  return `
+    <div class="sim-dock-head sim-dock-head--classify">
+      <span class="sim-dock-title"><span class="sim-dock-pulse" aria-hidden="true"></span>How sensitive is this file?</span>
+      ${queue}
+    </div>
+    <div class="sim-dock-body">
+      <div class="sim-comms sim-comms--classify">
+        <div class="sim-comms-turn sim-comms-turn--open">
+          <div class="sim-comms-msg sim-comms-msg--sarah">
+            <span class="sim-comms-avatar" aria-hidden="true">SR</span>
+            <div class="sim-comms-bubble sim-comms-bubble--ask">You\u2019ve looked at <strong>${f.name}</strong> \u2014 how would you classify how sensitive it is?</div>
+          </div>
+          <div class="sim-comms-replies sim-comms-replies--chips" role="group" aria-label="Classify ${f.name}">
+            <span class="sim-comms-replies-label">Set the sensitivity level</span>
+            ${opts}
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="sim-dock-foot sim-dock-foot--classify">Optional, but classifying each file strengthens your case \u2014 the terminal stays open.</p>`;
+}
+
 /* The reconsideration card — a distinct dock variant. Same Sarah-comms chrome and
  * keyboard/ARIA pattern as a normal call, but it cross-references an EARLIER logged
  * read and asks the analyst to revise or hold it. Neutral copy, no verdict leak;
@@ -5296,9 +5526,12 @@ function findingDockHtml(ch) {
 function reconsiderDockHtml(rc) {
   const target = discoveryChallengeById(rc.target);
   const targetName = (target && target.short) || 'an earlier call';
-  const opts = rc.options.map((o, i) =>
-    `<button type="button" class="sim-comms-reply sim-comms-reply--reconsider" data-reconsideration data-rc="${rc.id}" data-option="${o.id}"><span class="sim-comms-reply-key" aria-hidden="true">${String.fromCharCode(65 + i)}</span><span class="sim-comms-reply-text">${o.label}</span></button>`
-  ).join('');
+  const invest = dockInvestigationMode();
+  const opts = rc.options.map((o, i) => {
+    const key = invest ? '' : `<span class="sim-comms-reply-key" aria-hidden="true">${String.fromCharCode(65 + i)}</span>`;
+    const chip = invest ? ' sim-comms-reply--chip' : '';
+    return `<button type="button" class="sim-comms-reply sim-comms-reply--reconsider${chip}" data-reconsideration data-rc="${rc.id}" data-option="${o.id}">${key}<span class="sim-comms-reply-text">${o.label}</span></button>`;
+  }).join('');
   return `
     <div class="sim-dock-head sim-dock-head--reconsider">
       <span class="sim-dock-title"><span class="sim-dock-pulse" aria-hidden="true"></span>New evidence — does this change a call?</span>
@@ -5315,7 +5548,7 @@ function reconsiderDockHtml(rc) {
             <span class="sim-comms-avatar" aria-hidden="true">SR</span>
             <div class="sim-comms-bubble sim-comms-bubble--ask">${rc.sarah || ''}</div>
           </div>
-          <div class="sim-comms-replies" role="group" aria-label="Revise or hold your earlier read">
+          <div class="sim-comms-replies${invest ? ' sim-comms-replies--chips' : ''}" role="group" aria-label="Revise or hold your earlier read">
             <span class="sim-comms-replies-label">Revise or hold your read</span>
             ${opts}
           </div>
@@ -5336,6 +5569,8 @@ function dockPeekHtml() {
     label = 'Finding ready to log'; cta = 'Log finding'; variant = 'sim-dock-peek--finding';
   } else if (id.indexOf('reconsider:') === 0) {
     label = 'New evidence — does this change a call?'; cta = 'Review & Decide'; variant = 'sim-dock-peek--reconsider';
+  } else if (id.indexOf('classify:') === 0) {
+    label = 'Classify a file with Sarah'; cta = 'Classify'; variant = 'sim-dock-peek--classify';
   } else if (id.indexOf('review:') === 0) {
     label = 'Review the file before your call'; cta = 'Continue';
   } else {
@@ -5361,6 +5596,7 @@ function renderDecisionDock(flash) {
     dock.hidden = true; dock.innerHTML = '';
     dock.classList.remove('sim-decision-dock--finding');
     dock.classList.remove('sim-decision-dock--review');
+    dock.classList.remove('sim-decision-dock--classify');
     dock.classList.remove('sim-decision-dock--peek');
     return;
   }
@@ -5383,6 +5619,9 @@ function renderDecisionDock(flash) {
   // Calm the dock chrome for the low-urgency "review the file first" beat.
   const isReview = typeof SIM._dockActiveId === 'string' && SIM._dockActiveId.indexOf('review:') === 0;
   dock.classList.toggle('sim-decision-dock--review', isReview);
+  // Calm cyan chrome for the optional, non-blocking classification beat.
+  const isClassify = typeof SIM._dockActiveId === 'string' && SIM._dockActiveId.indexOf('classify:') === 0;
+  dock.classList.toggle('sim-decision-dock--classify', isClassify);
   if (flash) {
     dock.classList.remove('sim-decision-dock--enter');
     void dock.offsetWidth;                  // restart the entrance animation
@@ -5464,22 +5703,32 @@ function syncDecisionDock() {
         const rc = activeReconsideration();
         if (rc) newId = 'reconsider:' + rc.id;
         else {
-          // No graded call or reconsideration pending — surface the oldest un-logged
-          // finding so logging it is discoverable. Distinct prefix so the swap from a
-          // just-answered call into the draft still flashes/announces.
-          const fd = activeDraftFinding();
-          if (fd) newId = 'finding:' + fd.id;
+          // Optional, NON-BLOCKING classification beat (Mission 1) sits below graded
+          // calls/reconsiderations and above the finding-draft log. Distinct prefix so
+          // the swap into/out of it still flashes/announces.
+          const cf = activeClassificationFile();
+          if (cf) newId = 'classify:' + cf.name;
+          else {
+            // No graded call, reconsideration, or classification pending — surface the
+            // oldest un-logged finding so logging it is discoverable. Distinct prefix so
+            // the swap from a just-answered call into the draft still flashes/announces.
+            const fd = activeDraftFinding();
+            if (fd) newId = 'finding:' + fd.id;
+          }
         }
       }
     }
   }
   const changed = newId !== SIM._dockActiveId;
   // Peek/expand policy (Task #153): when the active mode CHANGES, a blocking call
-  // auto-expands (bring the analyst straight into the decision); a non-blocking
-  // finding-log — or a cleared dock — drops back to the compact peek so the terminal
-  // is never starved by an optional surface. A re-render of the SAME mode (e.g.
-  // step 1 → step 2 of a call) preserves whatever the analyst last chose.
-  if (changed) SIM.dockExpanded = !!(newId && decisionLocked());
+  // auto-expands (bring the analyst straight into the decision). The optional
+  // classification beat (Task #158) also auto-expands so the conversation surfaces
+  // it — but it never locks, so the terminal stays free. A non-blocking finding-log
+  // — or a cleared dock — drops back to the compact peek so the terminal is never
+  // starved by an optional surface. A re-render of the SAME mode (e.g. step 1 → step
+  // 2 of a call) preserves whatever the analyst last chose.
+  const classifyMode = typeof newId === 'string' && newId.indexOf('classify:') === 0;
+  if (changed) SIM.dockExpanded = !!(newId && (decisionLocked() || classifyMode));
   SIM._dockActiveId = newId;
   renderDecisionDock(changed);
   updateDecisionLock();
@@ -7501,8 +7750,11 @@ const CAREER_MISSIONS = {
     // record. Placement/selection are transient presentation state — never graded,
     // never persisted. Missions 2-4 omit caseBoard entirely.
     caseBoard: {
+      // Mission-1 passive case board (Task #158): the board builds ITSELF as
+      // findings surface — no click-to-place, no tray. See passiveBoardMode().
+      passive: true,
       passiveNotebook: true,
-      intro: 'Build the thread: take each finding you surface in the terminal and drop it under the heading it answers. As the headings fill, the case for (or against) this release comes together.',
+      intro: 'As you investigate in the terminal, each finding files itself under the heading it answers. Watch the case come together \u2014 and set how sensitive each file is when Sarah asks in the dock.',
       zones: [
         { id: 'who', label: 'WHO PREPARED THIS',
           hint: 'Findings about who assembled and packed this outbound release.',
@@ -7531,6 +7783,11 @@ const CAREER_MISSIONS = {
     // Reframe the Decision Dock from a right/wrong quiz into investigative dialogue
     // (multiple valid reads, optional multi-select). Gated; M2-M4 dock unchanged.
     dockMode: 'investigation',
+    // Mission-1 investigation game-feel (Task #158) — all presentation-only and
+    // data-gated; Missions 2-4 omit them so they render + grade byte-identical.
+    classificationDock: true,   // file classification relocated to a NON-BLOCKING dock card
+    quietNotebook: true,        // suppress LIVE/NEW badges + default-collapse notebook sections
+    gamefeelReadiness: true,    // derived Release-Readiness / Risk readout on the board
     // First-day declutter (Mission 1 only). Simplified workspace; advanced modules
     // hidden; consequence/feedback surfaces held back until a real call. Missions
     // 2-4 omit the flag entirely.

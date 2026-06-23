@@ -1077,6 +1077,36 @@
   .sim-dock-head--finding .sim-dock-pulse { animation: none; }
 }
 
+/* ---- Classification beat (Mission 1, classificationDock) — Sarah asks how
+ * sensitive a reviewed file is. OPTIONAL + NON-BLOCKING, so it borrows the calm
+ * cyan chrome of the finding-log (never the urgent yellow lock). The reply chips
+ * reuse the chat-chip styling; the chosen level stays lit. Presentation-only. */
+.sim-decision-dock--classify {
+  border-top-color: var(--cyan);
+  background:
+    linear-gradient(180deg, rgba(45, 212, 255, 0.08), rgba(45, 212, 255, 0.02) 60%, transparent),
+    var(--bg-panel);
+  box-shadow: inset 0 1px 0 rgba(45, 212, 255, 0.22);
+}
+.sim-dock-head--classify .sim-dock-title { color: var(--cyan); }
+.sim-dock-head--classify .sim-dock-pulse {
+  background: var(--cyan);
+  animation: simFindingPulse 1.8s ease-out infinite;
+}
+.sim-dock-queue--classify { color: var(--cyan); opacity: 0.9; }
+.sim-dock-foot--classify { color: var(--text-dim); }
+.sim-dock-peek--classify .sim-dock-peek-title { color: var(--cyan); }
+.sim-dock-peek--classify .sim-dock-peek-go { background: var(--cyan); }
+.sim-dock-peek--classify .sim-dock-pulse { background: var(--cyan); }
+@media (prefers-reduced-motion: reduce) {
+  .sim-dock-head--classify .sim-dock-pulse { animation: none; }
+}
+/* The player's chosen sensitivity level stays lit (chips are chat reply chips). */
+.sim-comms-reply--classify.is-on {
+  border-color: var(--cyan); color: var(--text-bright);
+  background: rgba(0, 200, 255, 0.12);
+}
+
 /* ---- "Review the file first" beat — a calm, low-urgency variant shown BEFORE a
  * fresh graded call when the mission opts in (reviewBeforeCall). Softer than the
  * yellow lock so it reads as a gentle pause to read, not an alarm, and its small
@@ -2932,6 +2962,25 @@
 .sim-comms-reply:focus-visible .sim-comms-reply-key {
   color: var(--bg-panel); background: var(--green); border-color: var(--green);
 }
+/* Investigation dock (Mission 1, dockInvestigationMode): quick-reply CHIPS. The
+   graded reply options drop the A/B/C quiz letter and render as tappable chat
+   suggestions, so choosing a read feels like sending a message rather than
+   answering multiple choice. Scoped to the --chips / --chip modifier classes
+   (emitted ONLY under the flag) so every other mission's dock is untouched. */
+.sim-comms-replies--chips { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+.sim-comms-replies--chips .sim-comms-replies-label { flex: 1 1 100%; }
+.sim-comms-replies--chips .sim-comms-multi-send { flex: 0 0 100%; margin-top: 4px; }
+.sim-comms-reply--chip {
+  width: auto; flex: 0 1 auto;
+  padding: 8px 13px; border-radius: 999px;
+  background: rgba(0, 255, 136, 0.04); border-color: var(--green-dim);
+}
+.sim-comms-reply--chip .sim-comms-reply-text { flex: 0 1 auto; }
+.sim-comms-reply--chip:hover, .sim-comms-reply--chip:focus-visible {
+  transform: translateY(-1px); border-color: var(--green);
+  background: rgba(0, 255, 136, 0.1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
 .sim-comms-foot {
   margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border);
   font-size: 10.5px; line-height: 1.45; color: var(--text-dim); font-style: italic;
@@ -4669,6 +4718,106 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
 }
 .sim-board-conclusion-text { font-size: 11.5px; line-height: 1.55; color: var(--text-bright); }
 .sim-board-conclusion-pending { font-size: 10.5px; line-height: 1.5; color: var(--text-dim); font-style: italic; }
+
+/* ===== Mission 1 PASSIVE Case Board (caseBoard.passive) — the read-only,
+ * self-building case file. Reuses the interactive board's zone / card / link /
+ * conclusion styling; these rules add the live summary header, the read-only card
+ * treatment (no hover lift), and the per-file sensitivity badge. ===== */
+.sim-board-summary {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 11px;
+  background: rgba(0, 255, 136, 0.03);
+  border: 1px solid var(--green-dim);
+  border-radius: var(--radius-sm);
+}
+.sim-board-summary-row { display: flex; gap: 8px; align-items: baseline; }
+.sim-board-summary-tag {
+  flex: 0 0 auto; min-width: 76px;
+  font-family: var(--font-hud); font-size: 8.5px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim);
+}
+.sim-board-summary-tag--ask { color: var(--cyan); }
+.sim-board-summary-val { flex: 1 1 auto; min-width: 0; font-size: 11.5px; line-height: 1.5; color: var(--text-bright); }
+.sim-board-summary-row--ask .sim-board-summary-val { color: var(--text); }
+.sim-board-summary-status {
+  margin-top: 1px; padding-top: 6px; border-top: 1px solid var(--border);
+  font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--text-dim);
+}
+/* Discovery ping — when a finding surfaces, renderEvidencePanel flashes the body
+ * (.sim-evidence-body--flash) and scrolls to the summary; reuse that one signal to
+ * pulse the summary so a new finding reads as "the case just moved". CSS-only. */
+.sim-evidence-body--flash .sim-board-summary {
+  animation: simBoardPing 0.9s ease-out 1;
+}
+@keyframes simBoardPing {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.45); border-color: var(--green); }
+  70%  { box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); border-color: var(--green); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); border-color: var(--green-dim); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sim-evidence-body--flash .sim-board-summary { animation: none; }
+}
+
+/* Case-readiness readout (gamefeelReadiness) — a derived COVERAGE bar (never the
+ * verdict). The fill width animates as the investigation deepens. */
+.sim-board-readiness {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 9px 11px;
+  background: var(--bg-deep, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.sim-board-readiness-top { display: flex; justify-content: space-between; align-items: baseline; }
+.sim-board-readiness-label {
+  font-family: var(--font-hud); font-size: 8.5px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-dim);
+}
+.sim-board-readiness-pct {
+  font-family: var(--font-hud); font-size: 11px; font-weight: 700; color: var(--green);
+}
+.sim-board-readiness-track {
+  height: 6px; border-radius: 3px; overflow: hidden;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border);
+}
+.sim-board-readiness-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--green-dim), var(--green));
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+  transition: width 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.sim-board-readiness-note { margin: 0; font-size: 10.5px; line-height: 1.5; color: var(--text-dim); }
+@media (prefers-reduced-motion: reduce) {
+  .sim-board-readiness-fill { transition: none; }
+}
+
+/* Zone header (read-only — no drop button in passive mode). */
+.sim-board-zone-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.sim-board-zone--passive.is-empty { opacity: 0.72; }
+.sim-board-zone-wait {
+  margin: 0; font-size: 10.5px; line-height: 1.5;
+  color: var(--text-dim); font-style: italic;
+}
+
+/* Read-only finding card — neutralise the interactive hover lift / pointer. */
+.sim-board-card--passive { cursor: default; align-items: center; }
+.sim-board-card--passive:hover, .sim-board-card--passive:focus-visible {
+  transform: none; box-shadow: none;
+  border-color: var(--green-dim); color: var(--text-bright);
+  background: rgba(0, 255, 136, 0.05);
+}
+/* Per-file sensitivity badge — the player's OWN pick, never a correctness mark. */
+.sim-board-card-class {
+  flex: 0 0 auto; margin-left: auto;
+  font-family: var(--font-hud); font-size: 8px; font-weight: 700;
+  letter-spacing: 0.6px; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 4px; white-space: nowrap;
+  border: 1px solid var(--border); color: var(--text-dim);
+}
+.sim-board-card-class--unset { color: var(--cyan); border-color: var(--cyan-dim); background: rgba(0, 200, 255, 0.05); }
+.sim-board-card-class--public { color: var(--text-dim); border-color: var(--border); }
+.sim-board-card-class--internal { color: var(--green); border-color: var(--green-dim); background: rgba(0, 255, 136, 0.06); }
+.sim-board-card-class--confidential { color: var(--yellow); border-color: rgba(255, 215, 0, 0.4); background: rgba(255, 215, 0, 0.06); }
+.sim-board-card-class--restricted { color: var(--red); border-color: rgba(255, 51, 68, 0.45); background: rgba(255, 51, 68, 0.08); }
 
 /* --- Multi-select beat in the Decision Dock (ch_manifest) --- */
 .sim-comms-replies--multi { gap: 6px; }
