@@ -866,6 +866,9 @@ function openCareerMission(missionId) {
   SIM.discoveryJudgments = {};            // graded discovery challenges (caseFileNotebook missions)
   SIM.reconsiderations = {};              // reconsideration pivot picks (revise/hold) — transient, NON-graded
   SIM.optionOrder = {};                   // stable shuffled reply order per challenge step (transient view-state)
+  SIM.caseBoardPlacements = {};           // M1 Case Board: {evidenceId: zoneId} click-to-place state (transient, presentation-only — never graded/persisted)
+  SIM.caseBoardSelected = null;           // M1 Case Board: currently-picked card awaiting a zone (transient)
+  SIM.discoveryDrafts = {};               // multi-select discovery beats: {chId:{step:[optionId]}} in-progress picks (transient; only Submit routes through setDiscoveryJudgment)
   SIM.autoOpenedBoardEvents = new Set();  // board auto-open fires once per milestone evidence id
   SIM.grepUnlockNudged = false;           // file-model grep-triage unlock nudge (once per open)
   SIM.grepNudgePending = false;           // deferred grep nudge waiting for the terminal to unlock
@@ -1728,6 +1731,32 @@ function simpleUiMode() {
   return !!(SIM.def && SIM.def.uiComplexityLevel === 'simple');
 }
 
+/* Per-mission "Case Board" gate (Mission 1). When a mission defines def.caseBoard
+ * (zones + an evidence->zone placement map + a chain), the simplified notebook
+ * swaps its passive status card for an INTERACTIVE click-to-place board: surfaced
+ * findings become cards the analyst drops into labelled zones, the case chain
+ * auto-draws as zones fill, and file classification happens inside the board
+ * (still routed through the existing setClassification writer). Every other
+ * mission omits the flag and renders the notebook unchanged. */
+function caseBoardMode() {
+  return !!(SIM.def && SIM.def.caseBoard);
+}
+/* When the Case Board owns the active investigation surface, the right-column
+ * notebook becomes a quiet READ-ONLY record (no expanders, no reopen chips, no
+ * classification buttons). Nested under caseBoard so passive notebook can never
+ * ship without its replacement work surface. */
+function passiveNotebookMode() {
+  return caseBoardMode() && !!SIM.def.caseBoard.passiveNotebook;
+}
+/* Per-mission Decision-Dock gate (Mission 1). When set, the dock reframes the
+ * graded discovery beats as investigative dialogue (move/theory framing, multiple
+ * valid reads, optional multi-select) instead of a right/wrong quiz. Strictly
+ * gated: the shared discoveryStepHtml keeps its original output for every mission
+ * without the flag. */
+function dockInvestigationMode() {
+  return !!(SIM.def && SIM.def.dockMode === 'investigation' && SIM.def.caseFileNotebook);
+}
+
 /* Per-mission "review before the call" gate. When a mission sets
  * def.reviewBeforeCall, a freshly-surfaced graded call first shows a small
  * "read the file, then continue" beat in the Decision Dock (one CONTINUE button)
@@ -1898,6 +1927,146 @@ function setNotebookFocus(on) {
   }
 }
 
+/* Inline file classification, hosted INSIDE a correctly-placed board card. Same
+ * four-tier choice as the standalone notebook control and the SAME data hook
+ * (data-classify-file → setClassification, the sole graded writer). No
+ * correctness mark is ever shown — classification is graded, so the board stays
+ * no-spoiler here exactly as the notebook does. */
+function boardClassifyHtml(f) {
+  const chosen = SIM.classified[f.name];
+  const opts = CLASSIFICATIONS.map(c =>
+    `<button type="button" class="sim-board-classify-btn${chosen === c.id ? ' is-on' : ''}" data-classify-file="${f.name}" data-classify-val="${c.id}" title="${classDef(c.id)}">${c.label}</button>`
+  ).join('');
+  return `
+    <div class="sim-board-classify">
+      <span class="sim-board-classify-q">How sensitive is <strong>${f.name}</strong>?</span>
+      <div class="sim-board-classify-opts" role="group" aria-label="Classify ${f.name}">${opts}</div>
+    </div>`;
+}
+
+/* INTERACTIVE Case Board (Mission 1, gated on caseBoardMode()). Surfaced findings
+ * become click-to-place cards the analyst drops into labelled zones; the case
+ * chain auto-draws as each zone's findings land, and file classification happens
+ * inside the matching card (routed through the existing setClassification writer).
+ * All placement / selection state is transient (SIM.caseBoardPlacements /
+ * SIM.caseBoardSelected) — never graded, never persisted. The board reacts to the
+ * player's own placement (fit / move-it), which is presentation feedback on THEIR
+ * action, not a pre-marked answer key. Returns '' for any mission without the flag. */
+function caseBoardInteractiveHtml() {
+  if (!caseBoardMode()) return '';
+  const cfg = SIM.def.caseBoard;
+  const zones = cfg.zones || [];
+  const placements = cfg.placements || {};      // evId -> the zone it belongs in
+  const sel = SIM.caseBoardSelected;
+  const placedOf = id => SIM.caseBoardPlacements[id];
+  // Surfaced findings that belong on the board (i.e. have a target zone).
+  const onBoard = simEvidenceDefs().filter(e => SIM.evidence.has(e.id) && placements[e.id]);
+  const totalCount = onBoard.length;
+  const placedCount = onBoard.filter(e => placedOf(e.id)).length;
+  const zoneLit = z => {
+    const targets = onBoard.filter(e => placements[e.id] === z.id);
+    return targets.length > 0 && targets.every(e => placedOf(e.id) === z.id);
+  };
+
+  const cardHtml = (e) => {
+    const picked = sel === e.id;
+    const text = (e.layers && e.layers.beginner && e.layers.beginner.summary) || e.label || '';
+    return `<button type="button" class="sim-board-card${picked ? ' is-picked' : ''}" data-board-card="${e.id}" aria-pressed="${picked}">
+        <span class="sim-board-card-dot" aria-hidden="true"></span>
+        <span class="sim-board-card-text">${text}</span>
+        ${picked ? '<span class="sim-board-card-pick" aria-hidden="true">tap a zone \u25B8</span>' : ''}
+      </button>`;
+  };
+
+  // --- TRAY: findings not yet placed -------------------------------------- */
+  const trayCards = onBoard.filter(e => !placedOf(e.id));
+  let trayBody;
+  if (trayCards.length) {
+    trayBody = `<div class="sim-board-tray-cards">${trayCards.map(cardHtml).join('')}</div>`;
+  } else if (!totalCount) {
+    trayBody = `<p class="sim-board-tray-empty">No findings yet. Investigate the package in the terminal — each command can surface a finding to place here.</p>`;
+  } else if (sel) {
+    trayBody = `<button type="button" class="sim-board-tray-drop" data-board-zone="__tray__">\u21B6 Set this finding back here</button>`;
+  } else {
+    trayBody = `<p class="sim-board-tray-empty">Every finding so far is on the board. Keep investigating to surface more.</p>`;
+  }
+  const tray = `
+    <div class="sim-board-tray${sel ? ' is-active' : ''}">
+      <div class="sim-board-tray-head">
+        <span class="sim-board-tray-label">FINDINGS TO PLACE</span>
+        <span class="sim-board-tray-count">${placedCount}/${totalCount} placed</span>
+      </div>
+      ${trayBody}
+    </div>`;
+
+  // --- ZONES + connectors: the case chain --------------------------------- */
+  const zoneNode = (z, i) => {
+    const here = onBoard.filter(e => placedOf(e.id) === z.id);
+    const lit = zoneLit(z);
+    const droppable = !!sel;
+    const cards = here.map(e => {
+      const fits = placements[e.id] === z.id;
+      const file = (z.classify && fits) ? classifiableFileForEvidence(e.id) : null;
+      const classify = file ? boardClassifyHtml(file) : '';
+      const note = fits ? '' : `<span class="sim-board-misfit">This seems to belong under another heading — tap it to move it.</span>`;
+      return `<div class="sim-board-placed${fits ? ' is-fit' : ' is-misfit'}">${cardHtml(e)}${note}${classify}</div>`;
+    }).join('');
+    const reaction = (lit && z.reaction)
+      ? `<p class="sim-board-zone-reaction"><span class="sim-board-zone-react-av" aria-hidden="true">SR</span><span>${z.reaction}</span></p>`
+      : '';
+    return `
+      <div class="sim-board-zone${lit ? ' is-lit' : ''}${droppable ? ' is-droppable' : ''}">
+        <button type="button" class="sim-board-zone-drop" data-board-zone="${z.id}"${droppable ? '' : ' aria-disabled="true" tabindex="-1"'}>
+          <span class="sim-board-zone-step" aria-hidden="true">${i + 1}</span>
+          <span class="sim-board-zone-label">${z.label}</span>
+          <span class="sim-board-zone-hint">${droppable ? 'Place the finding here' : z.hint}</span>
+        </button>
+        ${here.length ? `<div class="sim-board-zone-cards">${cards}</div>` : ''}
+        ${reaction}
+      </div>`;
+  };
+
+  let chain = '';
+  zones.forEach((z, i) => {
+    chain += zoneNode(z, i);
+    if (i < zones.length - 1) {
+      const drawn = zoneLit(z) && zoneLit(zones[i + 1]);
+      chain += `<div class="sim-board-link${drawn ? ' is-drawn' : ''}" aria-hidden="true"></div>`;
+    }
+  });
+  // The conclusion ("THE CALL") only closes the chain once EVERY configured finding
+  // has surfaced AND been placed under its own heading. A zone may light incrementally
+  // from the findings surfaced so far (good momentum feedback), but the case isn't
+  // closed — and the final link must not draw — until the whole chain is assembled,
+  // so "THE CALL" can't illuminate off a partial board.
+  const placementIds = Object.keys(placements);
+  const caseClosed = placementIds.length > 0 &&
+    placementIds.every(id => SIM.evidence.has(id) && placedOf(id) === placements[id]);
+  const concl = cfg.conclusion;
+  if (concl) {
+    chain += `<div class="sim-board-link${caseClosed ? ' is-drawn' : ''}" aria-hidden="true"></div>`;
+    chain += `
+      <div class="sim-board-conclusion${caseClosed ? ' is-lit' : ''}">
+        <span class="sim-board-conclusion-label">${concl.label}</span>
+        ${caseClosed
+          ? `<span class="sim-board-conclusion-text">${concl.text}</span>`
+          : `<span class="sim-board-conclusion-pending">Surface and place every finding to close the case chain.</span>`}
+      </div>`;
+  }
+
+  const intro = cfg.intro ? `<p class="sim-board-intro">${cfg.intro}</p>` : '';
+  return `
+    <div class="sim-board">
+      <div class="sim-board-head">
+        <span class="sim-board-title">CASE BOARD</span>
+        <span class="sim-board-caseid">${notebookCaseId()}</span>
+      </div>
+      ${intro}
+      ${tray}
+      <div class="sim-board-chain">${chain}</div>
+    </div>`;
+}
+
 /* Compact "case board" — the single focal card that replaces the dense notebook
  * stack in the simplified first-day workspace (simpleUiMode only). Summarises the
  * current finding, the open question Sarah is waiting on, and the next move. It is
@@ -2029,7 +2198,27 @@ function renderEvidencePanel() {
     // template reproduced verbatim so M2-M4 (no flag) render byte-for-byte
     // identical — never funnel both through a shared interpolation.
     const simpleUi = simpleUiMode();
-    if (simpleUi) {
+    const board = caseBoardMode();
+    if (board) {
+      // INTERACTIVE Case Board layout (Mission 1). The notebook becomes a passive
+      // record: file classification + active analyst surfaces are relocated into
+      // the board, so evSection (passiveNotebookMode → dropped), the reopen chips,
+      // and the standalone classHtml are intentionally omitted here. What remains —
+      // investigation feed, CASE HISTORY (logged calls), CASE FILE, response — is
+      // read-only. Pending graded calls still live in the Decision Dock beneath the
+      // terminal, unchanged.
+      const evRecord = passiveNotebookMode() ? '' : evSection;
+      host.innerHTML = `
+      ${notebookPanelHeadHtml(alert)}
+      <div class="sim-evidence-body sim-evidence-body--simple sim-evidence-body--board">
+        ${caseBoardInteractiveHtml()}
+        ${evRecord}
+        ${investigationFeedHtml()}
+        ${analystJudgmentHtml()}
+        ${caseFileSummaryHtml()}
+        ${responseHtml}
+      </div>`;
+    } else if (simpleUi) {
       host.innerHTML = `
       ${notebookPanelHeadHtml(alert)}
       <div class="sim-evidence-body sim-evidence-body--simple">
@@ -2074,7 +2263,8 @@ function renderEvidencePanel() {
       const newest = newestEvidence();
       // In simple mode the newest finding lands on the always-open Case Board card;
       // otherwise pull the eye to the pending comms / feed as before.
-      const target = (simpleUi && body.querySelector('.sim-caseboard'))
+      const target = (board && body.querySelector('.sim-board-tray'))
+        || (simpleUi && body.querySelector('.sim-caseboard'))
         || (newest && body.querySelector(`.sim-comms--pending[data-ev="${newest.id}"]`))
         || body.querySelector('.sim-comms--pending')
         || body.querySelector('.sim-feed')
@@ -2742,12 +2932,18 @@ function discoveryStepHtml(ch, step, label) {
   const cfg = challengeStep(ch, step);
   if (!cfg) return '';
   const ans = challengeAnswers(ch)[step];
-  const answered = !!ans;
+  const answered = stepAnswered(ch, step);   // array-aware (multi-select records an array)
   const stepNo = step === 'justification' ? 2 : 1;
+  // Investigative reframing (Mission 1, gated on dockInvestigationMode()). For
+  // every mission WITHOUT the flag these resolve to the original strings, so the
+  // shared markup stays byte-for-byte identical.
+  const invest = dockInvestigationMode();
+  const stepPill = invest ? '\u25B8' : `Q${stepNo}`;
+  const replyLabel = invest ? 'Your read \u2014 talk it through with Sarah' : 'Choose your reply to Sarah';
   let html = `
     <div class="sim-comms-turn sim-comms-turn--${step} ${answered ? 'sim-comms-turn--done' : 'sim-comms-turn--open'}">
       <div class="sim-comms-cuebar">
-        <span class="sim-comms-cuebar-step">Q${stepNo}</span>
+        <span class="sim-comms-cuebar-step">${stepPill}</span>
         <span class="sim-comms-cuebar-text">${label}</span>
         ${answered ? '<span class="sim-comms-cuebar-done" aria-hidden="true">\u2713</span>' : ''}
       </div>
@@ -2756,26 +2952,51 @@ function discoveryStepHtml(ch, step, label) {
         <div class="sim-comms-bubble sim-comms-bubble--ask">${cfg.prompt || ''}</div>
       </div>`;
   if (!answered) {
-    const opts = stepOptionsOrdered(ch, step).map((o, i) =>
-      `<button type="button" class="sim-comms-reply" data-discovery-judgment data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}"><span class="sim-comms-reply-key" aria-hidden="true">${String.fromCharCode(65 + i)}</span><span class="sim-comms-reply-text">${o.label}</span></button>`
-    ).join('');
-    html += `
+    if (cfg.multi) {
+      // MULTI-SELECT BEAT — toggle several reads, then commit the set. Toggling
+      // writes only the transient draft; the line stays held until SEND routes the
+      // set through setDiscoveryJudgment. No option is ever marked right/wrong.
+      const draft = discoveryDraft(ch, step);
+      const opts = stepOptionsOrdered(ch, step).map(o => {
+        const on = draft.includes(o.id);
+        return `<button type="button" class="sim-comms-reply sim-comms-reply--multi${on ? ' is-on' : ''}" data-discovery-draft data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}" aria-pressed="${on}"><span class="sim-comms-reply-check" aria-hidden="true">${on ? '\u2611' : '\u2610'}</span><span class="sim-comms-reply-text">${o.label}</span></button>`;
+      }).join('');
+      const count = draft.length;
+      html += `
+      <div class="sim-comms-replies sim-comms-replies--multi" role="group" aria-label="Flag everything that applies">
+        <span class="sim-comms-replies-label">${cfg.multiLabel || 'Flag everything that looks sensitive \u2014 pick as many as apply, then send your list to Sarah.'}</span>
+        ${opts}
+        <button type="button" class="sim-comms-multi-send" data-discovery-submit data-challenge="${ch.id}" data-step="${step}"${count ? '' : ' disabled'}>${count ? `Send ${count} flagged to Sarah` : 'Select what to flag'} <span aria-hidden="true">\u25B8</span></button>
+      </div>`;
+    } else {
+      const opts = stepOptionsOrdered(ch, step).map((o, i) =>
+        `<button type="button" class="sim-comms-reply" data-discovery-judgment data-challenge="${ch.id}" data-step="${step}" data-option="${o.id}"><span class="sim-comms-reply-key" aria-hidden="true">${String.fromCharCode(65 + i)}</span><span class="sim-comms-reply-text">${o.label}</span></button>`
+      ).join('');
+      html += `
       <div class="sim-comms-replies" role="group" aria-label="Your response to Sarah">
-        <span class="sim-comms-replies-label">Choose your reply to Sarah</span>
+        <span class="sim-comms-replies-label">${replyLabel}</span>
         ${opts}
       </div>`;
+    }
   } else {
-    const chosen = cfg.options.find(o => o.id === ans);
+    // Array-aware "your reply" — multi-select records an array of ids, single keeps
+    // a scalar. For a single id this renders byte-identically to the original.
+    const ids = Array.isArray(ans) ? ans : (ans != null ? [ans] : []);
+    const chosenOpts = ids.map(id => cfg.options.find(o => o.id === id)).filter(Boolean);
+    const bubbleText = chosenOpts.map(o => o.label).join(cfg.multi ? ' \u00B7 ' : '');
     html += `
       <div class="sim-comms-msg sim-comms-msg--you">
-        <div class="sim-comms-bubble">${chosen ? chosen.label : ''}</div>
+        <div class="sim-comms-bubble">${bubbleText}</div>
         <span class="sim-comms-avatar sim-comms-avatar--you" aria-hidden="true">YOU</span>
       </div>`;
-    if (chosen && chosen.feedback) {
+    // Single-select keeps its per-option feedback; a multi-select beat speaks once
+    // with the step-level feedback after the whole list is sent.
+    const fb = cfg.multi ? cfg.feedback : (chosenOpts[0] && chosenOpts[0].feedback);
+    if (fb) {
       html += `
       <div class="sim-comms-msg sim-comms-msg--sarah">
         <span class="sim-comms-avatar" aria-hidden="true">SR</span>
-        <div class="sim-comms-bubble sim-comms-bubble--reply">${commsSpeech(chosen.feedback)}</div>
+        <div class="sim-comms-bubble sim-comms-bubble--reply">${commsSpeech(fb)}</div>
       </div>`;
     }
   }
@@ -2913,8 +3134,12 @@ function caseFileSummaryHtml() {
   // Presentation-only: lists your recorded reads, never a correctness mark.
   const assessBody = answered.length
     ? `<ul class="sim-casefile-list">${answered.map(c => {
-        const obs = challengeStep(c, 'observation').options.find(o => o.id === challengeAnswers(c).observation);
-        return `<li class="sim-casefile-call">${c.short}: ${obs ? obs.label : ''}</li>`;
+        // Multi-select observations record an array of ids; single keeps a scalar.
+        const obsAns = challengeAnswers(c).observation;
+        const obsOpts = challengeStep(c, 'observation').options;
+        const ids = Array.isArray(obsAns) ? obsAns : (obsAns != null ? [obsAns] : []);
+        const labels = ids.map(id => { const o = obsOpts.find(x => x.id === id); return o ? o.label : ''; }).filter(Boolean);
+        return `<li class="sim-casefile-call">${c.short}: ${labels.join(' \u00B7 ')}</li>`;
       }).join('')}</ul>`
     : `<span class="sim-casefile-empty">No analyst calls recorded yet.</span>`;
 
@@ -4552,6 +4777,15 @@ function classifiableFiles() {
 function fileClassificationVisible(f) {
   return fileClassifiable(f) && fileInvestigated(f);
 }
+// The classifiable file a surfaced evidence id belongs to (or null). Used by the
+// interactive Case Board to host file classification inside the finding card —
+// classification still routes through setClassification (the sole graded writer).
+function classifiableFileForEvidence(evId) {
+  if (!evId) return null;
+  return simFiles().find(f =>
+    fileClassifiable(f) && Array.isArray(f.evidenceIds) && f.evidenceIds.includes(evId)
+  ) || null;
+}
 
 /* Fraction (0..1) of total evidence weight surfaced — drives the recommendation
  * engine so thorough investigation, not command volume, earns better outcomes. */
@@ -4616,7 +4850,18 @@ function challengeAnswers(ch) {
   return (ch && SIM.discoveryJudgments[ch.id]) || {};
 }
 function stepAnswered(ch, step) {
-  return !!challengeAnswers(ch)[step];
+  const a = challengeAnswers(ch)[step];
+  // Multi-select steps record an ARRAY of option ids; an empty array is not an
+  // answer. Single-select steps record a scalar id (original behaviour).
+  return Array.isArray(a) ? a.length > 0 : !!a;
+}
+/* Acceptable option ids for a step — generalises the legacy single `correct` id
+ * to "multiple valid reads". A step may author `accept:[ids]`; back-compat falls
+ * back to [correct] so every single-correct mission grades exactly as before. */
+function stepAcceptIds(cfg) {
+  if (!cfg) return [];
+  if (Array.isArray(cfg.accept)) return cfg.accept;
+  return cfg.correct != null ? [cfg.correct] : [];
 }
 /* Both steps recorded = a complete reasoning entry. */
 function challengeAnswered(ch) {
@@ -4705,10 +4950,21 @@ function decisionLocked() {
   if (SIM.stage === 'report') return false;   // mission finalized — never lock
   return caseFileDecisionPending();
 }
-/* Is the recorded pick for this step the correct one? */
+/* Is the recorded pick for this step a correct read? Accepts "multiple valid
+ * reads" (stepAcceptIds) and multi-select answers. For a multi-select step the
+ * recorded set must match the accept set exactly (order-insensitive). A scalar
+ * answer is correct when it is one of the accepted ids — for single-correct
+ * missions (accept=[correct]) this is identical to the original `=== cfg.correct`. */
 function challengeStepCorrect(ch, step) {
   const cfg = challengeStep(ch, step);
-  return !!cfg && challengeAnswers(ch)[step] === cfg.correct;
+  if (!cfg) return false;
+  const ans = challengeAnswers(ch)[step];
+  const accept = stepAcceptIds(cfg);
+  if (Array.isArray(ans)) {
+    if (!ans.length || ans.length !== accept.length) return false;
+    return accept.every(id => ans.includes(id));
+  }
+  return ans != null && accept.includes(ans);
 }
 /* Both steps correct. */
 function challengeFullyCorrect(ch) {
@@ -4762,14 +5018,93 @@ function setDiscoveryJudgment(challengeId, step, optionId) {
   if (!cfg) return;
   if (step === 'justification' && !stepAnswered(ch, 'observation')) return; // observation first
   if (stepAnswered(ch, step)) return;                          // locked after first answer
-  if (!cfg.options.some(o => o.id === optionId)) return;       // valid option only — validate BEFORE allocating
+  // Multi-select steps submit an ARRAY of option ids (each valid, at least one);
+  // single-select steps submit a scalar id. Both route through this one writer,
+  // and the single-select path is byte-for-byte the original behaviour.
+  let value;
+  if (cfg.multi) {
+    if (!Array.isArray(optionId)) return;
+    const ids = optionId.filter(id => cfg.options.some(o => o.id === id));
+    if (!ids.length) return;
+    value = ids;
+  } else {
+    if (Array.isArray(optionId)) return;
+    if (!cfg.options.some(o => o.id === optionId)) return;     // valid option only — validate BEFORE allocating
+    value = optionId;
+  }
   const ans = SIM.discoveryJudgments[challengeId] || (SIM.discoveryJudgments[challengeId] = {});
-  ans[step] = optionId;
+  ans[step] = value;
   // #124 arm any mentor trail whose thread was just committed (gated, best-effort).
   try { sparringArmTrails(challengeId); } catch (_) { /* mentor trails are best-effort */ }
   powersTick();              // earn/expire/recover analyst tools (transient, no render)
   renderEvidencePanel();
   focusNextComms(challengeId, step); // keep keyboard focus inside the comms flow (a11y)
+}
+
+/* ------------------------------------------------------------------ *
+ * MULTI-SELECT DRAFT STATE (investigative dock, Mission 1) — PRESENTATION ONLY.
+ * A multi-select beat lets the analyst toggle several options before committing.
+ * Toggling writes ONLY the transient SIM.discoveryDrafts working set: it never
+ * marks the step answered, never unlocks the terminal, never scores, never
+ * persists. Only submitDiscoveryDraft() routes the final set through the sole
+ * graded writer (setDiscoveryJudgment), so an un-submitted multi step still
+ * counts as pending and holds the line. ------------------------------------- */
+function discoveryDraft(challengeId, step) {
+  const byCh = SIM.discoveryDrafts[challengeId];
+  return (byCh && Array.isArray(byCh[step])) ? byCh[step] : [];
+}
+function toggleDiscoveryDraft(challengeId, step, optionId) {
+  const ch = discoveryChallengeById(challengeId);
+  if (!ch || !challengeValid(ch)) return;
+  const cfg = challengeStep(ch, step);
+  if (!cfg || !cfg.multi) return;                             // multi-select beats only
+  if (!SIM.evidence.has(ch.evidenceId)) return;
+  if (step === 'justification' && !stepAnswered(ch, 'observation')) return;
+  if (stepAnswered(ch, step)) return;                         // locked once submitted
+  if (!cfg.options.some(o => o.id === optionId)) return;
+  const byCh = SIM.discoveryDrafts[challengeId] || (SIM.discoveryDrafts[challengeId] = {});
+  const set = byCh[step] || (byCh[step] = []);
+  const i = set.indexOf(optionId);
+  if (i >= 0) set.splice(i, 1); else set.push(optionId);
+  renderEvidencePanel();
+}
+function submitDiscoveryDraft(challengeId, step) {
+  const draft = discoveryDraft(challengeId, step);
+  if (!draft.length) return;
+  setDiscoveryJudgment(challengeId, step, draft.slice());     // the sole graded write
+}
+
+/* ------------------------------------------------------------------ *
+ * INTERACTIVE CASE BOARD interaction (Mission 1, caseBoardMode()) — PRESENTATION
+ * ONLY. The analyst taps a surfaced finding to pick it up, then taps a labelled
+ * zone to place it (or the tray to set it back down). Placement + the picked-up
+ * card live in transient SIM state (caseBoardPlacements / caseBoardSelected): they
+ * are never graded, never persisted, never enqueue cloud sync, and never gate the
+ * terminal. The case chain is a derived view of these placements. File
+ * classification surfaced on the board still routes through setClassification
+ * (the sole graded writer), unchanged. ----------------------------------------- */
+function caseBoardZoneIds() {
+  const zones = (SIM.def && SIM.def.caseBoard && SIM.def.caseBoard.zones) || [];
+  return zones.map(z => z.id);
+}
+function toggleBoardCard(evId) {
+  if (!caseBoardMode()) return;
+  if (!evId || !SIM.evidence.has(evId)) return;               // only surfaced findings
+  SIM.caseBoardSelected = (SIM.caseBoardSelected === evId) ? null : evId;
+  renderEvidencePanel();
+}
+function placeBoardCard(zoneId) {
+  if (!caseBoardMode()) return;
+  const evId = SIM.caseBoardSelected;
+  if (!evId) return;                                           // nothing picked up
+  if (zoneId === '__tray__') {
+    delete SIM.caseBoardPlacements[evId];                      // set it back down
+  } else {
+    if (!caseBoardZoneIds().includes(zoneId)) return;          // valid zone only
+    SIM.caseBoardPlacements[evId] = zoneId;
+  }
+  SIM.caseBoardSelected = null;
+  renderEvidencePanel();
 }
 
 /* ================================================================== *
@@ -7157,6 +7492,45 @@ const CAREER_MISSIONS = {
      * are the per-finding TWO-STEP judgments: first "what stands out?"
      * (observation), then "why does it matter?" (justification). All read only. */
     caseFileNotebook: true,
+    // Mission 1 INTERACTIVE Case Board (Task #157). The simplified notebook swaps
+    // its passive status card for a click-to-place board: each surfaced finding
+    // becomes a card the analyst drops under the heading it answers, the case chain
+    // auto-draws as the headings fill, and file classification happens inside the
+    // WHAT'S INSIDE zone (still routed through setClassification — the sole graded
+    // writer). passiveNotebook turns the right-column notebook into a read-only
+    // record. Placement/selection are transient presentation state — never graded,
+    // never persisted. Missions 2-4 omit caseBoard entirely.
+    caseBoard: {
+      passiveNotebook: true,
+      intro: 'Build the thread: take each finding you surface in the terminal and drop it under the heading it answers. As the headings fill, the case for (or against) this release comes together.',
+      zones: [
+        { id: 'who', label: 'WHO PREPARED THIS',
+          hint: 'Findings about who assembled and packed this outbound release.',
+          reaction: 'So an outside contractor account built and packed this itself — that\u2019s exactly the thread to pull first.' },
+        { id: 'inside', label: 'WHAT\u2019S INSIDE', classify: true,
+          hint: 'The data this package would actually send out. Drop it here, then set how sensitive each file is.',
+          reaction: 'That\u2019s the sensitive core \u2014 pricing, salaries, customer card data. Setting the sensitivity on each one makes the exposure concrete.' },
+        { id: 'review', label: 'WAS IT APPROVED?',
+          hint: 'Findings about whether anyone signed off before this could ship.',
+          reaction: 'No data-owner sign-off and no internal review \u2014 that\u2019s the control that should have caught all of this.' },
+      ],
+      placements: {
+        ev_release_context: 'who',
+        ev_contractor_intent: 'who',
+        ev_manifest: 'inside',
+        ev_confidential_pricing: 'inside',
+        ev_pii_salary: 'inside',
+        ev_customer_pii: 'inside',
+        ev_approval_gap: 'review',
+      },
+      conclusion: {
+        label: 'THE CALL',
+        text: 'A contractor self-assembled this external release, bundled regulated and confidential data into it, and no owner ever approved it \u2014 it can\u2019t leave CyberCorp as-is.',
+      },
+    },
+    // Reframe the Decision Dock from a right/wrong quiz into investigative dialogue
+    // (multiple valid reads, optional multi-select). Gated; M2-M4 dock unchanged.
+    dockMode: 'investigation',
     // First-day declutter (Mission 1 only). Simplified workspace; advanced modules
     // hidden; consequence/feedback surfaces held back until a real call. Missions
     // 2-4 omit the flag entirely.
@@ -7234,7 +7608,7 @@ const CAREER_MISSIONS = {
           correct: 'a',
           options: [
             { id: 'a', label: 'An external contractor assembled the package and added extra files',
-              feedback: '"Exactly — an outside account deciding what leaves the company is the thread to pull. Good eye." — Sarah Reyes' },
+              feedback: '"That\u2019s the thread I\u2019d pull first — an outside account deciding what leaves the company is where this starts." — Sarah Reyes' },
             { id: 'b', label: 'The cover note is short and a little informal',
               feedback: '"Tone is not the signal. Look at WHO prepared this and whether anyone inside checked it." — Sarah Reyes' },
             { id: 'c', label: 'The partner is in logistics, not security',
@@ -7248,7 +7622,7 @@ const CAREER_MISSIONS = {
           correct: 'a',
           options: [
             { id: 'a', label: 'No data-owner ever signed off on what is leaving the company',
-              feedback: '"Right — the missing sign-off is the control failure. Without an owner check, anything can slip into that package." — Sarah Reyes' },
+              feedback: '"The missing sign-off is the control failure I\u2019d focus on — without an owner check, anything can slip into that package." — Sarah Reyes' },
             { id: 'b', label: 'Contractors are usually careless with formatting',
               feedback: '"This is not about tidiness. The risk is the absent approval, not the file layout." — Sarah Reyes' },
             { id: 'c', label: 'It will slow the partner down',
@@ -7258,16 +7632,22 @@ const CAREER_MISSIONS = {
       },
       {
         id: 'ch_manifest', evidenceId: 'ev_manifest', short: 'Package contents', weight: 1,
+        // MULTI-SELECT BEAT (Task #157). Instead of one "what stands out MOST"
+        // pick, the analyst flags every item too sensitive to leave CyberCorp.
+        // accept = the four sensitive items; the published datasheet is the only
+        // item meant to be public. Grading honours accept-as-a-set (all and only).
         observation: {
-          prompt: 'The manifest lists everything queued for the external send. What stands out MOST?',
-          correct: 'a',
+          multi: true,
+          prompt: 'The manifest lists five items queued for the external partner. Which of them are sensitive enough that they should NOT leave CyberCorp without review?',
+          multiLabel: 'Flag every item that looks too sensitive to ship \u2014 pick as many as apply, then send your list to Sarah.',
+          accept: ['pricing', 'salaries', 'payments', 'roadmap'],
+          feedback: '"That lines up with how I read it \u2014 the negotiated pricing, the salary file, the customer card data, and the unannounced roadmap all carry real exposure if they reach a partner. The published datasheet is the only thing in here that was always meant to go out." \u2014 Sarah Reyes',
           options: [
-            { id: 'a', label: 'HR and Finance internal data is bundled into a package bound for an outside partner',
-              feedback: '"Exactly — the mix is the signal. Internal HR and Finance material has no business in a partner send." — Sarah Reyes' },
-            { id: 'b', label: 'There are five separate items in the package',
-              feedback: '"The count isn’t the point. Look at WHAT kinds of data are in there, not how many." — Sarah Reyes' },
-            { id: 'c', label: 'The manifest was auto-generated',
-              feedback: '"How it was generated doesn’t matter. What matters is the sensitive material it lists." — Sarah Reyes' },
+            { id: 'pricing',   label: 'partner_pricing.preview \u2014 negotiated partner rates (Sales)' },
+            { id: 'salaries',  label: 'employee_salaries.preview \u2014 staff names + compensation (HR)' },
+            { id: 'payments',  label: 'customer_payment_records.preview \u2014 customer card / payment data (Finance)' },
+            { id: 'roadmap',   label: 'internal_roadmap.pdf \u2014 unannounced product planning (Strategy)' },
+            { id: 'datasheet', label: 'product_datasheet.pdf \u2014 already-published marketing collateral (Marketing)' },
           ],
         },
         justification: {
@@ -7275,7 +7655,7 @@ const CAREER_MISSIONS = {
           correct: 'a',
           options: [
             { id: 'a', label: 'It’s the one place that shows the full scope of what would leave the company',
-              feedback: '"Right — the manifest is your map. It tells you exactly what to open and judge before the package moves." — Sarah Reyes' },
+              feedback: '"The way I read it, the manifest is your map — it tells you exactly what to open and judge before the package moves." — Sarah Reyes' },
             { id: 'b', label: 'Manifests are required by the partner',
               feedback: '"Maybe, but that’s not why we read it. We read it to see the full scope of the send." — Sarah Reyes' },
             { id: 'c', label: 'It proves the contractor is malicious',
@@ -7302,11 +7682,11 @@ const CAREER_MISSIONS = {
           correct: 'a',
           options: [
             { id: 'a', label: 'Compensation PII must never leave the company — it is the Restricted tier',
-              feedback: '"Correct call — names tied to pay is the top tier. This can never reach a partner." — Sarah Reyes' },
+              feedback: '"That\u2019s the call I\u2019d make too — names tied to pay is the top tier. This can never reach a partner." — Sarah Reyes' },
             { id: 'b', label: 'Staff might get jealous of each other’s pay',
               feedback: '"Internal morale is real, but the classification is about external exposure of PII — that is what makes it Restricted." — Sarah Reyes' },
             { id: 'c', label: 'It is only Confidential — internal staff can see it',
-              feedback: '"Close, but salary PII outranks Confidential. Individual pay is Restricted." — Sarah Reyes' },
+              feedback: '"I\u2019d push it higher — salary PII outranks Confidential. Individual pay sits at Restricted." — Sarah Reyes' },
           ],
         },
       },
@@ -7317,7 +7697,7 @@ const CAREER_MISSIONS = {
           correct: 'a',
           options: [
             { id: 'a', label: 'These are regulated cardholder records',
-              feedback: '"Yes — recognising this as regulated payment data is the whole game." — Sarah Reyes' },
+              feedback: '"Reading this as regulated payment data is the whole game — that\u2019s where I\u2019d land too." — Sarah Reyes' },
             { id: 'b', label: 'The preview is messy and hard to read',
               feedback: '"Formatting is noise. Focus on what the data IS: regulated card records." — Sarah Reyes' },
             { id: 'c', label: 'There are only a few rows shown',
@@ -7329,7 +7709,7 @@ const CAREER_MISSIONS = {
           correct: 'a',
           options: [
             { id: 'a', label: 'Regulated payment data leaving to a third party triggers legal and breach consequences',
-              feedback: '"Exactly — PCI cardholder data leaving to a third party means fines and real customer harm." — Sarah Reyes' },
+              feedback: '"That\u2019s how I\u2019d frame it — PCI cardholder data leaving to a third party means fines and real customer harm." — Sarah Reyes' },
             { id: 'b', label: 'The partner might already have a copy',
               feedback: '"We cannot assume that, and it would not reduce our liability. The exposure itself is the concern." — Sarah Reyes' },
             { id: 'c', label: 'Only a few customers are affected',
@@ -7344,7 +7724,7 @@ const CAREER_MISSIONS = {
           correct: 'a',
           options: [
             { id: 'a', label: 'A package full of sensitive data is staged to ship with zero approvals',
-              feedback: '"Right — the control that should stop this never ran. No owner, no reviewer, and it’s ready to send." — Sarah Reyes' },
+              feedback: '"The control that should stop this never ran — no owner, no reviewer, and it’s ready to send. That\u2019s the gap I\u2019d flag." — Sarah Reyes' },
             { id: 'b', label: 'The approval form uses an old template',
               feedback: '"The template isn’t the issue. Look at the sign-offs that are missing." — Sarah Reyes' },
             { id: 'c', label: 'Approvals are usually a formality anyway',
@@ -7356,11 +7736,11 @@ const CAREER_MISSIONS = {
           correct: 'suspicious',
           options: [
             { id: 'suspicious', label: 'Not ready to ship — hold it and route it for proper review',
-              feedback: '"Exactly the right call. Missing approvals on a sensitive package means it does not leave until it’s reviewed." — Sarah Reyes' },
+              feedback: '"That\u2019s the call I\u2019d make too — missing approvals on a sensitive package means it does not leave until it’s reviewed." — Sarah Reyes' },
             { id: 'benign', label: 'Fine to send — the contractor clearly meant well',
               feedback: '"Intent isn’t the test. Without the sign-off, we can’t let regulated data walk out the door." — Sarah Reyes' },
             { id: 'malicious', label: 'Confirmed sabotage — lock everything down now',
-              feedback: '"Good to take it seriously, but we can’t prove intent. Hold the release and escalate — that’s the measured call." — Sarah Reyes' },
+              feedback: '"Worth taking seriously, but we can’t prove intent. Hold the release and escalate — that’s the measured call." — Sarah Reyes' },
           ],
         },
       },
@@ -11240,6 +11620,18 @@ function simInit() {
       if (reviewAck) { acknowledgeReview(reviewAck.dataset.reviewAck); return; }
       const disc = e.target.closest('[data-discovery-judgment]');
       if (disc) { setDiscoveryJudgment(disc.dataset.challenge, disc.dataset.step, disc.dataset.option); return; }
+      // Multi-select investigative beat (toggle a draft pick / submit the set) —
+      // transient working state; submit routes through setDiscoveryJudgment.
+      const dDraft = e.target.closest('[data-discovery-draft]');
+      if (dDraft) { toggleDiscoveryDraft(dDraft.dataset.challenge, dDraft.dataset.step, dDraft.dataset.option); return; }
+      const dSubmit = e.target.closest('[data-discovery-submit]');
+      if (dSubmit) { submitDiscoveryDraft(dSubmit.dataset.challenge, dSubmit.dataset.step); return; }
+      // Interactive Case Board (Mission 1) — pick up a finding / place it in a
+      // zone. Presentation-only: transient placement state, never graded/persisted.
+      const bCard = e.target.closest('[data-board-card]');
+      if (bCard) { toggleBoardCard(bCard.dataset.boardCard); return; }
+      const bZone = e.target.closest('[data-board-zone]');
+      if (bZone) { placeBoardCard(bZone.dataset.boardZone); return; }
       // Reconsideration pivot (revise/hold) — presentation-only, NON-graded.
       const recon = e.target.closest('[data-reconsideration]');
       if (recon) { setReconsideration(recon.dataset.rc, recon.dataset.option); return; }

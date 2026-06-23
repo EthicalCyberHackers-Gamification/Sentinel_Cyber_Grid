@@ -1,0 +1,641 @@
+# REPLIT PROPOSAL PROMPT
+# Mission 1 Content Redesign: From Repetitive File Review to Release Package Investigation
+# Ethical CyberHackers / Cybersecurity Intern
+
+## Objective
+
+Re-evaluate and refactor Mission 1: Protect Sensitive Information so it preserves the same learning goal while reducing repetitive file-opening and classification.
+
+Do not rename Mission 1.
+
+Do not change the mission’s core learning objective.
+
+Do not remove the terminal.
+
+Do not remove file review entirely.
+
+Do not turn Mission 1 into a technical hacking mission.
+
+The current issue is that Mission 1 risks becoming monotonous:
+
+Open file
+→ Read file
+→ Answer classification question
+→ Repeat
+
+This happens too many times and makes the player feel like a document reviewer instead of an investigator.
+
+Mission 1 should still teach:
+
+"Some information should not leave the company."
+
+But it should feel like:
+
+"Can this release package safely leave CyberCorp?"
+
+rather than:
+
+"Classify seven files one by one."
+
+---
+
+## Current Problem
+
+Mission 1 currently appears to contain too many individual files requiring similar review behavior.
+
+This creates a repetitive loop:
+
+1. Open a file.
+2. Read contents.
+3. Answer a question.
+4. Move to next file.
+5. Repeat.
+
+The educational content is valid, but the gameplay pacing is weak.
+
+The player quickly understands that sensitive information may exist, then the remaining files feel like repeated confirmation.
+
+The mission needs more investigation structure, more mystery, and fewer equivalent file reviews.
+
+---
+
+## Desired Mission Reframe
+
+Refactor Mission 1 from:
+
+File Review Mission
+
+to:
+
+Release Package Investigation
+
+The player should investigate whether a release package is safe to send externally.
+
+The core case question becomes:
+
+"Can this package safely leave CyberCorp?"
+
+The files become supporting evidence.
+
+The gameplay becomes investigation, not repetitive classification.
+
+---
+
+## Keep The Core Learning Goal
+
+Mission 1 should still teach:
+
+- Information sensitivity
+- Data classification
+- External sharing risk
+- Approval chain importance
+- Contractor oversight
+- Evidence-based recommendation
+- Business/legal/compliance impact
+
+The final student takeaway should remain:
+
+"Some information should not leave the company."
+
+---
+
+## New Mission Structure
+
+Replace the seven-file repeated review structure with a smaller set of varied evidence sources.
+
+Recommended evidence sources:
+
+1. release_notes.txt
+2. package_manifest.txt
+3. approval_record.txt
+4. contractor_message.txt
+5. employee_salaries.preview
+6. customer_payment_records.preview
+
+Optional:
+7. classification_policy.txt
+
+Do not require the player to open and deeply review seven separate full files.
+
+Use previews, manifest summaries, and targeted evidence instead.
+
+---
+
+## New Investigation Questions
+
+Mission 1 should revolve around five investigation questions:
+
+1. Who assembled the release package?
+2. What information is inside the package?
+3. Was the package reviewed internally?
+4. What creates the highest risk?
+5. Should the package be released, delayed, modified, or escalated?
+
+These questions create investigation momentum.
+
+---
+
+## Beat-Based Mission Flow
+
+### Beat 1: Release Folder Discovery
+
+Player starts with the release folder.
+
+Command:
+ls
+
+Output should show a small, focused set of evidence:
+
+release_notes.txt
+package_manifest.txt
+approval_record.txt
+contractor_message.txt
+employee_salaries.preview
+customer_payment_records.preview
+classification_policy.txt
+
+Sarah Reyes:
+
+"A release package is scheduled to go out today. Before it leaves CyberCorp, I need you to determine whether it is safe to release."
+
+Case Board:
+
+Current Case:
+Release package pending review.
+
+Open Question:
+What is inside the package?
+
+Next Move:
+Review the release notes.
+
+---
+
+### Beat 2: Contractor Ownership Discovery
+
+Command:
+cat release_notes.txt
+
+Evidence:
+
+Prepared by:
+ext-contractor-07
+
+Purpose:
+External logistics partner release
+
+Note:
+Bundled a few extra finance files to save time.
+
+Discovery:
+External contractor assembled the release package.
+
+Sarah Prompt:
+
+"What stands out?"
+
+Choices:
+- External contractor prepared the package
+- The package name is short
+- Logistics partner is mentioned
+- Nothing unusual
+
+Follow-up:
+
+"Why does that matter?"
+
+Choices:
+- External releases should have internal review
+- Contractors can never access documents
+- Logistics partners are always dangerous
+- No risk
+
+Case Board Update:
+
+Finding:
+Contractor assembled release package.
+
+Open Question:
+Was this reviewed internally?
+
+Notebook Update:
+Fact: External contractor prepared the package.
+Unknown: Internal approval not yet confirmed.
+
+---
+
+### Beat 3: Package Manifest Review
+
+Command:
+cat package_manifest.txt
+
+Instead of making the player open every file, show a summarized manifest:
+
+Included Items:
+- Product datasheet
+- Marketing logistics brief
+- Employee salary export
+- Customer payment records
+- Partner pricing notes
+
+Sarah Prompt:
+
+"Looking at the manifest, which items deserve immediate attention?"
+
+Choices:
+- Employee salary export
+- Customer payment records
+- Product datasheet
+- Marketing logistics brief
+- Partner pricing notes
+
+Allow multiple selections if supported.
+
+Case Board Update:
+
+Release Package
+→ Employee Salary Export
+→ Customer Payment Records
+→ Partner Pricing Notes
+
+The manifest gives the student a broad view without forcing repetitive file-by-file reading.
+
+---
+
+### Beat 4: Sensitive Data Preview
+
+Command:
+cat employee_salaries.preview
+
+Evidence preview:
+
+Rows:
+Employee Name
+Department
+Salary
+Bonus
+Manager
+
+Do not show a giant file.
+
+Show enough to understand sensitivity.
+
+Analyst Judgment:
+
+"How should this information be classified?"
+
+Choices:
+- Public
+- Internal
+- Confidential
+- Restricted
+
+Correct:
+Confidential or Restricted
+
+Sarah Feedback:
+
+"Good. Compensation data creates privacy, trust, and HR risk if released externally."
+
+Case Board Update:
+
+Sensitive Data Found:
+Employee compensation data.
+
+What Changed:
+Release risk increased.
+
+---
+
+### Beat 5: Customer Data Preview
+
+Command:
+cat customer_payment_records.preview
+
+Evidence preview:
+
+Rows:
+Customer ID
+Invoice Amount
+Payment Status
+Billing Contact
+Partial Payment Reference
+
+Analyst Judgment:
+
+"What is the strongest concern?"
+
+Choices:
+- Customer data exposure
+- File format
+- Payment records are always public
+- No concern
+
+Follow-up:
+
+"What business risks could this create?"
+
+Choices:
+- Compliance exposure
+- Customer trust damage
+- Legal review
+- All of the above
+
+Correct:
+All of the above
+
+Case Board Update:
+
+Sensitive Data Found:
+Customer payment information.
+
+Open Question:
+Was this approved for external sharing?
+
+---
+
+### Beat 6: Approval Contradiction
+
+Command:
+cat contractor_message.txt
+
+Evidence:
+
+"Everything should be ready. I bundled the finance exports so the partner has all context. I did not see an internal review note, but this should save time."
+
+Command:
+cat approval_record.txt
+
+Evidence:
+
+Internal Reviewer:
+Not Assigned
+
+Security Review:
+Not Completed
+
+Data Owner Approval:
+Missing
+
+Now the mission becomes a real investigation.
+
+There is a contradiction:
+
+The package is prepared for release, but approval is incomplete.
+
+Sarah Prompt:
+
+"What is the core issue now?"
+
+Choices:
+- Sensitive information is present and approval is missing
+- Contractor name is unusual
+- Product datasheet is public
+- No issue
+
+Correct:
+Sensitive information is present and approval is missing.
+
+Case Board Update:
+
+Contractor
+→ Release Package
+→ Sensitive Data
+→ Missing Internal Review
+→ External Release Risk
+
+This is the central Mission 1 case chain.
+
+---
+
+### Beat 7: Final Recommendation
+
+Only after the major evidence is discovered, ask for final recommendation.
+
+Prompt:
+
+"What should happen to the release package?"
+
+Choices:
+- Approve release
+- Approve release but warn contractor
+- Delay release for internal review
+- Escalate as confirmed data breach
+
+Best answer:
+Delay release for internal review.
+
+If customer/payment data and missing approval are both discovered:
+Escalate for review may also be acceptable.
+
+Sarah Feedback:
+
+"Good. You are not declaring a breach yet. You are preventing unapproved sensitive information from leaving CyberCorp."
+
+Mission Outcome:
+
+The student protected CyberCorp by identifying sensitive data and an incomplete approval process before release.
+
+---
+
+## Gameplay Design Requirements
+
+Mission 1 should avoid repeated identical classification loops.
+
+Do not make the player classify every file one by one.
+
+Use varied evidence types:
+
+- Release notes
+- Manifest
+- Preview files
+- Contractor message
+- Approval record
+- Policy excerpt
+
+This creates a detective flow:
+
+Who assembled it?
+What is inside?
+Was it reviewed?
+What is risky?
+What should happen?
+
+---
+
+## Visual Investigation Board Requirements
+
+Update the board only on meaningful discoveries.
+
+Initial board:
+
+Release Package
+
+After release notes:
+
+Contractor
+→ Release Package
+
+After manifest:
+
+Release Package
+→ Product Datasheet
+→ Employee Salary Export
+→ Customer Payment Records
+→ Partner Pricing Notes
+
+After previews:
+
+Sensitive Data nodes highlight.
+
+After approval record:
+
+Missing Internal Review node appears.
+
+Final board:
+
+Contractor
+→ Release Package
+→ Sensitive Data
+→ Missing Approval
+→ External Release Risk
+
+The board should help the player understand the case, not simply list files.
+
+---
+
+## Analyst Notebook Requirements
+
+The notebook should record reasoning, not just findings.
+
+Example:
+
+Fact:
+External contractor prepared the release package.
+
+Assessment:
+Contractor involvement is not automatically malicious, but external release requires internal review.
+
+Unknown:
+Who approved the package?
+
+Recommendation:
+Review approval record before release.
+
+---
+
+## Active Investigation Feed Requirements
+
+Use the feed to prevent the player from getting lost.
+
+Examples:
+
+After release notes:
+
+New Finding:
+Contractor prepared release package.
+
+Open Question:
+Was this reviewed internally?
+
+Next Move:
+Review approval record or package manifest.
+
+After manifest:
+
+New Finding:
+Sensitive-looking files are included.
+
+Open Question:
+Which files create the highest release risk?
+
+Next Move:
+Preview employee salary export and customer payment records.
+
+After approval record:
+
+New Finding:
+Internal approval missing.
+
+Open Question:
+Should release be delayed?
+
+Next Move:
+Submit final recommendation.
+
+---
+
+## Sarah Reyes Tone
+
+Sarah should behave like a SOC mentor.
+
+Avoid:
+"Correct."
+"Incorrect."
+"Good job!"
+
+Use:
+"Good observation. The contractor is not the issue by itself. The issue is external release without internal review."
+"That answer is too strong for the evidence. We have risk, but not confirmed breach yet."
+"Focus on what would happen if this package leaves CyberCorp."
+
+---
+
+## Reduce File Count Fatigue
+
+The player should not need to deeply inspect more than 2–3 sensitive file previews.
+
+Recommended direct content reviews:
+- release_notes.txt
+- package_manifest.txt
+- employee_salaries.preview
+- customer_payment_records.preview
+- contractor_message.txt
+- approval_record.txt
+
+That is enough to create a complete case.
+
+Avoid seven full document reviews.
+
+---
+
+## Preserve Current Mission Goal
+
+Do not transform Mission 1 into account compromise, malware, phishing, or network investigation.
+
+Mission 1 remains about:
+
+Protect Sensitive Information
+
+The redesigned mission simply makes that objective more investigative and less repetitive.
+
+---
+
+## Acceptance Criteria
+
+Mission 1 redesign is successful if:
+
+1. The mission no longer feels like opening and classifying seven separate files.
+2. The student understands the central question: Can this release package safely leave CyberCorp?
+3. The student investigates package ownership, contents, approval, and risk.
+4. The student reviews fewer but more meaningful evidence sources.
+5. The manifest reduces repetitive file opening.
+6. Sensitive file previews provide enough information without overwhelming the student.
+7. Contractor message adds human context and tension.
+8. Approval record creates contradiction and investigation momentum.
+9. Final recommendation depends on evidence, not memorized classification.
+10. The mission still teaches: Some information should not leave the company.
+
+---
+
+## Final Target Experience
+
+The player should finish Mission 1 thinking:
+
+"I investigated a release package, found sensitive information, discovered missing approval, and prevented CyberCorp from sending risky data externally."
+
+Not:
+
+"I opened seven files and answered classification questions."
+
+This change preserves the curriculum goal while making the mission feel like a real investigation.

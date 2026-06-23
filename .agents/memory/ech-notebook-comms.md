@@ -26,6 +26,13 @@ chosen reply + that option's already-authored Sarah feedback.
   authored lines still contain words like "Correct call." A "no correctness
   language anywhere" goal therefore needs editing the per-challenge feedback
   strings (the mission data), NOT a renderer change.
+  - **Agreement OPENERS leak correctness too.** Conversational confirmations at
+    the start of a feedback line — "Exactly —", "Right —", "Yes —", "Close, but",
+    "Correct" — read as a grade even inside a mentor comms thread. When a mission
+    must be a non-graded investigative dialogue, scrub these openers in the DATA
+    and reword to neutral investigative phrasing ("That's the read I'd work
+    from…", "I'd push it higher…") while keeping the substance. Grep the
+    mission's `feedback:` strings for opener words; the renderer needs no change.
 
 - **Feedback decorations are display-only, derived from SIM state.** The
   confidence micro-nudge fires on a confidence RISE (tracked via the existing

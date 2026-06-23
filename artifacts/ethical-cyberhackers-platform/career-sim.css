@@ -4445,3 +4445,258 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
   .sim-ev-item--flash { animation: none; }
   .sim-calib-chip, .sim-calib-commit, .sim-tv-opt, .sim-trail-act { transition: none; }
 }
+
+/* ============================================================================
+ * Mission 1 INTERACTIVE Case Board (Task #157)
+ * Presentation-only: every class below renders transient SIM state
+ * (caseBoardPlacements / caseBoardSelected / discoveryDrafts). Nothing here is
+ * graded or persisted. Gated behind def.caseBoard (Mission 1 only).
+ * ========================================================================== */
+.sim-evidence-body--board { display: flex; flex-direction: column; gap: 12px; }
+
+.sim-board {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 13px 14px 15px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.sim-board-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding-bottom: 9px; border-bottom: 1px solid var(--border);
+}
+.sim-board-title {
+  font-family: var(--font-hud); font-size: 10px; font-weight: 700;
+  letter-spacing: 1.4px; text-transform: uppercase; color: var(--green);
+}
+.sim-board-caseid {
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 1px;
+  color: var(--text-dim);
+}
+.sim-board-intro {
+  font-size: 11.5px; line-height: 1.55; color: var(--text);
+}
+
+/* --- Tray: unplaced finding cards waiting to be sorted --- */
+.sim-board-tray {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 11px;
+  background: rgba(0, 255, 136, 0.025);
+  border: 1px dashed var(--green-dim);
+  border-radius: var(--radius-sm);
+}
+.sim-board-tray-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.sim-board-tray-label {
+  font-family: var(--font-hud); font-size: 8.5px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase; color: var(--green);
+}
+.sim-board-tray-count {
+  font-family: var(--font-hud); font-size: 8.5px; letter-spacing: 0.8px;
+  color: var(--text-dim);
+}
+.sim-board-tray-cards { display: flex; flex-direction: column; gap: 7px; }
+.sim-board-tray-empty {
+  font-size: 11px; line-height: 1.5; color: var(--text-dim); font-style: italic;
+}
+/* While a card is picked up the tray glows, and a "set it back here" target shows. */
+.sim-board-tray.is-active { border-color: var(--cyan); background: rgba(0, 200, 255, 0.04); }
+.sim-board-tray-drop {
+  width: 100%; text-align: left; cursor: pointer;
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.6px;
+  color: var(--cyan); background: rgba(0, 200, 255, 0.05);
+  border: 1px dashed var(--cyan-dim); border-radius: var(--radius-sm);
+  padding: 8px 10px; transition: all var(--transition);
+}
+.sim-board-tray-drop:hover { background: rgba(0, 200, 255, 0.1); }
+
+/* --- A finding card (in the tray or placed) --- */
+.sim-board-card {
+  display: flex; align-items: flex-start; gap: 9px;
+  text-align: left; width: 100%;
+  font-family: var(--font-body); font-size: 11.5px; line-height: 1.45;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px; cursor: pointer;
+  transition: all var(--transition);
+}
+.sim-board-card-dot {
+  flex: 0 0 auto; width: 7px; height: 7px; margin-top: 4px;
+  border-radius: 50%; background: var(--green-dim);
+  transition: all var(--transition);
+}
+.sim-board-card-text { flex: 1 1 auto; min-width: 0; }
+.sim-board-card:hover, .sim-board-card:focus-visible {
+  border-color: var(--green); color: var(--text-bright);
+  background: rgba(0, 255, 136, 0.05);
+  transform: translateX(3px); outline: none;
+}
+.sim-board-card:hover .sim-board-card-dot,
+.sim-board-card:focus-visible .sim-board-card-dot { background: var(--green); }
+/* Selected = picked up, awaiting a zone click */
+.sim-board-card.is-picked {
+  border-color: var(--cyan); color: var(--text-bright);
+  background: rgba(0, 200, 255, 0.07);
+  box-shadow: -3px 0 0 0 var(--cyan);
+}
+.sim-board-card.is-picked .sim-board-card-dot { background: var(--cyan); }
+.sim-board-card-pick {
+  flex: 0 0 auto; align-self: center;
+  font-family: var(--font-hud); font-size: 8px; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--cyan); white-space: nowrap;
+}
+
+/* --- The chain of zones (WHO -> INSIDE -> REVIEW -> THE CALL) --- */
+.sim-board-chain { display: flex; flex-direction: column; gap: 0; }
+
+.sim-board-zone {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 11px 12px;
+  background: rgba(255, 255, 255, 0.012);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.sim-board-zone.is-droppable {
+  border-color: var(--cyan); border-style: dashed;
+  background: rgba(0, 200, 255, 0.04); cursor: pointer;
+}
+.sim-board-zone.is-droppable:hover { background: rgba(0, 200, 255, 0.08); }
+.sim-board-zone.is-lit { border-color: var(--green-dim); }
+/* The zone header is itself the drop button (full-width, clickable when a card is picked). */
+.sim-board-zone-drop {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  width: 100%; text-align: left;
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; color: inherit; cursor: pointer;
+}
+.sim-board-zone-drop[aria-disabled="true"] { cursor: default; }
+.sim-board-zone-step {
+  flex: 0 0 auto;
+  width: 18px; height: 18px; line-height: 18px; text-align: center;
+  font-family: var(--font-hud); font-size: 9px; font-weight: 700;
+  color: var(--text-dim); background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border); border-radius: 5px;
+}
+.sim-board-zone.is-lit .sim-board-zone-step {
+  color: var(--green); border-color: var(--green-dim);
+  background: rgba(0, 255, 136, 0.08);
+}
+.sim-board-zone-label {
+  font-family: var(--font-hud); font-size: 10px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-bright);
+}
+.sim-board-zone-hint {
+  font-size: 10.5px; line-height: 1.5; color: var(--text-dim); font-style: italic;
+}
+.sim-board-zone-cards { display: flex; flex-direction: column; gap: 6px; }
+
+/* A card that's been dropped into a zone (wraps the still-tappable card button,
+ * an optional move-it note, and inline classification). */
+.sim-board-placed {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 6px 7px; border-radius: var(--radius-sm);
+  border: 1px solid var(--green-dim);
+  background: rgba(0, 255, 136, 0.035);
+}
+/* A card dropped under another heading: keep it gentle, no "WRONG". */
+.sim-board-placed.is-misfit { border-color: var(--border); background: rgba(255,255,255,0.02); }
+.sim-board-misfit {
+  display: block; font-style: italic;
+  font-size: 10px; line-height: 1.45; color: var(--text-dim);
+}
+
+/* Mentor reaction once a zone is satisfied */
+.sim-board-zone-reaction {
+  display: flex; gap: 8px; align-items: flex-start; margin: 0;
+  padding: 8px 9px; border-radius: var(--radius-sm);
+  border-left: 2px solid var(--green); background: rgba(0, 255, 136, 0.04);
+  font-size: 10.5px; line-height: 1.5; color: var(--text);
+}
+.sim-board-zone-react-av {
+  flex: 0 0 auto; font-family: var(--font-hud); font-size: 8px;
+  letter-spacing: 0.6px; color: var(--green);
+}
+
+/* Connector between chain steps; lights up as zones fill */
+.sim-board-link {
+  align-self: center; width: 1px; height: 14px;
+  background: var(--border); margin: 2px 0;
+  transition: background var(--transition);
+}
+.sim-board-link.is-drawn { background: var(--green); }
+
+/* --- Inline classification inside the INSIDE zone --- */
+.sim-board-classify {
+  margin-top: 6px; padding: 8px 9px;
+  border: 1px dashed var(--cyan-dim); border-radius: var(--radius-sm);
+  background: rgba(0, 200, 255, 0.03);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.sim-board-classify-q {
+  font-size: 10px; line-height: 1.45; color: var(--cyan);
+  font-family: var(--font-hud); letter-spacing: 0.4px;
+}
+.sim-board-classify-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.sim-board-classify-btn {
+  font-family: var(--font-hud); font-size: 9px; letter-spacing: 0.6px;
+  color: var(--text-dim); background: var(--bg-panel);
+  border: 1px solid var(--border); border-radius: 5px;
+  padding: 4px 8px; cursor: pointer; transition: all var(--transition);
+}
+.sim-board-classify-btn:hover { color: var(--text-bright); border-color: var(--cyan); }
+.sim-board-classify-btn.is-on {
+  color: var(--bg-panel); background: var(--cyan); border-color: var(--cyan);
+}
+
+/* --- Conclusion: THE CALL, only lit once the chain is complete --- */
+.sim-board-conclusion {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 11px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: rgba(255,255,255,0.012);
+  opacity: 0.55; transition: all var(--transition);
+}
+.sim-board-conclusion.is-lit {
+  opacity: 1; border-color: var(--green);
+  background: rgba(0, 255, 136, 0.05);
+}
+.sim-board-conclusion-label {
+  font-family: var(--font-hud); font-size: 10px; font-weight: 700;
+  letter-spacing: 1.4px; text-transform: uppercase; color: var(--green);
+}
+.sim-board-conclusion-text { font-size: 11.5px; line-height: 1.55; color: var(--text-bright); }
+.sim-board-conclusion-pending { font-size: 10.5px; line-height: 1.5; color: var(--text-dim); font-style: italic; }
+
+/* --- Multi-select beat in the Decision Dock (ch_manifest) --- */
+.sim-comms-replies--multi { gap: 6px; }
+.sim-comms-reply--multi { cursor: pointer; }
+.sim-comms-reply-check {
+  flex: 0 0 auto; width: 18px; height: 18px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; line-height: 1; color: transparent;
+  background: var(--bg-panel); border: 1px solid var(--border);
+  border-radius: 4px; transition: all var(--transition);
+}
+.sim-comms-reply--multi.is-on .sim-comms-reply-check {
+  color: var(--bg-panel); background: var(--green); border-color: var(--green);
+}
+.sim-comms-reply--multi.is-on {
+  border-color: var(--green-dim); background: rgba(0, 255, 136, 0.05);
+  color: var(--text-bright);
+}
+.sim-comms-multi-send {
+  margin-top: 2px; align-self: flex-start;
+  font-family: var(--font-hud); font-size: 10px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--green); background: rgba(0, 255, 136, 0.08);
+  border: 1px solid var(--green-dim); border-radius: var(--radius-sm);
+  padding: 7px 14px; cursor: pointer; transition: all var(--transition);
+}
+.sim-comms-multi-send:not(:disabled):hover { color: var(--bg-panel); background: var(--green); border-color: var(--green); }
+.sim-comms-multi-send:disabled {
+  opacity: 0.4; cursor: not-allowed; color: var(--text-dim);
+  background: rgba(255,255,255,0.02); border-color: var(--border);
+}
