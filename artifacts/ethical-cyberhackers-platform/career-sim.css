@@ -1774,6 +1774,173 @@
   .sim-complete-toast.is-out { transform: translate(-50%, 0); }
   .sim-complete-toast-badge { animation: none; }
 }
+
+/* ---------- Mission-complete victory screen (def.debriefScorecard) ----------
+ * A centered, persistent end-of-mission results overlay. Mounted on <body> above
+ * #careerOps; supersedes the auto-dismissing toast for this path. The card has a
+ * fixed banner + pinned footer with an internally scrolling body, so the stats
+ * stay up front and the two action buttons stay reachable on any viewport.
+ * Presentation-only; tone (good/warn/low) mirrors the overall rating. */
+.sim-vc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(120% 120% at 50% 0%, rgba(0, 20, 28, 0.78), rgba(0, 0, 0, 0.86));
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity 280ms ease;
+}
+.sim-vc-overlay.is-in { opacity: 1; }
+
+.sim-vc-card {
+  width: min(560px, 100%);
+  max-height: min(88vh, 760px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 0 40px rgba(0, 229, 255, 0.10);
+  overflow: hidden;
+  transform: translateY(12px) scale(0.985);
+  transition: transform 320ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.sim-vc-overlay.is-in .sim-vc-card { transform: translateY(0) scale(1); }
+.sim-vc-card--good { border-color: var(--green);  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 0 44px rgba(0, 255, 136, 0.18); }
+.sim-vc-card--warn { border-color: var(--yellow); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 0 44px rgba(255, 215, 0, 0.16); }
+.sim-vc-card--low  { border-color: var(--red);    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 0 44px rgba(255, 51, 68, 0.16); }
+
+/* Banner */
+.sim-vc-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(120deg, rgba(0, 255, 136, 0.12), rgba(0, 255, 136, 0.02));
+}
+.sim-vc-banner--warn { background: linear-gradient(120deg, rgba(255, 215, 0, 0.12), rgba(255, 215, 0, 0.02)); }
+.sim-vc-banner--low  { background: linear-gradient(120deg, rgba(255, 51, 68, 0.12), rgba(255, 51, 68, 0.02)); }
+.sim-vc-badge {
+  flex: 0 0 auto;
+  width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700;
+  color: var(--bg); background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 18px rgba(0, 255, 136, 0.5);
+  animation: simCompletePop 560ms ease;
+}
+.sim-vc-banner--warn .sim-vc-badge { background: var(--yellow); box-shadow: 0 0 18px rgba(255, 215, 0, 0.5); }
+.sim-vc-banner--low  .sim-vc-badge { background: var(--red);    box-shadow: 0 0 18px rgba(255, 51, 68, 0.5); }
+.sim-vc-head { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.sim-vc-eyebrow {
+  font-family: var(--font-hud); font-size: 11px; font-weight: 700;
+  letter-spacing: 2.4px; text-transform: uppercase; color: var(--green);
+}
+.sim-vc-banner--warn .sim-vc-eyebrow { color: var(--yellow); }
+.sim-vc-banner--low  .sim-vc-eyebrow { color: var(--red); }
+.sim-vc-title {
+  font-family: var(--font-hud); font-size: 18px; font-weight: 700;
+  letter-spacing: 0.3px; color: var(--text-bright); line-height: 1.2;
+}
+.sim-vc-overall {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  padding: 6px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  text-align: right;
+}
+.sim-vc-overall--good { border-color: var(--green);  background: rgba(0, 255, 136, 0.07); }
+.sim-vc-overall--warn { border-color: var(--yellow); background: rgba(255, 215, 0, 0.07); }
+.sim-vc-overall--low  { border-color: var(--red);    background: rgba(255, 51, 68, 0.07); }
+.sim-vc-overall-label { font-family: var(--font-hud); font-size: 8.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
+.sim-vc-overall-word { font-family: var(--font-hud); font-size: 16px; font-weight: 700; letter-spacing: 0.4px; }
+.sim-vc-overall--good .sim-vc-overall-word { color: var(--green); }
+.sim-vc-overall--warn .sim-vc-overall-word { color: var(--yellow); }
+.sim-vc-overall--low  .sim-vc-overall-word { color: var(--red); }
+
+/* Body (scrolls internally on short viewports) */
+.sim-vc-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  padding: 16px 20px 18px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.sim-vc-section-label {
+  font-family: var(--font-hud); font-size: 10px; font-weight: 700;
+  letter-spacing: 1.6px; text-transform: uppercase; color: var(--cyan);
+  margin-top: 4px;
+}
+.sim-vc-body > .sim-vc-section-label:first-child { margin-top: 0; }
+.sim-vc-verdict {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.sim-vc-verdict--approved { border-color: var(--green);  background: rgba(0, 255, 136, 0.06); }
+.sim-vc-verdict--partial  { border-color: var(--yellow); background: rgba(255, 215, 0, 0.06); }
+.sim-vc-verdict--deferred { border-color: var(--cyan);   background: rgba(0, 229, 255, 0.06); }
+.sim-vc-verdict--denied   { border-color: var(--red);    background: rgba(255, 51, 68, 0.06); }
+.sim-vc-verdict-label { font-family: var(--font-hud); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
+.sim-vc-verdict-word { font-family: var(--font-hud); font-size: 13px; font-weight: 700; letter-spacing: 0.4px; color: var(--text-bright); }
+
+.sim-vc-metrics { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sim-vc-metric {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid var(--border);
+}
+.sim-vc-metric:last-child { border-bottom: none; }
+.sim-vc-metric-label { flex: 1 1 auto; font-size: 12.5px; color: var(--text); min-width: 0; }
+.sim-vc-metric-value { flex: 0 0 auto; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+.sim-vc-metric-rating {
+  flex: 0 0 auto; font-family: var(--font-hud); font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.6px; text-transform: uppercase; border-radius: var(--radius-sm);
+  padding: 3px 8px; min-width: 88px; text-align: center;
+}
+.sim-vc-metric-rating--good { color: var(--green);  border: 1px solid var(--green);  background: rgba(0, 255, 136, 0.08); }
+.sim-vc-metric-rating--warn { color: var(--yellow); border: 1px solid var(--yellow); background: rgba(255, 215, 0, 0.08); }
+.sim-vc-metric-rating--low  { color: var(--red);    border: 1px solid var(--red);    background: rgba(255, 51, 68, 0.08); }
+.sim-vc-note { font-size: 12.5px; line-height: 1.65; color: var(--text); margin: 0; font-style: italic; }
+
+/* Footer (pinned; always reachable) */
+.sim-vc-foot {
+  flex: 0 0 auto;
+  display: flex; gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.18);
+}
+.sim-vc-btn {
+  flex: 1 1 auto;
+  font-family: var(--font-hud); font-size: 12.5px; font-weight: 700;
+  letter-spacing: 0.6px; text-transform: uppercase;
+  padding: 12px 16px; border-radius: var(--radius-sm); cursor: pointer;
+  transition: background 160ms ease, transform 120ms ease, box-shadow 160ms ease;
+}
+.sim-vc-btn:active { transform: translateY(1px); }
+.sim-vc-btn--secondary { flex: 0 0 auto; color: var(--cyan); background: transparent; border: 1px solid var(--cyan-dim); }
+.sim-vc-btn--secondary:hover { background: rgba(0, 229, 255, 0.1); }
+.sim-vc-btn--primary { color: var(--bg); background: var(--green); border: 1px solid var(--green); box-shadow: 0 0 18px rgba(0, 255, 136, 0.25); }
+.sim-vc-btn--primary:hover { background: var(--green-dim); }
+.sim-vc-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+@media (max-width: 560px) {
+  .sim-vc-overlay { padding: 12px; }
+  .sim-vc-banner { flex-wrap: wrap; }
+  .sim-vc-overall { align-items: flex-start; text-align: left; }
+  .sim-vc-foot { flex-direction: column-reverse; }
+  .sim-vc-btn--secondary { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sim-vc-overlay, .sim-vc-card { transition: opacity 160ms ease; }
+  .sim-vc-card, .sim-vc-overlay.is-in .sim-vc-card { transform: none; }
+  .sim-vc-badge { animation: none; }
+}
 /* Narrow layouts: .career-main becomes the scroller and panels grow with
    content, so bound the completed debrief panel — its body then scrolls
    internally and the pinned footer stays reachable like on desktop. */

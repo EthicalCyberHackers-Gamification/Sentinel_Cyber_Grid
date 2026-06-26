@@ -842,6 +842,7 @@ function openCareerMission(missionId) {
   { const _ti = document.getElementById('simTermInput'); if (_ti) _ti.value = ''; }
   simHideTermLoadCue();
   simRemoveCompleteToast();                // clear any lingering completion toast from a prior mission
+  simRemoveCompleteModal();                // and any persistent victory screen from a prior mission
   // Dynamic conditions: read prior-mission carry-flags and additively reshape
   // this mission (evidence / commands / risks / brief continuity / outcome).
   // Pure + non-mutating — the canonical def in CAREER_MISSIONS is never changed.
@@ -950,6 +951,7 @@ function openCareerMission(missionId) {
 function returnFromCareerMission() {
   SIM.runToken++;
   simRemoveCompleteToast();
+  simRemoveCompleteModal();
   // Progressive UI Focus (T-F): clear the stage attribute so it never lingers on
   // the hidden mission shell after returning to the Operations Center.
   { const ops = document.getElementById('careerOps'); if (ops) ops.removeAttribute('data-stage'); }
@@ -969,6 +971,7 @@ function replayCareerMission(missionId) {
   if (!id) return;
   SIM.runToken++;
   simRemoveCompleteToast();
+  simRemoveCompleteModal();
   if (typeof window !== 'undefined' && typeof window.echReplayMission === 'function') {
     try { window.echReplayMission(id); return; } catch (_) { /* fall through to standalone */ }
   }
@@ -7594,6 +7597,108 @@ function simCelebrateComplete() {
   }, 2600);
 }
 
+/* MISSION-COMPLETE VICTORY SCREEN (presentation-only; missions with
+ * def.debriefScorecard — Mission 1 today). A centered, PERSISTENT results
+ * overlay that supersedes the auto-dismissing toast for this path: instead of a
+ * beat that vanishes, the player gets a proper end-of-mission screen with the
+ * headline performance stats up front and a forced choice (Retry / return).
+ * Mounted on <body>, ABOVE #careerOps, so its buttons need their own listeners
+ * (the careerOps delegated click handler never sees them). Every value is DERIVED
+ * from the same helpers the side-panel review uses — nothing here grades, writes,
+ * or persists. Torn down on retry / return / mission open so it never lingers. */
+function simRemoveCompleteModal() {
+  const m = document.getElementById('simCompleteModal');
+  if (m && m.parentNode) m.parentNode.removeChild(m);
+}
+
+function showMissionCompleteModal(action, outcome, changes, perf) {
+  simRemoveCompleteToast();   // the modal replaces the transient toast on this path
+  simRemoveCompleteModal();   // never stack two result screens
+  if (!document.body) return;
+
+  perf = perf || { score: 0, verdict: null };
+  const overall = caseReviewRating((perf.score || 0) / 100);
+  const metrics = caseReviewMetrics(perf);
+  const missionName = (SIM.def && SIM.def.title) || 'Assignment Complete';
+  const replayId = SIM.missionId || '';
+
+  // Compact leadership-verdict line (the full reasoning stays in the side review).
+  let verdictHtml = '';
+  if (outcome && outcome.verdict) {
+    const cls = outcome.verdict === 'Approved' ? 'approved'
+      : outcome.verdict === 'Partially Approved' ? 'partial'
+      : outcome.verdict === 'Deferred' ? 'deferred' : 'denied';
+    verdictHtml = `<div class="sim-vc-verdict sim-vc-verdict--${cls}">
+        <span class="sim-vc-verdict-label">Leadership verdict</span>
+        <span class="sim-vc-verdict-word">${mapEsc(outcome.verdict)}</span>
+      </div>`;
+  }
+
+  // Drop a metric's plain value when it just repeats the rating word (a couple of
+  // rows do, e.g. Severity Judgment) so the scorecard reads cleanly.
+  const metricRows = metrics.map(m => {
+    const showVal = m.value && m.value !== m.rating.word;
+    return `<li class="sim-vc-metric">
+        <span class="sim-vc-metric-label">${mapEsc(m.label)}</span>
+        <span class="sim-vc-metric-value">${showVal ? mapEsc(m.value) : ''}</span>
+        <span class="sim-vc-metric-rating sim-vc-metric-rating--${m.rating.tone}">${mapEsc(m.rating.word)}</span>
+      </li>`;
+  }).join('');
+
+  const el = document.createElement('div');
+  el.id = 'simCompleteModal';
+  el.className = 'sim-vc-overlay';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-label', 'Mission complete');
+  el.innerHTML = `
+    <div class="sim-vc-card sim-vc-card--${overall.tone}" role="document">
+      <div class="sim-vc-banner sim-vc-banner--${overall.tone}">
+        <div class="sim-vc-badge">\u2713</div>
+        <div class="sim-vc-head">
+          <div class="sim-vc-eyebrow">MISSION COMPLETE</div>
+          <div class="sim-vc-title">${mapEsc(missionName)}</div>
+        </div>
+        <div class="sim-vc-overall sim-vc-overall--${overall.tone}">
+          <span class="sim-vc-overall-label">Overall rating</span>
+          <span class="sim-vc-overall-word">${mapEsc(overall.word)}</span>
+        </div>
+      </div>
+      <div class="sim-vc-body">
+        ${verdictHtml}
+        <div class="sim-vc-section-label">Performance</div>
+        <ul class="sim-vc-metrics">${metricRows}</ul>
+        <div class="sim-vc-section-label">Manager feedback</div>
+        <p class="sim-vc-note">${mapEsc(caseReviewManagerNote(perf))}</p>
+      </div>
+      <div class="sim-vc-foot">
+        <button type="button" class="sim-vc-btn sim-vc-btn--secondary" data-vc-retry>Retry Mission 1</button>
+        <button type="button" class="sim-vc-btn sim-vc-btn--primary" data-vc-continue>Go to Operations Center</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(el);
+
+  const retry = el.querySelector('[data-vc-retry]');
+  const cont = el.querySelector('[data-vc-continue]');
+  if (retry) retry.addEventListener('click', () => { simRemoveCompleteModal(); replayCareerMission(replayId); });
+  if (cont) cont.addEventListener('click', () => { simRemoveCompleteModal(); returnFromCareerMission(); });
+
+  // Keep focus inside the dialog (two buttons); Escape routes to the safe default.
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); simRemoveCompleteModal(); returnFromCareerMission(); return; }
+    if (e.key !== 'Tab') return;
+    const f = [retry, cont].filter(Boolean);
+    if (f.length < 2) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+
+  requestAnimationFrame(() => el.classList.add('is-in'));
+  if (cont && cont.focus) { try { cont.focus({ preventScroll: true }); } catch (_) { cont.focus(); } }
+}
+
 /* ------------------------------------------------------------------ *
  * CASE-REVIEW DEBRIEF (presentation-only, data-gated on def.debriefScorecard)
  * ------------------------------------------------------------------ *
@@ -7808,7 +7913,10 @@ function renderCaseReviewDebrief(action, outcome, changes) {
     </div>`;
   host.innerHTML = html;
   setFeedbackPanelHidden(false);
-  simCelebrateComplete();
+  // The centered victory screen IS the completion moment for this path; it carries
+  // the headline stats + actions and supersedes the auto-dismissing toast. The
+  // detailed side review above stays in the DOM behind it for depth/continuity.
+  showMissionCompleteModal(action, outcome, changes, perf);
 }
 
 function renderDebrief(action, outcome, changes) {
