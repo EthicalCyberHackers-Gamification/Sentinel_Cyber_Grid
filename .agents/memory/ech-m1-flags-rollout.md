@@ -16,6 +16,20 @@ by whether it fits the later missions' curriculum — do NOT blanket-apply.
   evidence surfaces from a terminal command (`surfaceEvidence` is never called at
   mission open), so the beat never fires before the player has run anything.
 
+- **`quietNotebook` (the calm, dock-first right-column notebook)** — SAFE to
+  generalize, and now set on every case-file mission (M1-M4). Gated on
+  `quietNotebook && caseFileNotebook` (`quietNotebookMode()`, no Case Board
+  dependency). Presentation-only: it only suppresses the evidence/feed LIVE/NEW
+  pulse badges and changes INITIAL collapse state — the player's own `SIM.nbCollapsed`
+  toggles always win, and the graded call always lives in the Decision Dock
+  (`analystJudgmentHtml` renders logged calls read-only). Key nuance: a Case Board
+  mission (M1) collapses EVERY section by default (the board is its work surface),
+  but a quiet mission WITHOUT a board (M2-M4) must collapse only the bulky read-only
+  RECORD logs (`NB_QUIET_RECORD_COLLAPSED` = evidence/feed/comms) so its orienting
+  (objectives) + action (identify/response) sections stay open — collapse-all on a
+  boardless mission hurts orientation at mission start. Branch the collapse policy on
+  `caseBoardMode()`, never a mission id.
+
 - **`uiComplexityLevel:'simple'` (the first-day declutter)** — deliberately M1-ONLY.
   It hides ~11 advanced modules (confidence meter, objective tracker, investigation
   feed, inventory board, concept cards, analyst powers, etc.). Those modules ARE the

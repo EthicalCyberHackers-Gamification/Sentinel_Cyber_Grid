@@ -1739,6 +1739,14 @@ const NB_DEFAULT_COLLAPSED = { facts: 1, casefile: 1, hyp: 1, reflect: 1 };
  * not a stack of logs. Merged OVER NB_DEFAULT_COLLAPSED only when simpleUiMode()
  * is on (gated per-mission), so M2-M4 are byte-for-byte unchanged. */
 const NB_SIMPLE_DEFAULT_COLLAPSED = { comms: 1, response: 1 };
+/* Dock-first quiet missions WITHOUT a Case Board (the command-model missions 2-4)
+ * calm the notebook by collapsing only the bulky read-only RECORD logs by default —
+ * the evidence log, the investigation feed, and the logged-decisions record — while
+ * the orienting (objectives) and action (identify/response) sections stay open.
+ * Mission 1 pairs quietNotebook with the Case Board and so keeps its full
+ * collapse-all (the board is its always-visible work surface). Merged OVER
+ * NB_DEFAULT_COLLAPSED in applyNotebookChrome. */
+const NB_QUIET_RECORD_COLLAPSED = { evidence: 1, feed: 1, comms: 1 };
 const NB_SECTION_SEL = ':scope > .sim-notebook-section, :scope > .sim-feed, :scope > .sim-casefile, :scope > .sim-reflect';
 const NB_HEAD_SEL = '.sim-notebook-head, .sim-feed-head, .sim-casefile-head, .sim-reflect-head';
 
@@ -1769,11 +1777,14 @@ function caseBoardMode() {
 function passiveNotebookMode() {
   return caseBoardMode() && !!SIM.def.caseBoard.passiveNotebook;
 }
-/* Mission-1 "quiet notebook" gate (def.quietNotebook). With the live work moved to
- * the Case Board + Decision Dock, the right-column notebook becomes a calm READ-ONLY
- * record: its noisy pulse badges (LIVE / NEW) are suppressed and its sections
- * collapse by default. Presentation-only and strictly gated — missions without the
- * flag keep every badge and their original default-open sections. */
+/* "Quiet notebook" gate (def.quietNotebook + caseFileNotebook). With the graded
+ * work owned by the Decision Dock, the right-column notebook becomes a calm,
+ * dock-first reference: its noisy pulse badges (LIVE / NEW) are suppressed and its
+ * read-only record sections collapse by default. Used by Mission 1 (paired with the
+ * Case Board, which collapses everything) and by the command-model missions 2-4
+ * (no board, so the orienting/action sections stay open — see applyNotebookChrome).
+ * Presentation-only and strictly gated — missions without the flag keep every badge
+ * and their original default-open sections. */
 function quietNotebookMode() {
   return !!(SIM.def && SIM.def.quietNotebook && SIM.def.caseFileNotebook);
 }
@@ -1841,7 +1852,7 @@ function nbSectionKey(section, head, idx) {
 /* Conservative status tag derived only from existing DOM/state. Returns
  * {label, tone} or null (no chip). Never reveals correctness. */
 function nbSectionStatus(key, section, grew) {
-  // Quiet notebook (Mission 1, quietNotebook): drop the noisy pulse badges
+  // Quiet notebook (quietNotebook missions): drop the noisy pulse badges
   // (evidence → NEW/LIVE, feed → LIVE) so the read-only record reads calm. The
   // meaningful done/active/flag/muted chips on other sections are left untouched.
   if (quietNotebookMode() && (key === 'evidence' || key === 'feed')) return null;
@@ -1890,10 +1901,15 @@ function applyNotebookChrome(body, grew) {
   const defaults = simpleUiMode()
     ? Object.assign({}, NB_DEFAULT_COLLAPSED, NB_SIMPLE_DEFAULT_COLLAPSED)
     : NB_DEFAULT_COLLAPSED;
-  // Quiet notebook (Mission 1): with the live work on the Case Board + Dock, the
-  // read-only record starts collapsed by default. The player's OWN toggles (tracked
-  // in SIM.nbCollapsed) still win, so any section they expand stays expanded.
+  // Quiet notebook: the read-only record starts collapsed by default while the
+  // player's OWN toggles (tracked in SIM.nbCollapsed) always win. A Case Board
+  // mission (M1) collapses EVERY section (the board is its work surface); a quiet
+  // mission WITHOUT a board (M2-M4) collapses only the bulky record logs, so its
+  // orienting (objectives) and action (identify/response) sections stay open.
   const quiet = quietNotebookMode();
+  const quietDefaults = caseBoardMode()
+    ? null
+    : Object.assign({}, NB_DEFAULT_COLLAPSED, NB_QUIET_RECORD_COLLAPSED);
   blocks.forEach((section, idx) => {
     const head = section.querySelector(NB_HEAD_SEL);
     if (!head || head.dataset.nbToggle) return;
@@ -1901,7 +1917,9 @@ function applyNotebookChrome(body, grew) {
     section.classList.add('sim-nb-section');
     head.classList.add('sim-nb-head');
 
-    const collapsed = (key in SIM.nbCollapsed) ? !!SIM.nbCollapsed[key] : (quiet ? true : !!defaults[key]);
+    const collapsed = (key in SIM.nbCollapsed)
+      ? !!SIM.nbCollapsed[key]
+      : (quiet ? (quietDefaults ? !!quietDefaults[key] : true) : !!defaults[key]);
     section.classList.toggle('sim-nb-collapsed', collapsed);
 
     head.setAttribute('role', 'button');
@@ -8891,6 +8909,13 @@ const CAREER_MISSIONS = {
     // came up, then continue" step before Sarah's graded call so the just-printed
     // terminal output stays visible. Presentation/sequencing only — never grades.
     reviewBeforeCall: true,
+    // Dock-first presentation (shared with Mission 1; see quietNotebookMode):
+    // calm the right-column notebook — collapse its read-only record logs and drop
+    // the LIVE/NEW badges, keeping objectives + action panels open — so the Decision
+    // Dock beneath the terminal is the clear place to act. The player's own expand
+    // toggles always win. Presentation-only — graded calls already live in the dock,
+    // so nothing functional is hidden; never touches scoring/persistence/curriculum.
+    quietNotebook: true,
     boardMilestones: ['ev_contractor_device', 'ev_segment', 'ev_probe'],
     // Progressive objectives (engine-level) — tick live as findings/judgments
     // resolve. Presentation-only; computed read-only by objectiveTrackState().
@@ -9762,6 +9787,13 @@ const CAREER_MISSIONS = {
     // came up, then continue" step before Sarah's graded call so the just-printed
     // terminal output stays visible. Presentation/sequencing only — never grades.
     reviewBeforeCall: true,
+    // Dock-first presentation (shared with Mission 1; see quietNotebookMode):
+    // calm the right-column notebook — collapse its read-only record logs and drop
+    // the LIVE/NEW badges, keeping objectives + action panels open — so the Decision
+    // Dock beneath the terminal is the clear place to act. The player's own expand
+    // toggles always win. Presentation-only — graded calls already live in the dock,
+    // so nothing functional is hidden; never touches scoring/persistence/curriculum.
+    quietNotebook: true,
     boardMilestones: ['ev_failures', 'ev_impossible', 'ev_changes'],
     discoveryChallenges: [
       {
@@ -10609,6 +10641,13 @@ const CAREER_MISSIONS = {
     // came up, then continue" step before Sarah's graded call so the just-printed
     // terminal output stays visible. Presentation/sequencing only — never grades.
     reviewBeforeCall: true,
+    // Dock-first presentation (shared with Mission 1; see quietNotebookMode):
+    // calm the right-column notebook — collapse its read-only record logs and drop
+    // the LIVE/NEW badges, keeping objectives + action panels open — so the Decision
+    // Dock beneath the terminal is the clear place to act. The player's own expand
+    // toggles always win. Presentation-only — graded calls already live in the dock,
+    // so nothing functional is hidden; never touches scoring/persistence/curriculum.
+    quietNotebook: true,
     boardMilestones: ['ev_transfer', 'ev_external_dest'],
     discoveryChallenges: [
       {
