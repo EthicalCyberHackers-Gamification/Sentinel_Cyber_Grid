@@ -1228,6 +1228,27 @@
   color: var(--text-dim);
   line-height: 1.45;
 }
+/* Forward CTA shown once a determination is recorded (Missions 2-4). Advances to
+ * the handling actions (rendered in the right column) from inside the dock, so the
+ * player isn't stranded after picking a device. Purple to match the determination
+ * accent; presentation-only, routes through data-reveal-actions. */
+.sim-comms-cta {
+  margin-top: 10px; align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-hud); font-size: 10.5px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px; cursor: pointer; transition: all var(--transition);
+}
+.sim-comms-cta--determine {
+  color: var(--purple); background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.5);
+}
+.sim-comms-cta--determine:hover,
+.sim-comms-cta--determine:focus-visible {
+  color: var(--text-bright); background: rgba(168, 85, 247, 0.22);
+  border-color: var(--purple); outline: none;
+}
 
 /* ---- "Review the file first" beat — a calm, low-urgency variant shown BEFORE a
  * fresh graded call when the mission opts in (reviewBeforeCall). Softer than the

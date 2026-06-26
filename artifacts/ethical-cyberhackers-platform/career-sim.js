@@ -5707,6 +5707,16 @@ function determinationDockHtml(idf) {
   const recorded = chosen
     ? `<div class="sim-comms-recorded">${idf.note || 'Determination recorded \u2014 this feeds the strength of your recommendation.'}</div>`
     : '';
+  // Forward affordance: once a determination is recorded, surface a clear CTA right
+  // here in the dock that advances to the handling actions (which render in the
+  // right-hand column, spatially disconnected from this dock). Without it the only
+  // way forward is typing `decide`, which players miss — they pick a chip, see
+  // nothing progress where they're looking, and feel stuck. Routes through
+  // data-reveal-actions -> simRevealActions; stays NON-BLOCKING and the chips above
+  // remain re-committable until a response is actually chosen.
+  const cta = chosen
+    ? `<button type="button" class="sim-comms-cta sim-comms-cta--determine" data-reveal-actions>${SIM.stage === 'decision' ? 'Go to your response options' : 'Choose your response'} \u2192</button>`
+    : '';
   return `
     <div class="sim-dock-head sim-dock-head--determine">
       <span class="sim-dock-title"><span class="sim-dock-pulse" aria-hidden="true"></span>Make your determination</span>
@@ -5723,10 +5733,11 @@ function determinationDockHtml(idf) {
             ${opts}
           </div>
           ${recorded}
+          ${cta}
         </div>
       </div>
     </div>
-    <p class="sim-dock-foot sim-dock-foot--determine">This is your call \u2014 then type  decide  to choose your response. The terminal stays open; change it any time before you decide.</p>`;
+    <p class="sim-dock-foot sim-dock-foot--determine">This is your call \u2014 change it any time before you decide. ${chosen ? 'Use the button above, or type' : 'Once you\u2019ve chosen, type'}  decide  in the terminal.</p>`;
 }
 
 /* The reconsideration card — a distinct dock variant. Same Sarah-comms chrome and
@@ -7451,6 +7462,26 @@ function simRevealActions(manual) {
       : 'Note: you have not finished the core investigation. Acting on incomplete evidence weakens your recommendation.';
     simPrint(msg, 'warn');
   }
+}
+
+/* Forward affordance for the determination dock (Missions 2-4): advance from a
+ * recorded determination straight to the handling actions, then bring the actions
+ * panel (right column) into view and focus its first option. Mirrors the typed
+ * `decide` path but keeps the player inside the dock's flow so they aren't
+ * stranded. Idempotent — if the actions are already revealed it just
+ * re-surfaces/focuses them (no duplicate stage feed or warning). preventScroll on
+ * focus so the smooth scrollIntoView isn't clobbered by the focus jump. */
+function revealActionsFromDock() {
+  // Defense-in-depth: never advance/surface actions while Sarah still has a pending
+  // call. Dock priority means the CTA shouldn't be visible then, but mirror the
+  // chooseAction() guard so a stale click can't scroll past an unanswered call.
+  if (caseFileDecisionPending()) { nudgeDecisionDock(); return; }
+  if (SIM.stage !== 'decision') simRevealActions(true);
+  const host = document.getElementById('simActions');
+  if (!host) return;
+  host.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const f = host.querySelector('button');
+  if (f && typeof f.focus === 'function') f.focus({ preventScroll: true });
 }
 
 function renderActions() {
@@ -12745,6 +12776,10 @@ function simInit() {
       if (stJ) { setSideTrailJudgment(stJ.dataset.trail, stJ.dataset.step, stJ.dataset.option); return; }
       const ident = e.target.closest('[data-identify]');
       if (ident) { setIdentification(ident.dataset.identify); return; }
+      // Forward CTA in the determination dock — advance to the handling actions
+      // and surface them (the actions render off in the right column).
+      const revealAct = e.target.closest('[data-reveal-actions]');
+      if (revealAct) { revealActionsFromDock(); return; }
 
       const cls = e.target.closest('[data-classify-file]');
       if (cls) { setClassification(cls.dataset.classifyFile, cls.dataset.classifyVal); return; }
