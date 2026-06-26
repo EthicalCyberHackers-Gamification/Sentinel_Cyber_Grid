@@ -7560,52 +7560,26 @@ function performanceReviewHtml() {
     </div>`;
 }
 
-/* CELEBRATORY COMPLETION MOMENT (presentation-only) — a brief, auto-dismissing
- * toast shown when the mission debrief renders, so finishing reads as a reward
- * and the player immediately knows the mission is over. Never persists, scores,
- * or blocks the RETURN button. Guarded by SIM.runToken so it can't linger across
- * missions, and removed on mission open / return for safety. */
+/* Clear any legacy completion toast. The mission-complete moment is now the
+ * centered victory screen (showMissionCompleteModal) for EVERY mission; the modal
+ * calls this on open so an older toast can never sit behind it, and the mission
+ * open / return teardown clears it too. */
 function simRemoveCompleteToast() {
   const t = document.getElementById('simCompleteToast');
   if (t && t.parentNode) t.parentNode.removeChild(t);
 }
-function simCelebrateComplete() {
-  simRemoveCompleteToast();
-  if (!document.body) return;
-  const el = document.createElement('div');
-  el.id = 'simCompleteToast';
-  el.className = 'sim-complete-toast';
-  el.setAttribute('role', 'status');
-  el.setAttribute('aria-live', 'polite');
-  el.innerHTML =
-    '<div class="sim-complete-toast-badge">\u2713</div>' +
-    '<div class="sim-complete-toast-text">' +
-      '<div class="sim-complete-toast-title">MISSION COMPLETE</div>' +
-      '<div class="sim-complete-toast-sub">Debrief ready \u2014 review it, then return to the Operations Center.</div>' +
-    '</div>';
-  document.body.appendChild(el);
-  requestAnimationFrame(() => el.classList.add('is-in'));
-  const token = SIM.runToken;
-  // Operate only on THIS element (never a global by-id remove): if another
-  // mission completes within the window, an old timer must not kill the newer
-  // toast. open/return cleanup already detaches the active toast by id.
-  setTimeout(() => {
-    if (!el.parentNode) return;                          // already cleared (return / new mission)
-    if (SIM.runToken !== token) { el.remove(); return; } // stale across missions — remove just this one
-    el.classList.add('is-out');
-    setTimeout(() => { if (el.parentNode) el.remove(); }, 460);
-  }, 2600);
-}
 
-/* MISSION-COMPLETE VICTORY SCREEN (presentation-only; missions with
- * def.debriefScorecard — Mission 1 today). A centered, PERSISTENT results
- * overlay that supersedes the auto-dismissing toast for this path: instead of a
- * beat that vanishes, the player gets a proper end-of-mission screen with the
- * headline performance stats up front and a forced choice (Retry / return).
- * Mounted on <body>, ABOVE #careerOps, so its buttons need their own listeners
- * (the careerOps delegated click handler never sees them). Every value is DERIVED
- * from the same helpers the side-panel review uses — nothing here grades, writes,
- * or persists. Torn down on retry / return / mission open so it never lingers. */
+/* MISSION-COMPLETE VICTORY SCREEN (presentation-only; shown for EVERY mission).
+ * A centered, PERSISTENT results overlay that supersedes the old auto-dismissing
+ * toast: instead of a beat that vanishes, the player gets a proper end-of-mission
+ * screen with the headline performance stats up front and a forced choice (Retry /
+ * continue). Mounted on <body>, ABOVE #careerOps, so its buttons need their own
+ * listeners (the careerOps delegated click handler never sees them). Every value
+ * is DERIVED from the same helpers the side-panel debrief uses — nothing here
+ * grades, writes, or persists. For a capstone mission (campaign reveal /
+ * performance review) the primary action reveals the finale debrief instead of
+ * leaving, so the end-of-game payoff is never skipped. Torn down on retry /
+ * continue / mission open so it never lingers. */
 function simRemoveCompleteModal() {
   const m = document.getElementById('simCompleteModal');
   if (m && m.parentNode) m.parentNode.removeChild(m);
@@ -7621,6 +7595,14 @@ function showMissionCompleteModal(action, outcome, changes, perf) {
   const metrics = caseReviewMetrics(perf);
   const missionName = (SIM.def && SIM.def.title) || 'Assignment Complete';
   const replayId = SIM.missionId || '';
+  // Per-mission retry label (mission-001 -> "Retry Mission 1"); no more hardcode.
+  const missionNum = (replayId.match(/(\d+)/) || [])[1];
+  const retryLabel = missionNum ? `Retry Mission ${parseInt(missionNum, 10)}` : 'Retry Mission';
+  // A capstone mission (campaign reveal / performance review) carries an
+  // end-of-game payoff in the side debrief. The modal must not let the player
+  // skip it: its primary action reveals that debrief instead of leaving.
+  const isCapstone = !!(SIM.def && (SIM.def.campaignReveal || SIM.def.performanceReview));
+  const contLabel = isCapstone ? 'See your final review' : 'Go to Operations Center';
 
   // Compact leadership-verdict line (the full reasoning stays in the side review).
   let verdictHtml = '';
@@ -7672,8 +7654,8 @@ function showMissionCompleteModal(action, outcome, changes, perf) {
         <p class="sim-vc-note">${mapEsc(caseReviewManagerNote(perf))}</p>
       </div>
       <div class="sim-vc-foot">
-        <button type="button" class="sim-vc-btn sim-vc-btn--secondary" data-vc-retry>Retry Mission 1</button>
-        <button type="button" class="sim-vc-btn sim-vc-btn--primary" data-vc-continue>Go to Operations Center</button>
+        <button type="button" class="sim-vc-btn sim-vc-btn--secondary" data-vc-retry>${mapEsc(retryLabel)}</button>
+        <button type="button" class="sim-vc-btn sim-vc-btn--primary" data-vc-continue>${mapEsc(contLabel)}</button>
       </div>
     </div>`;
 
@@ -7681,12 +7663,30 @@ function showMissionCompleteModal(action, outcome, changes, perf) {
 
   const retry = el.querySelector('[data-vc-retry]');
   const cont = el.querySelector('[data-vc-continue]');
+  // Capstone missions: dismiss the modal and reveal the finale debrief behind it
+  // (campaign reveal + promotion) instead of leaving, so it is never skipped.
+  const onContinue = () => {
+    simRemoveCompleteModal();
+    if (isCapstone) {
+      const fb = document.getElementById('simFeedback');
+      if (fb) {
+        try { setFeedbackPanelHidden(false); } catch (_) {}
+        if (fb.scrollIntoView) { try { fb.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {} }
+        // Land keyboard focus on the finale's return control (preventScroll so it
+        // doesn't fight the scrollIntoView above).
+        const doneBtn = fb.querySelector('.sim-report-done');
+        if (doneBtn) { try { doneBtn.focus({ preventScroll: true }); } catch (_) { try { doneBtn.focus(); } catch (_) {} } }
+      }
+    } else {
+      returnFromCareerMission();
+    }
+  };
   if (retry) retry.addEventListener('click', () => { simRemoveCompleteModal(); replayCareerMission(replayId); });
-  if (cont) cont.addEventListener('click', () => { simRemoveCompleteModal(); returnFromCareerMission(); });
+  if (cont) cont.addEventListener('click', onContinue);
 
   // Keep focus inside the dialog (two buttons); Escape routes to the safe default.
   el.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { e.preventDefault(); simRemoveCompleteModal(); returnFromCareerMission(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); onContinue(); return; }
     if (e.key !== 'Tab') return;
     const f = [retry, cont].filter(Boolean);
     if (f.length < 2) return;
@@ -8015,7 +8015,13 @@ function renderDebrief(action, outcome, changes) {
   html += `<div class="sim-feedback-foot"><button type="button" class="sim-report-done" data-done="1">RETURN TO OPERATIONS CENTER</button></div>`;
   host.innerHTML = html;
   setFeedbackPanelHidden(false); // a decision was made — reveal the panel in simple mode
-  simCelebrateComplete();        // celebratory, auto-dismissing "mission complete" beat (presentation-only)
+  // The centered victory screen is the completion moment for EVERY mission now
+  // (it supersedes the old auto-dismissing toast). Presentation-only: perf is
+  // derived from the same outcome the debrief above used — nothing graded/persisted.
+  let perf = outcome;
+  try { if (!perf) perf = computeRecommendationOutcome(); } catch (_) { perf = { score: 0, verdict: null }; }
+  if (!perf) perf = { score: 0, verdict: null };
+  showMissionCompleteModal(action, outcome, changes, perf);
 }
 
 /* Carry-forward flags for the active mission. Each mission may define its own
