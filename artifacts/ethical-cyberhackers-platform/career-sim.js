@@ -6455,17 +6455,33 @@ function runCommandEntry(c) {
   const firstRun = !SIM.ranCommands.has(c.id);
   SIM.ranCommands.add(c.id);
 
+  // "The Readout" (Mission 2 only, def.annotatedReadout) lights up the meaningful
+  // tokens in the raw output; everywhere else this is a no-op and output prints
+  // byte-identical to before.
+  const readout = annotatedReadoutMode();
+  const tells = readout ? normalizeTells(c.tells) : null;
+  const primaryTell = readout ? readoutPrimaryTell(c) : null;
+
   (c.output || []).forEach(line => {
-    if (typeof line === 'string') simPrint('  ' + line, 'file');
-    else simPrint(line.t, line.c || 'file');
+    const isStr = typeof line === 'string';
+    const txt = isStr ? '  ' + line : line.t;
+    const cls = isStr ? 'file' : (line.c || 'file');
+    if (tells && tells.length) simPrintTell(txt, cls, tells, primaryTell);
+    else simPrint(txt, cls);
   });
 
   const evBefore = SIM.evidence.size;
   if (firstRun) (c.reveals || []).forEach(surfaceEvidence);
   const evSurfaced = SIM.evidence.size - evBefore;
 
-  if (c.observation) simPrint('▸ ' + c.observation, 'observe');
-  if (c.question)    simPrint('? ' + c.question, 'question');
+  // In Readout mode the scattered ▸observation / ?question lines are consolidated
+  // into one coached "Analyst Readout" card (with an on-demand 3-tier "why").
+  if (readout) {
+    renderReadoutNote(c);
+  } else {
+    if (c.observation) simPrint('▸ ' + c.observation, 'observe');
+    if (c.question)    simPrint('? ' + c.question, 'question');
+  }
   if (firstRun && (c.reveals || []).length) {
     simPrint('  confidence ↑ — now ' + investigationConfidence() + '%', 'confidence');
   }
@@ -6955,6 +6971,161 @@ function closeConceptCard() {
     const input = document.getElementById('simTermInput');
     if (input) { try { input.focus(); } catch (_) { /* focus is best-effort */ } }
   }
+}
+
+/* ================================================================== *
+ * ANNOTATED COMMAND READOUT — "The Readout" (presentation-only)
+ * ------------------------------------------------------------------ *
+ * Turns a command's raw output into a guided read for command-model
+ * missions that opt in via def.annotatedReadout (Mission 2 only today):
+ *   (1) the meaningful tokens in the output ("tells") are highlighted
+ *       and the primary one pulses once as the line lands;
+ *   (2) the scattered ▸observation / ?question terminal lines become one
+ *       coached "Analyst Readout" card after the output;
+ *   (3) a "Why does this matter?" control expands the SAME three-tier
+ *       (New / Analyst / Technical) explanation the notebook already
+ *       carries — never the verdict.
+ * Strictly flag-gated: a no-op when def.annotatedReadout is absent, so
+ * M1/M3/M4 render byte-identical. Writes nothing — no scoring, no
+ * persistence, no spoilers. ================================================== */
+function annotatedReadoutMode() {
+  return !!(SIM.def && SIM.def.annotatedReadout
+            && Array.isArray(SIM.def.commands) && SIM.def.commands.length);
+}
+
+/* Normalize a command's authored `tells` into {str[, kind]} records, longest
+ * first so the single-pass tokenizer prefers the most specific match (e.g.
+ * 192.168.1.0/24 over a bare 192.168.1.0). */
+function normalizeTells(tells) {
+  if (!Array.isArray(tells)) return [];
+  return tells
+    .map(t => (typeof t === 'string' ? { str: t }
+            : (t && t.str ? { str: t.str, kind: t.kind } : null)))
+    .filter(t => t && t.str)
+    .sort((a, b) => b.str.length - a.str.length);
+}
+
+/* The authored "primary" tell (first in the list) — the one token most worth
+ * the eye, which gets the one-shot pulse. */
+function readoutPrimaryTell(c) {
+  const t = c && Array.isArray(c.tells) && c.tells[0];
+  return t ? (typeof t === 'string' ? t : t.str) : null;
+}
+
+/* Build HTML for one output line: escape everything, but wrap each authored tell
+ * token in a <mark>. Matches against the RAW text and escapes only on emit, so
+ * the match and the rendered text can never disagree about encoding. A single
+ * forward scan keeps matches non-overlapping. */
+function buildTellHtml(text, tells, primary) {
+  const str = String(text == null ? '' : text);
+  if (!tells || !tells.length) return mapEsc(str);
+  let html = '';
+  for (let i = 0; i < str.length;) {
+    let hit = null;
+    for (const t of tells) { if (str.startsWith(t.str, i)) { hit = t; break; } }
+    if (hit) {
+      const isKey = primary && hit.str === primary;
+      // Sanitize any (future) object-form tell kind to a safe CSS token before
+      // it becomes part of a class name — current M2 tells are all plain strings.
+      const kind = (hit.kind && /^[a-z0-9-]+$/i.test(hit.kind)) ? hit.kind : '';
+      html += '<mark class="sim-tell' + (isKey ? ' sim-tell--key' : '')
+            + (kind ? ' sim-tell--' + kind : '') + '">'
+            + mapEsc(hit.str) + '</mark>';
+      i += hit.str.length;
+    } else {
+      html += mapEsc(str[i]);
+      i++;
+    }
+  }
+  return html;
+}
+
+/* Tell-aware twin of simPrint: same line element/classes, but innerHTML carries
+ * the highlighted output. Used only in annotatedReadoutMode. */
+function simPrintTell(text, cls, tells, primary) {
+  const out = document.getElementById('simTerminal');
+  if (!out) return;
+  const line = document.createElement('div');
+  line.className = 'sim-term-line' + (cls ? ' sim-term-line--' + cls : '');
+  line.innerHTML = buildTellHtml(text, tells, primary);
+  simTermTarget(out).appendChild(line);
+  out.scrollTop = out.scrollHeight;
+}
+
+/* The evidence whose three-tier layers explain a command's output: the first id
+ * it reveals that is already surfaced, falling back to its first declared reveal
+ * so re-running a command still explains it. Returns null for output-only
+ * commands (the card then shows just the observation/question). */
+function readoutEvidenceFor(c) {
+  const ids = (c && c.reveals) || [];
+  for (const id of ids) { if (SIM.evidence.has(id)) { const e = evidenceById(id); if (e) return e; } }
+  for (const id of ids) { const e = evidenceById(id); if (e) return e; }
+  return null;
+}
+
+/* The coached "Analyst Readout" card, appended into the command's term group in
+ * place of the loose ▸/? lines. Carries the command's plain-English reading
+ * (observation), the guiding question, and an on-demand three-tier "why it
+ * matters" drawn from the surfaced evidence's existing layers. Pure DOM in the
+ * terminal — writes nothing, grades nothing, and never names the correct call. */
+function renderReadoutNote(c) {
+  const out = document.getElementById('simTerminal');
+  if (!out) return;
+  const ev = readoutEvidenceFor(c);
+  const L = ev ? evLayers(ev) : null;
+
+  const card = document.createElement('div');
+  card.className = 'sim-readout sim-readout--reveal';
+  card.setAttribute('data-depth', 'beginner');
+
+  let html = '<div class="sim-readout-head">'
+           + '<span class="sim-readout-kicker">\u25B8 ANALYST READOUT</span></div>';
+  if (c.observation) html += '<p class="sim-readout-what">' + mapEsc(c.observation) + '</p>';
+  if (c.question)    html += '<p class="sim-readout-q">' + mapEsc(c.question) + '</p>';
+
+  if (L) {
+    const beginnerText = [L.beginner.summary, L.beginner.why].filter(Boolean).join(' ');
+    html += '<button type="button" class="sim-readout-toggle" data-readout-why '
+          + 'aria-expanded="false">Why does this matter?</button>'
+          + '<div class="sim-readout-why" hidden>'
+          + '<div class="sim-readout-depthbar" role="group" aria-label="Explanation depth">'
+          + '<button type="button" class="sim-readout-depth" data-readout-depth="beginner" aria-pressed="true">New</button>'
+          + '<button type="button" class="sim-readout-depth" data-readout-depth="analyst" aria-pressed="false">Analyst</button>'
+          + '<button type="button" class="sim-readout-depth" data-readout-depth="technical" aria-pressed="false">Technical</button>'
+          + '</div>'
+          + '<p class="sim-readout-layer sim-readout-layer--beginner">' + mapEsc(beginnerText) + '</p>'
+          + '<p class="sim-readout-layer sim-readout-layer--analyst">' + mapEsc(L.analyst) + '</p>'
+          + '<p class="sim-readout-layer sim-readout-layer--technical">' + mapEsc(L.technical) + '</p>'
+          + evTermsHtml(L.terms)
+          + '</div>';
+  }
+
+  card.innerHTML = html;
+  simTermTarget(out).appendChild(card);
+  out.scrollTop = out.scrollHeight;
+}
+
+/* Expand/collapse the "why it matters" block on a Readout card. DOM-only. */
+function toggleReadoutWhy(btn) {
+  const card = btn.closest('.sim-readout');
+  const why = card && card.querySelector('.sim-readout-why');
+  if (!why) return;
+  const open = !why.hidden;
+  why.hidden = open;
+  btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+}
+
+/* Switch a Readout card's explanation depth (New / Analyst / Technical). The
+ * three layers all live in the DOM; CSS shows the one matching data-depth, so
+ * this just flips an attribute + the pressed state. Per-card, transient,
+ * never persisted. */
+function setReadoutDepth(btn) {
+  const card = btn.closest('.sim-readout');
+  if (!card) return;
+  const depth = btn.dataset.readoutDepth;
+  card.setAttribute('data-depth', depth);
+  card.querySelectorAll('[data-readout-depth]').forEach(b =>
+    b.setAttribute('aria-pressed', b.dataset.readoutDepth === depth ? 'true' : 'false'));
 }
 
 /* ================================================================== *
@@ -9404,6 +9575,7 @@ const CAREER_MISSIONS = {
     },
 
     commandBriefs: true,  // Guided Terminal: brief each NEW tool (ip/nmap/ping/grep/tail) once
+    annotatedReadout: true,  // "The Readout": highlight output tells + coached Analyst Readout card (Mission 2 only)
     commands: [
       {
         id: 'ip_addr',
@@ -9414,6 +9586,7 @@ const CAREER_MISSIONS = {
           { t: 'eth0:  inet 192.168.1.34/24  brd 192.168.1.255', c: 'file' },
           'You are host 192.168.1.34 on subnet 192.168.1.0/24 (the office LAN).',
         ],
+        tells: ['192.168.1.0/24', '192.168.1.34/24'],
         reveals: ['ev_subnet'],
         observation: 'You and every office device share the 192.168.1.0/24 subnet — they can all reach each other.',
         question: 'If a stranger'+"'"+'s device joined this same subnet, what could it reach?',
@@ -9432,6 +9605,7 @@ const CAREER_MISSIONS = {
           '  192.168.1.34   up    your-workstation',
           '  192.168.1.57   up    (no reverse name)',
         ],
+        tells: ['192.168.1.57', '(no reverse name)'],
         reveals: ['ev_unknown_host'],
         observation: '192.168.1.57 answers, but unlike the others it has no recognizable name.',
         question: 'Four hosts you can name, one you cannot — which one deserves a closer look?',
@@ -9450,6 +9624,7 @@ const CAREER_MISSIONS = {
           '  192.168.1.34   intern-workstation    SOC (you)',
           '  # Every approved device is listed here. Nothing else should be online.',
         ],
+        tells: ['Nothing else should be online.'],
         reveals: ['ev_not_in_inventory'],
         observation: '192.168.1.57 is NOT in the approved inventory — every other live host is.',
         question: 'A device on the network that nobody approved — is that a mistake, or something more?',
@@ -9464,6 +9639,7 @@ const CAREER_MISSIONS = {
           '64 bytes from 192.168.1.57: icmp_seq=2 ttl=64 time=0.7 ms',
           '--- 192.168.1.57 ping statistics: 0% packet loss ---',
         ],
+        tells: ['0% packet loss', '192.168.1.57'],
         reveals: ['ev_host_live'],
         observation: 'It responds instantly — this is a real, powered-on device sitting on the LAN right now.',
         question: 'It is live and active. What is it actually running?',
@@ -9482,6 +9658,7 @@ const CAREER_MISSIONS = {
           '  8080/tcp open   http-proxy',
           '  OS guess: generic Linux laptop',
         ],
+        tells: ['445/tcp', '22/tcp', '8080/tcp'],
         reveals: ['ev_open_services'],
         observation: 'The unknown device is exposing remote-login and file-sharing services — not a passive gadget.',
         question: 'Why would an unmanaged device be offering file sharing on the office network?',
@@ -9496,6 +9673,7 @@ const CAREER_MISSIONS = {
           '  192.168.1.57   mac a4:83:e7:1c:9b:22   host "DEMIR-LAPTOP"   leased 2 days ago',
           '  mac vendor lookup: a4:83:e7  →  Apple, Inc. (personal-class hardware)',
         ],
+        tells: ['"DEMIR-LAPTOP"', 'personal-class hardware', 'leased 2 days ago'],
         reveals: ['ev_lease'],
         observation: 'The lease names the device "DEMIR-LAPTOP" — a personal laptop that joined just two days ago.',
         question: 'A personal laptop named after someone — who, and were they allowed to plug in?',
@@ -9509,6 +9687,7 @@ const CAREER_MISSIONS = {
           'network_notes.txt:  "1.57 showed up this week — someone said it'+"'"+'s a contractor'+"'"+'s own laptop?"',
           'network_notes.txt:  "not ticketed, not imaged by IT. flagged for follow-up."',
         ],
+        tells: ["contractor's own laptop", 'not ticketed, not imaged by IT', 'flagged for follow-up'],
         reveals: ['ev_notes_contractor'],
         observation: 'An informal note already suspected 1.57 is a contractor'+"'"+'s personal laptop — never ticketed or managed by IT.',
         question: 'Which contractor, and is this the same one from the data-handling review?',
@@ -9524,6 +9703,7 @@ const CAREER_MISSIONS = {
           '  ext-contractor-07   J. Demir   Logistics integration   device policy: COMPANY-ISSUED ONLY',
           '  # Personal devices are NOT permitted on internal segments. Vendors use the guest network.',
         ],
+        tells: ['J. Demir', 'COMPANY-ISSUED ONLY', 'NOT permitted on internal segments'],
         reveals: ['ev_contractor_device'],
         observation: 'The laptop belongs to J. Demir — the same contractor account flagged in the data-handling case — and personal devices are barred from internal segments.',
         question: 'The same contractor, now with unmanaged hardware on the internal network — coincidence?',
@@ -9539,6 +9719,7 @@ const CAREER_MISSIONS = {
           '  CORP   192.168.1.0/24   staff + finance + file server   ← 192.168.1.57 is HERE',
           '  # Contractor devices belong on GUEST. 1.57 is on CORP, beside the finance laptop.',
         ],
+        tells: ['\u2190 192.168.1.57 is HERE', 'beside the finance laptop'],
         reveals: ['ev_segment'],
         observation: 'The device is on the CORP segment next to Finance — exactly where a contractor laptop should never be.',
         question: 'On the guest network it could reach nothing internal. On CORP, what can it reach?',
@@ -9553,6 +9734,7 @@ const CAREER_MISSIONS = {
           '  - Only inventoried, IT-managed devices may join the CORP segment.',
           '  - Unknown or personal devices must be disconnected and escalated, not left to "monitor".',
         ],
+        tells: ['disconnected and escalated', 'not left to "monitor"'],
         reveals: ['ev_policy'],
         observation: 'Policy is explicit: an unknown device on CORP is disconnected and escalated — not watched.',
         question: 'You now have the rule and the violation. What is the correct response?',
@@ -9569,6 +9751,7 @@ const CAREER_MISSIONS = {
           '  192.168.1.57 → 192.168.1.20:445  connection attempt (finance laptop)  DENIED',
           '  192.168.1.57 → 192.168.1.10:445  retry  DENIED',
         ],
+        tells: ['DENIED', ':445', '192.168.1.57'],
         reveals: ['ev_probe'],
         observation: 'The unknown laptop has been repeatedly reaching for the finance file share — not idle, actively probing.',
         question: 'A barred personal device probing finance shares — does that wait, or does it move now?',
@@ -12489,6 +12672,12 @@ function simInit() {
       if (e.target.closest('[data-nb-collapse-all]')) { setAllNotebookCollapsed(true); return; }
       const nbToggle = e.target.closest('[data-nb-toggle]');
       if (nbToggle) { toggleNotebookSection(nbToggle); return; }
+      // Annotated Command Readout (Mission 2) — expand "why it matters" and switch
+      // explanation depth. DOM-only view-state; never grades or persists.
+      const roWhy = e.target.closest('[data-readout-why]');
+      if (roWhy) { toggleReadoutWhy(roWhy); return; }
+      const roDepth = e.target.closest('[data-readout-depth]');
+      if (roDepth) { setReadoutDepth(roDepth); return; }
       // Network map (Task #94) — review-only overlay, opens on demand.
       const mapOpen = e.target.closest('[data-map-open]');
       if (mapOpen) { openSimMap(); return; }
