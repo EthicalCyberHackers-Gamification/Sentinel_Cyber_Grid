@@ -1,0 +1,152 @@
+Build a playable cybersecurity career simulation experience for Mission 1: "Protect Sensitive Information."
+
+Context:
+The current experience feels too much like a quiz. It is boring because the player is mostly reading terminal content, trying to identify the right answer, and struggling to tell which information actually matters. We want to redesign this so it feels like a real entry-level cybersecurity job simulation, not a static assessment.
+
+Core goal:
+Transform Mission 1 into a role-based investigation where the player feels like a junior security analyst handling a realistic workplace incident involving possible exposure of sensitive information.
+
+Primary design principles:
+1. The experience should feel like doing the job, not taking a quiz.
+2. The player should investigate, decide, and communicate like a real analyst.
+3. The interface should clearly distinguish evidence from terminal chatter or supporting information.
+4. The mission should be engaging, readable, and easy for a new player to follow.
+5. The player should understand what to do next at every stage.
+
+Mission concept:
+The player is a Junior Security Analyst. A possible sensitive-data exposure has been flagged. The player must investigate whether sensitive information was shared improperly, determine the severity, and recommend the next action.
+
+Redesign the mission around a realistic investigation flow with multiple artifacts and decisions.
+
+Required gameplay structure:
+Create the mission as a 5-step investigation flow:
+
+Step 1: Receive the incident
+- Show a short workplace-style incident briefing.
+- Example framing: a teammate, system alert, or manager flags a potentially risky file-sharing event.
+- Make the player feel like they are starting a real case.
+
+Step 2: Review evidence
+- Present multiple evidence sources, not just one file.
+- Evidence should include:
+  - a shared file that may contain sensitive information
+  - sharing permissions or access settings
+  - an access log or activity log
+  - an internal employee message or chat excerpt
+  - a short policy or compliance note
+- The player should need to synthesize clues across sources.
+
+Step 3: Investigate actively
+- The player should take actions such as:
+  - open file
+  - inspect permissions
+  - review access log
+  - read employee statement
+  - check policy
+- These actions should feel like analyst tools or investigation steps, not quiz questions.
+
+Step 4: Make a decision
+- The player should determine:
+  - whether sensitive information is involved
+  - whether the file was exposed improperly
+  - whether the issue is internal-only, external, accidental, or more serious
+  - severity level
+  - recommended next action
+- Avoid obvious multiple-choice quiz tone.
+- Prefer decision workflows that feel like workplace judgment.
+
+Step 5: Submit an analyst summary
+- Require the player to write or fill in a short incident note.
+- The note should summarize:
+  - what happened
+  - what evidence mattered most
+  - the player’s conclusion
+  - the recommended next action
+- This should feel like professional communication, not a test answer.
+
+Important UX requirements:
+1. Evidence Viewer
+- When a player opens a mission-related file, display the exact file content in a visually distinct viewer.
+- Do not let the evidence blend into generic terminal output.
+- Create a dedicated evidence view, modal, side panel, or full-screen inspection screen.
+- Label it clearly, such as:
+  - Evidence File
+  - Mission Artifact
+  - Review this file
+- Include a short line explaining that this is the key information to inspect.
+- Preserve the authenticity of the original file content, but present it in a much clearer, more readable format.
+
+2. Readability
+- Avoid low-contrast text.
+- Separate instructions, evidence, logs, and decisions visually.
+- Reduce screen clutter.
+- Make the important artifact or clue unmistakable.
+
+3. First-use clarity
+- Make the immediate task obvious from the start.
+- The player should always know:
+  - what the mission is
+  - what they are looking for
+  - what action they can take next
+
+4. Career simulation tone
+- Use workplace framing, not school-test framing.
+- The player should feel like they are on shift responding to an incident.
+- Use realistic but accessible cybersecurity language.
+
+Scenario details to implement:
+Use a realistic accidental oversharing case for Mission 1.
+
+Suggested scenario:
+An employee exported a spreadsheet containing customer data and shared it using overly broad permissions. The player must determine whether the file contains sensitive information, whether access was improperly granted, whether anyone unauthorized viewed it, and what should happen next.
+
+Suggested artifacts:
+- customer_export.csv or similar file
+- file permissions panel or share settings
+- access history log
+- short employee message explaining why they shared it
+- policy snippet describing what counts as sensitive information and proper sharing rules
+
+Suggested ambiguity:
+Include some uncertainty so the mission feels investigative, not trivial:
+- The employee may say they believed the sharing was internal only.
+- The file name may not sound obviously dangerous.
+- The log should help the player determine whether actual exposure occurred.
+- There should be enough evidence to make a reasoned decision, but not so much that it feels chaotic.
+
+Desired emotional experience:
+The player should feel:
+- curious
+- responsible
+- capable
+- like they are solving a real workplace problem
+Not:
+- like they are taking a dull quiz
+- like they are guessing
+- like they are lost in terminal noise
+
+Feedback and consequences:
+At the end of the mission, provide mission-end feedback that includes:
+- whether the player’s conclusion was strong
+- what evidence mattered most
+- what concept was being taught
+- whether they under-reacted, over-reacted, or made an appropriate judgment
+- a concise explanation of the best professional response
+
+Design output requested:
+Generate:
+1. a polished gameplay concept for Mission 1
+2. the full mission flow
+3. the UI/UX structure for the investigation experience
+4. the evidence artifacts needed
+5. the decision points
+6. the end-of-mission feedback structure
+7. sample on-screen copy for key moments
+8. suggestions for how to make it feel more like a career simulation than a quiz
+
+Additional guidance:
+- Keep the experience beginner-friendly, but not childish.
+- Make it realistic, but not overwhelming.
+- Prefer immersive investigation and decision-making over trivia or obvious multiple-choice answers.
+- The terminal can remain part of the experience, but it should be one tool within a broader investigation interface, not the entire experience.
+- Focus on clarity, realism, role-play, and professional judgment.

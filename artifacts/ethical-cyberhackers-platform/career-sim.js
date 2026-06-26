@@ -3126,7 +3126,7 @@ function discoveryStepHtml(ch, step, label) {
       // MULTI-SELECT BEAT — toggle several reads, then commit the set. Toggling
       // writes only the transient draft; the line stays held until SEND routes the
       // set through setDiscoveryJudgment. No option is ever marked right/wrong.
-      const draft = discoveryDraft(ch, step);
+      const draft = discoveryDraft(ch.id, step);
       const opts = stepOptionsOrdered(ch, step).map(o => {
         const on = draft.includes(o.id);
         const chip = invest ? ' sim-comms-reply--chip' : '';   // M1: toggleable tag chips, not a form checklist
