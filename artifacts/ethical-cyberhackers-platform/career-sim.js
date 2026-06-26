@@ -957,6 +957,24 @@ function returnFromCareerMission() {
   renderResourceBar();
 }
 
+/* Replay a just-completed mission from its case-review debrief. Routes through the
+ * host's launch chokepoint (window.echReplayMission → launchMissionFromMap) so the
+ * intro cutscene, onboarding, and unlock checks all run exactly as a fresh launch.
+ * Completion is idempotent (finalizeMission upserts by mission id), so a replay
+ * never double-counts. Falls back to openCareerMission when running standalone
+ * (no host bridge). Bumps the run token + clears the completion toast first so no
+ * stale debrief overlay survives into the relaunched run. */
+function replayCareerMission(missionId) {
+  const id = missionId || SIM.missionId;
+  if (!id) return;
+  SIM.runToken++;
+  simRemoveCompleteToast();
+  if (typeof window !== 'undefined' && typeof window.echReplayMission === 'function') {
+    try { window.echReplayMission(id); return; } catch (_) { /* fall through to standalone */ }
+  }
+  openCareerMission(id);
+}
+
 /* ------------------------------------------------------------------ *
  * Screen bridge (shipping integration)
  * career-sim.js is an isolated ES module loaded alongside script.js. The host
@@ -2532,6 +2550,12 @@ function objectiveTrackState() {
 
 /* The live OBJECTIVES section: ticks as evidence/flags/judgments resolve. */
 function objectiveTrackHtml() {
+  // Mission-1 five-phase investigation model supersedes the flat objective list
+  // when defined (data-gated on def.investigationPhases; M2-M4 keep the original
+  // track). Presentation-only — same render slot, richer content.
+  if (SIM.def && Array.isArray(SIM.def.investigationPhases) && SIM.def.investigationPhases.length) {
+    return investigationPhasesHtml();
+  }
   let rows = null;
   try { rows = objectiveTrackState(); } catch (_) { rows = null; }
   if (!rows) return '';
@@ -2551,6 +2575,88 @@ function objectiveTrackHtml() {
       <div class="sim-notebook-head sim-notebook-head--obj">OBJECTIVES <span class="sim-notebook-count">${doneN}/${rows.length}</span></div>
       <ul class="sim-obj-list">${items}</ul>
     </div>`;
+}
+
+/* ------------------------------------------------------------------ *
+ * FIVE-PHASE INVESTIGATION MODEL (presentation-only, data-gated)
+ * ------------------------------------------------------------------ *
+ * A richer, named replacement for the flat objectiveTrack, used by any mission
+ * that defines `def.investigationPhases` (Mission 1 today). Each phase carries a
+ * title, a one-line purpose, the deliverable it produces ("what you'll produce"),
+ * and a short completion signal. Completion reuses objectivePredicateMet (fails
+ * closed). Once the case is filed (a decision is recorded) every phase reads done
+ * — the investigation is behind you. READS SIM state + mission data only: no
+ * scoring, no setDiscoveryJudgment, no persistence. Missions without the flag are
+ * completely unaffected (every entry point falls back to objectiveTrack). */
+function investigationPhaseState() {
+  const phases = (SIM.def && SIM.def.investigationPhases) || null;
+  if (!Array.isArray(phases) || !phases.length) return null;
+  const closed = SIM.decision != null || SIM.stage === 'report';
+  const rows = phases.map(p => {
+    const conds = Array.isArray(p.doneBy) ? p.doneBy : (p.doneBy ? [p.doneBy] : []);
+    const done = closed || (conds.length > 0 && conds.every(objectivePredicateMet));
+    return {
+      id: p.id || '', title: p.title || '', purpose: p.purpose || '',
+      deliverable: p.deliverable || '', signal: p.signal || '',
+      done, active: false,
+    };
+  });
+  const firstOpen = rows.find(r => !r.done);
+  if (firstOpen) firstOpen.active = true;
+  return rows;
+}
+
+/* The live INVESTIGATION PHASES section. The current phase is surfaced prominently
+ * (purpose + the deliverable it produces); completed phases collapse to their
+ * title + completion signal; upcoming phases stay muted. */
+function investigationPhasesHtml() {
+  let rows = null;
+  try { rows = investigationPhaseState(); } catch (_) { rows = null; }
+  if (!rows || !rows.length) return '';
+  const doneN = rows.filter(r => r.done).length;
+  const items = rows.map((r, i) => {
+    const cls = r.done ? 'done' : r.active ? 'active' : 'todo';
+    const icon = r.done ? '\u2713' : String(i + 1);
+    const status = r.done ? 'Done' : r.active ? 'In progress' : 'Not started';
+    let detail = '';
+    if (r.active) {
+      detail = `${r.purpose ? `<p class="sim-phase-purpose">${mapEsc(r.purpose)}</p>` : ''}`
+        + `${r.deliverable ? `<p class="sim-phase-deliverable"><span class="sim-phase-deliverable-tag">You'll produce</span><span>${mapEsc(r.deliverable)}</span></p>` : ''}`;
+    } else if (r.done && r.signal) {
+      detail = `<p class="sim-phase-signal">${mapEsc(r.signal)}</p>`;
+    }
+    return `<li class="sim-phase sim-phase--${cls}"${r.active ? ' aria-current="step"' : ''}>
+        <span class="sim-phase-dot" aria-hidden="true">${icon}</span>
+        <div class="sim-phase-body">
+          <span class="sim-phase-title">${mapEsc(r.title)}</span>
+          <span class="sim-sr-only">${status}</span>
+          ${detail}
+        </div>
+      </li>`;
+  }).join('');
+  return `
+    <div class="sim-notebook-section sim-phase-track">
+      <div class="sim-notebook-head sim-notebook-head--phase">INVESTIGATION PHASES <span class="sim-notebook-count">${doneN}/${rows.length}</span></div>
+      <ol class="sim-phase-list">${items}</ol>
+    </div>`;
+}
+
+/* Unified progress rows for the HUD + feed: the rich phase model when defined
+ * (Mission 1), otherwise the flat objective track. Each row is {label,done,active}
+ * so callers stay model-agnostic. Returns null when a mission tracks neither. */
+function missionTrackRows() {
+  if (SIM.def && Array.isArray(SIM.def.investigationPhases) && SIM.def.investigationPhases.length) {
+    let ph = null;
+    try { ph = investigationPhaseState(); } catch (_) { ph = null; }
+    return ph ? ph.map(p => ({ label: p.title, done: p.done, active: p.active })) : null;
+  }
+  return objectiveTrackState();
+}
+
+/* True when the active mission tracks progress as named phases (vs flat objectives)
+ * — lets the HUD label the tag "PHASE" instead of "OBJECTIVE". */
+function missionUsesPhases() {
+  return !!(SIM.def && Array.isArray(SIM.def.investigationPhases) && SIM.def.investigationPhases.length);
 }
 
 /* APPROVED vs OBSERVED comparison board — a two-column diff that makes the
@@ -2777,14 +2883,16 @@ function renderSimHud() {
 
   let objHtml = '';
   let rows = null;
-  try { rows = objectiveTrackState(); } catch (_) { rows = null; }
+  try { rows = missionTrackRows(); } catch (_) { rows = null; }
   if (rows && rows.length) {
+    const phases = missionUsesPhases();
+    const tag = phases ? 'PHASE' : 'OBJECTIVE';
     const doneN = rows.filter(r => r.done).length;
     const active = rows.find(r => r.active);
-    const label = active ? active.label : 'All objectives complete';
+    const label = active ? active.label : (phases ? 'Case filed — all phases complete' : 'All objectives complete');
     const idx = active ? doneN + 1 : rows.length;
     objHtml = `<div class="sim-hud-obj">
-        <span class="sim-hud-obj-tag">OBJECTIVE ${idx}/${rows.length}</span>
+        <span class="sim-hud-obj-tag">${tag} ${idx}/${rows.length}</span>
         <span class="sim-hud-obj-text">${mapEsc(label)}</span>
       </div>`;
   }
@@ -2948,8 +3056,16 @@ function emitFeed(kind, text) {
  * for a mission without an objective track. */
 function feedObjectiveLabel() {
   let rows = null;
-  try { rows = objectiveTrackState(); } catch (_) { rows = null; }
-  if (rows && rows.length) return rows[0].label || '';
+  try { rows = missionTrackRows(); } catch (_) { rows = null; }
+  if (rows && rows.length) {
+    // Phase model (M1) surfaces the ACTIVE phase; the legacy objective track
+    // (M2-M4) keeps its original first-objective label — unchanged behavior.
+    if (missionUsesPhases()) {
+      const active = rows.find(r => r.active);
+      return (active ? active.label : rows[0].label) || '';
+    }
+    return rows[0].label || '';
+  }
   return '';
 }
 
@@ -7478,7 +7594,230 @@ function simCelebrateComplete() {
   }, 2600);
 }
 
+/* ------------------------------------------------------------------ *
+ * CASE-REVIEW DEBRIEF (presentation-only, data-gated on def.debriefScorecard)
+ * ------------------------------------------------------------------ *
+ * A manager-style closeout for Mission 1: the same outcome/consequence/resource
+ * data the standard debrief shows, reframed as a professional case review with
+ * named sections and a performance scorecard. Every metric is DERIVED from the
+ * existing graded helpers (evidenceQuality / classificationQuality /
+ * judgmentQualityAll / computeRecommendationOutcome) — this renderer writes
+ * nothing, grades nothing, and persists nothing. No "Correct/Wrong/Pass/Fail"
+ * language: outcomes read as Excellent / Strong / Developing / Needs practice.
+ * Missions without the flag are untouched (they fall through to renderDebrief). */
+
+/* Map a 0..1 performance fraction to a no-correctness rating word + tone band. */
+function caseReviewRating(frac) {
+  const f = typeof frac === 'number' && isFinite(frac) ? frac : 0;
+  if (f >= 0.85) return { word: 'Excellent', tone: 'good' };
+  if (f >= 0.6)  return { word: 'Strong', tone: 'good' };
+  if (f >= 0.35) return { word: 'Developing', tone: 'warn' };
+  return { word: 'Needs practice', tone: 'low' };
+}
+
+/* One scorecard row: label, a plain count/status value, and a rating chip. */
+function caseReviewMetricRow(label, value, rating) {
+  return `<li class="sim-review-metric">
+      <span class="sim-review-metric-label">${mapEsc(label)}</span>
+      <span class="sim-review-metric-value">${mapEsc(value)}</span>
+      <span class="sim-review-metric-rating sim-review-metric-rating--${rating.tone}">${mapEsc(rating.word)}</span>
+    </li>`;
+}
+
+/* The derived scorecard metrics for Mission 1's case review. Pure reader. */
+function caseReviewMetrics(perf) {
+  const cfg = (SIM.def && SIM.def.debriefScorecard) || {};
+  const rows = [];
+
+  // Evidence Reviewed — fraction of weighted evidence surfaced.
+  const evTotal = simEvidenceDefs().length;
+  const evGot = SIM.evidence.size;
+  rows.push({
+    label: 'Evidence Reviewed',
+    value: `${evGot}/${evTotal} items`,
+    rating: caseReviewRating(evidenceQuality()),
+  });
+
+  // Critical Clues — discovery judgments completed out of those raised.
+  const valid = simDiscoveryChallenges().filter(challengeValid);
+  if (valid.length) {
+    const answered = valid.filter(challengeAnswered).length;
+    rows.push({
+      label: 'Critical Clues Logged',
+      value: `${answered}/${valid.length} reviewed`,
+      rating: caseReviewRating(valid.length ? answered / valid.length : 0),
+    });
+  }
+
+  // Sensitive Data Recognition — classification accuracy on the files that hold
+  // restricted/confidential data (the ones that must never leave).
+  const files = classifiableFiles();
+  const sensitive = files.filter(f => f.trueClassification === 'restricted' || f.trueClassification === 'confidential');
+  if (sensitive.length) {
+    const ok = sensitive.filter(f => SIM.classified[f.name] === f.trueClassification).length;
+    rows.push({
+      label: 'Sensitive Data Recognition',
+      value: `${ok}/${sensitive.length} files`,
+      rating: caseReviewRating(sensitive.length ? ok / sensitive.length : 0),
+    });
+  }
+
+  // Access / Approval Check — was the missing sign-off surfaced?
+  const approvalId = cfg.approvalEvidenceId;
+  if (approvalId) {
+    const flagged = SIM.evidence.has(approvalId);
+    rows.push({
+      label: 'Access / Approval Check',
+      value: flagged ? 'Approval gap flagged' : 'Approval status not surfaced',
+      rating: flagged ? { word: 'Surfaced', tone: 'good' } : { word: 'Not surfaced', tone: 'low' },
+    });
+  }
+
+  // Severity Judgment — alignment of the graded discovery judgments.
+  const jq = judgmentQualityAll();
+  if (jq != null) {
+    rows.push({
+      label: 'Severity Judgment',
+      value: caseReviewRating(jq).word,
+      rating: caseReviewRating(jq),
+    });
+  }
+
+  // Recommended Action Quality — the overall case score band.
+  rows.push({
+    label: 'Recommended Action Quality',
+    value: caseReviewRating((perf.score || 0) / 100).word,
+    rating: caseReviewRating((perf.score || 0) / 100),
+  });
+
+  return rows;
+}
+
+/* A short manager note keyed to the overall band (no correctness wording). */
+function caseReviewManagerNote(perf) {
+  const f = (perf.score || 0) / 100;
+  if (f >= 0.7)  return 'Clean, well-supported work. You surfaced the evidence, recognised the sensitive data, and made a call you can defend. Hold this standard.';
+  if (f >= 0.5)  return 'Solid instincts. Tighten your coverage — a few findings or classifications were left on the table — and the next case will be stronger.';
+  if (f >= 0.3)  return 'You worked the case to a close, but the file is thin. Slow down, open every artifact, and classify each one before you recommend.';
+  return 'This one needs another pass. Work the evidence and the classifications methodically — that is where a defensible call comes from.';
+}
+
+function renderCaseReviewDebrief(action, outcome, changes) {
+  const host = document.getElementById('simFeedback');
+  if (!host) return;
+  const c = action.consequence || {};
+  const denied = outcome && outcome.verdict === 'Denied';
+  // The leadership verdict drives the headline; for a direct action with no
+  // recommendation outcome, recompute a score band so the scorecard still reads
+  // (computeRecommendationOutcome is pure and safe to call again).
+  let perf = outcome;
+  try { if (!perf) perf = computeRecommendationOutcome(); } catch (_) { perf = { score: 0, verdict: null }; }
+  if (!perf) perf = { score: 0, verdict: null };
+
+  const reviewSection = (title, body) => `
+    <section class="sim-review-section">
+      <h3 class="sim-review-section-title">${mapEsc(title)}</h3>
+      <div class="sim-review-section-body">${body}</div>
+    </section>`;
+
+  let html = `
+    <div class="sim-complete-head sim-complete-head--review">
+      <span class="sim-complete-head-badge">\u2713</span>
+      <span class="sim-complete-head-text">
+        <span class="sim-complete-head-title">CASE REVIEW</span>
+        <span class="sim-complete-head-sub">Case closed \u00b7 manager review below</span>
+      </span>
+    </div>
+    <div class="sim-feedback-body sim-review-body">`;
+
+  // 1 — CASE OUTCOME: the decision made + leadership verdict + reasoning.
+  let outcomeBody = `<p class="sim-review-decision"><span class="sim-review-decision-label">${mapEsc(action.label)}</span>${mapEsc(action.outcomeSub || 'Decision recorded.')}</p>`;
+  if (outcome) {
+    const cls = outcome.verdict === 'Approved' ? 'approved'
+      : outcome.verdict === 'Partially Approved' ? 'partial'
+      : outcome.verdict === 'Deferred' ? 'deferred' : 'denied';
+    outcomeBody += `<div class="sim-rec-outcome sim-rec-outcome--${cls}">
+        <div class="sim-rec-verdict">LEADERSHIP VERDICT: ${outcome.verdict.toUpperCase()}</div>
+        <div class="sim-rec-reason">${recommendationReason(outcome)}</div>
+      </div>`;
+  }
+  html += reviewSection('Case Outcome', outcomeBody);
+
+  // 2 — INVESTIGATION COVERAGE: what was examined (consequence: immediate).
+  let coverageBody = '';
+  if (!denied && c.immediate) coverageBody += conseqBlock('immediate', 'What happened next', c.immediate);
+  else if (denied && action.deniedNote) coverageBody += conseqBlock('immediate', 'What happened next', action.deniedNote);
+  const evTotal = simEvidenceDefs().length;
+  coverageBody += `<p class="sim-review-note">You surfaced ${SIM.evidence.size} of ${evTotal} pieces of evidence in this case.</p>`;
+  html += reviewSection('Investigation Coverage', coverageBody);
+
+  // 3 — RISK ASSESSMENT: the sensitive-data + business exposure picture.
+  let riskBody = '';
+  if (!denied && c.business) riskBody += conseqBlock('business', 'Business Impact', c.business);
+  if (!denied && c.future)   riskBody += conseqBlock('future', 'Future Impact', c.future);
+  riskBody += reportSectionHtml(); // carry-forward flags + classification review (existing content)
+  html += reviewSection('Risk Assessment', riskBody);
+
+  // 4 — RESPONSE QUALITY: resource changes from the call.
+  let respBody = `<div class="sim-conseq-block"><div class="sim-conseq-label sim-conseq-label--resource">Resource Changes</div><ul class="sim-conseq-changes">`;
+  const moved = changes.filter(ch => ch.after !== ch.before);
+  if (moved.length) {
+    moved.forEach(ch => {
+      const def = RESOURCE_DEFS.find(d => d.key === ch.key);
+      const diff = ch.after - ch.before;
+      const dir = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
+      const disp = def.kind === 'money'
+        ? (diff >= 0 ? '+' : '\u2212') + '$' + Math.abs(diff).toLocaleString('en-US')
+        : (diff > 0 ? '+' : '') + diff;
+      respBody += `<li class="sim-conseq-change"><span class="sim-conseq-change-name">${def.label}</span><span class="sim-conseq-change-delta--${dir}">${disp}</span></li>`;
+    });
+  } else {
+    respBody += `<li class="sim-conseq-change"><span class="sim-conseq-change-name">No net resource change</span><span class="sim-conseq-change-delta--flat">\u2014</span></li>`;
+  }
+  respBody += `</ul></div>`;
+  const notes = outcomeNotes(SIM.dynamic);
+  if (notes.length) {
+    respBody += `<div class="sim-cont-impact">
+        <div class="sim-conseq-label sim-conseq-label--future">CASE CONTINUITY — CARRIED FORWARD</div>
+        <ul class="sim-cont-impact-list">
+          ${notes.map(n => `<li class="sim-cont-impact-item sim-cont-impact-item--${n.tone}">${n.text}</li>`).join('')}
+        </ul></div>`;
+  }
+  html += reviewSection('Response Quality', respBody);
+
+  // 5 — ANALYST PERFORMANCE: the derived scorecard + overall band + Sarah's read.
+  const metrics = caseReviewMetrics(perf);
+  const overall = caseReviewRating((perf.score || 0) / 100);
+  let perfBody = `<ul class="sim-review-metrics">${metrics.map(m => caseReviewMetricRow(m.label, m.value, m.rating)).join('')}</ul>`;
+  perfBody += `<div class="sim-review-overall sim-review-overall--${overall.tone}">
+      <span class="sim-review-overall-label">Overall</span>
+      <span class="sim-review-overall-word">${overall.word}</span>
+    </div>`;
+  perfBody += performanceMirrorHtml();
+  html += reviewSection('Analyst Performance', perfBody);
+
+  // 6 — MANAGER FEEDBACK: a short closing note keyed to the band.
+  html += reviewSection('Manager Feedback', `<p class="sim-review-manager">${mapEsc(caseReviewManagerNote(perf))}</p>`);
+
+  html += `</div>`; // .sim-feedback-body
+  // Two-action footer: continue (primary) + replay (secondary). Both live OUTSIDE
+  // the scrolling body so they are always reachable.
+  html += `<div class="sim-feedback-foot sim-feedback-foot--review">
+      <button type="button" class="sim-report-done sim-report-done--secondary" data-replay="${mapEsc(SIM.missionId || '')}">Replay Mission</button>
+      <button type="button" class="sim-report-done sim-report-done--primary" data-done="1">Continue to Operations Center</button>
+    </div>`;
+  host.innerHTML = html;
+  setFeedbackPanelHidden(false);
+  simCelebrateComplete();
+}
+
 function renderDebrief(action, outcome, changes) {
+  // Mission-1 case-review closeout supersedes the standard debrief when defined
+  // (data-gated on def.debriefScorecard). Presentation-only; M2-M4 are untouched.
+  if (SIM.def && SIM.def.debriefScorecard) {
+    renderCaseReviewDebrief(action, outcome, changes);
+    return;
+  }
   const host = document.getElementById('simFeedback');
   if (!host) return;
   const c = action.consequence || {};
@@ -7816,14 +8155,53 @@ const CAREER_MISSIONS = {
       ],
       cta: 'Start investigating →',
     },
-    // Progressive objectives (engine-level). Tick live off findings + the recorded
-    // decision; presentation-only, never scored. Labels are process goals (no spoilers).
-    objectiveTrack: [
-      { id: 'm1_review',    label: 'Review what’s queued in the outbound package', doneBy: ['ev:ev_manifest'] },
-      { id: 'm1_sensitive', label: 'Classify the data in the package by sensitivity', doneBy: ['ev:ev_pii_salary', 'ev:ev_customer_pii'] },
-      { id: 'm1_access',    label: 'Confirm the package’s approval status', doneBy: ['ev:ev_approval_gap'] },
-      { id: 'm1_decide',    label: 'Decide whether the package can leave CyberCorp', doneBy: ['decision'] },
+    /* Five named investigation phases (engine-level, presentation-only — never
+     * scored). Replaces the flat objectiveTrack for Mission 1: each phase carries
+     * a title, the purpose of the phase, the deliverable it produces, and a short
+     * completion signal. Ticks live off findings + the recorded decision via
+     * objectivePredicateMet (fails closed). Labels are process goals (no spoilers).
+     * Once the case is filed every phase reads done. */
+    investigationPhases: [
+      {
+        id: 'm1_ph_assigned', title: 'New Case Assigned',
+        purpose: 'Open the case and see what outbound package triggered the alert.',
+        deliverable: 'A clear picture of what is queued to leave the company.',
+        signal: 'Outbound package contents reviewed.',
+        doneBy: ['ev:ev_manifest'],
+      },
+      {
+        id: 'm1_ph_collect', title: 'Evidence Collected',
+        purpose: 'Open each file and classify the data inside it by sensitivity.',
+        deliverable: 'Each file in the package labelled by how sensitive it is.',
+        signal: 'Sensitive files in the package identified.',
+        doneBy: ['ev:ev_pii_salary', 'ev:ev_customer_pii', 'ev:ev_confidential_pricing'],
+      },
+      {
+        id: 'm1_ph_investigate', title: 'Investigation in Progress',
+        purpose: 'Trace who prepared this release and under what authority.',
+        deliverable: 'The story of how and why the package was assembled.',
+        signal: 'Release context established.',
+        doneBy: ['ev:ev_release_context', 'ev:ev_approval_gap'],
+      },
+      {
+        id: 'm1_ph_assess', title: 'Assessment Required',
+        purpose: 'Weigh the approval gap against what the package would expose.',
+        deliverable: 'A judgment on whether the release was properly authorized.',
+        signal: 'Approval gap assessed.',
+        doneBy: ['challenge:ch_approval_gap'],
+      },
+      {
+        id: 'm1_ph_report', title: 'File Incident Report',
+        purpose: 'Record your decision on whether this package can leave CyberCorp.',
+        deliverable: 'A filed incident report with your recommended action.',
+        signal: 'Incident report filed.',
+        doneBy: ['decision'],
+      },
     ],
+    /* Manager-style case-review debrief (presentation-only). Gating flag for
+     * renderCaseReviewDebrief; the id points at the approval-gap evidence the
+     * scorecard surfaces under "Access / Approval". */
+    debriefScorecard: { approvalEvidenceId: 'ev_approval_gap' },
     // Just-in-time concept cards — classification basics, triggered on findings.
     conceptCards: [
       { id: 'm1_cc_public', triggerEv: 'ev_manifest', glossaryKey: 'public',
@@ -11948,6 +12326,8 @@ function simInit() {
         if (ev) { ev.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); const f = ev.querySelector('button, [tabindex]'); if (f && f.focus) f.focus(); }
         return;
       }
+      const replayBtn = e.target.closest('[data-replay]');
+      if (replayBtn) { replayCareerMission(replayBtn.getAttribute('data-replay') || SIM.missionId); return; }
       if (e.target.closest('[data-done]')) { returnFromCareerMission(); return; }
     });
 

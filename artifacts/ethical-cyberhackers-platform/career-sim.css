@@ -1619,6 +1619,91 @@
 }
 .sim-feedback-foot .sim-report-done { margin-top: 0; }
 
+/* ---------- Case-review debrief (Mission 1, def.debriefScorecard) ----------
+ * A manager-style closeout reframing the standard debrief into named sections
+ * with a derived performance scorecard. Presentation-only — every value comes
+ * from existing graded helpers; nothing here writes or persists. */
+.sim-complete-head--review { border-bottom-color: var(--cyan-dim); background: linear-gradient(90deg, rgba(0, 229, 255, 0.10), rgba(0, 229, 255, 0.015)); }
+.sim-complete-head--review .sim-complete-head-badge { background: var(--cyan); }
+.sim-review-body { display: flex; flex-direction: column; gap: 0; }
+.sim-review-section {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.sim-review-section:first-child { border-top: none; padding-top: 4px; }
+.sim-review-section-title {
+  font-family: var(--font-hud);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin: 0 0 9px;
+}
+.sim-review-decision { font-size: 12px; line-height: 1.55; color: var(--text); margin: 0 0 10px; }
+.sim-review-decision-label { display: block; font-family: var(--font-hud); font-size: 13px; font-weight: 700; color: var(--text-bright); margin-bottom: 3px; }
+.sim-review-note { font-size: 11.5px; line-height: 1.55; color: var(--text-dim); margin: 8px 0 0; }
+.sim-review-manager { font-size: 12px; line-height: 1.65; color: var(--text); margin: 0; font-style: italic; }
+
+/* Performance scorecard */
+.sim-review-metrics { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sim-review-metric {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+.sim-review-metric:last-child { border-bottom: none; }
+.sim-review-metric-label { flex: 1 1 auto; font-size: 11.5px; color: var(--text); min-width: 0; }
+.sim-review-metric-value { flex: 0 0 auto; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+.sim-review-metric-rating {
+  flex: 0 0 auto;
+  font-family: var(--font-hud);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  padding: 2px 7px;
+  min-width: 78px;
+  text-align: center;
+}
+.sim-review-metric-rating--good { color: var(--green);  border: 1px solid var(--green);  background: rgba(0, 255, 153, 0.08); }
+.sim-review-metric-rating--warn { color: var(--yellow); border: 1px solid var(--yellow); background: rgba(255, 215, 0, 0.08); }
+.sim-review-metric-rating--low  { color: var(--red);    border: 1px solid var(--red);    background: rgba(255, 51, 68, 0.08); }
+.sim-review-overall {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.sim-review-overall--good { border-color: var(--green);  background: rgba(0, 255, 153, 0.06); }
+.sim-review-overall--warn { border-color: var(--yellow); background: rgba(255, 215, 0, 0.06); }
+.sim-review-overall--low  { border-color: var(--red);    background: rgba(255, 51, 68, 0.06); }
+.sim-review-overall-label { font-family: var(--font-hud); font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-dim); }
+.sim-review-overall-word { font-family: var(--font-hud); font-size: 15px; font-weight: 700; letter-spacing: 0.5px; }
+.sim-review-overall--good .sim-review-overall-word { color: var(--green); }
+.sim-review-overall--warn .sim-review-overall-word { color: var(--yellow); }
+.sim-review-overall--low  .sim-review-overall-word { color: var(--red); }
+
+/* Two-action footer: replay (secondary, ghost) + continue (primary, filled). */
+.sim-feedback-foot--review { display: flex; gap: 10px; }
+.sim-feedback-foot--review .sim-report-done { width: auto; flex: 1 1 auto; }
+.sim-report-done--secondary {
+  color: var(--cyan);
+  background: transparent;
+  border: 1px solid var(--cyan-dim);
+  flex: 0 0 auto !important;
+}
+.sim-report-done--secondary:hover { background: rgba(0, 229, 255, 0.1); }
+.sim-report-done--primary { color: var(--bg); background: var(--green); }
+.sim-report-done--primary:hover { background: var(--green-dim); }
+
 .sim-complete-head {
   flex: 0 0 auto;
   display: flex;
@@ -3854,6 +3939,99 @@ button.sim-side-opt:focus-visible { outline: 2px solid var(--cyan); outline-offs
 .sim-obj--done   { color: var(--text-dim); }
 .sim-obj--done .sim-obj-icon { color: var(--green); border-color: var(--green); background: rgba(0, 255, 153, 0.08); }
 .sim-obj--done .sim-obj-text { text-decoration: line-through; text-decoration-color: var(--border); }
+
+/* --- Five-phase investigation track (Mission 1, def.investigationPhases) ----
+ * A richer, narrative replacement for the flat objective list: a numbered timeline
+ * where the active phase surfaces its purpose + deliverable, completed phases
+ * collapse to a quiet completion signal, and upcoming phases stay muted. */
+.sim-notebook-head--phase { --nb-accent: var(--cyan); --nb-icon: "\25F7"; }
+.sim-phase-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sim-phase {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0 6px 2px;
+}
+/* Connector line linking the numbered dots into a timeline. */
+.sim-phase::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 24px;
+  bottom: -4px;
+  width: 1px;
+  background: var(--border);
+}
+.sim-phase:last-child::before { display: none; }
+.sim-phase-dot {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+}
+.sim-phase-body { flex: 1 1 auto; min-width: 0; }
+.sim-phase-title {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+.sim-phase-purpose { font-size: 11.5px; line-height: 1.5; color: var(--text); margin: 4px 0 0; }
+.sim-phase-deliverable {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 5px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.sim-phase-deliverable-tag {
+  flex: 0 0 auto;
+  font-family: var(--font-hud);
+  font-size: 8.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  border: 1px solid var(--cyan-dim);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+.sim-phase-signal { font-size: 11px; line-height: 1.45; color: var(--text-muted); margin: 3px 0 0; }
+.sim-phase--todo .sim-phase-title { color: var(--text-muted); }
+.sim-phase--active .sim-phase-dot {
+  color: var(--cyan);
+  border-color: var(--cyan);
+  background: rgba(0, 229, 255, 0.1);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+}
+.sim-phase--active .sim-phase-title { color: var(--text-bright); }
+.sim-phase--done .sim-phase-dot {
+  color: var(--green);
+  border-color: var(--green);
+  background: rgba(0, 255, 153, 0.1);
+}
+.sim-phase--done .sim-phase-title { color: var(--text-dim); }
 
 .sim-sr-only {
   position: absolute;

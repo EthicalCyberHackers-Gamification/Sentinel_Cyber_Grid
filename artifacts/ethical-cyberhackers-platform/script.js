@@ -9931,6 +9931,14 @@ window.echExitCareerScreen = function echExitCareerScreen() {
   showModuleLanding();
 };
 
+/* Replay bridge — career-sim.js calls this from a debrief "Replay Mission" button
+   so a replay re-enters through the SAME launch chokepoint as a fresh launch: the
+   intro cutscene, onboarding, and unlock checks all run again, and host completion
+   stays idempotent (notifyLabComplete is a no-op when already complete). */
+window.echReplayMission = function echReplayMission(missionId) {
+  launchMissionFromMap(missionId, true);
+};
+
 /* Career simulator persistence bridges — career-sim.js holds the authoritative
    in-memory career state and calls these to read/write it. Writes route through
    saveProgress() (the single chokepoint that also enqueues the best-effort

@@ -1,0 +1,367 @@
+Evaluate and refine the current in-product experience for Mission 1 of a cybersecurity career simulation game.
+
+Mission name:
+Protect Sensitive Information
+
+Context:
+The current Mission 1 experience has been evolving, and some earlier design suggestions may already be implemented in the current Replit experience. This request is not a blank-slate redesign. Instead, evaluate the current direction, avoid repeating ideas that already appear substantially addressed, and focus on the remaining gaps and highest-impact improvements.
+
+Use the current implemented Mission 1 experience as the baseline, not a blank slate.
+
+Important scoping note:
+Some previously suggested Mission 1 improvements may already be implemented. Please do not treat every suggestion as a net-new requirement.
+
+Use judgment to:
+- skip recommendations that are already fully addressed
+- refine recommendations that are partially implemented
+- focus on the remaining gaps and highest-impact opportunities
+- avoid repeating suggestions unless they still need meaningful improvement
+
+If helpful, organize the response into:
+- Already Addressed
+- Needs Improvement
+- Recommended Next
+
+Scope:
+Focus only on the in-product experience. Do not focus on workshop facilitation, instructor scripts, or broader workshop-goal framing outside the product.
+
+Current concerns:
+Mission 1 still risks feeling too much like a quiz instead of a cybersecurity career simulation. Important evidence can blend into terminal output, the investigation flow may not feel enough like real analyst work, and the end of the mission may still need a stronger debrief and progression moment.
+
+Goal:
+Refine Mission 1 so it feels like a realistic, beginner-friendly cybersecurity career simulation rather than a static quiz. The player should feel like a Junior Security Analyst investigating a possible sensitive-data exposure, reviewing evidence, making a judgment call, and receiving a professional mission debrief at the end.
+
+Core design principles:
+1. Make the player feel like they are doing the job, not answering a test.
+2. The mission should require investigation, judgment, and communication.
+3. Important evidence should be visually distinct from terminal chatter.
+4. The mission should be readable, immersive, and easy for a beginner to follow.
+5. The mission should end with a satisfying debrief that reinforces learning and gives clear next actions.
+6. The tone should feel like a Blue Team / security operations career simulation, not a classroom quiz.
+
+Player role:
+The player is a Junior Security Analyst.
+
+Mission scenario:
+An employee exported a file containing customer information and shared it with overly broad permissions. The player must investigate whether the file contains sensitive information, whether it was shared improperly, whether anyone unauthorized accessed it, how serious the issue is, and what should happen next.
+
+Important design requirement:
+Make each step of the 5-step mission structure feel distinct, purposeful, and clearly tied to the player’s goal. The flow should not feel like a long chain of generic activities.
+
+For each step:
+- clearly communicate what the player is doing now
+- explain why this step matters to the investigation
+- show what output or progress the player will produce by completing it
+- make the transition to the next step feel earned and logical
+
+Avoid presenting the mission as a flat checklist of tasks. Instead, present it as a sequence of meaningful investigation phases with clear stage titles, purpose statements, and completion signals.
+
+Use the following structure as player-facing phases:
+1. New Case Assigned
+2. Evidence Collected
+3. Investigation in Progress
+4. Assessment Required
+5. File Incident Report
+
+Each phase should have:
+- a clear title
+- a one-sentence purpose
+- a visible output or deliverable
+- a completion state that reinforces progress
+
+Design request:
+Create a full product design proposal for Mission 1 that evaluates the current direction and improves what still needs work.
+
+Please include all of the following:
+
+1. Problem
+Describe the likely remaining Mission 1 product issues in concrete terms, such as:
+- still too quiz-like
+- terminal clutter or unclear hierarchy
+- evidence not visually distinct enough
+- weak investigation feel
+- weak end-of-mission closure
+- insufficient career simulation tone
+
+2. Design goals
+Define the design goals for the refined Mission 1 experience.
+These should include:
+- making the mission feel more like real cybersecurity work
+- making evidence easier to inspect
+- increasing engagement
+- improving clarity
+- giving players a stronger sense of performance and consequence
+
+3. Full mission refinement
+Refine Mission 1 as a role-based investigation flow.
+
+Use a 5-step structure:
+Step 1: Receive the incident
+Step 2: Review evidence
+Step 3: Investigate actively
+Step 4: Make a decision
+Step 5: Submit an analyst summary
+
+For each step, specify:
+- what the player sees
+- what the player does
+- what the interface needs to support
+- how it should feel
+- example screen content or copy
+
+Also map each step to the recommended player-facing phase names:
+- New Case Assigned
+- Evidence Collected
+- Investigation in Progress
+- Assessment Required
+- File Incident Report
+
+Make sure the response explains how each phase is distinct and meaningful, so the flow does not feel like a long chain of activities with unclear value.
+
+4. Investigation structure
+Design the mission so the player investigates across multiple sources instead of answering one obvious question.
+
+Include these evidence types:
+- a shared file containing possible customer data
+- permissions or share settings
+- an access/activity log
+- an employee message or chat excerpt
+- a policy or compliance note
+
+For each evidence type, explain:
+- what it is
+- what clue it contains
+- why it matters to the investigation
+
+5. Evidence Viewer
+Evaluate whether a dedicated Evidence Viewer is still needed or should be improved.
+
+Requirements if included:
+- When a player opens a relevant file, it should appear in a visually distinct viewer instead of blending into terminal output.
+- Preserve the exact file content.
+- Clearly label it as mission evidence.
+- Include a short explanation that this is the information the player needs to review.
+- Make it readable with clear spacing, contrast, and framing.
+
+Please provide:
+- UX rationale
+- when and why this pattern is needed
+- screen behavior
+- content structure
+- example labels and microcopy
+- how players return to the main investigation flow
+
+6. Career simulation improvements
+Suggest specific ways to make Mission 1 feel more like a cybersecurity career simulation and less like a quiz.
+
+Focus on ideas such as:
+- workplace framing
+- role identity
+- analyst actions
+- judgment calls
+- consequences
+- writing an incident note
+- manager feedback
+- professional language
+- ambiguity that feels realistic but fair
+
+Provide concrete recommendations, not generic brainstorms.
+
+7. Decision design
+Define the decisions the player must make in Mission 1.
+
+Include decisions such as:
+- does the file contain sensitive information
+- was it overshared
+- was exposure internal-only or externally accessible
+- was there confirmed unauthorized access or only risk
+- what severity level applies
+- what next action should be recommended
+
+Explain how to present these decisions so they feel like professional judgment, not obvious multiple-choice quiz questions.
+
+8. Analyst summary submission
+At the end of the mission, require the player to submit a short analyst summary.
+
+Design this output so it feels like professional incident communication.
+
+The analyst summary should cover:
+- what happened
+- what evidence mattered most
+- the player’s conclusion
+- the recommended next step
+
+Please recommend:
+- input format
+- scaffolding for beginners
+- evaluation criteria
+- example prompt shown to the player
+
+9. Mission-end summary screen
+Design or refine a mission-complete debrief inspired by the strengths of the ThreatGEN Red vs Blue summary style, but adapted for a case-based cybersecurity investigation.
+
+Important:
+Do not copy ThreatGEN literally. Instead, borrow the strengths:
+- operational-style summary
+- performance framing
+- consequence
+- closure
+- replayability
+- a strong simulation feel
+
+The mission-end summary should not feel like a quiz result page.
+
+It should show:
+- what happened in the case
+- how well the player investigated
+- whether their judgment was appropriate
+- what a real analyst should do next
+
+Use professional section labels such as:
+- Case Outcome
+- Investigation Coverage
+- Risk Assessment
+- Response Quality
+- Analyst Performance
+- Manager Feedback
+
+Avoid labels such as:
+- Correct Answer
+- Wrong
+- Pass/Fail
+
+For the summary screen, provide:
+- purpose
+- information architecture
+- section design
+- metric recommendations
+- sample labels
+- sample values
+- tone guidance
+
+10. Mission Debrief Overlay
+Evaluate whether the summary should appear as a substantial end-of-mission overlay rather than a small popup.
+
+Recommended direction:
+- show a large Mission Debrief Overlay immediately after the mission ends
+- make it feel like a professional case review
+- include two clear next actions:
+  - Replay Mission
+  - Continue to Operation Center
+
+Please include:
+- recommended overlay structure
+- hierarchy of information
+- CTA hierarchy
+- whether Continue to Operation Center should be the primary action
+- why this is better than a small dismissible popup
+
+11. Recommended metrics for the debrief
+Define concrete metrics for the Mission 1 debrief, such as:
+- Evidence Reviewed
+- Critical Clues Identified
+- Sensitive Data Recognition
+- Access Risk Assessment
+- Severity Judgment
+- Recommended Action Quality
+- Incident Note Quality
+- Hint Usage
+- Overall Analyst Rating
+
+For each metric, explain:
+- what it measures
+- why it matters
+- the best output format (count, rating, status, short text, etc.)
+
+12. Sample completed debrief
+Provide a realistic sample of a completed Mission 1 debrief screen with example values.
+
+Include:
+- case status
+- severity
+- evidence reviewed
+- clues found
+- action recommendation
+- analyst rating
+- manager feedback
+- replay and continue actions
+
+Make this sample feel like a polished in-game debrief screen.
+
+13. UX/UI recommendations
+Provide concrete UX/UI recommendations for the entire mission.
+
+Cover:
+- layout
+- hierarchy
+- how to distinguish instructions from evidence
+- how to distinguish evidence from terminal output
+- how to reduce clutter
+- how to keep the experience readable
+- how to make the next action obvious at all times
+- how to preserve the terminal flavor without letting the mission become terminal noise
+
+14. Wireframe-style structure
+Provide a screen-by-screen wireframe-style description of the Mission 1 experience, including:
+- mission start / incident briefing
+- main investigation screen
+- evidence viewer
+- decision step
+- analyst summary submission
+- mission debrief overlay
+
+For each screen, list:
+- primary purpose
+- major UI regions
+- primary CTA
+- secondary CTA
+- key content elements
+
+15. Sample on-screen copy
+Provide polished sample copy for:
+- mission intro
+- incident briefing
+- evidence viewer header
+- decision prompt
+- analyst summary prompt
+- mission debrief section labels
+- manager feedback
+- Replay Mission button
+- Continue to Operation Center button
+
+16. Implementation notes
+Make the proposal implementation-oriented.
+Include:
+- what can be built first as an MVP
+- what can be phased in later
+- which design choices matter most for immediate improvement
+- how to preserve realism without sacrificing clarity
+
+Important constraints:
+- Keep the experience beginner-friendly, but not childish.
+- Keep it realistic, but not overwhelming.
+- Do not design the mission as a generic quiz flow.
+- Do not rely only on terminal text.
+- The player should feel like they are doing a Blue Team investigation.
+- The output should be concrete, polished, and specific enough for product design and engineering use.
+
+Preferred output format:
+Present the answer as a product design proposal with these sections:
+- Already Addressed
+- Needs Improvement
+- Recommended Next
+- Design Goals
+- Mission 1 Refinement
+- Investigation and Evidence Design
+- Evidence Viewer
+- Decision Design
+- Analyst Summary Submission
+- Mission Debrief Overlay
+- Recommended Metrics
+- Sample Mission 1 Debrief
+- UX/UI Recommendations
+- Wireframe-Style Flow
+- Sample Copy
+- Implementation Notes
+
+Make the answer detailed, polished, and implementation-oriented. Avoid vague brainstorm language.
