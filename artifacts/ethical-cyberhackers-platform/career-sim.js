@@ -2369,7 +2369,11 @@ function renderEvidencePanel() {
   const reflectHtml = reflectEv ? reflectionCardHtml(reflectEv) : '';
 
   const classHtml = renderClassifyHtml(mode);    // M1 file flow ('' for command-model)
-  const identifyHtml = identifyNotebookHtml();    // command-model ('' for M1)
+  const identifyHtmlRaw = identifyNotebookHtml();    // command-model ('' for M1)
+  // Dock-first FINAL VERDICT (Missions 2-4, determinationDock): when on, the
+  // determination is relocated into the Decision Dock, so suppress the right-panel
+  // copy here. Flagless missions keep it verbatim (else branch stays byte-identical).
+  const identifyHtml = determinationDockMode() ? '' : identifyHtmlRaw;
   const risksHtml = risksNotebookHtml();
   const extrasHtml = notebookExtrasHtml();
   const responseHtml = responseStatusHtml();
@@ -3416,7 +3420,9 @@ function caseFileNextStep() {
   if (undiscovered.length) return `Investigate the remaining ${undiscovered.length} file(s) — cat to deep-read or grep to scan — to surface more evidence.`;
   const unclassified = simFiles().filter(f => fileClassificationVisible(f) && !SIM.classified[f.name]);
   if (unclassified.length) return 'Classify each file you have reviewed.';
-  if (SIM.def && SIM.def.identify && !SIM.identified) return 'Record your determination, then type  decide  to choose your response.';
+  if (SIM.def && SIM.def.identify && !SIM.identified) return determinationDockMode()
+    ? 'Make your determination in the Decision Dock below, then type  decide  to choose your response.'
+    : 'Record your determination, then type  decide  to choose your response.';
   if (SIM.stage === 'investigation') return 'When the evidence is in, type  decide  to choose your response.';
   return '';
 }
@@ -5111,6 +5117,28 @@ function activeClassificationFile() {
   return simFiles().find(f => fileClassificationVisible(f) && !SIM.classified[f.name]) || null;
 }
 
+/* Dock-first FINAL VERDICT (command-model Missions 2-4). Is the determination
+ * (identify) relocated from the right-side notebook into the Decision Dock? Gated
+ * on the per-mission determinationDock flag AND the presence of an identify config,
+ * so flagless missions are untouched and Mission 1 (no def.identify) never trips it.
+ * Presentation-only — the graded writer (setIdentification) is unchanged. */
+function determinationDockMode() {
+  return !!(SIM.def && SIM.def.determinationDock && SIM.def.identify);
+}
+
+/* The identify config the dock should currently surface as the player's final
+ * call, or null. Available throughout (once any evidence is in) and stays
+ * re-committable so the analyst can change their mind right up until they decide;
+ * clears only once the response has been chosen (report stage). NON-BLOCKING —
+ * never feeds caseFileDecisionPending()/decisionLocked(), so the terminal is never
+ * gated on it; identification accuracy still feeds the verdict exactly as before. */
+function activeDetermination() {
+  if (!determinationDockMode()) return null;
+  if (SIM.stage === 'report') return null;
+  if (SIM.evidence.size === 0) return null;
+  return SIM.def.identify;
+}
+
 /* Fraction (0..1) of total evidence weight surfaced — drives the recommendation
  * engine so thorough investigation, not command volume, earns better outcomes. */
 function evidenceQuality() {
@@ -5589,6 +5617,13 @@ function decisionDockHtml() {
   // above the finding-draft log; never locks the terminal.
   const cf = activeClassificationFile();
   if (cf) return classificationDockHtml(cf);
+  // Dock-first FINAL VERDICT (Missions 2-4, determinationDock): the climactic
+  // "which one is it?" call lives here, above the optional finding-draft log and
+  // below any graded call/reconsideration/classification so Sarah's reasoning beats
+  // always win. NON-BLOCKING — the terminal stays open; the player still types
+  // `decide` to reveal the handling actions. Routes through setIdentification.
+  const det = activeDetermination();
+  if (det) return determinationDockHtml(det);
   // Lowest priority: once nothing graded is pending, invite the player to LOG the
   // finding they just drafted, right where they decided. Optional + non-blocking.
   const fd = activeDraftFinding();
@@ -5656,6 +5691,44 @@ function classificationDockHtml(f) {
     <p class="sim-dock-foot sim-dock-foot--classify">Optional, but classifying each file strengthens your case \u2014 the terminal stays open.</p>`;
 }
 
+/* The determination dock card (Missions 2-4, determinationDock). Relocates the
+ * FINAL VERDICT ("which device/account is the culprit?") OUT of the right-side
+ * notebook and INTO the conversation as its own NON-BLOCKING beat: Sarah asks which
+ * one it is, the player answers with option chips. Routes ONLY through the existing
+ * data-identify hook (setIdentification — the sole graded writer); identification
+ * accuracy still feeds the verdict, so skipping it weakens the call but never locks
+ * the terminal. No correctness feedback (no-spoiler); stays re-committable. */
+function determinationDockHtml(idf) {
+  const chosen = SIM.identified;
+  const prompt = idf.prompt || idf.head || 'Which one is it?';
+  const opts = (idf.options || []).map(o =>
+    `<button type="button" class="sim-comms-reply sim-comms-reply--chip sim-comms-reply--determine${chosen === o.id ? ' is-on' : ''}" data-identify="${o.id}" aria-pressed="${chosen === o.id ? 'true' : 'false'}"><span class="sim-comms-reply-text">${o.label}</span></button>`
+  ).join('');
+  const recorded = chosen
+    ? `<div class="sim-comms-recorded">${idf.note || 'Determination recorded \u2014 this feeds the strength of your recommendation.'}</div>`
+    : '';
+  return `
+    <div class="sim-dock-head sim-dock-head--determine">
+      <span class="sim-dock-title"><span class="sim-dock-pulse" aria-hidden="true"></span>Make your determination</span>
+    </div>
+    <div class="sim-dock-body">
+      <div class="sim-comms sim-comms--determine">
+        <div class="sim-comms-turn sim-comms-turn--open">
+          <div class="sim-comms-msg sim-comms-msg--sarah">
+            <span class="sim-comms-avatar" aria-hidden="true">SR</span>
+            <div class="sim-comms-bubble sim-comms-bubble--ask">${prompt}</div>
+          </div>
+          <div class="sim-comms-replies sim-comms-replies--chips" role="group" aria-label="Record your determination">
+            <span class="sim-comms-replies-label">Record your determination</span>
+            ${opts}
+          </div>
+          ${recorded}
+        </div>
+      </div>
+    </div>
+    <p class="sim-dock-foot sim-dock-foot--determine">This is your call \u2014 then type  decide  to choose your response. The terminal stays open; change it any time before you decide.</p>`;
+}
+
 /* The reconsideration card — a distinct dock variant. Same Sarah-comms chrome and
  * keyboard/ARIA pattern as a normal call, but it cross-references an EARLIER logged
  * read and asks the analyst to revise or hold it. Neutral copy, no verdict leak;
@@ -5708,6 +5781,8 @@ function dockPeekHtml() {
     label = 'New evidence — does this change a call?'; cta = 'Review & Decide'; variant = 'sim-dock-peek--reconsider';
   } else if (id.indexOf('classify:') === 0) {
     label = 'Classify a file with Sarah'; cta = 'Classify'; variant = 'sim-dock-peek--classify';
+  } else if (id.indexOf('determine:') === 0) {
+    label = 'Make your determination'; cta = 'Make the call'; variant = 'sim-dock-peek--determine';
   } else if (id.indexOf('review:') === 0) {
     label = 'Review the file before your call'; cta = 'Continue';
   } else {
@@ -5734,6 +5809,7 @@ function renderDecisionDock(flash) {
     dock.classList.remove('sim-decision-dock--finding');
     dock.classList.remove('sim-decision-dock--review');
     dock.classList.remove('sim-decision-dock--classify');
+    dock.classList.remove('sim-decision-dock--determine');
     dock.classList.remove('sim-decision-dock--peek');
     return;
   }
@@ -5759,6 +5835,9 @@ function renderDecisionDock(flash) {
   // Calm cyan chrome for the optional, non-blocking classification beat.
   const isClassify = typeof SIM._dockActiveId === 'string' && SIM._dockActiveId.indexOf('classify:') === 0;
   dock.classList.toggle('sim-decision-dock--classify', isClassify);
+  // Calm cyan chrome for the optional, non-blocking determination (final verdict) beat.
+  const isDetermine = typeof SIM._dockActiveId === 'string' && SIM._dockActiveId.indexOf('determine:') === 0;
+  dock.classList.toggle('sim-decision-dock--determine', isDetermine);
   if (flash) {
     dock.classList.remove('sim-decision-dock--enter');
     void dock.offsetWidth;                  // restart the entrance animation
@@ -5846,11 +5925,18 @@ function syncDecisionDock() {
           const cf = activeClassificationFile();
           if (cf) newId = 'classify:' + cf.name;
           else {
-            // No graded call, reconsideration, or classification pending — surface the
-            // oldest un-logged finding so logging it is discoverable. Distinct prefix so
-            // the swap from a just-answered call into the draft still flashes/announces.
-            const fd = activeDraftFinding();
-            if (fd) newId = 'finding:' + fd.id;
+            // Dock-first FINAL VERDICT (Missions 2-4, determinationDock) sits above the
+            // finding-draft log and below graded calls/reconsiderations/classification.
+            // Distinct prefix so the swap into/out of it still flashes/announces; never locks.
+            const det = activeDetermination();
+            if (det) newId = 'determine:' + SIM.missionId;
+            else {
+              // No graded call, reconsideration, classification, or determination pending —
+              // surface the oldest un-logged finding so logging it is discoverable. Distinct
+              // prefix so the swap from a just-answered call into the draft still flashes.
+              const fd = activeDraftFinding();
+              if (fd) newId = 'finding:' + fd.id;
+            }
           }
         }
       }
@@ -5865,7 +5951,8 @@ function syncDecisionDock() {
   // starved by an optional surface. A re-render of the SAME mode (e.g. step 1 → step
   // 2 of a call) preserves whatever the analyst last chose.
   const classifyMode = typeof newId === 'string' && newId.indexOf('classify:') === 0;
-  if (changed) SIM.dockExpanded = !!(newId && (decisionLocked() || classifyMode));
+  const determineMode = typeof newId === 'string' && newId.indexOf('determine:') === 0;
+  if (changed) SIM.dockExpanded = !!(newId && (decisionLocked() || classifyMode || determineMode));
   SIM._dockActiveId = newId;
   renderDecisionDock(changed);
   updateDecisionLock();
@@ -6392,7 +6479,9 @@ function runCommandEntry(c) {
   renderEvidencePanel();
 
   if (firstRun && coreCommandsRun() && SIM.stage === 'investigation') {
-    simPrint('You have gathered the core evidence. Make your determination in the notebook, then type  decide  to choose a response.', 'ok');
+    simPrint(determinationDockMode()
+      ? 'You have gathered the core evidence. Make your determination in the Decision Dock below, then type  decide  to choose a response.'
+      : 'You have gathered the core evidence. Make your determination in the notebook, then type  decide  to choose a response.', 'ok');
     simRevealActions(false);
   }
 }
@@ -6754,7 +6843,7 @@ function simNotebookCue(n) {
   // terminal guidance, so keep printing those.
   if (!caseFileDecisionPending()) {
     const next = caseFileNextStep();
-    if (next) simPrint(`  In the notebook → ${next}`, 'cue-next');
+    if (next) simPrint(`  ${determinationDockMode() ? '→' : 'In the notebook →'} ${next}`, 'cue-next');
   }
 }
 
@@ -8916,6 +9005,10 @@ const CAREER_MISSIONS = {
     // toggles always win. Presentation-only — graded calls already live in the dock,
     // so nothing functional is hidden; never touches scoring/persistence/curriculum.
     quietNotebook: true,
+    // Dock-first FINAL VERDICT (Task #163): relocate the determination (identify)
+    // out of the right-side notebook into the Decision Dock, mirroring Mission 1's
+    // classificationDock. Presentation-only; routes through setIdentification unchanged.
+    determinationDock: true,
     boardMilestones: ['ev_contractor_device', 'ev_segment', 'ev_probe'],
     // Progressive objectives (engine-level) — tick live as findings/judgments
     // resolve. Presentation-only; computed read-only by objectiveTrackState().
@@ -9794,6 +9887,10 @@ const CAREER_MISSIONS = {
     // toggles always win. Presentation-only — graded calls already live in the dock,
     // so nothing functional is hidden; never touches scoring/persistence/curriculum.
     quietNotebook: true,
+    // Dock-first FINAL VERDICT (Task #163): relocate the determination (identify)
+    // out of the right-side notebook into the Decision Dock, mirroring Mission 1's
+    // classificationDock. Presentation-only; routes through setIdentification unchanged.
+    determinationDock: true,
     boardMilestones: ['ev_failures', 'ev_impossible', 'ev_changes'],
     discoveryChallenges: [
       {
@@ -10648,6 +10745,10 @@ const CAREER_MISSIONS = {
     // toggles always win. Presentation-only — graded calls already live in the dock,
     // so nothing functional is hidden; never touches scoring/persistence/curriculum.
     quietNotebook: true,
+    // Dock-first FINAL VERDICT (Task #163): relocate the determination (identify)
+    // out of the right-side notebook into the Decision Dock, mirroring Mission 1's
+    // classificationDock. Presentation-only; routes through setIdentification unchanged.
+    determinationDock: true,
     boardMilestones: ['ev_transfer', 'ev_external_dest'],
     discoveryChallenges: [
       {

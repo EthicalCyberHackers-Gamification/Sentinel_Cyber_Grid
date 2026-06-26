@@ -1107,6 +1107,43 @@
   background: rgba(0, 200, 255, 0.12);
 }
 
+/* ---- Dock-first FINAL VERDICT (Missions 2-4, determinationDock). The climactic
+ * "which one is it?" call relocated into the dock. A distinct PURPLE accent so it
+ * reads as the definitive determination — set apart from the cyan classify/finding
+ * beats and never the urgent yellow lock (it stays optional + non-blocking). The
+ * reply chips reuse the chat-chip styling; the chosen option stays lit. ---- */
+.sim-decision-dock--determine {
+  border-top-color: var(--purple);
+  background:
+    linear-gradient(180deg, rgba(168, 85, 247, 0.09), rgba(168, 85, 247, 0.02) 60%, transparent),
+    var(--bg-panel);
+  box-shadow: inset 0 1px 0 rgba(168, 85, 247, 0.24);
+}
+.sim-dock-head--determine .sim-dock-title { color: var(--purple); }
+.sim-dock-head--determine .sim-dock-pulse {
+  background: var(--purple);
+  animation: simFindingPulse 1.8s ease-out infinite;
+}
+.sim-dock-foot--determine { color: var(--text-dim); }
+.sim-dock-peek--determine .sim-dock-peek-title { color: var(--purple); }
+.sim-dock-peek--determine .sim-dock-peek-go { background: var(--purple); }
+.sim-dock-peek--determine .sim-dock-pulse { background: var(--purple); }
+@media (prefers-reduced-motion: reduce) {
+  .sim-dock-head--determine .sim-dock-pulse { animation: none; }
+}
+/* The player's chosen determination stays lit (chips are chat reply chips). */
+.sim-comms-reply--determine.is-on {
+  border-color: var(--purple); color: var(--text-bright);
+  background: rgba(168, 85, 247, 0.14);
+}
+/* The quiet "recorded" confirmation under the chips once a call is made. */
+.sim-comms-recorded {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
 /* ---- "Review the file first" beat — a calm, low-urgency variant shown BEFORE a
  * fresh graded call when the mission opts in (reviewBeforeCall). Softer than the
  * yellow lock so it reads as a gentle pause to read, not an alarm, and its small

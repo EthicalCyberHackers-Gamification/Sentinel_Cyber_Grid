@@ -1,15 +1,43 @@
 ---
-name: Decision Dock modes (career-sim) — reconsideration + finding draft
-description: The shared Decision Dock has 3 prioritized modes (graded call → reconsideration → finding draft); invariants for blocking vs NON-blocking add-ons so they never grade, soft-lock, leak, or steal focus.
+name: Decision Dock modes (career-sim) — reconsideration + classification + determination + finding draft
+description: The shared Decision Dock has 6 prioritized modes; invariants for blocking vs NON-blocking add-ons so they never grade, soft-lock, leak, or steal focus. Includes the dock-first FINAL VERDICT (determination) relocation pattern.
 ---
 
 # Decision Dock modes — blocking vs non-blocking add-ons
 
 The ONE Decision Dock host (`#simDecisionDock`, in the always-present terminal
-column) renders prioritized modes via `decisionDockHtml()` and `syncDecisionDock()`:
-**graded call (`activeDecisionChallenge`) → reconsideration (`activeReconsideration`)
-→ finding draft (`activeDraftFinding`)**. Each mode prefixes `_dockActiveId`
-(`judgment:` / `reconsider:` / `finding:`) so a swap still flashes/announces.
+column) renders prioritized modes via `decisionDockHtml()` and `syncDecisionDock()`,
+in this fixed priority order:
+**review gate (`activeReviewChallenge`) → graded call (`activeDecisionChallenge`) →
+reconsideration (`activeReconsideration`) → classification (`activeClassificationFile`)
+→ determination (`activeDetermination`) → finding draft (`activeDraftFinding`)**.
+Each mode prefixes `_dockActiveId` (`review:` / `judgment:` / `reconsider:` /
+`classify:` / `determine:` / `finding:`) so a swap still flashes/announces. **Keep
+`decisionDockHtml()` and `syncDecisionDock()`'s branch order in lockstep** — they
+are two parallel switch ladders; adding a mode to one but not the other (or in a
+different order) desyncs the rendered card from the tracked active id.
+
+## Dock-first FINAL VERDICT (determination, Missions 2–4)
+
+The command-model "which one is it?" verdict (the `def.identify` config) is
+relocated out of the right-side notebook INTO the dock as a NON-BLOCKING mode,
+mirroring M1's `classificationDock`. Gate on **`def.determinationDock && def.identify`**
+(`determinationDockMode()`) — a per-mission flag AND the config's presence, **never
+a mission id**: M1 has no `def.identify` so it can't trip it, and flagless identify
+missions keep the original right-panel section byte-identical. `activeDetermination()`
+returns the config while mode-on, `stage !== 'report'`, and `evidence.size > 0`
+(stays re-committable until `decide`). Chips reuse `data-identify` → `setIdentification`
+(the sole graded writer — unchanged), so accuracy still feeds the verdict; skipping
+it weakens the call but never locks. **Suppress the right-panel twin with the SAME
+mode predicate** (`identifyHtml = determinationDockMode() ? '' : raw`) so the verdict
+lives in exactly one place. No correctness feedback (no-spoiler). Guidance copy
+(`caseFileNextStep`, the core-evidence print, the `simNotebookCue` "In the notebook →"
+prefix) is flag-aware so it points to the dock, not the notebook.
+
+**Free dock re-render:** `renderEvidencePanel()`'s tail unconditionally calls
+`syncDecisionDock()`, so ANY graded writer that already calls `renderEvidencePanel()`
+(setIdentification, setClassification) re-renders the dock for free — no extra wiring
+to light the chosen chip / show the recorded note.
 
 Two classes of add-on with OPPOSITE lock behavior:
 
