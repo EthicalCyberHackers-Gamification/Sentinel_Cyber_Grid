@@ -1,109 +1,144 @@
 # Missions & Course Structure
 
-The three playable assignments and the shared mission scaffolding. See
+The campaign assignments and the shared mission scaffolding. See
 [architecture.md](./architecture.md) for the systems these missions plug into and
 [ui-guidelines.md](./ui-guidelines.md) for how the dashboards are laid out.
 
+> **History note — read this first.** An earlier version of this file described
+> three missions hard-wired into `script.js` (`runM2Command`, `m3Terminal`,
+> `M2_REASONING`, `beginMission3`, …). **That engine has been superseded.** The
+> shipping gameplay now runs through the **Career Simulator** (`career-sim.js`) for
+> assignments 1–4 and the **Progressive Lab** (`lab.js`) for assignments 5–6.
+> `script.js` survives as the *host shell* (Operations Center home, mission map,
+> the launch chokepoint, canonical metadata). Its old per-mission engines are still
+> in the file but are a dead fallback — the map routes around them. If you came here
+> from an older GitHub snapshot showing "3 simplified missions", that snapshot is
+> just the stale doc, not the current game.
+
 ## Career arc
 
-The platform is an Intern → Junior SOC Analyst vertical slice. Career-facing copy
-says "Assignment"/"Operation" (internal ids stay `mission-001/002/003`). The
-Operations Center home and scorecards derive a promotion % and readiness tier from
-completion + XP + trust. See [roadmap.md](./roadmap.md) for the forward arc.
+An **Intern → Junior SOC Analyst → SOC Analyst** vertical slice. The campaign is
+**six assignments** in a fixed order (`MISSION_PLAY_ORDER`, in `mission-order.js`),
+grouped into three role tracks (`COURSE_GROUPS` in `script.js`):
 
-## Shared mission scaffolding
+- **Cybersecurity Intern** — assignments 1–4
+- **Junior SOC Analyst** — assignment 5
+- **SOC Analyst** — assignment 6
 
-### Mission Briefing Room (Milestone 24I)
-A reusable layer between selection and investigation. Each mission shows 3
-interactive briefing cards (Review → ✓ Reviewed), a Mission Readiness score
-(0/3 → "Ready For Investigation"), a launch gate, per-card manager reactions, a
-launch sequence, and +10 XP once per mission. Data-driven via `MISSION_BRIEFINGS`;
-helpers `renderBriefingRoom` / `reviewBriefingCard` / `updateBriefingGate` /
-`runBriefingLaunch` / `beginInvestigation`. Briefing rooms render unconditionally
-at boot so hosts are never empty. State `briefingReviewed` (per-mission Sets) +
-one-time `briefingXpAwarded` persist.
+Career-facing copy says "Assignment" / "Operation"; internal ids stay
+`mission-00N`. The Operations Center home and scorecards derive the player's rank,
+a promotion %, and a readiness tier from progress. See [roadmap.md](./roadmap.md)
+for the forward arc.
 
-### Guided onboarding (Milestone 25B)
-`startGuidedBriefing(missionId, startFn)` replaces the direct begin call: it dims
-the page, presents one briefing card at a time with a Sarah Reyes lead-in
-(`GUIDED_BRIEFING_INTROS`), then a "Mission Ready" → "Launch Investigation"
-sequence that calls the real `beginMission*`. A non-blocking spotlight tour
-(`IG_PHASES`, `igShow`) walks commands → files → board → decision. The overlay
-auto-opens on a fresh mission load and is **skipped** on resume (via
-`hasMissionProgress` / `missionLaunched`). Fully torn down by `endGuidedRun()`.
+Canonical per-mission metadata — title, severity, region, difficulty, duration,
+objective, skills — lives in **`COURSE_MISSION_META` (`script.js`)**. That is the
+single source of truth for display titles and severities; do not trust older
+hardcoded labels elsewhere in the codebase.
 
-### Mission / Operations Map (Milestone 25C, relabeled 32A)
-A 2D selection screen shown after sign-in + the simulation loader. Node states come
-from `missionMapStatus`; locked nodes stay clickable (to view details) but their
-Launch button is disabled. Selecting a node updates a details panel + a Sarah Reyes
-transmission. See [architecture.md](./architecture.md#mission-map-system).
+## Which engine runs each assignment
 
-## Assignment 1 — Credential Phishing (mission-001)
+`launchMissionFromMap()` (the one launch chokepoint in `script.js`) routes:
 
-The flagship, most-instrumented mission.
+1. If the **Career Simulator** has a definition for the mission
+   (`window.echCareerHasMission`) → `window.openCareerMission(missionId)`.
+   This covers **assignments 1–4** (`CAREER_MISSIONS` in `career-sim.js`).
+2. Else if the mission has a **lab dataset** (`LAB_MISSION_IDS`) → `openLab(missionId)`.
+   This covers **assignments 5–6** (`lab.js`, datasets under `lab.missions/`).
+3. The legacy per-mission branches further down in `script.js` are only reached
+   when neither of the above handles the mission — i.e. never, for shipping content.
 
-- **Guided one-clue-at-a-time files**: the `cat-*` command buttons ARE the file
-  cards, revealed one at a time. Reveal order (`M1_FILE_REVEAL`): employee_notes →
-  meeting_schedule → finance_update → security_policy → suspicious_file. Each next
-  card unlocks (`revealNextM1File`) only after the current file is read AND
-  classified (or skipped). `suspicious_file.txt` must be classified to win.
-- **Read → reason → classify** (Milestone 27A): `handleM1FileRead` →
-  `showM1ReasoningPrompt` (per-file MCQ) → on correct, "Continue to classification"
-  → `showClassificationPrompt`. A +25 XP bonus fires once when both
-  `employee_notes.txt` and `security_policy.txt` are correctly classified
-  `helpful`. The suspicious file no longer prints an explicit `[!] WARNING` — the
-  student must reason it out.
-- **Completion gate**: `showFindingPanel` requires `canCompleteM1()` (suspicious
-  pinned Critical) AND `m1AnalystReadyToSubmit()` (Strong/Ready) — never
-  soft-locks, since reading/reasoning more always raises the score.
-- **Blue Team decision** drives `INCIDENT_EVOLUTION` beats and 4 reactive outcomes
-  (`m1OutcomeVariation`): Excellent Containment / Reactive Recovery / Delayed
-  Containment / Weak Response (never a hard fail).
-- **Containment actions** (Stage 4): isolate-workstation / block-sender /
-  escalate-manager (correct, evidence-gated) + monitor-activity (poor, no penalty).
+| Assignment | Engine | Source |
+| ---------- | ------ | ------ |
+| 1–4 | Career Simulator | `career-sim.js` → `CAREER_MISSIONS` |
+| 5–6 | Progressive Lab | `lab.js` → `lab.missions/mission-005.js`, `mission-006.js` |
+| host | Operations Center home, mission map, launch, metadata | `script.js` |
 
-## Assignment 2 — Network Exposure Review (mission-002)
+## The six assignments
 
-Network identity; mirrors M1's "reason → pin" gameplay (Milestone 31A) while
-keeping its own theme.
+From `COURSE_MISSION_META`:
 
-- **Commands** (`runM2Command`, `#m2Terminal`): `ip addr` → `ping` (good/bad) →
-  `nmap` → `review`, each unlocking the next.
-- **Per-step reasoning** (`M2_REASONING`): after each command, a 3-option MCQ gates
-  the **pin offer** (not the next command — M2 keeps its progressive command
-  unlock; gating that is intentionally out of scope to avoid soft-locks).
-- **Blue Team decision = 4 options** (`DECISION_ACTIONS`): A restrict services
-  (correct), B ignore (poor), C shut down all (acceptable/weak), D continue
-  unrelated (poor). Poor attempts increment `m2DecisionDrift`.
-- **Quiz + scorecard**: `M2_QUIZ`; `m2OutcomeTier()` → Excellent/Delayed/Weak;
-  `renderM2NetworkScorecardRows` adds Analyst Confidence, Critical Network Evidence
-  (`pin.critical === true`), Red Team State, Recommendation, Trust, Containment —
-  rows live inside the collapsed "MISSION SCORECARD" section.
+| # | id | Title | Severity | Region | Tier | Engine |
+| - | -- | ----- | -------- | ------ | ---- | ------ |
+| 1 | `mission-001` | Protect Sensitive Information | HIGH | EMEA | Beginner | Career Sim |
+| 2 | `mission-002` | Investigate Network Assets | MEDIUM | APAC | Beginner | Career Sim |
+| 3 | `mission-003` | Investigate Suspicious Authentication Activity | HIGH | NA-EAST | Intermediate | Career Sim |
+| 4 | `mission-004` | Investigate a Data Exfiltration Incident | CRITICAL | LATAM | Intermediate | Career Sim |
+| 5 | `mission-005` | Account Takeover Investigation | MEDIUM | MENA | Intermediate | Prog. Lab |
+| 6 | `mission-006` | Anomalous Scan Triage | LOW | SEA | Advanced | Prog. Lab |
 
-## Assignment 3 — Reconnaissance Detection (mission-003)
+**Themes:**
 
-A full playable threat-hunting assignment mirroring A2's machinery, keyed `m3*`.
+- **Assignment 1 — Protect Sensitive Information.** Review an outbound release
+  package a contractor assembled, classify the sensitive data inside (PII, regulated
+  PCI records, confidential pricing), and decide whether it can safely leave
+  CyberCorp. The flagship, most-instrumented mission and the only **file-model**
+  assignment (see below).
+- **Assignment 2 — Investigate Network Assets.** Map the office subnet, compare it
+  to the approved asset inventory, and find the device that doesn't belong.
+- **Assignment 3 — Investigate Suspicious Authentication Activity.** Reconstruct a
+  login timeline (e.g. 47 failed logins in 7 minutes from one external address) and
+  decide whether the Finance account was really taken over.
+- **Assignment 4 — Investigate a Data Exfiltration Incident.** Trace how customer
+  data left the network and tie the four cases together as one adversary campaign.
+- **Assignment 5 — Account Takeover Investigation** and **Assignment 6 — Anomalous
+  Scan Triage** run in the Progressive Lab.
 
-- **Theme**: `netstat -an` → `whois 203.0.113.77` (the repeated recon source) →
-  `grep access.log`, with a CDN false lead at `198.51.100.20` (the `ping-bad`
-  command — no unlock).
-- **Markup**: `#mission3Overview` + `#mission3Dashboard`, mirroring M2 with `m3*`
-  ids (m3Terminal, m3CmdGrid with `data-m3cmd` ip-addr/ping-bad/ping/nmap/review,
-  m3CurrentObjective, m3AnalystConfidence, m3InvestigationBoard, …).
-- **Engine**: `showMission3Overview` / `beginMission3` / `runM3Command` /
-  `completeMission3` / `resetMission3`; data `M3_STATUS` / `M3_QUIZ` /
-  `M3_REASONING` / `M3_SCORECARD`; `m3OutcomeTier()` (Excellent/Delayed/Weak).
-- **Unlock**: `missionMapStatus("mission-003")` returns `available` once
-  `mission2Complete`.
-- **Persistence**: `mission3Complete`, `m3AnalystConfidence`, `m3DecisionDrift`,
-  `missionLaunched["mission-003"]`, m3 pins/board save/restore/reset (mirrors M2);
-  `blueTeamContainment["mission-003"] = 100` on completion.
+## The Career Simulator engine (assignments 1–4)
 
-## Scorecards & operational assessment
+Each mission is a structured data object in `CAREER_MISSIONS` (`career-sim.js`);
+`openCareerMission(missionId)` opens it and **one engine renders all four**. There
+are two interaction models:
 
-Each mission ends with a scorecard. `buildOperationalAssessmentHTML(missionId)`
-injects 2–3 professional reputation bullets (from `calculateAnalystBehavior`) into
-M1 `buildCompletionHTML` and M2/M3 scorecards. Completion hooks call
-`updateOperationalReputation(missionId)`, which upserts stable-id entries into the
-persisted `operationalHistory` (career memory). See the Operations Center section
-in [ui-guidelines.md](./ui-guidelines.md).
+- **File-model** (assignment 1 only): the player surfaces evidence by reading
+  case files. `investigationComplete()` is true once all file evidence is surfaced.
+- **Command-model** (assignments 2–4): the player runs terminal commands
+  (`simRunCommand`); each mission declares its own `core` commands.
+  `investigationComplete()` is true once all `core` commands have been run.
+
+Shared surfaces — one code path, gated per-mission by config flags so missions stay
+independent (see the memory notes / `architecture.md`):
+
+- **Analyst Notebook** (`renderEvidencePanel`) — the shared judgment surface for all
+  four missions, framed as a live comms thread with supervisor **Sarah Reyes**. Each
+  evidence item is judged in two steps: an *observation* then a *justification*.
+- **Decision Dock** — a shared, **non-blocking** dock with up to three prioritized
+  modes: the graded call (a **determination** via chips for assignments 2–4, or a
+  **classification** for assignment 1), a reconsideration prompt, and a finding
+  draft. Recording a pick never ends the mission.
+- **Case Board** (assignment 1) — a passive, self-building evidence board.
+- **Handling actions / decision stage** — once the investigation is complete, the
+  engine reveals the mission-ending response actions. Players **cannot jump to them
+  early**: for command-model missions, typing `decide`/`actions` (or pressing the
+  dock's forward button) before `investigationComplete()` is refused with guidance
+  to keep investigating.
+- **3-gauge performance bar** — three composite red / yellow / green pointer gauges
+  sit over six underlying resources that drive the verdict.
+- **Mission intro cutscene** — a short, presentation-only intro plays on every
+  launch.
+
+**Completion & scoring.** Completion runs through a fixed chain —
+`finalizeMission()` → `window.echCareerComplete()` → `notifyLabComplete()` (sets the
+mission flag, awards XP, saves) → `notifyAssignmentComplete()` (cloud sync, comms,
+attempt close) — so each mission finalizes once regardless of which completion path
+fired. The verdict tier is skill-driven; the gauges move via resource deltas.
+Progress persists through `saveProgress()` to `localStorage` (`ech.progress.v1`) and
+the optional Supabase mirror.
+
+**Cross-mission memory.** Earlier choices carry forward: `career-dynamic.js`
+reshapes a later mission's framing/evidence (non-mutating, computed once on open),
+and a "the company remembers" continuity layer records campaign history. These are
+presentation-only and never alter scoring.
+
+## The Progressive Lab (assignments 5–6)
+
+Assignments 5–6 run in the terminal-first **Progressive Lab** (`lab.js`), with
+per-file datasets under `lab.missions/`. Commands route on the **first typed word**.
+The lab shares the host's launch gate and completion-prerequisite guards with the
+Career Simulator, and persists through the same `localStorage` progress key.
+
+## Scorecards & career memory
+
+Each mission ends with a scorecard / operational assessment. Completion updates the
+persisted career memory (rank, reputation, campaign history) that the Operations
+Center home reads back to render promotion progress and continuity flavor. See the
+Operations Center section in [ui-guidelines.md](./ui-guidelines.md).

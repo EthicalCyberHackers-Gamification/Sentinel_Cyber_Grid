@@ -14,12 +14,22 @@ assignments.
   lightweight analytics; the game is **fully playable with Supabase absent or
   down** (logs "Running in local-only mode"). See
   [docs/SUPABASE_SCHEMA.md](./docs/SUPABASE_SCHEMA.md).
-- Three playable assignments: `mission-001` (Credential Phishing), `mission-002`
-  (Network Exposure Review), `mission-003` (Reconnaissance Detection).
-- The app is four core files: `index.html`, `script.js`, `style.css`, and
-  `missions.js` (mission data, imported by `script.js`). `script.js` is an **ES
-  module** — its functions are NOT global. Phase B0 adds `lib/supabaseClient.js`
-  and `lib/backendSync.js` (best-effort, local-first cloud layer).
+- **Six-assignment campaign** (Intern → Junior SOC Analyst → SOC Analyst).
+  Canonical titles/severities live in `COURSE_MISSION_META` (`script.js`):
+  `mission-001` Protect Sensitive Information, `mission-002` Investigate Network
+  Assets, `mission-003` Investigate Suspicious Authentication Activity,
+  `mission-004` Investigate a Data Exfiltration Incident, `mission-005` Account
+  Takeover Investigation, `mission-006` Anomalous Scan Triage. See
+  [docs/missions.md](./docs/missions.md).
+- **Shipping gameplay runs through the Career Simulator** (`career-sim.js`,
+  assignments 1–4) and the **Progressive Lab** (`lab.js` + `lab.missions/`,
+  assignments 5–6). `script.js` is the host shell — Operations Center home, mission
+  map, the `launchMissionFromMap` launch chokepoint, and `COURSE_MISSION_META`;
+  `mission-order.js` owns `MISSION_PLAY_ORDER`. The older 3-mission engine once
+  hardwired in `script.js`/`missions.js` is superseded (those branches remain only
+  as a dead fallback). All scripts are **ES modules** — their functions are NOT
+  global. Phase B0 adds `lib/supabaseClient.js` and `lib/backendSync.js`
+  (best-effort, local-first cloud layer).
 
 ## Stack
 
@@ -49,8 +59,9 @@ Detailed docs live in [`/docs`](./docs):
 - [docs/architecture.md](./docs/architecture.md) — system design: state &
   persistence model, evidence/pin system, confidence meters, reactive engines,
   shared "3-way" mission helpers, resume-safety pattern, key gotchas.
-- [docs/missions.md](./docs/missions.md) — the three assignments, briefing room,
-  guided onboarding, mission map, scorecards.
+- [docs/missions.md](./docs/missions.md) — the six-assignment campaign, the
+  Career Simulator (1–4) vs Progressive Lab (5–6) engine split, the shared mission
+  scaffolding (Analyst Notebook, Decision Dock, mission map), and scorecards.
 - [docs/ui-guidelines.md](./docs/ui-guidelines.md) — layout systems (focus mode,
   3-column, spatial), terminal behavior, alerts/animations/soundtrack, Operations
   Center home, CSS conventions.
