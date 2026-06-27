@@ -5707,16 +5707,39 @@ function determinationDockHtml(idf) {
   const recorded = chosen
     ? `<div class="sim-comms-recorded">${idf.note || 'Determination recorded \u2014 this feeds the strength of your recommendation.'}</div>`
     : '';
-  // Forward affordance: once a determination is recorded, surface a clear CTA right
-  // here in the dock that advances to the handling actions (which render in the
-  // right-hand column, spatially disconnected from this dock). Without it the only
-  // way forward is typing `decide`, which players miss — they pick a chip, see
-  // nothing progress where they're looking, and feel stuck. Routes through
-  // data-reveal-actions -> simRevealActions; stays NON-BLOCKING and the chips above
-  // remain re-committable until a response is actually chosen.
-  const cta = chosen
-    ? `<button type="button" class="sim-comms-cta sim-comms-cta--determine" data-reveal-actions>${SIM.stage === 'decision' ? 'Go to your response options' : 'Choose your response'} \u2192</button>`
-    : '';
+  // Forward affordance — gated on investigationComplete(). The determination dock
+  // appears as soon as ONE piece of evidence is in, so showing this CTA the instant
+  // a determination is recorded let players jump straight to the mission-ending
+  // handling actions after reviewing almost nothing (M2-4 could finish with 1/11
+  // evidence reviewed, 0 clues logged). Gating it on investigationComplete() lines
+  // the CTA up with the intended auto-reveal of the actions: only once the work is
+  // done does the dock offer to advance. Until then the determination is still
+  // fully recordable + re-committable, but instead of the CTA the dock nudges the
+  // player to keep investigating. The typed `decide`/`actions` path is now ALSO
+  // gated: simRevealActions refuses to reveal the handling actions until
+  // investigationComplete() for command-model missions, so there is no early-exit
+  // left to advertise. Routes via data-reveal-actions -> simRevealActions;
+  // NON-BLOCKING.
+  const ready = investigationComplete();
+  let cta = '';
+  if (chosen && ready) {
+    cta = `<button type="button" class="sim-comms-cta sim-comms-cta--determine" data-reveal-actions>${SIM.stage === 'decision' ? 'Go to your response options' : 'Choose your response'} \u2192</button>`;
+  } else if (chosen) {
+    cta = `<div class="sim-comms-hold">Keep working the evidence \u2014 you\u2019ll choose your response once the investigation is complete.</div>`;
+  }
+  // Foot guidance. Only surface the `decide` terminal command once the investigation
+  // is actually done AND a determination is recorded — before then `decide` is
+  // refused (it guides the player back to the investigation instead of revealing the
+  // actions), so there is nothing to nudge toward. Once the work is complete the
+  // response options are open and `decide` simply jumps to them.
+  let foot;
+  if (chosen && ready) {
+    foot = 'Use the button above, or type  decide  in the terminal.';
+  } else if (ready) {
+    foot = 'Record your determination above to choose your response.';
+  } else {
+    foot = 'Your response options open up once the investigation is complete.';
+  }
   return `
     <div class="sim-dock-head sim-dock-head--determine">
       <span class="sim-dock-title"><span class="sim-dock-pulse" aria-hidden="true"></span>Make your determination</span>
@@ -5737,7 +5760,7 @@ function determinationDockHtml(idf) {
         </div>
       </div>
     </div>
-    <p class="sim-dock-foot sim-dock-foot--determine">This is your call \u2014 change it any time before you decide. ${chosen ? 'Use the button above, or type' : 'Once you\u2019ve chosen, type'}  decide  in the terminal.</p>`;
+    <p class="sim-dock-foot sim-dock-foot--determine">This is your call \u2014 change it any time before you decide. ${foot}</p>`;
 }
 
 /* The reconsideration card — a distinct dock variant. Same Sarah-comms chrome and
@@ -6506,9 +6529,19 @@ function runCommandEntry(c) {
   renderEvidencePanel();
 
   if (firstRun && coreCommandsRun() && SIM.stage === 'investigation') {
-    simPrint(determinationDockMode()
-      ? 'You have gathered the core evidence. Make your determination in the Decision Dock below, then type  decide  to choose a response.'
-      : 'You have gathered the core evidence. Make your determination in the notebook, then type  decide  to choose a response.', 'ok');
+    if (caseFileDecisionPending()) {
+      // The last core command also opened a call from Sarah that locks the
+      // terminal. The actions can't reveal yet (hard lock) — point the player at
+      // the open call; the response options follow once it's answered.
+      simPrint('You have gathered the core evidence. Answer the open call from Sarah in the Decision Dock below — your response options open up right after.', 'ok');
+    } else {
+      // Investigation done and nothing blocking — simRevealActions(false) below
+      // surfaces the handling actions on its own, so guide the player straight to
+      // them (and the dock button) rather than telling them to type a command.
+      simPrint(determinationDockMode()
+        ? 'You have gathered the core evidence. Make your determination in the Decision Dock below, then choose your response — the handling options are ready right there.'
+        : 'You have gathered the core evidence. Make your determination in the notebook, then choose a handling action below — the options are ready.', 'ok');
+    }
     simRevealActions(false);
   }
 }
@@ -6519,6 +6552,27 @@ function coreCommandsRun() {
   const core = ((SIM.def && SIM.def.commands) || []).filter(c => c.core);
   if (!core.length) return false;
   return core.every(c => SIM.ranCommands.has(c.id));
+}
+
+/* Does this (command-model) mission define a real "investigation complete" bar?
+ * Gates the early-completion block in simRevealActions so a mission with no core
+ * commands can never soft-lock the player out of the handling actions. */
+function commandBarDefined() {
+  return ((SIM.def && SIM.def.commands) || []).some(c => c.core);
+}
+
+/* Refuse-and-guide message for a MANUAL action reveal (typed `decide`/`actions`
+ * or the dock CTA) attempted before the investigation is complete. Tells the
+ * player what is left and that the response options open on their own once the
+ * work is done. Presentation-only — never changes stage, scoring, or state. */
+function announceInvestigationIncomplete() {
+  const core = ((SIM.def && SIM.def.commands) || []).filter(c => c.core);
+  const remaining = core.filter(c => !SIM.ranCommands.has(c.id)).length;
+  simPrint('Hold on — the investigation is not finished, so the response options stay closed.', 'warn');
+  simPrint(remaining > 0
+    ? '  You still have ' + remaining + ' investigation step' + (remaining === 1 ? '' : 's') + ' to run. Type  help  to see the commands, then work through them.'
+    : '  Keep working through the investigation. Type  help  to see the commands.', 'cue-next');
+  simPrint('  Your response options open up on their own once the investigation is complete.', 'dim');
 }
 
 /* Mission-agnostic "did the analyst finish the investigation?": every file-borne
@@ -7450,6 +7504,20 @@ function simRevealActions(manual) {
   // `decide` path can't reach here while locked — the input is disabled.)
   if (caseFileDecisionPending()) {
     syncDecisionDock();   // re-assert the dock + terminal lock (idempotent)
+    return;
+  }
+  // Hard gate (command-model missions, M2-4): a MANUAL reveal — typed `decide` /
+  // `actions`, or the dock CTA — must never become an early-exit. It used to only
+  // print a warning and then reveal the mission-ENDING handling actions, so a
+  // player could close the case after reviewing almost nothing (e.g. Mission 2
+  // finishing with 1/11 evidence and 0 clues logged). Refuse the reveal and steer
+  // them back to the investigation instead. Scoped to command-model (no files)
+  // WITH a real completion bar (core commands) so a mission without one can't
+  // soft-lock; the automatic reveal (manual === false) only fires once the
+  // investigation is complete, so it never trips this guard. Mission 1 (file-model)
+  // is unchanged.
+  if (manual && !investigationComplete() && !simFiles().length && commandBarDefined()) {
+    announceInvestigationIncomplete();
     return;
   }
   SIM.stage = 'decision';

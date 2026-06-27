@@ -1249,6 +1249,19 @@
   color: var(--text-bright); background: rgba(168, 85, 247, 0.22);
   border-color: var(--purple); outline: none;
 }
+/* Shown in place of the forward CTA while the investigation is still in progress.
+ * A determination can be recorded early, but the player shouldn't jump to the
+ * mission-ending response until they've done the work — so this gentle hold note
+ * replaces the "Choose your response" button until investigationComplete(). Muted,
+ * not an alarm. Presentation-only. */
+.sim-comms-hold {
+  margin-top: 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  padding-left: 10px;
+  border-left: 2px solid rgba(168, 85, 247, 0.4);
+}
 
 /* ---- "Review the file first" beat — a calm, low-urgency variant shown BEFORE a
  * fresh graded call when the mission opts in (reviewBeforeCall). Softer than the
